@@ -1,0 +1,29 @@
+---
+description: React functional component patterns, props, composition, and styling boundaries
+globs: "**/*.{tsx}"
+alwaysApply: false
+---
+
+# React Components
+
+- Use functional components only; no class components
+- Define explicit props interfaces (suffix `Props`); export when reused
+- Split presentational (UI) from container (data/logic) when a component grows beyond ~80 lines
+- Colocate styles in `{Name}.css.ts`; never use inline `style={{}}` or CSS modules
+- Prefer composition over prop drilling; extract custom hooks for reusable logic
+- Keep components focused — one primary responsibility per file
+- Use `children` and render props sparingly; prefer explicit props for clarity
+- Default exports only in route/page files; named exports elsewhere
+
+```tsx
+// Pattern
+export function UserCard({ user, onEdit }: UserCardProps) {
+  return (
+    <Card className={styles.card}>
+      <Typography.Text>{user.name}</Typography.Text>
+    </Card>
+  );
+}
+```
+
+For good/bad examples, read `examples/rules/react-components.md` when applying this rule.

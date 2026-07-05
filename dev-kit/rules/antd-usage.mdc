@@ -1,0 +1,18 @@
+---
+description: antd component usage, forms, theming integration, and accessibility
+globs: "**/*.{tsx}"
+alwaysApply: false
+---
+
+# antd Usage
+
+- Use antd primitives (`Button`, `Form`, `Table`, `Modal`, etc.) before building custom UI
+- Wrap repeated antd patterns in local components (e.g. `ConfirmButton`, `DataTable`)
+- Forms: use `Form.useForm()`, declare rules on `Form.Item`, handle submit via mutation hook
+- Tables: define typed `ColumnsType<T>`; use `rowKey="id"`; paginate server-side when data is remote
+- Modals: control via `open` prop + `onCancel`; don't use imperative `Modal.confirm` in components
+- Theme: configure via `ConfigProvider` at app root; map design tokens to vanilla-extract vars
+- Accessibility: always set `aria-label` on icon-only buttons; use `Form.Item` labels, not placeholders alone
+- Import from `antd` directly; avoid barrel re-exports that break tree-shaking
+
+For good/bad examples, read `examples/rules/antd-usage.md` when applying this rule.

@@ -1,0 +1,18 @@
+---
+description: vanilla-extract styling — tokens, recipes, sprinkles, antd composition
+globs: "**/*.css.ts"
+alwaysApply: false
+---
+
+# vanilla-extract
+
+- Colocate styles: `{Component}.css.ts` next to `{Component}/index.tsx`
+- Shared tokens in `src/styles/tokens.css.ts`; theme vars in `src/styles/theme.css.ts`
+- Use `style()` for one-off styles, `recipe()` for variant-based components (size, intent)
+- Use `sprinkles()` for utility-style responsive/layout props when appropriate
+- Compose with antd via `className` — never override antd internals with global CSS
+- Export style objects/recipes as named exports; import in component as `import * as styles from './Component.css'`
+- No CSS modules, Tailwind, styled-components, or inline styles in components
+- Use design tokens for colors/spacing — no hardcoded hex values in component styles
+
+For good/bad examples, read `examples/rules/vanilla-extract.md` when applying this rule.

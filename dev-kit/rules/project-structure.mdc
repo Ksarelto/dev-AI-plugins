@@ -1,0 +1,32 @@
+---
+description: Feature-based folder layout, naming conventions, and barrel exports
+globs: "src/**/*"
+alwaysApply: false
+---
+
+# Project Structure
+
+Organize code by feature under `src/features/{feature}/`. Shared code lives in top-level folders.
+
+```
+src/
+├── features/{feature}/
+│   ├── api/           # Feature-specific hooks and fetchers
+│   ├── components/    # Feature-only components
+│   ├── types.ts
+│   └── index.ts       # Public barrel export
+├── components/        # Shared UI components
+├── hooks/             # Shared hooks
+├── api/               # Shared API client, queryKeys, fetchers
+└── styles/            # Global tokens and themes
+```
+
+## Conventions
+
+- One component per folder: `{Name}/index.tsx`, `{Name}.css.ts`, `types.ts`
+- File names: PascalCase for components, camelCase for hooks/utils (`useUsers.ts`)
+- Export public API through `index.ts` barrels; keep internals private
+- Colocate feature code — avoid cross-feature imports; use shared `components/` instead
+- Routes/pages import from feature barrels, not deep paths
+
+For good/bad examples, read `examples/rules/project-structure.md` when applying this rule.

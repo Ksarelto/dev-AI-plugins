@@ -1,0 +1,15 @@
+{
+  "$schema": "../../schemas/plugin.schema.json",
+  "name": "code-review-kit",
+  "displayName": "Code Review Kit",
+  "description": "Code review agent and security review skill for thorough change analysis.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["code-review", "security", "agents", "skills"],
+  "category": "productivity",
+  "agents": "./agents/",
+  "skills": "./skills/"
+}

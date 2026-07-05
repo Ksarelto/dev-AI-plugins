@@ -1,0 +1,14 @@
+{
+  "$schema": "../../schemas/plugin.schema.json",
+  "name": "engineering-skills",
+  "displayName": "Engineering Skills",
+  "description": "Reusable agent skills for commits, PRs, and development workflows.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["skills", "commits", "pull-requests", "workflows"],
+  "category": "skills",
+  "skills": "./skills/"
+}

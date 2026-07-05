@@ -1,0 +1,7 @@
+---
+description: Avoid console.log in production code; use a proper logger instead
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+Do not leave `console.log` statements in committed code. Use a structured logger or remove debug output before committing. `console.error` and `console.warn` are acceptable for error handling in catch blocks.

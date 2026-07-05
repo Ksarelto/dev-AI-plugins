@@ -1,0 +1,7 @@
+---
+description: Prefer const over let for variables that are never reassigned
+globs: "**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+Use `const` for variables that are never reassigned. Use `let` only when reassignment is required. Never use `var`.

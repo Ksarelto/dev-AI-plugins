@@ -1,0 +1,37 @@
+{
+  "$schema": "../schemas/marketplace.schema.json",
+  "name": "dev-cursor-plugins",
+  "owner": {
+    "name": "Artsiom Murashko"
+  },
+  "metadata": {
+    "description": "Reusable Cursor skills, rules, commands, and agents for cross-project development."
+  },
+  "plugins": [
+    {
+      "name": "typescript-rules",
+      "source": "typescript-rules",
+      "description": "TypeScript coding standards as Cursor rules."
+    },
+    {
+      "name": "engineering-skills",
+      "source": "engineering-skills",
+      "description": "Reusable agent skills for commits, PRs, and workflows."
+    },
+    {
+      "name": "workflow-commands",
+      "source": "workflow-commands",
+      "description": "Slash commands for common dev workflows."
+    },
+    {
+      "name": "code-review-kit",
+      "source": "code-review-kit",
+      "description": "Code review agent and security review skill."
+    },
+    {
+      "name": "dev-kit",
+      "source": "dev-kit",
+      "description": "Rules, skills, commands, agent, and MCP servers for React + TypeScript + antd + vanilla-extract + react-query."
+    }
+  ]
+}
