@@ -1,0 +1,26 @@
+{
+  "$schema": "../../schemas/plugin.schema.json",
+  "name": "base-dev-kit",
+  "displayName": "Base Dev Kit",
+  "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation — applicable to any language or stack.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "clean-code",
+    "security",
+    "git",
+    "testing",
+    "tdd",
+    "honesty",
+    "universal",
+    "dependencies",
+    "documentation"
+  ],
+  "category": "productivity",
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "repository": "https://github.com/Ksarelto/dev-cusor-plugins"
+}

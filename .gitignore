@@ -1,2 +1,7 @@
 node_modules/
-package-lock.json
+
+# Local editor/agent state (package-lock.json is committed on purpose — see
+# base-dev-kit/skills/dependencies/SKILL.md § Lockfiles)
+.claude
+.codemie
+.cursor

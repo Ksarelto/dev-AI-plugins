@@ -1,84 +1,70 @@
 # dev-cursor-plugins
 
-A Cursor-native multi-plugin marketplace with reusable **skills**, **rules**, **commands**, and **agents** for use across all projects.
+A plugin marketplace of reusable **rules**, **skills**, **commands**, and **agents** that work in both
+**Claude Code** and **Cursor**. One set of content, two manifests — install the same kit in either tool.
 
 ## Plugins
 
-| Plugin | Type | Description |
-|--------|------|-------------|
-| [typescript-rules](typescript-rules/) | Rules | TypeScript coding standards |
-| [engineering-skills](engineering-skills/) | Skills | Commit messages, PR descriptions |
-| [workflow-commands](workflow-commands/) | Commands | Review changes, summarize diffs |
-| [code-review-kit](code-review-kit/) | Agents + Skills | Code reviewer agent and security review skill |
-| [dev-kit](dev-kit/) | Rules + Skills + Commands + Agent + MCP | React + TypeScript + antd + vanilla-extract + react-query |
+| Plugin | Contents |
+|--------|----------|
+| [base-dev-kit](base-dev-kit/) | Rules: `honesty` (always applied), `security` (OWASP Top 10:2025). Skills: `clean-code`, `dependencies`, `documentation`, `git-workflow`, `tdd`. Language- and stack-agnostic. |
 
-## Local install (cross-project)
+Each plugin's own README lists its rules and skills in detail.
 
-Install the entire marketplace so all plugins are available in every workspace:
+## Install — Claude Code
+
+Add the marketplace once per machine:
 
 ```bash
-ln -s /Users/Artsiom_Murashko/Documents/Own/dev-cusor-plugins ~/.cursor/plugins/local/dev-cursor-plugins
+/plugin marketplace add Ksarelto/dev-cusor-plugins
 ```
 
-Then reload the Cursor window (Command Palette → "Developer: Reload Window").
-
-### Install a single plugin
-
-Symlink an individual plugin directory instead:
+Then install a plugin in any session:
 
 ```bash
-ln -s /Users/Artsiom_Murashko/Documents/Own/dev-cusor-plugins/typescript-rules ~/.cursor/plugins/local/typescript-rules
+/plugin install base-dev-kit@dev-cursor-plugins
 ```
 
-## Component discovery
+Rules load automatically; skills are invoked by name (`/base-dev-kit:tdd`) or picked up by the model
+when the task matches the skill's description.
 
-Cursor auto-discovers components when manifest paths are omitted:
+## Install — Cursor
 
-| Component | Default location |
-|-----------|------------------|
-| Skills | `skills/*/SKILL.md` |
-| Rules | `rules/*.{md,mdc,markdown}` |
-| Agents | `agents/*.{md,mdc,markdown}` |
-| Commands | `commands/*.{md,mdc,markdown,txt}` |
-| Hooks | `hooks/hooks.json` |
-| MCP | `mcp.json` |
+From Agent chat:
 
-If a manifest field is specified (e.g. `"rules": "./rules/"`), it replaces folder discovery for that component.
+```text
+/add-plugin https://github.com/Ksarelto/dev-cusor-plugins
+```
 
-## Usage examples
+Or browse **Customize → Plugins** after adding the marketplace.
 
-- **Rules** apply automatically when editing matching files (e.g. `**/*.ts`)
-- **Skills** trigger in agent chat when relevant to the task
-- **Commands** are invoked via slash commands, namespaced by plugin (e.g. `/workflow-commands:review-changes`)
-- **Agents** are available from the agent picker for delegation
-
-## Validation
+### Local install (for developing this repo)
 
 ```bash
 npm install
-npm run validate
+npm run install:cursor-local     # symlinks each plugin into ~/.cursor/plugins/local/<plugin-name>
 ```
 
-Validates `marketplace.json`, all `plugin.json` manifests, and that source paths exist.
+Then run **Developer: Reload Window** in Cursor and confirm the plugins under **Customize → Plugins**.
+Enable third-party Plugins / Skills in Cursor Settings if prompted.
 
-## Adding a new plugin
+```bash
+npm run uninstall:cursor-local   # remove the symlinks
+node scripts/install-cursor-local.mjs --dry-run   # preview (add --uninstall to preview removals)
+```
 
-1. Create a directory at the repo root (kebab-case name)
-2. Add `{plugin}/.cursor-plugin/plugin.json`
-3. Add component files (`rules/`, `skills/`, `commands/`, `agents/`)
-4. Register the plugin in `.cursor-plugin/marketplace.json`
-5. Run `npm run validate`
+## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the authoring reference — component formats, frontmatter
+fields, the rule-vs-skill split, naming conventions, validation, and the marketplace submission
+checklists. AI coding agents working in this repo should start at [AGENTS.md](AGENTS.md).
 
-## Publish to Cursor Marketplace
+## License
 
-1. Push this repo to a public Git repository
-2. Ensure all manifests pass `npm run validate`
-3. Submit the repository URL at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish)
+MIT.
 
 ## References
 
-- [Cursor Plugins Reference](https://cursor.com/docs/reference/plugins)
-- [Cursor Marketplace](https://cursor.com/marketplace)
-- Official schemas: [cursor/plugins/schemas](https://github.com/cursor/plugins/tree/main/schemas)
+- [Claude Code plugins](https://docs.anthropic.com/en/docs/claude-code/plugins) · [community marketplace](https://github.com/anthropics/claude-plugins-community)
+- [Cursor plugins](https://cursor.com/docs/plugins) · [plugins reference](https://cursor.com/docs/reference/plugins) · [rules](https://docs.cursor.com/context/rules)
+- [Agent Skills open standard](https://agentskills.io)
