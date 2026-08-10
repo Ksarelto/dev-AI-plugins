@@ -3,7 +3,7 @@
   "owner": {
     "name": "Artsiom Murashko"
   },
-  "description": "Reusable skills, rules, commands, and agents for Claude Code and Cursor.",
+  "description": "Reusable skills, rules and agents for Claude Code and Cursor.",
   "version": "0.1.0",
   "metadata": {
     "pluginRoot": "."

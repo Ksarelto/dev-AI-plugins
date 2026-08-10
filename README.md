@@ -1,56 +1,124 @@
 # dev-cursor-plugins
 
-A Cursor-native multi-plugin marketplace with reusable **skills**, **rules**, **commands**, and **agents** for use across all projects.
+A plugin marketplace with reusable **skills**, **rules**, **commands**, and **agents** for **Claude Code** and **Cursor**.
 
 ## Plugins
 
-| Plugin | Type | Description |
-|--------|------|-------------|
-| [typescript-rules](typescript-rules/) | Rules | TypeScript coding standards |
-| [engineering-skills](engineering-skills/) | Skills | Commit messages, PR descriptions |
-| [workflow-commands](workflow-commands/) | Commands | Review changes, summarize diffs |
-| [code-review-kit](code-review-kit/) | Agents + Skills | Code reviewer agent and security review skill |
-| [dev-kit](dev-kit/) | Rules + Skills + Commands + Agent + MCP | React + TypeScript + antd + vanilla-extract + react-query |
+| Plugin | Components | Description |
+|--------|-----------|-------------|
+| [base-dev-kit](base-dev-kit/) | Rules + Skills | Honesty + security rules (always applied); clean code, git workflow, TDD, dependencies, documentation skills |
 
-## Local install (cross-project)
+## Claude Code
 
-Install the entire marketplace so all plugins are available in every workspace:
+### Install the marketplace
 
 ```bash
-ln -s /Users/Artsiom_Murashko/Documents/Own/dev-cusor-plugins ~/.cursor/plugins/local/dev-cursor-plugins
+# Add this repo as a marketplace source (once per machine)
+/plugin marketplace add artsiommurashko/dev-cursor-plugins
 ```
 
-Then reload the Cursor window (Command Palette → "Developer: Reload Window").
+This makes all plugins available for install in any project.
 
-### Install a single plugin
-
-Symlink an individual plugin directory instead:
+### Install individual plugins
 
 ```bash
-ln -s /Users/Artsiom_Murashko/Documents/Own/dev-cusor-plugins/typescript-rules ~/.cursor/plugins/local/typescript-rules
+# In any Claude Code session
+/plugin install base-dev-kit@dev-cursor-plugins
 ```
 
-## Component discovery
+### Component discovery
 
-Cursor auto-discovers components when manifest paths are omitted:
+| Component | Default path | Invocation |
+|-----------|-------------|------------|
+| Skills | `skills/*/SKILL.md` | `/plugin-name:skill-name` |
+| Commands | `commands/*.md` | `/plugin-name:command-name` |
+| Agents | `agents/*.md` | Agent picker |
+| Rules | `rules/*.mdc` | Injected by Claude automatically |
+| MCP | `.mcp.json` | Available to all agents in plugin |
 
-| Component | Default location |
-|-----------|------------------|
-| Skills | `skills/*/SKILL.md` |
-| Rules | `rules/*.{md,mdc,markdown}` |
-| Agents | `agents/*.{md,mdc,markdown}` |
-| Commands | `commands/*.{md,mdc,markdown,txt}` |
-| Hooks | `hooks/hooks.json` |
-| MCP | `mcp.json` |
+### Submit to the community marketplace
 
-If a manifest field is specified (e.g. `"rules": "./rules/"`), it replaces folder discovery for that component.
+1. Run `npm run validate && npm run eval`
+2. Push to a public GitHub repo
+3. Submit at [platform.claude.com/plugins/submit](https://platform.claude.com/plugins/submit)
 
-## Usage examples
+---
 
-- **Rules** apply automatically when editing matching files (e.g. `**/*.ts`)
-- **Skills** trigger in agent chat when relevant to the task
-- **Commands** are invoked via slash commands, namespaced by plugin (e.g. `/workflow-commands:review-changes`)
-- **Agents** are available from the agent picker for delegation
+## Cursor
+
+Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the same `rules/`, `skills/`, `agents/`, `commands/`, and MCP files as Claude Code.
+
+### Install from GitHub
+
+In Agent chat:
+
+```text
+/add-plugin https://github.com/Ksarelto/dev-cursor-plugins
+```
+
+Or browse **Customize → Plugins** after adding the marketplace.
+
+### Install locally (recommended while developing)
+
+```bash
+npm run install:cursor-local
+```
+
+This symlinks every kit into `~/.cursor/plugins/local/<plugin-name>`. Then:
+
+1. Enable third-party Plugins / Skills in Cursor Settings if prompted
+2. Run **Developer: Reload Window** (or restart Cursor)
+3. Confirm kits under **Customize → Plugins**
+
+Uninstall local links:
+
+```bash
+npm run uninstall:cursor-local
+```
+
+Dry-run either command with `node scripts/install-cursor-local.mjs --dry-run` (add `--uninstall` to preview removals).
+
+### Submit to the Cursor Marketplace
+
+1. Run `npm run validate && npm run eval`
+2. Push to a public GitHub repo
+3. Submit at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish)
+
+See the [Cursor plugins reference](https://cursor.com/docs/reference/plugins) submission checklist.
+
+---
+
+## Repo structure
+
+```
+.claude-plugin/
+  marketplace.json          # Claude Code marketplace manifest
+.cursor-plugin/
+  marketplace.json          # Cursor marketplace manifest (mirrors Claude)
+CLAUDE.md                   # Claude Code project instructions
+AGENTS.md                   # Project-level agents (plugin-validator, plugin-scaffolder)
+schemas/
+  marketplace.schema.json   # JSON Schema for marketplace.json
+  plugin.schema.json        # JSON Schema for plugin.json
+scripts/
+  validate-marketplace.mjs  # Dual Claude + Cursor validation
+  install-cursor-local.mjs  # Symlink kits into ~/.cursor/plugins/local
+evals/                      # Skill/agent discoverability evals (see evals/README.md)
+  cases/<plugin-name>.json  # Prompt -> expected skill/agent per plugin
+  runner.mjs
+<plugin>/
+  .claude-plugin/
+    plugin.json             # Claude Code plugin manifest
+  .cursor-plugin/
+    plugin.json             # Cursor plugin manifest (same paths)
+  agents/                   # Subagent definitions
+  skills/                   # Skill definitions (SKILL.md per skill)
+  commands/                 # Slash command definitions
+  rules/                    # Cursor .mdc rule files
+  .mcp.json                 # MCP server configs (where applicable)
+```
+
+---
 
 ## Validation
 
@@ -59,26 +127,39 @@ npm install
 npm run validate
 ```
 
-Validates `marketplace.json`, all `plugin.json` manifests, and that source paths exist.
+Validates both marketplaces, all Claude and Cursor `plugin.json` manifests, matching plugin lists, and that every declared source path exists.
 
-## Adding a new plugin
+## Evals
 
-1. Create a directory at the repo root (kebab-case name)
-2. Add `{plugin}/.cursor-plugin/plugin.json`
-3. Add component files (`rules/`, `skills/`, `commands/`, `agents/`)
-4. Register the plugin in `.cursor-plugin/marketplace.json`
-5. Run `npm run validate`
+```bash
+npm run eval
+```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+Checks that every skill/agent's `description` is actually discoverable — that a realistic user
+prompt scores it above its siblings in the same plugin. Runs offline, no API key required. See
+[evals/README.md](evals/README.md) for the case format and scoring method.
 
-## Publish to Cursor Marketplace
+---
 
-1. Push this repo to a public Git repository
-2. Ensure all manifests pass `npm run validate`
-3. Submit the repository URL at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish)
+## Adding a plugin
+
+1. Create `<plugin-name>/` at repo root
+2. Add matching `<plugin-name>/.claude-plugin/plugin.json` and `<plugin-name>/.cursor-plugin/plugin.json`
+3. Add component directories
+4. Register in both `.claude-plugin/marketplace.json` and `.cursor-plugin/marketplace.json`
+5. Add `evals/cases/<plugin-name>.json` with a case per skill/agent
+6. Run `npm run validate && npm run eval`
+
+Adding a skill or agent to an existing plugin, or changing its `description`, requires the same
+eval-case step. See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+---
 
 ## References
 
-- [Cursor Plugins Reference](https://cursor.com/docs/reference/plugins)
-- [Cursor Marketplace](https://cursor.com/marketplace)
-- Official schemas: [cursor/plugins/schemas](https://github.com/cursor/plugins/tree/main/schemas)
+- [Claude Code plugins docs](https://docs.anthropic.com/en/docs/claude-code/plugins)
+- [Claude Code community plugins](https://github.com/anthropics/claude-plugins-community)
+- [Cursor plugins docs](https://cursor.com/docs/plugins)
+- [Cursor plugins reference](https://cursor.com/docs/reference/plugins)
+- [Cursor rules docs](https://docs.cursor.com/context/rules)
+- [Agent Skills open standard](https://agentskills.io)

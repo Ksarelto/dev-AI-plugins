@@ -3,10 +3,24 @@
 ## Adding a plugin
 
 1. Create a new directory at the repo root using **kebab-case** (e.g. `my-new-plugin`)
-2. Add `.cursor-plugin/plugin.json` with at least a `name` field
-3. Add component files in the appropriate directories
-4. Register the plugin in `.cursor-plugin/marketplace.json`
-5. Run `npm run validate` before submitting
+2. Add **both** harness manifests with the same fields and component paths:
+   - `.claude-plugin/plugin.json`
+   - `.cursor-plugin/plugin.json`
+3. Add component files in the appropriate directories (`rules/`, `skills/`, `agents/`, `commands/`, optional `.mcp.json`)
+4. Register the plugin in **both** marketplaces:
+   - `.claude-plugin/marketplace.json`
+   - `.cursor-plugin/marketplace.json`
+5. Add an eval suite in `evals/cases/<plugin-name>.json` — one case per skill/agent (see [evals/README.md](evals/README.md))
+6. Run `npm run validate` and `npm run eval` before submitting
+
+## Adding a skill or agent to an existing plugin
+
+Whenever you add a new skill or agent (or change one's `description`), add or update its case in
+`evals/cases/<plugin-name>.json` in the same change. An undiscoverable skill — one whose description
+doesn't match how a user would actually ask for it — is a bug even if `npm run validate` passes.
+See [evals/README.md](evals/README.md) for the case format.
+
+Content is shared; only the manifest directories differ. Keep the two `plugin.json` files in sync when you change metadata or paths.
 
 ## Naming conventions
 
@@ -17,51 +31,32 @@
 
 ## Required frontmatter
 
-### Rules (`rules/*.mdc`)
+See [AGENTS.md](AGENTS.md) for the full frontmatter reference (fields, requiredness, examples) for
+rules, skills, commands, and agents, plus the creation flow and orchestration patterns.
 
-```yaml
----
-description: Brief description of what the rule does
-alwaysApply: false
-globs: "**/*.ts"
----
-```
+## Claude Code submission checklist and marketplace publishing
 
-### Skills (`skills/*/SKILL.md`)
-
-```yaml
----
-name: my-skill
-description: What the skill does and when to use it
----
-```
-
-### Commands (`commands/*.md`)
-
-```yaml
----
-description: What the command does
----
-```
-
-### Agents (`agents/*.md`)
-
-```yaml
----
-name: my-agent
-description: When to delegate to this agent
----
-```
-
-## Submission checklist
-
-- [ ] Plugin has a valid `.cursor-plugin/plugin.json` manifest
+- [ ] Plugin has valid `.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json` manifests
+- [ ] Both manifests use the same `name` and component paths
 - [ ] `name` is unique, lowercase, kebab-case
 - [ ] `description` clearly explains the plugin's purpose
 - [ ] All rules, skills, agents, and commands have proper frontmatter
 - [ ] `README.md` documents usage for the plugin
-- [ ] All paths in manifest are relative and valid
-- [ ] Plugin registered in `.cursor-plugin/marketplace.json`
+- [ ] All paths in manifests are relative and valid
+- [ ] Plugin registered in both `.claude-plugin/marketplace.json` and `.cursor-plugin/marketplace.json`
+- [ ] Eval suite added at `evals/cases/<plugin-name>.json` with a case per skill/agent
 - [ ] `npm run validate` passes
+- [ ] `npm run eval` passes
 
-See the [official submission checklist](https://cursor.com/docs/reference/plugins#submission-checklist) for publishing to the Cursor Marketplace.
+Submit at [platform.claude.com/plugins/submit](https://platform.claude.com/plugins/submit).
+
+### Cursor submission checklist and marketplace publishing
+
+See the [official submission checklist](https://cursor.com/docs/reference/plugins#submission-checklist) and submit at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish).
+
+## Local Cursor testing
+
+```bash
+npm run install:cursor-local
+# Developer: Reload Window in Cursor
+```
