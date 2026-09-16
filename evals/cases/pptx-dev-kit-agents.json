@@ -1,0 +1,19 @@
+{
+  "plugin": "pptx-dev-kit",
+  "source": "./pptx-dev-kit",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Drive the full PowerPoint pipeline end to end: design schema, outline, parallel slides, deck.json, render_deck.py, validate, and return a REVIEW_PACKET without asking me anything",
+      "expect": "pptx-orchestrator"
+    },
+    {
+      "prompt": "Coordinate an OOXML unpack clone replace pack edit of an existing pptx and stop after the REVIEW_PACKET",
+      "expect": "pptx-orchestrator"
+    },
+    {
+      "prompt": "Spawn a worker that writes assertion title, speaker notes, and alt text for exactly one slide from its outline row, in parallel",
+      "expect": "slide-content-writer"
+    }
+  ]
+}

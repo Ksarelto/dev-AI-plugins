@@ -1,0 +1,16 @@
+{
+  "plugin": "pptx-dev-kit",
+  "source": "./pptx-dev-kit",
+  "component": "skills",
+  "cases": [
+    { "prompt": "Create a 12-slide investor pitch deck for my fintech startup, our brand colors are navy and mint", "expect": "create-presentation" },
+    { "prompt": "Design a modern color palette and typography system for our quarterly board deck before we write any slides", "expect": "design-schema" },
+    { "prompt": "Here's our company template deck — pull out its colors, fonts and layout styles so the new slides match it", "expect": "extract-design-schema" },
+    { "prompt": "Build a 10-slide roadmap deck in the same style as the attached brand presentation", "expect": "create-presentation" },
+    { "prompt": "Outline the slide-by-slide structure and narrative arc for a training deck on our new onboarding process", "expect": "slide-structure" },
+    { "prompt": "Write the title, bullet copy, and speaker notes for the traction slide in our pitch deck", "expect": "slide-content" },
+    { "prompt": "Render this finished deck.json through the layout engine into a PowerPoint file", "expect": "build-pptx" },
+    { "prompt": "Programmatically validate this generated pptx for ghost placeholders leftover lorem missing alt text and off-canvas shapes", "expect": "validate-pptx" },
+    { "prompt": "Update slide 3 of this existing pptx file in place and change the title without generating a new deck", "expect": "edit-presentation" }
+  ]
+}
