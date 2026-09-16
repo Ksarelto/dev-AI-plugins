@@ -88,3 +88,4 @@ npm run install:cursor-local
 | Plugin | Components |
 |--------|-----------|
 | `base-dev-kit` | Rules: honesty, security (always applied). Skills: clean code, dependencies, documentation, git workflow, TDD |
+| `frontend-dev-kit` | Rules + Skills + MCP: React 19/TS/shadcn/Tailwind stack |

@@ -1,0 +1,18 @@
+---
+description: Component folders and files are kebab-case (button.tsx, custom-button.tsx); the export stays PascalCase.
+globs: ["**/features/**/ui/**/*.{ts,tsx}", "**/widgets/**/ui/**/*.{ts,tsx}", "**/entities/**/ui/**/*.{ts,tsx}", "**/shared/ui/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# Component file names
+
+- One folder per component under `ui/`. Folder and implementation file are kebab-case of the
+  export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`.
+  Never `Button.tsx`, `CustomButton.tsx`, or `itemCard.tsx`.
+- Same stem for colocated test and stories: `custom-button.test.tsx`, `custom-button.stories.tsx`.
+- `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names.
+- The named export is PascalCase (`export const CustomButton`). Import the folder through
+  `index.ts`, never the `.tsx` file.
+- Nested `ui/` children follow the same rule.
+
+For scaffolding the folder, load the `react-component` skill.

@@ -1,0 +1,137 @@
+---
+description: React 19 conventions — purity, hooks rules, state ownership and data flow, effects and their corner cases, keys, memoization under the React Compiler, context, refs, error boundaries, and the re-render bottlenecks to design away from.
+globs: ["**/*.{tsx}"]
+alwaysApply: false
+---
+
+# React 19
+
+## Rules of React
+
+- Render is idempotent and pure. No mutation of props, state, or context during render.
+- Side effects belong in event handlers or `useEffect`, never the render body.
+- Hooks are called at the top level only — never in conditions, loops, callbacks, or after an
+  early return.
+- Never call a component as a function (`Foo()`). Render `<Foo />`, or it loses its own state,
+  hooks, and place in the DevTools tree.
+
+## State ownership and data flow
+
+- One source of truth per piece of state. If two pieces can disagree, derive one from the other.
+- Keep state in the component that uses it until a second consumer appears; then lift exactly one
+  level, not to the root.
+- Prop drilling stops at 2 levels. Past that, compose with `children` or read from a store or
+  context.
+- Pass `children` or a slot prop to keep an expensive subtree out of a re-rendering parent.
+  Composition is the primary performance tool under the Compiler — reach for it before memoization.
+- A component is controlled or uncontrolled for its whole life. Never let `value` flip between
+  `undefined` and a defined value.
+- Reset state with a `key` prop rather than an Effect that syncs state to props.
+- Server state lives in the react-query cache. Never mirror it into `useState` or a store.
+
+## Effects
+
+- Do not use an Effect for derived state. Compute it inline, or with `useMemo` if genuinely
+  expensive.
+- Do not fetch in an Effect — react-query owns server state.
+- Valid uses: subscribing to an external system, intervals, imperative third-party sync. Cleanups
+  must undo whatever the Effect set up.
+- Every async Effect guards against out-of-order resolution — an `ignore` flag or an
+  `AbortController` released in the cleanup. Without one, a slow first response overwrites a fast
+  second.
+- StrictMode mounts, unmounts, and remounts every Effect in development. An Effect that breaks on
+  the second run is broken in production — fix the cleanup, never disable StrictMode.
+- An Effect must not write state that its own dependency array reads. That is a render loop.
+- A value an Effect needs to read but must not re-run on lives in a ref, not in the dep array.
+  Never trim the dep array to silence the lint rule.
+
+## Keys
+
+- Stable, unique ids — never the array index for a list that can reorder, grow, or shrink.
+- The key goes on the outermost element the `map` returns, not an inner node.
+- Index keys plus per-row local state binds the state to the position, not the row — the classic
+  "wrong row is selected after a delete" bug.
+
+## Memoization
+
+This stack runs React 19 with the React Compiler. **Do not add `React.memo`, `useMemo`, or
+`useCallback` preemptively.** Add them only when one of these holds:
+
+- The value is an Effect dependency that would otherwise retrigger every render.
+- The callback is handed to non-compiled code that stores the reference.
+- Profiling identified a specific hotspot.
+
+Do not bulk-remove existing memoization either — removal can break Effect dependencies.
+
+## Bottlenecks to design away from
+
+- A provider whose `value` is a fresh object every render re-renders every consumer. Split context
+  by concern; keep rapidly-changing values out of a context wrapping a large tree.
+- One app-wide store context is a re-render broadcast. One context per concern.
+- Virtualize lists past a few hundred rows. Memoizing 10,000 rendered nodes does not fix them.
+- Request waterfalls: two sequential `await`s, or a query whose `enabled` waits on another query's
+  data. Fire them in parallel, or change the endpoint.
+- `lazy()` every route. A top-level import of a heavy library defeats the split.
+- Expensive filtering or a heavy tab switch uses `useDeferredValue` or `useTransition` — not a
+  `setTimeout` debounce.
+- Inline JSX blocks over ~20 lines become named components. They appear in DevTools and they narrow
+  the re-render scope.
+
+## Corner cases
+
+- Handlers see the props and state of the render that created them. A handler needing a later value
+  reads it from a ref.
+- `setState` batches. Reading state on the next line returns the old value; use the updater form
+  when the next value depends on the current one.
+- Portals bubble events through the React tree, not the DOM tree — a click inside a portaled Dialog
+  reaches an ancestor's `onClick`.
+- Refs hold values that must not trigger a render (DOM nodes, timers). Never read or write
+  `ref.current` during render.
+- A ref callback may return a cleanup function; returning anything else is an error.
+- A hook that requires a context throws when used outside its Provider. Do not return `undefined`
+  and let the caller crash further away from the cause.
+- Error boundaries wrap route and feature subtrees. They do not catch async or event-handler
+  errors — handle those with `try/catch` plus `toast.error()`. Give a boundary a reset key so
+  navigating away clears the error.
+- A Suspense boundary reveals its whole subtree at once. Placed too high, one slow query blanks the
+  page — put it at the smallest subtree that can wait.
+
+## Props and JSX formatting
+
+- Avoid passing callbacks as props where composition or a shared store/context can carry the
+  interaction instead — a callback prop couples parent and child and tends to fan out down the
+  tree. Reach for it only for genuine leaf-level event notification (`onChange`, `onClick`) where
+  there's no other consumer of that event.
+- More than one prop: one prop per line, closing `/>` or `>` on its own line.
+
+```tsx
+// ❌ Avoid
+<Input value={search} onChange={(e) => setSearchParams({ q: e.target.value })} />
+
+// ✅ Prefer
+<Input
+  value={search}
+  onChange={(e) => setSearchParams({ q: e.target.value })}
+/>
+```
+
+- Element content starts on its own line rather than inline with the opening/closing tags.
+
+```tsx
+// ❌ Avoid
+<SelectItem value="admin">Admin</SelectItem>
+
+// ✅ Prefer
+<SelectItem value="admin">
+  Admin
+</SelectItem>
+```
+
+## Habits
+
+- Delete an Effect before adding one; most are derived state or a fetch in disguise.
+- One hook, one concern. A hook returning six unrelated values is a module.
+- Name the file as the kebab-case of its export (`CustomButton` → `custom-button.tsx`). The
+  DevTools tree shows the export, not the filename.
+
+For `useActionState`, `useOptimistic`, `use()`, and form actions, load the `react-19-apis` skill.

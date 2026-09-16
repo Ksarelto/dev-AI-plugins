@@ -15,6 +15,13 @@
       "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, and testing principles — applicable to any language or stack.",
       "category": "productivity",
       "tags": ["clean-code", "security", "git", "testing", "honesty", "universal"]
+    },
+    {
+      "name": "frontend-dev-kit",
+      "source": "./frontend-dev-kit",
+      "description": "Rules, skills, and MCP servers for React + TypeScript + shadcn/ui + Tailwind CSS + react-query.",
+      "category": "productivity",
+      "tags": ["react", "typescript", "shadcn", "tailwind", "react-query", "mcp"]
     }
   ]
 }

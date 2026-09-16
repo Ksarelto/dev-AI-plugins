@@ -7,6 +7,7 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 | Plugin | Components | Description |
 |--------|-----------|-------------|
 | [base-dev-kit](base-dev-kit/) | Rules + Skills | Honesty + security rules (always applied); clean code, git workflow, TDD, dependencies, documentation skills |
+| [frontend-dev-kit](frontend-dev-kit/) | Rules + Skills + MCP | React + TypeScript + shadcn/ui + Tailwind + react-query |
 
 ## Claude Code
 
@@ -24,6 +25,19 @@ This makes all plugins available for install in any project.
 ```bash
 # In any Claude Code session
 /plugin install base-dev-kit@dev-cursor-plugins
+/plugin install frontend-dev-kit@dev-cursor-plugins
+```
+
+### Load locally during development
+
+```bash
+claude --plugin-dir ./frontend-dev-kit
+```
+
+Or reload inside a session after changes:
+
+```
+/reload-plugins
 ```
 
 ### Component discovery
@@ -77,6 +91,17 @@ npm run uninstall:cursor-local
 ```
 
 Dry-run either command with `node scripts/install-cursor-local.mjs --dry-run` (add `--uninstall` to preview removals).
+
+### MCP environment variables
+
+Plugins that declare MCP servers read secrets from the environment (Claude-compatible `${env:VAR}` placeholders):
+
+| Variable | Used by |
+|----------|---------|
+| `CONTEXT7_API_KEY` | frontend-dev-kit |
+| `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL` | frontend-dev-kit |
+| `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN` | frontend-dev-kit |
+| `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` | frontend-dev-kit |
 
 ### Submit to the Cursor Marketplace
 
