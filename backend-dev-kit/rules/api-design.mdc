@@ -1,0 +1,19 @@
+---
+description: REST API design — URLs, HTTP semantics, versioning, errors, pagination, OpenAPI.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# REST API
+
+- Plural kebab-case nouns: `/users`, `/invoice-items`. Nest for ownership: `/users/{id}/orders`. No verbs in URLs.
+- Version in the path: `/api/v1/`. Bump major only for breaking changes; keep the previous version ≥ 3 months.
+- Methods: GET list/one 200 · POST create 201 · PUT/PATCH 200 · DELETE 204 empty body. GET and DELETE are idempotent.
+- Error envelope: `{ "error": { "code", "message", "details?": [{ "field", "message" }] } }`. 422 always has `details[]`. Never stack traces in the body.
+- Status: 400 malformed · 401 auth · 403 forbidden · 404 missing · 409 conflict · 422 Zod · 429 + `Retry-After` · 500 generic.
+- Pagination: keyset/cursor for large tables; offset for small admin lists. Max `pageSize` 100 server-side. Opaque cursors — not raw SQL.
+- Filters/sort are query params. Allow-list sort columns; never pass client strings into `orderBy` unchecked.
+- `Authorization: Bearer <token>` — not cookies as the default. See `auth.mdc`.
+- OpenAPI from Zod: tags, explicit `operationId`, error responses documented. `/healthz` and `/readyz` stay unversioned and out of the spec. Load `openapi-docs` to wire `/docs` and the registry.
+
+Input bodies are Zod `.strict()` schemas — see `zod.mdc`.

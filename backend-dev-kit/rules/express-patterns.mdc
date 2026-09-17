@@ -1,0 +1,30 @@
+---
+description: Express architecture — router/service/repository layering, factory DI, createApp vs listen.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# Express patterns
+
+**Router → Service → Repository** — never skip layers. Layers are folders, not filename suffixes.
+
+- **Router** (`src/http/routers/{resource}.ts`): HTTP only. Validated body/query/params, call service, set status, return JSON. No Drizzle, no `db`, no repository, no `UserService`.
+- **Service** (`src/services/{resource}.ts`): Domain rules, orchestration, `db.transaction`, cache invalidation. No `express`, no `res.*`, no HTTP status objects.
+- **Repository** (`src/repositories/{resource}.ts`): Drizzle queries on `db | tx`. Never `db.transaction`. Return rows or `null`.
+
+Register routers only in `src/http/compose.ts` under `/api/v1/{resources}`. No `src/modules/`. No barrel `index.ts` except `src/db/tables/index.ts`.
+
+## DI and process
+
+- Wire with factory functions (`createProductService(db)`), not `new` inside a handler and not an IoC container.
+- Bind `requireAuth` once in `compose.ts`; pass the middleware into routers.
+- `createApp()` builds middleware + routes + error handler. It never `listen`s.
+- `server.ts` is the only listener; tests import `createApp()` only.
+
+## Responses
+
+- Create `201`, delete `204` (empty body), otherwise `200`.
+- Return Zod Read objects, never raw table rows.
+- Domain failures throw `AppError` subclasses; the error middleware maps them. Routers do not `try/catch` to set status.
+
+For scaffolding a resource, load the `express-feature` skill. For `AppError` mapping, load `error-handling`.

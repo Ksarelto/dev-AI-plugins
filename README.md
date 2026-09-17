@@ -9,6 +9,8 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 | [base-dev-kit](base-dev-kit/) | Rules + Skills | Honesty + security rules (always applied); clean code, git workflow, TDD, dependencies, documentation skills |
 | [frontend-dev-kit](frontend-dev-kit/) | Rules + Skills + MCP | React + TypeScript + shadcn/ui + Tailwind + react-query |
 | [pptx-dev-kit](pptx-dev-kit/) | Skills + Agents | Create a 16:9 `.pptx` from a brief via a checked-in layout engine, or edit an existing deck via OOXML |
+| [agent-dev-kit](agent-dev-kit/) | Rules + Skills + Agents + MCP | TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter, `@openai/agents` or LangGraph.js |
+| [backend-dev-kit](backend-dev-kit/) | Rules + Skills + Agents + MCP | Node.js APIs: Express 5, TypeScript, Drizzle, Zod, Vitest |
 
 `pptx-dev-kit` needs `python3`; it installs `python-pptx` on demand when rendering or editing.
 
@@ -30,6 +32,8 @@ This makes all plugins available for install in any project.
 /plugin install base-dev-kit@dev-cursor-plugins
 /plugin install frontend-dev-kit@dev-cursor-plugins
 /plugin install pptx-dev-kit@dev-cursor-plugins
+/plugin install agent-dev-kit@dev-cursor-plugins
+/plugin install backend-dev-kit@dev-cursor-plugins
 ```
 
 ### Load locally during development
@@ -37,6 +41,8 @@ This makes all plugins available for install in any project.
 ```bash
 claude --plugin-dir ./frontend-dev-kit
 claude --plugin-dir ./pptx-dev-kit
+claude --plugin-dir ./agent-dev-kit
+claude --plugin-dir ./backend-dev-kit
 ```
 
 Or reload inside a session after changes:
@@ -103,10 +109,10 @@ Plugins that declare MCP servers read secrets from the environment (Claude-compa
 
 | Variable | Used by |
 |----------|---------|
-| `CONTEXT7_API_KEY` | frontend-dev-kit |
-| `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL` | frontend-dev-kit |
-| `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN` | frontend-dev-kit |
-| `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` | frontend-dev-kit |
+| `CONTEXT7_API_KEY` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
+| `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
+| `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
+| `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
 
 ### Submit to the Cursor Marketplace
 

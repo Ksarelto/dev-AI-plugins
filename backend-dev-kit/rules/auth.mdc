@@ -1,0 +1,20 @@
+---
+description: JWT via jose and composable Express guards — requireAuth, requireRole, requirePermission.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# Auth
+
+- Verify Bearer tokens in middleware (`requireAuth`), never in the router body. Auth failures are `AppError` 401/403 from that middleware — the HTTP-adjacent layer allowed to decide those statuses.
+- Compose `requireRole` / `requirePermission` on top of `requireAuth`. No ad-hoc `if (req.user.role === …)` in handlers.
+- Access tokens: ~15 min, `jose` (`HS256`/`RS256`), claims `sub` `exp` `iat` plus a minimal set. Never passwords or full user rows.
+- Refresh tokens: stored server-side, rotated on use (issue new, invalidate old).
+- Secrets only from `src/config/env.ts`. Hash passwords with `argon2`. Never MD5/SHA-256, never `===` on hashes.
+- Role/permission comes from the verified token or a DB lookup — never from a client-supplied body field.
+- Never log tokens, password hashes, or `Authorization` headers.
+- Inactive user on a valid token is 401, not 404.
+
+JWT library is `jose` — not `jsonwebtoken`. Pair with the `error-handling` skill for the 401/403 taxonomy.
+
+For register / token / refresh / `requireAuth`, load the `auth-jwt` skill.

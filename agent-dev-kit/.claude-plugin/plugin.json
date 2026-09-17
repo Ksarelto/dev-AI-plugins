@@ -1,0 +1,30 @@
+{
+  "name": "agent-dev-kit",
+  "displayName": "AI Agent & RAG Dev Kit",
+  "description": "Rules, skills, and agents for building production TypeScript/Node AI agents with the OpenAI SDK via OpenRouter, @openai/agents or LangGraph.js, and RAG pipelines with hybrid search and reranking.",
+  "version": "0.3.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "ai-agents",
+    "typescript",
+    "nodejs",
+    "openrouter",
+    "openai-sdk",
+    "openai-agents-sdk",
+    "langgraph-js",
+    "rag",
+    "vector-database",
+    "zod",
+    "qdrant",
+    "vitest",
+    "mcp"
+  ],
+  "category": "productivity",
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "mcpServers": "./.mcp.json"
+}

@@ -1,0 +1,21 @@
+---
+description: Canonical stack — Node.js, TypeScript, Express 5, Drizzle, Zod, Vitest.
+globs: ["**/*.{ts,mts,mdc,md,json}"]
+alwaysApply: true
+---
+
+# Stack
+
+Defer here. Do not restate this list in other rules, skills, or agents.
+
+- **Runtime:** Node.js 22+, TypeScript strict, ESM, `tsx`. Vitest for tests. No Python.
+- **HTTP:** Express 5. `createApp()` in `src/http/create-app.ts`; `listen` only in `src/http/server.ts`. Factory-function DI — no NestJS, no IoC container.
+- **Not in stack:** FastAPI, Pydantic, SQLAlchemy, Alembic, pytest, Prisma, TypeORM, Fastify, Hono, tsyringe, Awilix.
+- **Schemas / env:** Zod. `.strict()` on HTTP inputs. Parse `process.env` only in `src/config/env.ts`.
+- **OpenAPI:** `@asteasolutions/zod-to-openapi` from those schemas. No hand-written parallel spec.
+- **DB:** PostgreSQL, `drizzle-orm`, postgres.js, drizzle-kit. Service owns `db.transaction`; repository never commits.
+- **Auth:** `jose` JWT, argon2. Middleware guards — not inline `if` in routers.
+- **Logs / traces / jobs / cache / limit:** pino, OpenTelemetry, BullMQ + Redis, official `redis` client, `express-rate-limit`.
+- **Tests / lint:** Vitest + supertest(`createApp()`) + Testcontainers Postgres; typescript-eslint + `tsc --noEmit`.
+
+Procedures: `scaffold-service`, `express-feature`, `database-patterns`, `error-handling`, `http-testing`, `auth-jwt`, `openapi-docs`, `redis-backplane`.

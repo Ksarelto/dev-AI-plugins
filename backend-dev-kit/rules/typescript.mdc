@@ -1,0 +1,32 @@
+---
+description: TypeScript style — strict types, ESM imports, naming, no empty catch, no sync I/O on requests.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# TypeScript
+
+- `strict: true`. No `any` at HTTP, DB, or env boundaries. No `as` to silence the checker without a one-line reason.
+- ESM: `"type": "module"`. Relative imports use the `.js` specifier (`../config/env.js`).
+- Type every exported function. Prefer `T | null` over optional bag types for “missing row”.
+
+## Naming
+
+| Element | Convention |
+|---------|------------|
+| Files | `{resource}.ts` inside the layer folder (`src/services/products.ts`) |
+| Types / classes | PascalCase |
+| Functions / variables | camelCase |
+| Env / constants | `UPPER_SNAKE_CASE` |
+| Tables (Drizzle export) | camelCase plural (`products`) |
+
+## Errors and I/O
+
+- Catch specific errors; never empty `catch`. Re-throw with `cause` preserved (`throw new AppError(..., { cause })` or `from`).
+- No `fs.readFileSync`, `child_process.execSync`, or other blocking I/O on the request path.
+- No `console.log` in application code — use the pino logger.
+- Express 5 types `req.params` / `req.query` as `string | string[]`. After `validate`, coerce with `String(req.params.id)` (or parse with Zod and assign to a local).
+
+## Tooling
+
+`typescript-eslint` + `tsc --noEmit`. No `eslint-disable` or `@ts-expect-error` without an inline explanation. Defer libraries to `stack.mdc`.

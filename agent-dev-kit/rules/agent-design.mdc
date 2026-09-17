@@ -1,0 +1,18 @@
+---
+description: Agent architecture invariants — when to use an agent, Zod state, narrow tools, max-turns, HITL on writes.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# Agent design
+
+- Use an agent only when the step sequence cannot be determined up front. Static sequences are TypeScript or a RAG chain, not a loop.
+- Default runtime is `@openai/agents`. Use LangGraph.js only for custom graphs, durable checkpoint/resume, or `interruptBefore`. Defer library names to `stack`.
+- State and tool I/O are Zod (or LangGraph `Annotation` backed by typed fields). No raw `Record<string, unknown>` as agent state.
+- Every loop has an explicit `maxTurns` / `iteration` cap (typically 10–15) plus a wall-clock timeout. Implicit SDK defaults are not a cap.
+- Tools are narrow, one concern, structured return with `error`. Cap about 10 tools per agent; split with handoffs or a supervisor.
+- Separate read tools from write tools. Irreversible writes (`delete_*`, `send_*`, `cancel_*`, payments) require HITL (`interruptBefore` on LangGraph.js, or a confirmation guardrail on `@openai/agents`) before the tool runs.
+- Budget tokens/cost per run; abort with a partial result. Circuit-break a tool after three consecutive failures. Idempotency keys on mutating tools.
+- Final answers are structured output, not free-text parsing.
+
+For scaffolding, load `scaffold-agent`. For an existing HTTP app, load `embed-agent`. For loops, load `openai-agents-sdk` or `langgraph-agent`. For tools, load `tool-design`.

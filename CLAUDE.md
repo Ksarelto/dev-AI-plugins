@@ -90,3 +90,5 @@ npm run install:cursor-local
 | `base-dev-kit` | Rules: honesty, security (always applied). Skills: clean code, dependencies, documentation, git workflow, TDD |
 | `frontend-dev-kit` | Rules + Skills + MCP: React 19/TS/shadcn/Tailwind stack |
 | `pptx-dev-kit` | Skills + Agents: create a 16:9 `.pptx` via design schema → outline → `deck.json` → checked-in layout renderer; or edit an existing deck via OOXML unpack/replace/pack |
+| `backend-dev-kit` | Rules + Skills + Agents + MCP: Node 22/TS Express 5 APIs with Drizzle, Zod, and Vitest |
+| `agent-dev-kit` | Rules + Skills + Agents + MCP: TypeScript/Node agents and RAG with the OpenAI SDK via OpenRouter (`@openai/agents` or LangGraph.js) |

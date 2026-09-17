@@ -1,0 +1,17 @@
+---
+description: Drizzle ORM — one pool, service-owned transactions, typed queries, drizzle-kit migrations.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# Drizzle
+
+- One postgres.js pool and one `drizzle()` instance in `src/db/client.ts`. No second client “for this query”.
+- Tables live in `src/db/tables/{resource}.ts` and are re-exported from `src/db/tables/index.ts` (sibling files only) for drizzle-kit.
+- Repository methods take `db: Database | Tx`. They never call `db.transaction` and never commit. The **service** owns `db.transaction(async (tx) => …)`.
+- Typed query builder only. No string-concatenated SQL. `sql` fragments must use bound parameters — never interpolated user input.
+- Load relations explicitly (`with: { … }` or a join). Do not N+1 in the service.
+- UUID primary keys, `createdAt` / `updatedAt` timestamps. Unique constraints in the table definition; map `23505` to `ConflictError` in the service.
+- Migrations: `drizzle-kit generate` / `migrate`. Commit SQL under `drizzle/`. Never edit an applied production migration. No `drizzle-kit push` in production.
+
+For keyset pagination, upsert, soft delete, and optimistic locking, load the `database-patterns` skill.

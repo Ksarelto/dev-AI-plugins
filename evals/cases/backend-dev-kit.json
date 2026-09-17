@@ -1,0 +1,71 @@
+{
+  "plugin": "backend-dev-kit",
+  "source": "./backend-dev-kit",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Scaffold the directory structure, package.json, createApp factory, and Drizzle client for a new Node TypeScript Express API",
+      "expect": "scaffold-service"
+    },
+    {
+      "prompt": "Create the initial Express folder tree and Zod env parsing so we have createApp before any resource",
+      "expect": "scaffold-service"
+    },
+    {
+      "prompt": "Scaffold a full Express feature slice with Zod schemas, Drizzle table, router, service, and repository layers",
+      "expect": "express-feature"
+    },
+    {
+      "prompt": "Add a products resource with Express router, service, and Drizzle repository following three-layer architecture",
+      "expect": "express-feature"
+    },
+    {
+      "prompt": "Write a Drizzle keyset pagination query with onConflictDoUpdate upsert and deletedAt soft delete",
+      "expect": "database-patterns"
+    },
+    {
+      "prompt": "Implement optimistic locking with a version column and a Drizzle upsert on sku",
+      "expect": "database-patterns"
+    },
+    {
+      "prompt": "Add Express error middleware with RFC 7807 problem responses, AppError, and Zod 422 field details",
+      "expect": "error-handling"
+    },
+    {
+      "prompt": "Wire global exception handling, request-id, and pino so validation failures return 422 details",
+      "expect": "error-handling"
+    },
+    {
+      "prompt": "Write Vitest tests for this Express endpoint using supertest against createApp and Testcontainers PostgreSQL",
+      "expect": "http-testing"
+    },
+    {
+      "prompt": "Add an HTTP integration test with supertest and Testcontainers PostgreSQL factories for the products router",
+      "expect": "http-testing"
+    },
+    {
+      "prompt": "Implement JWT login, refresh token rotation, argon2 password hashes, and requireAuth requireRole middleware with jose",
+      "expect": "auth-jwt"
+    },
+    {
+      "prompt": "Add register, token, and refresh endpoints plus GET /me with rotating refresh tokens stored hashed in Postgres",
+      "expect": "auth-jwt"
+    },
+    {
+      "prompt": "Generate OpenAPI from Zod schemas and serve Swagger UI at /docs and /openapi.json with explicit operationId",
+      "expect": "openapi-docs"
+    },
+    {
+      "prompt": "Register our Zod Create and Read models on the OpenAPIRegistry and mount Swagger UI at /docs",
+      "expect": "openapi-docs"
+    },
+    {
+      "prompt": "Wire Redis cache-aside, a BullMQ worker with serializable job IDs, and an express-rate-limit Redis store",
+      "expect": "redis-backplane"
+    },
+    {
+      "prompt": "Add a BullMQ due-soon queue, cache-aside GET with TTL invalidation in the service, and rate-limit login via Redis",
+      "expect": "redis-backplane"
+    }
+  ]
+}

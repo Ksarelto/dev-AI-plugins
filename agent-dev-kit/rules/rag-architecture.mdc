@@ -1,0 +1,17 @@
+---
+description: RAG invariants — hybrid RRF, parent-child chunking, rerank, OpenRouter embeddings, no vibe eval.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# RAG architecture
+
+- Production retrieval is hybrid (dense + sparse/BM25 + RRF) plus rerank (top-20 → top-5) plus metadata filters. Dense-only is a bug.
+- Ingest and query are separate modules. Do not embed or upsert on the request path.
+- Parent-child chunking: index children (128–256 tokens), return parent text (512–1024). Every chunk has `source`, `page`/`section`, `created_at`, and parent recovery.
+- Dense embeddings: `openai.embeddings.create` on the OpenRouter client, model from `models.embed`. Same model for queries and documents. Do not mix models in one collection.
+- Store: pgvector if already on Postgres and the corpus is small; Qdrant JS (`@qdrant/js-client-rest`) for dedicated/hybrid. Not Chroma in production. Sparse side is in-process BM25 or Qdrant sparse — not Python FastEmbed.
+- Generator sees at most 5 chunks, most relevant first and last, numbered citations, “answer from context or say you cannot”.
+- Do not ship on feel. Golden set + Vitest + LLM-as-judge (faithfulness / precision / recall). No RAGAS.
+
+For the pipeline, load `rag-pipeline`. For gates, load `agent-eval`.
