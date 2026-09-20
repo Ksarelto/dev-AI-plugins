@@ -1,0 +1,7 @@
+{
+  "type": "REVIEW_PACKET",
+  "spec_path": ".spec/features/sign-in.md",
+  "slug": "sign-in",
+  "branch": "feature/sign-in",
+  "review_packet": "## Feature Review: sign-in\n\n**Spec**: .spec/features/sign-in.md\n**Branch**: feature/sign-in\n**Status**: awaiting-human\n\n### What was built\nFixture packet for mock-flow. A real run fills this from templates/review-packet.md.\n\n**Decision required**: approve · changes-requested · abort\n"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "feature-dev-kit",
+  "displayName": "Feature Dev Kit",
+  "description": "Hub-and-spoke factory that builds one React Feature-Sliced Design screen-task from a spec-dev-kit spec and optional html prototype, through architecture-audit, quality gates, and a skill-owned human review. Never opens a pull request.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["react", "typescript", "fsd", "feature-sliced-design", "shadcn", "mcp", "app-dev-kit"],
+  "category": "productivity",
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "mcpServers": "./mcp.json"
+}

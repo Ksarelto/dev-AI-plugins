@@ -1,0 +1,10 @@
+{
+  "type": "CLARIFY_PACKET",
+  "spec_path": ".spec/features/sign-in.md",
+  "round": 1,
+  "questions": [
+    "After a failed phrase, should the form stay filled or clear the secret?",
+    "Which route is the signed-in landing page — /catalogue or /notices?"
+  ],
+  "status": "awaiting-clarification"
+}

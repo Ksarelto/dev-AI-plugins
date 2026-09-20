@@ -9,19 +9,20 @@ One feature owns a multi-step workflow. `models/` decides (pure in/out). `hooks/
 - No orchestration in `pages/` (no chained cross-feature `await`s). No `useEffect` chains that encode step order.
 - `models/` files: no imports of any `api/` (own, other slice, or `shared/api`); no feature imports. Plain in/out only.
 - No step injection: `placeOrder(draft, { submitOrder, trackEvent })` — sequencing belongs in `hooks/`.
-- No client compensating write, cache rollback of committed server state, or verifying read after a successful write.
+- No client compensating write, cache rollback of **committed** server state, or verifying read after a successful write. Optimistic TanStack rollback of a *cache guess* (snapshot/`onError`) is allowed — it issues no request.
 - Outcomes: enumerated result types in `models/`; `hooks/` `catch` classifies via a pure mapper, then does not issue a follow-up write.
 - Retry: resend the same request. No client-minted idempotency key.
 - `hooks/` may import `@/entities/{name}` only — not `@/entities/{name}/api/...`.
 - `now()` / clock / ids: imported in `hooks/`, passed into `models/` as arguments.
-- Session-scoped Zustand: factory (`createDraftStore(sessionKey)`), not a module-level singleton. Persist `name` includes the session/tenant key (`feature.draft.${sessionKey}`).
+- Session-scoped Zustand: factory (`createDraftStore(sessionKey)`), not a module-level singleton. Persist `name` includes the session/tenant key (`feature.draft.${sessionKey}`). Version the persist payload; drop on mismatch. Persist user input, not server-computed prices/quotas.
 - Teardown is `app/`: new `sessionKey`, new `QueryClient`, SSE close/reopen, keyed remount; optional feature `reset()` from `index.ts`.
-- Wizard: owning feature; step in the URL (`useSearchParams`); draft in a keyed persisted store.
+- Wizard: owning **feature** (never a widget — it owns a rule); step in the URL (`useSearchParams`); draft in a keyed persisted store. Gate deep links with the same `canAdvance` the Continue button uses.
 
 **Judgment**
 
 - N separate user commands vs a missing backend command.
-- Persist `localStorage` vs `sessionStorage` (product: must the draft survive a week?).
+- Persist `localStorage` vs `sessionStorage` (product: must the draft survive a week?). Default is `sessionStorage`.
+- Business rule inlined next to `await`s in a hook instead of a named `models/` function.
 
 ## How
 

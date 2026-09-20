@@ -8,8 +8,9 @@ One kebab-case folder per component under every `ui/` tree. The file name matche
 
 - Path: `item-card/item-card.tsx`, export `ItemCard`. Forbidden: `ItemCard.tsx`, `itemCard.tsx` at the component path.
 - Required per component folder: `{name}.tsx`, `{name}.test.tsx`, `{name}.stories.tsx`, `styles.ts`, `index.ts` (named exports, no `export *`).
-- Outside the slice, import the component via the slice `index.ts` or the component folder `index.ts` — not a nested `ui/child` path from another slice.
-- Form zod schemas live in the slice `models/`, not in the component folder.
+- Outside the folder, import via that folder's `index.ts` — never `item-card/ui/item-card-header` from another slice. Outside the slice, still go through the slice `index.ts` (or the component folder `index.ts` within the same slice).
+- Form zod schemas live in `ui/` (the form's component folder is fine). Business invariants they call live in the slice `models/` as pure functions — see state-ownership. Do not park the form schema in `models/` or invent it in the submit handler.
+- `{name}.tsx` calls the owning layer's `hooks/`, never a bare `api/` import.
 - Internal subcomponents: `{component}/ui/{sub}/` with their own `index.ts`.
 
 **Judgment**

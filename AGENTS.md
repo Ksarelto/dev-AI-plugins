@@ -46,7 +46,7 @@ alwaysApply: false
 | `description` | yes | The trigger, not a summary — the task, libraries, and verbs a user would type. This is the only thing the model sees when deciding to load the skill. |
 | `argument-hint` | no | Shown next to the skill/slash command to hint expected arguments, e.g. `<ComponentName>` or `"[feature-slug or request]"`. |
 | `allowed-tools` | no | Array restricting which tools the skill may use once loaded, e.g. `[Read, Write, Edit, Bash, Glob, Grep]`. Omit to allow whatever the invoking agent already has. |
-| `disable-model-invocation` | no | `true` means **no agent may trigger this skill autonomously** — only a human typing the slash command can. Used for scaffolding skills that write files with side effects the human should explicitly request (see `app-dev-kit/feature-dev-kit/skills/create-page`, `create-entity`, `create-pr`, etc.). Read-only or investigative skills typically set this `false`. |
+| `disable-model-invocation` | no | `true` means **no agent may trigger this skill autonomously** — only a human typing the slash command can. Use for ship/deploy/publish (see `app-dev-kit/feature-dev-kit/skills/create-pr`). Factory scaffolds that workers must invoke (`create-page`, `create-entity`, …) stay `false`. Read-only or investigative skills typically set this `false`. |
 | `context` | no | Set to `fork` to run the skill in a forked subagent context instead of inline in the caller's context window. The skill executes with its own isolated context and returns only the finished result to the caller — useful for skills whose intermediate steps (search, long tool output) would otherwise bloat the caller's context. Omit to run inline (default). |
 
 ```yaml
@@ -54,8 +54,18 @@ alwaysApply: false
 name: create-page
 description: Scaffold an FSD page slice. Use after the widgets/features it composes exist.
 argument-hint: <PageName>
-disable-model-invocation: true
+disable-model-invocation: false
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
+---
+```
+
+```yaml
+---
+name: create-pr
+description: HUMAN-ONLY ship command after station 12 approval. Opens a PR via gh.
+argument-hint: "[feature-slug]"
+disable-model-invocation: true
+allowed-tools: [Bash, Read]
 ---
 ```
 

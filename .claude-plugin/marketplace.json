@@ -43,6 +43,34 @@
       "description": "Rules, skills, and agents for Node.js backends with Express 5, TypeScript, Drizzle ORM, Zod, and Vitest.",
       "category": "productivity",
       "tags": ["nodejs", "typescript", "express", "drizzle", "zod", "vitest", "rest-api", "mcp", "auth", "observability"]
+    },
+    {
+      "name": "spec-dev-kit",
+      "source": "./app-dev-kit/spec-dev-kit",
+      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec for html-generator-kit and feature-dev-kit.",
+      "category": "productivity",
+      "tags": ["spec", "requirements", "yaml", "orchestration", "app-dev-kit"]
+    },
+    {
+      "name": "html-generator-kit",
+      "source": "./app-dev-kit/html-generator-kit",
+      "description": "Turns a validated spec-dev-kit spec into a clickable, CDN-free, Alpine.js multi-page HTML prototype with a modern design direction sourced from ui-ux-pro-max, headless-browser verified before the skill-owned review gate.",
+      "category": "productivity",
+      "tags": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "app-dev-kit"]
+    },
+    {
+      "name": "feature-dev-kit",
+      "source": "./app-dev-kit/feature-dev-kit",
+      "description": "Hub-and-spoke factory that builds one React FSD screen-task from a spec-dev-kit spec (and optional html prototype), with architecture-audit, quality gates, and a skill-owned human review. Never opens a PR.",
+      "category": "productivity",
+      "tags": ["react", "fsd", "feature-sliced-design", "orchestration", "shadcn", "mcp", "app-dev-kit"]
+    },
+    {
+      "name": "orchestrator-kit",
+      "source": "./app-dev-kit/orchestrator-kit",
+      "description": "End-to-end app pipeline: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit to build every derived feature one by one against a persisted, resumable task checklist.",
+      "category": "productivity",
+      "tags": ["orchestration", "pipeline", "spec", "prototype", "feature-dev", "checklist", "app-dev-kit"]
     }
   ]
 }

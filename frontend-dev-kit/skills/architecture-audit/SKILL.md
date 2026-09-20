@@ -11,16 +11,20 @@ allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 
 Check the current tree against the FSD layer/slice/segment model. Report first. Edit only after confirmation (or when the user already asked to fix).
 
+**REPORT_ONLY.** If the prompt contains `REPORT_ONLY`, run steps 1–5 and **stop**. Skip step 6.
+Do not edit. Do not ask which findings to fix. Return the report markdown only. Feature-dev-kit
+Stations 1.5 and 9.5 always pass this flag.
+
 Not this skill: scaffolding (`react-feature`); a branch/PR standards review (`code-review`).
 
 ## Procedure
 
 1. **Scope.** Default `src/`. If the user names a slice or path, audit that path **and** its importers (a feature is inconsistent if a page deep-imports it).
-2. **Inventory.** Glob the six layers; list slices and their segments. Note layout drift: leftover `domain/`, `application/`, `processes/`, or essence folders (`components/`, `types/`, `utils/`, `helpers/`) at slice level.
+2. **Inventory.** Glob the six layers; list slices and their segments. Note layout drift: leftover `domain/`, `application/`, `processes/`, `state/`, or essence folders (`components/`, `types/`, `utils/`, `helpers/`) at slice level.
 3. **Mechanical first.** If ESLint, dependency-cruiser, or boundary scripts exist, run them and keep every hit. Missing enforcement is a finding (`references/enforcement.md`) — do not skip silently.
 4. **Walk topics.** Load only the matching `references/*.md` (skip table below). Do not invent rules. Prefer glob/grep; read a file when the check is semantic.
 5. **Report, then stop.** Do not edit in this step.
-6. **Fix** only if the user already asked, or after they confirm which findings. Fix hard violations; leave judgment calls unless selected. Re-run mechanical checks on touched files. Do not generate a full ESLint/depcruise config unless that finding was confirmed.
+6. **Fix** only if the user already asked, or after they confirm which findings. **Skip this step entirely when the prompt contains `REPORT_ONLY`.** Fix hard violations; leave judgment calls unless selected. Re-run mechanical checks on touched files. Do not generate a full ESLint/depcruise config unless that finding was confirmed.
 
 ## Skip when absent
 
@@ -34,9 +38,10 @@ Not this skill: scaffolding (`react-feature`); a branch/PR standards review (`co
 | `realtime-sse` | no `shared/api/realtime/`, no `EventSource`, no SSE hooks |
 | `i18n` | no `locales/`, no i18n lib, no `useTranslation` |
 | `styling` / `component-structure` | no `ui/` under scope |
-| `testing-strategy` | no `*.test.*` / `tests/` |
+| `testing-strategy` | no `*.test.*` / `tests/` / `e2e/` |
+| `adoption` | no leftover hexagonal folders **and** no mixed legacy tree beside `src/features/` |
 
-All other topics always run (enforcement and review-checklist included).
+All other topics always run (enforcement, troubleshooting, and review-checklist included).
 
 ## Topics
 
@@ -62,14 +67,20 @@ Load in this order. Each file states what to evaluate and how.
 | 16 | [testing-strategy.md](references/testing-strategy.md) | tests present |
 | 17 | [enforcement.md](references/enforcement.md) | always |
 | 18 | [lifecycle-and-scaling.md](references/lifecycle-and-scaling.md) | always |
-| 19 | [review-checklist.md](references/review-checklist.md) | last — residual smells only |
+| 19 | [troubleshooting.md](references/troubleshooting.md) | residual bottlenecks |
+| 20 | [review-checklist.md](references/review-checklist.md) | last — leftover smells only |
+| 21 | [adoption.md](references/adoption.md) | mixed/legacy tree |
 
 Load-bearing invariants (must appear as hard if broken):
 
 - Import direction: `app → pages → widgets → features → entities → shared`; no cycles
+- One public `index.ts` per slice; no deep imports from outside
 - No feature↔feature, widget↔widget, or feature→widget
-- `ui/` → `hooks/` → `api/`; `models/` never imports any `api/`
+- `ui/` → `hooks/` → `models/`; `hooks/` ↘ `api/` → `models/`; `models/` never imports any `api/`; `ui/` never imports `api/`
+- Widgets: no `models/` (plural) and no `api/`
 - HTTP only via `@/shared/api/base`; query keys only from `@/shared/api/query-keys/`
+
+Do not invent ports, domain events, `defineEvent`, or a `features/auth/` slice — those are the previous architecture.
 
 ## Report
 
@@ -89,4 +100,4 @@ Load-bearing invariants (must appear as hard if broken):
 N hard, M judgment, K skipped
 ```
 
-Do not merge axes into one score. After the report, ask which findings to fix unless the user already said to fix them.
+Do not merge axes into one score. After the report, ask which findings to fix unless the user already said to fix them, **or the prompt contains `REPORT_ONLY`** — then return the report and stop.

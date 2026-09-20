@@ -6,20 +6,22 @@ Segment tests live in a `tests/` folder next to the code. Component tests are th
 
 **Hard**
 
-- Test dirs: `features/{f}/{api,hooks,models,lib}/tests/`, `entities/{e}/model/tests/`, `entities/{e}/api/tests/`, `widgets/{w}/{hooks,model}/tests/`, `shared/lib/tests/`, `shared/api/tests/`.
-- Folder name is exactly `tests/` — not `__tests__`, not `spec/`, not a slice-level `features/{f}/tests/`.
+- Test dirs: `features/{f}/{api,hooks,models,lib}/tests/`, `entities/{e}/model/tests/`, `entities/{e}/api/tests/`, `widgets/{w}/{hooks,model}/tests/`, `shared/lib/tests/` (**one** folder for every `shared/lib/*` unit — not `shared/lib/auth/tests/`), `shared/api/tests/`.
+- Folder name is exactly `tests/` — not `__tests__`, not `spec/`, not a slice-level `features/{f}/tests/`, not `src/tests/`.
 - Component tests: `{component}/{name}.test.tsx` colocated only. Non-component tests are not colocated.
 - No `__fixtures__/` shared across features. Mocks live in the test file.
 - Unit/API/hooks: `vi.mock('@/shared/api/base')` or the feature fetcher. No MSW/interceptor in unit or RTL.
 - No test in feature A that asserts feature B's cache invalidation — that is e2e.
 - `models/tests/`: plain unit. No `vi.useFakeTimers()` (pass clock as input).
-- `hooks/tests/`: assert call order, invalidation, retry of the same payload, no follow-up write on failure.
-- SSE hook tests: fake realtime; assert own keys only + version guard; spy `notify` for event effects.
+- `hooks/tests/`: assert call order, invalidation, retry of the same payload, no follow-up write on failure. Keep thin — extra branches belong in `models/tests/`.
+- SSE hook tests: fake realtime; assert own keys only + version guard; spy `notify` for event effects. Connection (`init`, visibility) is tested once in `shared/api/tests/`.
+- Auth: a fake session provider taking a `Session` literal, not a mocked `useSession()` per file. `RequireAuth` covers all three statuses.
 - `e2e/` lives outside `src/`: real HTTP, no mocked ky/fetch.
 
 **Judgment**
 
 - Widget tests as RTL or Storybook — either is fine.
+- A uniqueness test that every `query-keys/` factory root is unique.
 
 ## How
 

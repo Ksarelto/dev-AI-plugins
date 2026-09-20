@@ -1,0 +1,9 @@
+{
+  "plugin": "orchestrator-kit",
+  "source": "./app-dev-kit/orchestrator-kit",
+  "component": "skills",
+  "cases": [
+    { "prompt": "Run the whole spec-to-prototype-to-feature pipeline for this new app end-to-end", "expect": "orchestrate-app" },
+    { "prompt": "Resume the persisted task checklist for this app build", "expect": "orchestrate-app" }
+  ]
+}

@@ -36,7 +36,11 @@ Exits non-zero if any case fails. Runs offline — no API key, no network calls.
 - **New skill or agent in an existing plugin**: add at least one case to that plugin's file in
   `cases/`. Phrase the prompt the way a user actually would — don't just restate the description in
   the same words, or the eval can't tell a real match from an accidental one.
-- **New plugin**: add `cases/<plugin-name>.json` with one case per skill/agent:
+- **New plugin**: add `cases/<plugin-name>.json` with one case per skill. Multi-agent kits also add
+  `cases/<plugin-name>-agents.json` with one case per agent. `runner.mjs` loads every `cases/*.json`.
+  Nested kits (the `app-dev-kit` family) set `"source": "./app-dev-kit/<plugin-name>"` to match
+  marketplace.json. The runner fails if a skill/agent on disk has no case, or if a marketplace
+  plugin ships skills/agents without a matching suite.
 
   ```json
   {

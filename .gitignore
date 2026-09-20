@@ -1,7 +1,10 @@
 presentations/
-examples/
+examples/*
 docs/
 node_modules/
 __pycache__/
 *.py[cod]
 .DS_Store
+.spec
+ANALYSIS.md
+.agents

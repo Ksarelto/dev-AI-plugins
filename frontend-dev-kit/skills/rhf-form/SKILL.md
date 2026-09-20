@@ -16,9 +16,9 @@ description: Build forms with react-hook-form + zod validation, shadcn/ui form c
 
 Every form built with this skill composes a shared `Form` compound component instead of
 hand-wiring shadcn's `FormField` + `FormItem` + `FormLabel` + `FormControl` + `FormMessage` at each
-field. It is generic and business-agnostic, so per the `architecture` rule's layer table it lives
-once at `src/shared/ui/Form/` and every feature imports it — never copy-paste the boilerplate into
-a feature's `ui/` folder.
+field. It is generic and business-agnostic, so per the `architecture-audit` skill (`shared/` is
+generic UI) it lives once at `src/shared/ui/Form/` and every feature imports it — never copy-paste
+the boilerplate into a feature's `ui/` folder.
 
 1. **Check first** — if `src/shared/ui/Form/` already exists, reuse it; do not create a second
    implementation. If it doesn't exist yet, scaffold it once from the template in

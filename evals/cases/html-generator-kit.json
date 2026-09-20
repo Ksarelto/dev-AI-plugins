@@ -1,0 +1,9 @@
+{
+  "plugin": "html-generator-kit",
+  "source": "./app-dev-kit/html-generator-kit",
+  "component": "skills",
+  "cases": [
+    { "prompt": "Turn this validated spec into a clickable multi-page HTML prototype", "expect": "generate-html" },
+    { "prompt": "Generate a CDN-free Alpine.js prototype with a modern design direction", "expect": "generate-html" }
+  ]
+}

@@ -18,7 +18,7 @@ mutation touching cached server data.
 - No user-facing error handling (message or form error) on mutation failure.
 - An optimistic update with no feasible rollback path.
 
-## Non-negotiable (also in architecture.md)
+## Non-negotiable (also in `architecture-audit` / state-ownership)
 
 - Server data copied into `useState` or a store instead of read from the react-query cache.
 

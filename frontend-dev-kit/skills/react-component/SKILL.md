@@ -42,7 +42,7 @@ Every component lives in its own kebab-case folder. This is the required layout 
 ## Instructions
 
 1. Determine the PascalCase export and kebab-case file stem (`CustomButton` / `custom-button`) and target path from the table above
-2. Read rules: `architecture`, `component-structure`, `react`, `shadcn-usage`, `accessibility`
+2. Read rules: `component-structure`, `react`, `shadcn-usage`, `accessibility`. For FSD placement (`shared/ui` vs feature `ui/`), load `architecture-audit`.
 3. Create the component folder with the four core files (`index.ts`, `{name}.tsx`, `styles.ts`, `types.ts`)
 
 ## File templates
