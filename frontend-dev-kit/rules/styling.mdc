@@ -1,0 +1,75 @@
+---
+description: Isolating Tailwind/shadcn styling into a component's dedicated *.styles.ts(x) file — what belongs there, what stays in the component, and the contract between them.
+globs: ["**/*.styles.{ts,tsx}"]
+alwaysApply: false
+---
+
+# Component styling files
+
+Every component that needs more than a couple of inline classes gets a sibling
+`ComponentName.styles.ts` (or `.tsx` only if the file exports JSX, e.g. a styled wrapper around a
+shadcn primitive). The component file owns structure and behavior; the styles file owns every
+Tailwind, `cva()`, and shadcn-className decision.
+
+## What lives in `*.styles.ts(x)`
+
+- `cva()` variant tables and their exported `VariantProps` type.
+- `cn()`-composed class strings and any class-building helper functions.
+- Style-only constants: variant maps, size/intent enums used purely for class selection.
+- Wrapper components whose entire body is a shadcn primitive plus a fixed `className`/variant
+  (only when the file needs `.tsx`).
+
+```ts
+// Button.styles.ts
+import { cva, type VariantProps } from 'class-variance-authority';
+
+export const buttonVariants = cva(
+  'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',
+  {
+    variants: {
+      intent: {
+        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
+      },
+      size: { sm: 'h-8 px-3', md: 'h-10 px-4' },
+    },
+    defaultVariants: { intent: 'primary', size: 'md' },
+  },
+);
+
+export type ButtonVariants = VariantProps<typeof buttonVariants>;
+```
+
+```tsx
+// Button.tsx
+import { buttonVariants, type ButtonVariants } from './Button.styles';
+import { cn } from '@/lib/utils';
+
+type ButtonProps = React.ComponentProps<'button'> & ButtonVariants;
+
+export const Button = ({ intent, size, className, ...props }: ButtonProps): JSX.Element => {
+  return <button className={cn(buttonVariants({ intent, size }), className)} {...props} />;
+};
+```
+
+## What stays out of the styles file
+
+- Business logic, event handlers, hooks, data fetching — the styles file imports nothing from
+  `application/`, `api/`, or `state/`.
+- Structural JSX (layout, composition of children) — that is the component's job, styling only
+  decides *how* a node looks, never *what* the tree contains.
+- One-off layout classes that are not part of a variant axis (`flex`, `gap-2`, gaps between
+  children) — those stay inline in the component's JSX; moving every class out is over-isolation
+  that turns the styles file into an unreadable indirection layer.
+
+## Contract between the two files
+
+- The styles file exports plain functions/constants and, when variants exist, the derived
+  `VariantProps` type — never a component that owns behavior.
+- The component always merges the styles file's output with an incoming `className` via `cn()`,
+  `className` last, so a caller can still override.
+- Design tokens (`bg-primary`, `text-muted-foreground`, …) are the only color source; no raw hex or
+  palette-step classes in either file. See the `tailwind-styles` skill for token and `cva()`
+  authoring details, and `shadcn-usage` for primitive composition rules.
+- Split only when it earns its keep: a component with two or three static classes and no variants
+  does not need a `.styles.ts` file — inline `className` is clearer than a one-line indirection.

@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://cursor.com/schemas/cursor-plugin/marketplace.json",
-  "title": "Cursor Plugin Marketplace",
-  "description": "Schema for .cursor-plugin/marketplace.json — defines a marketplace that indexes one or more Cursor plugins.",
+  "$id": "https://github.com/Ksarelto/dev-cusor-plugins/schemas/marketplace.json",
+  "title": "Plugin Marketplace",
+  "description": "Schema for .claude-plugin/marketplace.json — defines a Claude Code / Cursor plugin marketplace.",
   "type": "object",
   "required": ["name", "plugins"],
   "additionalProperties": false,
@@ -10,19 +10,27 @@
     "name": {
       "type": "string",
       "minLength": 1,
-      "description": "Unique identifier for the marketplace."
+      "description": "Unique identifier for the marketplace (kebab-case)."
     },
     "owner": {
       "$ref": "#/$defs/owner",
       "description": "The marketplace owner or organisation."
     },
+    "description": {
+      "type": "string",
+      "description": "Short description of the marketplace."
+    },
+    "version": {
+      "type": "string",
+      "description": "Marketplace version."
+    },
     "metadata": {
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "description": {
+        "pluginRoot": {
           "type": "string",
-          "description": "Short description of the marketplace."
+          "description": "Base directory prepended to relative source paths."
         }
       },
       "description": "Arbitrary metadata about the marketplace."
@@ -70,6 +78,29 @@
         "description": {
           "type": "string",
           "description": "Short description of the plugin."
+        },
+        "category": {
+          "type": "string",
+          "description": "Plugin category for marketplace classification."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Tags for filtering and discovery."
+        },
+        "version": {
+          "type": "string",
+          "description": "Plugin version override."
+        },
+        "author": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" }
+          }
+        },
+        "strict": {
+          "type": "boolean",
+          "description": "If true, only this marketplace can provide this plugin name."
         }
       }
     }

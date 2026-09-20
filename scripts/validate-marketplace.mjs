@@ -12,6 +12,11 @@ addFormats(ajv);
 
 const compiledSchemas = new Map();
 
+const MANIFEST_DIRS = [
+  { id: "claude", dir: ".claude-plugin", label: "Claude" },
+  { id: "cursor", dir: ".cursor-plugin", label: "Cursor" },
+];
+
 function loadJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
@@ -42,40 +47,96 @@ function validate(schemaPath, dataPath, label) {
   return true;
 }
 
-let allPassed = true;
+function pluginKey(entry) {
+  return `${entry.name}\0${entry.source}`;
+}
 
-const marketplacePath = join(root, ".cursor-plugin", "marketplace.json");
+function validateMarketplace(manifestDir, label, marketplaceSchema, pluginSchema) {
+  let passed = true;
+  const marketplacePath = join(root, manifestDir, "marketplace.json");
+
+  if (!existsSync(marketplacePath)) {
+    console.error(`FAIL: missing ${manifestDir}/marketplace.json`);
+    return { passed: false, plugins: [] };
+  }
+
+  passed = validate(marketplaceSchema, marketplacePath, `${manifestDir}/marketplace.json`) && passed;
+
+  const marketplace = loadJson(marketplacePath);
+
+  for (const entry of marketplace.plugins) {
+    const sourcePath = join(root, entry.source);
+
+    if (!existsSync(sourcePath)) {
+      console.error(`FAIL: [${label}] source path does not exist: ${entry.source}`);
+      passed = false;
+      continue;
+    }
+
+    for (const { dir, label: harnessLabel } of MANIFEST_DIRS) {
+      const pluginJsonPath = join(sourcePath, dir, "plugin.json");
+      if (!existsSync(pluginJsonPath)) {
+        console.error(
+          `FAIL: [${label}] missing ${harnessLabel} plugin.json for ${entry.name} at ${entry.source}/${dir}/plugin.json`
+        );
+        passed = false;
+        continue;
+      }
+
+      passed =
+        validate(pluginSchema, pluginJsonPath, `${entry.name}/${dir}/plugin.json`) && passed;
+
+      const pluginManifest = loadJson(pluginJsonPath);
+      if (pluginManifest.name !== entry.name) {
+        console.error(
+          `FAIL: [${label}] name mismatch for ${entry.source}/${dir}: marketplace="${entry.name}", plugin.json="${pluginManifest.name}"`
+        );
+        passed = false;
+      }
+    }
+  }
+
+  return { passed, plugins: marketplace.plugins };
+}
+
 const marketplaceSchema = join(root, "schemas", "marketplace.schema.json");
 const pluginSchema = join(root, "schemas", "plugin.schema.json");
 
-allPassed = validate(marketplaceSchema, marketplacePath, "marketplace.json") && allPassed;
+let allPassed = true;
+const results = [];
 
-const marketplace = loadJson(marketplacePath);
+for (const { dir, label } of MANIFEST_DIRS) {
+  const result = validateMarketplace(dir, label, marketplaceSchema, pluginSchema);
+  allPassed = result.passed && allPassed;
+  results.push({ label, dir, plugins: result.plugins });
+}
 
-for (const entry of marketplace.plugins) {
-  const sourcePath = join(root, entry.source);
+if (results.length === 2 && results[0].plugins.length && results[1].plugins.length) {
+  const [a, b] = results;
+  const setA = new Set(a.plugins.map(pluginKey));
+  const setB = new Set(b.plugins.map(pluginKey));
 
-  if (!existsSync(sourcePath)) {
-    console.error(`FAIL: source path does not exist: ${entry.source}`);
-    allPassed = false;
-    continue;
+  for (const key of setA) {
+    if (!setB.has(key)) {
+      const [name, source] = key.split("\0");
+      console.error(
+        `FAIL: plugin in ${a.dir} but missing from ${b.dir}: name="${name}", source="${source}"`
+      );
+      allPassed = false;
+    }
+  }
+  for (const key of setB) {
+    if (!setA.has(key)) {
+      const [name, source] = key.split("\0");
+      console.error(
+        `FAIL: plugin in ${b.dir} but missing from ${a.dir}: name="${name}", source="${source}"`
+      );
+      allPassed = false;
+    }
   }
 
-  const pluginJsonPath = join(sourcePath, ".cursor-plugin", "plugin.json");
-  if (!existsSync(pluginJsonPath)) {
-    console.error(`FAIL: missing plugin.json for ${entry.name} at ${entry.source}/.cursor-plugin/plugin.json`);
-    allPassed = false;
-    continue;
-  }
-
-  allPassed = validate(pluginSchema, pluginJsonPath, `${entry.name}/plugin.json`) && allPassed;
-
-  const pluginManifest = loadJson(pluginJsonPath);
-  if (pluginManifest.name !== entry.name) {
-    console.error(
-      `FAIL: name mismatch for ${entry.source}: marketplace="${entry.name}", plugin.json="${pluginManifest.name}"`
-    );
-    allPassed = false;
+  if (setA.size === setB.size && [...setA].every((k) => setB.has(k))) {
+    console.log("OK: Claude and Cursor marketplace plugin lists match");
   }
 }
 

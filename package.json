@@ -2,13 +2,17 @@
   "name": "dev-cursor-plugins",
   "version": "0.1.0",
   "private": true,
-  "description": "Cursor marketplace with reusable skills, rules, commands, and agents",
+  "description": "Plugin marketplace with reusable skills, rules, commands, and agents for Claude Code and Cursor",
   "type": "module",
   "scripts": {
-    "validate": "node scripts/validate-marketplace.mjs"
+    "validate": "node scripts/validate-marketplace.mjs",
+    "eval": "node evals/runner.mjs",
+    "install:cursor-local": "node scripts/install-cursor-local.mjs",
+    "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
-    "ajv-formats": "^3.0.1"
+    "ajv-formats": "^3.0.1",
+    "yaml": "^2.6.1"
   }
 }

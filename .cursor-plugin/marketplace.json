@@ -1,37 +1,27 @@
 {
-  "$schema": "../schemas/marketplace.schema.json",
   "name": "dev-cursor-plugins",
   "owner": {
     "name": "Artsiom Murashko"
   },
+  "description": "Reusable skills, rules, commands, and agents for Claude Code and Cursor.",
+  "version": "0.1.0",
   "metadata": {
-    "description": "Reusable Cursor skills, rules, commands, and agents for cross-project development."
+    "pluginRoot": "."
   },
   "plugins": [
     {
-      "name": "typescript-rules",
-      "source": "typescript-rules",
-      "description": "TypeScript coding standards as Cursor rules."
+      "name": "base-dev-kit",
+      "source": "./base-dev-kit",
+      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, and testing principles — applicable to any language or stack.",
+      "category": "productivity",
+      "tags": ["clean-code", "security", "git", "testing", "honesty", "universal"]
     },
     {
-      "name": "engineering-skills",
-      "source": "engineering-skills",
-      "description": "Reusable agent skills for commits, PRs, and workflows."
-    },
-    {
-      "name": "workflow-commands",
-      "source": "workflow-commands",
-      "description": "Slash commands for common dev workflows."
-    },
-    {
-      "name": "code-review-kit",
-      "source": "code-review-kit",
-      "description": "Code review agent and security review skill."
-    },
-    {
-      "name": "dev-kit",
-      "source": "dev-kit",
-      "description": "Rules, skills, commands, agent, and MCP servers for React + TypeScript + antd + vanilla-extract + react-query."
+      "name": "frontend-dev-kit",
+      "source": "./frontend-dev-kit",
+      "description": "Rules, skills, and MCP servers for React + TypeScript + shadcn/ui + Tailwind CSS + react-query.",
+      "category": "productivity",
+      "tags": ["react", "typescript", "shadcn", "tailwind", "react-query", "mcp"]
     }
   ]
 }

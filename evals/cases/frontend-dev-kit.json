@@ -1,0 +1,115 @@
+{
+  "plugin": "frontend-dev-kit",
+  "source": "./frontend-dev-kit",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Add an error boundary and toast notifications for when this mutation fails",
+      "expect": "error-handling"
+    },
+    {
+      "prompt": "Write Storybook stories for the new Button component",
+      "expect": "storybook"
+    },
+    {
+      "prompt": "Check the console for errors and inspect the DOM using Chrome DevTools",
+      "expect": "browser-debug"
+    },
+    {
+      "prompt": "Add a react-query hook to fetch and cache the user's orders",
+      "expect": "react-query-hook"
+    },
+    {
+      "prompt": "When this mutation succeeds, run cache invalidation through the TanStack query-key registry",
+      "expect": "react-query-hook"
+    },
+    {
+      "prompt": "Add translated copy for this new empty state and wire up the plural count",
+      "expect": "i18n"
+    },
+    {
+      "prompt": "Format this order's total as currency using the user's locale",
+      "expect": "i18n"
+    },
+    {
+      "prompt": "Wrap this shadcn Button and Link together so it navigates but keeps button styling",
+      "expect": "shadcn-usage"
+    },
+    {
+      "prompt": "My custom class on this Select isn't applying because its content renders in a portal",
+      "expect": "shadcn-usage"
+    },
+    {
+      "prompt": "Write unit tests for the files I just changed",
+      "expect": "testing"
+    },
+    {
+      "prompt": "Wire ky as httpClient in shared/api/base and normalize failures as AppError",
+      "expect": "api-client"
+    },
+    {
+      "prompt": "Style this card component with Tailwind variants using cva",
+      "expect": "tailwind-styles"
+    },
+    {
+      "prompt": "Scaffold a standalone component folder wrapping a shadcn primitive",
+      "expect": "react-component"
+    },
+    {
+      "prompt": "Create a custom-button.tsx component using kebab-case file names",
+      "expect": "react-component"
+    },
+    {
+      "prompt": "Create a Zustand store to hold the modal open and closed state",
+      "expect": "zustand"
+    },
+    {
+      "prompt": "Configure routing with RequireAuth, RequireFlag, and lazyFeature in app/router",
+      "expect": "routing"
+    },
+    {
+      "prompt": "Build a signup form with react-hook-form, zod validation, and shadcn inputs",
+      "expect": "rhf-form"
+    },
+    {
+      "prompt": "Review this dialog component for keyboard navigation and ARIA issues",
+      "expect": "accessibility"
+    },
+    {
+      "prompt": "Scaffold a whole new CRUD feature slice with api hooks and components",
+      "expect": "react-feature"
+    },
+    {
+      "prompt": "Review my branch diff against our stack rules before I merge it",
+      "expect": "code-review"
+    },
+    {
+      "prompt": "Is our current implementation consistent with the FSD architecture?",
+      "expect": "architecture-audit"
+    },
+    {
+      "prompt": "Audit whether features and widgets follow import boundaries",
+      "expect": "architecture-audit"
+    },
+    {
+      "prompt": "Audit src for layer slice and segment consistency",
+      "expect": "architecture-audit"
+    },
+    {
+      "prompt": "Hide the reports capability behind a feature flag and gate the route",
+      "expect": "manage-feature"
+    },
+    {
+      "prompt": "Turn the reports flag off without deleting the slice",
+      "expect": "manage-feature"
+    },
+    {
+      "prompt": "Unflag reports after launch",
+      "expect": "manage-feature"
+    },
+    {
+      "prompt": "Delete the invoices slice and clean up leftover locales, flags, and routes",
+      "expect": "manage-feature"
+    }
+  ]
+}

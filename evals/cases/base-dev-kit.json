@@ -1,0 +1,12 @@
+{
+  "plugin": "base-dev-kit",
+  "source": "./base-dev-kit",
+  "component": "skills",
+  "cases": [
+    { "prompt": "This function is too long and has magic numbers, help clean it up", "expect": "clean-code" },
+    { "prompt": "Does this architecture decision need an ADR, and is our README stale?", "expect": "documentation" },
+    { "prompt": "What's our branch naming and commit message convention here?", "expect": "git-workflow" },
+    { "prompt": "Should we pin this new package's version or use a caret range?", "expect": "dependencies" },
+    { "prompt": "Write a failing reproduction test first before fixing this bug", "expect": "tdd" }
+  ]
+}
