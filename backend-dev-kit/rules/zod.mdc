@@ -1,0 +1,18 @@
+---
+description: Zod schemas — Create/Update/Read split, strict inputs, env parsing, OpenAPI from Zod.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# Zod
+
+- Zod is the only schema library. No Pydantic, class-validator, Joi, or Yup.
+- **Create / Update / Read are separate.** Never reuse one object for request and response.
+- Input schemas (body, query, params, env) use `.strict()` — unknown keys fail.
+- Update = Create `.partial().strict()`. Read is the public shape; parse repo rows with `Read.parse` (or a mapper) so internal columns cannot leak.
+- HTTP input is parsed in `validate` middleware, not in the service. The service may parse outbound Read models.
+- `process.env` is parsed once in `src/config/env.ts`. Call sites import `env`, they do not read `process.env`.
+
+Register the same schemas with `@asteasolutions/zod-to-openapi`. Do not hand-write a parallel OpenAPI file.
+
+For middleware, `AppError`, and 422 mapping, load the `error-handling` skill.

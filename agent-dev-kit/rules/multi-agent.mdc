@@ -1,0 +1,18 @@
+---
+description: Multi-agent invariants — handoffs vs LangGraph supervisor, small payloads, checkpoint, HITL, no cycles.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# Multi-agent
+
+- Split agents only when specialists need their own instructions and tool allowlists, or subtasks are independent. Otherwise keep one agent.
+- Default composition is `@openai/agents` `handoff()`. LangGraph.js supervisor + `Send` fan-out is for custom graphs, checkpoint, or `interruptBefore`.
+- A triage/supervisor routes and synthesizes. It does not own specialist tools or do the specialists’ work.
+- Pass artifacts (ids, ticket body), not the full transcript, into the next agent. Summarize if history must cross a boundary.
+- Durable session/checkpointer in production (not in-memory / SQLite). Resume LangGraph runs with the same `thread_id`.
+- HITL on irreversible tools is `interruptBefore` (graph) or a confirmation guardrail (Agents SDK). Prompt text is not a pause.
+- Cap the full run (turns, wall clock, tokens). No A→B→A cycles without that cap. Timeout individual nodes.
+- Evaluate specialists in isolation, then the composed path. Track routing accuracy, per-worker success, end-to-end success, tokens per run.
+
+For procedures, load `openai-agents-sdk` or `langgraph-agent`. For tool allowlists, load `tool-design`.

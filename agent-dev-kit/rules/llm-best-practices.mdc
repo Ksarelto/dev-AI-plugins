@@ -1,0 +1,19 @@
+---
+description: LLM call invariants — Zod structured outputs, temperature, role-based models, OTel, no prompt injection.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# LLM best practices
+
+- Never parse model text with `JSON.parse`. Use `chat.completions.parse` + Zod (`zodResponseFormat`).
+- `temperature: 0` (or omit on reasoning models) for classification, routing, extraction, code, agent loops. Higher temperature only for explicitly creative nodes.
+- Pick a **role** (`reason` / `generate` / `extract` / `embed`) and resolve the OpenRouter slug from `src/llm/models.ts`. Confirm slugs against current OpenRouter docs before shipping. Use the cheapest role that meets the eval bar.
+- Prompts are versioned files (`instructions.ts`), not string literals scattered in handlers. Few-shot beats long prose. Do not interpolate raw user text into the system prompt; delimit it.
+- Log model, tokens, latency, session id on every call (OpenTelemetry). Optional Langfuse. Not OpenAI-dashboard tracing with an OpenRouter key.
+- Retry transient 429/5xx via the SDK client; on persistent failure degrade or return a structured error — never dump the upstream error to the end user.
+- Cache identical non-personalized completions where product-safe. Enforce a per-run cost ceiling.
+
+Anti-patterns: one giant prompt for mixed concerns; the same slug for routing and long-horizon agents; prompts not in git.
+
+For judges and golden sets, load `agent-eval`.

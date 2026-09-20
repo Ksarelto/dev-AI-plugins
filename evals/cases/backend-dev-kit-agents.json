@@ -1,0 +1,31 @@
+{
+  "plugin": "backend-dev-kit",
+  "source": "./backend-dev-kit",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Implement the Express router, Zod schemas, Drizzle table, repository, and service now that the resource is specified",
+      "expect": "api-implementer"
+    },
+    {
+      "prompt": "Write the Node feature code — table, schemas, repository, service, router, exception wiring — following three-layer architecture",
+      "expect": "api-implementer"
+    },
+    {
+      "prompt": "Review this PR diff for three-layer architecture violations and auth-guard mistakes before merge",
+      "expect": "code-reviewer"
+    },
+    {
+      "prompt": "Audit the changed TypeScript files against backend-dev-kit rules and report must-fix findings",
+      "expect": "code-reviewer"
+    },
+    {
+      "prompt": "Write Vitest integration and unit tests for the new Express routes using supertest against createApp and Testcontainers",
+      "expect": "test-writer"
+    },
+    {
+      "prompt": "Write the Vitest coverage matrix of supertest cases against createApp plus unit tests with a fake repository, then run vitest",
+      "expect": "test-writer"
+    }
+  ]
+}

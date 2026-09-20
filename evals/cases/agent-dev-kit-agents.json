@@ -1,0 +1,31 @@
+{
+  "plugin": "agent-dev-kit",
+  "source": "./agent-dev-kit",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Starting a new OpenRouter project I need an architecture: RAG versus chain, vector store choice, and multi-agent topology — do not write implementation yet",
+      "expect": "agent-architect"
+    },
+    {
+      "prompt": "Help me choose @openai/agents versus LangGraph.js and a vector store before any code is written",
+      "expect": "agent-architect"
+    },
+    {
+      "prompt": "Implement the TypeScript Runner loop, StateGraph if needed, Zod tools, handoffs and guardrails now that architecture is decided",
+      "expect": "agent-builder"
+    },
+    {
+      "prompt": "Write the Node tool-calling agent code — Runner or StateGraph — the runtime was already chosen",
+      "expect": "agent-builder"
+    },
+    {
+      "prompt": "Implement the TypeScript RAG ingestion path, Qdrant hybrid retrieval, reranking, and citation generation with Vitest golden-set judges",
+      "expect": "rag-builder"
+    },
+    {
+      "prompt": "Write the ingestion module, OpenRouter embeddings, Qdrant hybrid retrieve, rerank, and citation generation with Vitest golden-set judges — not an Agent Runner",
+      "expect": "rag-builder"
+    }
+  ]
+}

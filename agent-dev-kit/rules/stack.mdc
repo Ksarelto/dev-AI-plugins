@@ -1,0 +1,21 @@
+---
+description: Canonical stack — Node.js, TypeScript, OpenAI SDK via OpenRouter, @openai/agents, LangGraph.js, Zod, Vitest.
+globs: ["**/*.{ts,mts,mdc,md,json}"]
+alwaysApply: true
+---
+
+# Stack
+
+Defer here. Do not restate this list in other rules, skills, or agents.
+
+- **Runtime:** Node.js 22+, TypeScript strict, ESM. Vitest for tests. No Python.
+- **LLM client:** official `openai` package. `baseURL` `https://openrouter.ai/api/v1`. Key `OPENROUTER_API_KEY`. One singleton in `src/llm/client.ts`. Required for an agent-only process; **optional** when embedding (chat route 503 if unset).
+- **Not in stack:** `@openrouter/sdk`, `api.openai.com` + `OPENAI_API_KEY`, Pydantic, RAGAS, DeepEval, LangSmith as required, Python `openai-agents`.
+- **Structured output:** `chat.completions.parse` + `zodResponseFormat`. No `JSON.parse` on model text.
+- **Model IDs:** OpenRouter slugs in `src/llm/models.ts` (role → slug). No literals at call sites.
+- **Default agent runtime:** `@openai/agents` with `setDefaultOpenAIClient` and `setOpenAIAPI("chat_completions")`. Use `run()` or `new Runner().run()` — `Runner.run` is not static in the JS SDK.
+- **Graph runtime:** LangGraph.js only for custom topology, Postgres checkpoint, or `interruptBefore`. LLM via `ChatOpenAI` using the same OpenRouter origin and key — adapter, not a second gateway.
+- **One runtime per agent.** Do not mix `@openai/agents` and LangGraph.js in the same agent.
+- **Schemas:** Zod. **RAG:** OpenRouter embeddings + Qdrant JS or pgvector; in-process BM25; rerank. **Eval:** Vitest + golden JSON + LLM-as-judge. **Traces:** OpenTelemetry; disable OpenAI-dashboard tracing with an OpenRouter key.
+
+Procedures: `scaffold-agent`, `embed-agent`, `openai-agents-sdk`, `langgraph-agent`, `tool-design`, `rag-pipeline`, `agent-eval`.

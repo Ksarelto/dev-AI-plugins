@@ -1,0 +1,63 @@
+{
+  "plugin": "agent-dev-kit",
+  "source": "./agent-dev-kit",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Scaffold the directory structure, package.json, and OpenRouter client factory under src/llm for a new Node TypeScript service",
+      "expect": "scaffold-agent"
+    },
+    {
+      "prompt": "Create the initial folder tree and env parsing so we have a client factory before any Runner loop",
+      "expect": "scaffold-agent"
+    },
+    {
+      "prompt": "Set up Vitest golden JSON datasets and an LLM-as-judge with trajectory tool-correctness and max-turns checks before we ship",
+      "expect": "agent-eval"
+    },
+    {
+      "prompt": "Add Zod LLM-as-judge scoring and a golden dataset so Vitest fails when faithfulness drops",
+      "expect": "agent-eval"
+    },
+    {
+      "prompt": "Build a Qdrant hybrid dense plus BM25 retrieval pipeline with reranking and parent-child chunking over OpenRouter embeddings",
+      "expect": "rag-pipeline"
+    },
+    {
+      "prompt": "I need TypeScript knowledge-base chunking, Qdrant hybrid search, and citation generation",
+      "expect": "rag-pipeline"
+    },
+    {
+      "prompt": "Build an @openai/agents TypeScript agent with Runner.run, tool(), handoffs, guardrails, and Chat Completions against OpenRouter",
+      "expect": "openai-agents-sdk"
+    },
+    {
+      "prompt": "Add sessions, outputType, and guardrails to our @openai/agents Runner loop on OpenRouter",
+      "expect": "openai-agents-sdk"
+    },
+    {
+      "prompt": "Create a LangGraph.js StateGraph with ToolNode, Postgres checkpointing, and interruptBefore human-in-the-loop",
+      "expect": "langgraph-agent"
+    },
+    {
+      "prompt": "Build a checkpointed Plan-Execute LangGraph.js graph with MemorySaver and interruptBefore support",
+      "expect": "langgraph-agent"
+    },
+    {
+      "prompt": "Write a new tool function with a Zod input/output schema, structured error field, and registry entry",
+      "expect": "tool-design"
+    },
+    {
+      "prompt": "How should the Zod schema and read/write split look for this agent tool function?",
+      "expect": "tool-design"
+    },
+    {
+      "prompt": "Embed a campus assistant chat route into our existing Express compose.ts app and keep OPENROUTER_API_KEY optional so missing keys return 503",
+      "expect": "embed-agent"
+    },
+    {
+      "prompt": "Mount an @openai/agents POST chat router on the current HTTP service without replacing env.ts — Zod body, OpenAPI, auth, 503 when the key is unset",
+      "expect": "embed-agent"
+    }
+  ]
+}

@@ -29,6 +29,20 @@
       "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML.",
       "category": "productivity",
       "tags": ["pptx", "powerpoint", "presentation", "slides", "python-pptx", "design-system", "orchestration"]
+    },
+    {
+      "name": "agent-dev-kit",
+      "source": "./agent-dev-kit",
+      "description": "TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter, @openai/agents or LangGraph.js, hybrid retrieval, Vitest eval.",
+      "category": "productivity",
+      "tags": ["ai-agents", "typescript", "nodejs", "openrouter", "openai-sdk", "langgraph-js", "rag", "qdrant"]
+    },
+    {
+      "name": "backend-dev-kit",
+      "source": "./backend-dev-kit",
+      "description": "Rules, skills, and agents for Node.js backends with Express 5, TypeScript, Drizzle ORM, Zod, and Vitest.",
+      "category": "productivity",
+      "tags": ["nodejs", "typescript", "express", "drizzle", "zod", "vitest", "rest-api", "mcp", "auth", "observability"]
     }
   ]
 }

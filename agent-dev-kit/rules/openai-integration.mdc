@@ -1,0 +1,18 @@
+---
+description: OpenRouter via the OpenAI TypeScript SDK — Chat Completions default, Zod parse, no api.openai.com.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# OpenAI SDK + OpenRouter
+
+- Construct `OpenAI` with `baseURL: "https://openrouter.ai/api/v1"` and `apiKey: process.env.OPENROUTER_API_KEY`. Agent-only processes fail at env parse if the key is missing. Embedded agents keep it optional and return 503 from the chat route. Do not `new OpenAI()` with defaults.
+- Do not use `@openrouter/sdk`. Do not send this kit’s traffic to `api.openai.com`.
+- Default API is Chat Completions (`chat.completions.create` / `.parse`). `@openai/agents` must `setOpenAIAPI("chat_completions")` after `setDefaultOpenAIClient`. Do not mix Responses and Chat Completions in one feature.
+- Structured output uses `zodResponseFormat` + `.parse`. Treat `parsed === null` / refusals as their own path. Do not `JSON.parse` `message.content`.
+- Model IDs are OpenRouter slugs (`provider/model`) from `src/llm/models.ts`. Bare OpenAI ids (`gpt-4.1`) are wrong on this gateway.
+- Single-round tool calls may use raw `chat.completions` `tools`. Loops use `Runner` or LangGraph.js — no hand-rolled `while`.
+- Set `maxRetries` and `timeout` on the client. Extra backoff is only for whole-run retries the SDK does not cover.
+- Disable OpenAI-dashboard tracing; an OpenRouter token is not an OpenAI platform key.
+
+For a new agent process, load `scaffold-agent`. For a host HTTP app (`compose.ts`), load `embed-agent`. Then `openai-agents-sdk`. For LangGraph’s `ChatOpenAI` adapter, load `langgraph-agent`.

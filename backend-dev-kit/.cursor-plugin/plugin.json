@@ -1,0 +1,16 @@
+{
+  "name": "backend-dev-kit",
+  "displayName": "Node Backend Dev Kit",
+  "description": "Rules, skills, and agents for building production Node.js backends with Express 5, TypeScript, Drizzle ORM, Zod, and Vitest.",
+  "version": "0.2.1",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["nodejs", "typescript", "express", "drizzle", "zod", "vitest", "rest-api", "backend", "mcp", "context7", "auth", "observability"],
+  "category": "productivity",
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "agents": "./agents/",
+  "mcpServers": "./.mcp.json"
+}

@@ -1,0 +1,16 @@
+---
+description: Health, queues, cache, rate limit, pino, and OpenTelemetry.
+globs: ["**/*.{ts,mts}"]
+alwaysApply: false
+---
+
+# Observability
+
+- `/healthz` — process up, no dependency checks. `/readyz` — Postgres (and Redis if used) with a short timeout; 503 on failure. Both unversioned, omitted from OpenAPI.
+- **pino** for logs. JSON in production. Bind `requestId`. Business events from the service. No `console.log`. Never log tokens, hashes, or `Authorization`.
+- **OpenTelemetry** for traces (HTTP + postgres.js), OTLP export. Request id as a span attribute. No stdout spans in production.
+- In-process fire-and-forget only for work that may vanish on crash. Retries / delay / survive-restart → **BullMQ**; serializable IDs; idempotent jobs; explicit backoff.
+- Cache-aside with the official `redis` client: TTL on every key, namespaced/versioned keys, **DEL on write in the service**. Never cache another user’s data under a shared key.
+- Rate limit at the gateway when possible; in-app `express-rate-limit` by user id or IP. 429 + `Retry-After`. Always limit `POST /api/v1/auth/token`. No in-memory `Map` limiter.
+
+For handler wiring and request-id, load `error-handling`. For Redis client, cache-aside, BullMQ workers, and the limiter store, load `redis-backplane`. Do not put cache invalidation in the router.
