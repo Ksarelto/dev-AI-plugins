@@ -1,0 +1,67 @@
+{
+  "plugin": "feature-dev-kit",
+  "source": "./app-dev-kit/feature-dev-kit",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Have the feature-orchestrator drive stations through architecture-audit and hand back a REVIEW_PACKET without asking me",
+      "expect": "feature-orchestrator"
+    },
+    {
+      "prompt": "Spawn architecture-auditor for a read-only REPORT_ONLY FSD layer-slice-segment report and do not fix any findings",
+      "expect": "architecture-auditor"
+    },
+    {
+      "prompt": "Run upstream-interpreter as a read-only YAML parser so one screen-task slice comes back compact from SPEC_FILE",
+      "expect": "upstream-interpreter"
+    },
+    {
+      "prompt": "Use spec-analyst at intake to draft acceptance criteria and return a CLARIFY_PACKET without asking the user",
+      "expect": "spec-analyst"
+    },
+    {
+      "prompt": "Have code-explorer map reuse candidates and FSD impact then write the reuse map on the blackboard",
+      "expect": "code-explorer"
+    },
+    {
+      "prompt": "Run research-analyst with context7 to propose a new package and never install it",
+      "expect": "research-analyst"
+    },
+    {
+      "prompt": "Have shared-engineer pull a shadcn primitive into shared ui and yarn add only a human-approved package",
+      "expect": "shared-engineer"
+    },
+    {
+      "prompt": "Build the entities layer api model and ui segments with entities-engineer after shared is green",
+      "expect": "entities-engineer"
+    },
+    {
+      "prompt": "Have features-engineer author the interaction slice with typed handlers and mutations",
+      "expect": "features-engineer"
+    },
+    {
+      "prompt": "Use composition-engineer to assemble widgets and route-level pages from entities and features",
+      "expect": "composition-engineer"
+    },
+    {
+      "prompt": "Have app-engineer wire the routing table lazy imports navigation and providers last",
+      "expect": "app-engineer"
+    },
+    {
+      "prompt": "Consolidate this one-slice change into a parameterized slice-engineer instead of spawning three layer workers",
+      "expect": "slice-engineer"
+    },
+    {
+      "prompt": "Have test-engineer write colocated Vitest RTL tests to the coverage threshold per layer group",
+      "expect": "test-engineer"
+    },
+    {
+      "prompt": "Run quality-gate-runner mechanically and return only typecheck lint boundary build coverage failures",
+      "expect": "quality-gate-runner"
+    },
+    {
+      "prompt": "Have code-reviewer emit a severity-tagged report of conventions and acceptance coverage not the architecture-audit",
+      "expect": "code-reviewer"
+    }
+  ]
+}

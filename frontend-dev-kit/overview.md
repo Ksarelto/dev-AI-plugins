@@ -27,11 +27,6 @@ relevant. That is the kit's main cost, and it was the subject of the 2026-08-02 
 
 What changed:
 
-- **`architecture.mdc` 443 → ~60 lines.** Only the invariants, layer model, segment ownership, and
-  dependency direction stay always-on. Enforcement config, state ownership, cross-feature
-  communication, cross-cutting concerns, routing, lifecycle, scaling, bottlenecks, the corner-case
-  playbook, testing-by-layer, and adoption moved to the new `feature-architecture` skill's
-  `references/`.
 - **Four style rules merged into `code-style.mdc`** (`clean-code`, `coding-standards`,
   `typescript-react`, `react-components`) — they restated the same points in four files.
 - **Two React rules merged into `react.mdc`** (`react-patterns`, `react-compiler`). They previously
@@ -74,7 +69,7 @@ mechanism differs.
 
 `accessibility` 21 → 65 lines and `react` 56 → 106 lines, plus targeted expansion of `react-query`
 (20 → 44), `shadcn-usage` (18 → 30), and `i18n` (16 → 37). `code-style` gained material while
-shrinking 51 → 46. `architecture` was deliberately left untouched.
+shrinking 51 → 46.
 
 This buys coverage at a real cost, and the 2026-08-02 budget no longer holds:
 
@@ -92,10 +87,10 @@ to a `react-patterns` skill, leaving the constraint half in the rule.
 
 ## Known gaps
 
-- **`docs/` duplication is deliberate but unenforced.** `skills/feature-architecture/references/*`
-  are copies of `docs/frontend/architecture/*`, because a kit must ship standalone. Nothing
-  currently detects drift between the two — a `npm run validate` check comparing them would be the
-  natural next step.
+- **`docs/` derivation is deliberate but unenforced.** `skills/architecture-audit/references/*`
+  are distilled audit checklists of `docs/frontend/architecturev2/*`, because a kit must ship
+  standalone. Nothing currently detects drift between the two — a `npm run validate` check
+  comparing them would be the natural next step.
 - **`react-19-apis` has no test or story coverage** in the kit's own examples; the API signatures
   were verified against react.dev at authoring time but will need re-checking on the next React
   minor.

@@ -11,22 +11,24 @@ app/ → pages/ → widgets/ → features/ → entities/ → shared/
 **Hard**
 
 - `app/`: providers, router, root boundaries, `main.tsx`. Nobody below imports `@/app`. No `ThemeProvider`.
-- `pages/`: thin route composition. Only `app/router/` mounts pages. No business rules; no chained `await`s across two features.
-- `widgets/`: reusable composition of 2+ features used on 2+ routes. Importers = `pages/` and `app/` only. Features must not import widgets. No widget→widget.
-- `features/`: business capabilities. External imports only `@/features/{name}` (or `/index`). No feature→feature, feature→widget, feature→app/pages.
-- `entities/`: public API only. May import other entities via `index.ts` or `@x`. Never `features/`. `shared/` must not import `entities/`.
-- `shared/`: generic only. No upward imports.
-- Business types (`Money`, `OrderId`) are not in `shared/model/`. `shared/model/` holds non-business shapes (`Rect`, `Point`).
+- `pages/`: thin route composition. Only `app/router/` mounts pages. No business rules; no chained `await`s across two features. May import widgets, features (via `index.ts`), entities, shared.
+- `widgets/`: reusable composition of 2+ features used on 2+ routes. Importers = `pages/`, `pages/{route}/ui/`, and `app/` only. Features must not import widgets. No widget→widget. No `models/` (plural) or `api/`. Optional `hooks/` only pass ids/callbacks.
+- `features/`: business capabilities. External imports only `@/features/{name}` (or `/index`). No feature→feature, feature→widget, feature→app/pages. Permission ids in `config/`; flag names never in the feature. Own i18n in `locales/`.
+- `entities/`: public API only. May import other entities via `index.ts` or `@x`. Never `features/`. `shared/` must not import `entities/`. Default shape `model/ + index.ts`.
+- `shared/`: generic only. No upward imports (including entities). `config/` holds env + flag names **and** values.
+- Business types (`Money`, `OrderId`) are not in `shared/model/`. `shared/model/` holds non-business shapes (`Rect`, `Point`), promoted on a second real consumer.
 
 **Judgment**
 
 - Widget that exists for a composition still used on exactly one route (see lifecycle).
 - Entity vs `shared/model/` for a type that might be business.
+- A widget whose `hooks/` fetch or own a rule — it has become a feature.
 
 ## How
 
 ```bash
 rg -n "from ['\"]@/app" src/{pages,widgets,features,entities,shared}
+rg -n "from ['\"]@/pages" src/{widgets,features,entities,shared}
 rg -n "from ['\"]@/widgets" src/features
 rg -n "from ['\"]@/entities" src/shared
 rg -n "from ['\"]@/(features|widgets|pages|app)" src/shared

@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv from "ajv";
@@ -51,6 +51,51 @@ function pluginKey(entry) {
   return `${entry.name}\0${entry.source}`;
 }
 
+function asPaths(value) {
+  if (!value) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+function checkComponentPaths(sourcePath, manifest, label, pluginName) {
+  let ok = true;
+
+  for (const field of ["skills", "agents", "rules", "commands"]) {
+    for (const rel of asPaths(manifest[field])) {
+      const abs = join(sourcePath, rel);
+      if (!existsSync(abs)) {
+        console.error(`FAIL: [${label}] ${pluginName} ${field} path missing: ${rel}`);
+        ok = false;
+        continue;
+      }
+      if (field !== "skills") continue;
+      try {
+        if (!statSync(abs).isDirectory()) continue;
+      } catch {
+        continue;
+      }
+      for (const entry of readdirSync(abs, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        if (!existsSync(join(abs, entry.name, "SKILL.md"))) {
+          console.error(
+            `FAIL: [${label}] ${pluginName} skill directory has no SKILL.md: ${rel}${entry.name}/`
+          );
+          ok = false;
+        }
+      }
+    }
+  }
+
+  if (typeof manifest.mcpServers === "string") {
+    const abs = join(sourcePath, manifest.mcpServers);
+    if (!existsSync(abs)) {
+      console.error(`FAIL: [${label}] ${pluginName} mcpServers path missing: ${manifest.mcpServers}`);
+      ok = false;
+    }
+  }
+
+  return ok;
+}
+
 function validateMarketplace(manifestDir, label, marketplaceSchema, pluginSchema) {
   let passed = true;
   const marketplacePath = join(root, manifestDir, "marketplace.json");
@@ -92,6 +137,11 @@ function validateMarketplace(manifestDir, label, marketplaceSchema, pluginSchema
           `FAIL: [${label}] name mismatch for ${entry.source}/${dir}: marketplace="${entry.name}", plugin.json="${pluginManifest.name}"`
         );
         passed = false;
+      }
+
+      // Path checks once per plugin.json (Claude marketplace pass only) to avoid duplicate lines.
+      if (label === "Claude") {
+        passed = checkComponentPaths(sourcePath, pluginManifest, harnessLabel, entry.name) && passed;
       }
     }
   }

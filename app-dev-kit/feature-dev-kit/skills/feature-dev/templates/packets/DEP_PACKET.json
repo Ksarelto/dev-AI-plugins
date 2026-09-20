@@ -1,0 +1,14 @@
+{
+  "type": "DEP_PACKET",
+  "spec_path": ".spec/features/sign-in.md",
+  "packages": [
+    {
+      "name": "example-unused-lib",
+      "version": "1.2.3",
+      "size": "4kb gzip",
+      "license": "MIT",
+      "why": "Fixture only — a real run lists a package the codebase does not already have.",
+      "alternatives": ["use existing shared/lib instead"]
+    }
+  ]
+}

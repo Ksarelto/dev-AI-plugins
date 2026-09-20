@@ -1,0 +1,14 @@
+{
+  "name": "html-generator-kit",
+  "displayName": "HTML Generator Kit",
+  "description": "Turns a validated spec-dev-kit spec into a clickable, CDN-free, Alpine.js multi-page HTML prototype with a modern design direction sourced from the ui-ux-pro-max design-intelligence skill, headless-browser verified before finalizing. Requires ui-ux-pro-max (npm i -g ui-ux-pro-max-cli && uipro init --ai claude --global) — the skill offers to install it on first run.",
+  "version": "0.2.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "ui-ux-pro-max", "app-dev-kit"],
+  "category": "productivity",
+  "skills": "./skills/",
+  "agents": "./agents/"
+}

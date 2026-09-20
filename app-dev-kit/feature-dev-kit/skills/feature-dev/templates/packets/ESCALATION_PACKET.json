@@ -1,0 +1,9 @@
+{
+  "type": "ESCALATION_PACKET",
+  "spec_path": ".spec/features/sign-in.md",
+  "station": "1.5",
+  "errors": [
+    "architecture-auditor could not resolve frontend-dev-kit:architecture-audit — install frontend-dev-kit"
+  ],
+  "options": ["install-companion-and-retry", "abort"]
+}

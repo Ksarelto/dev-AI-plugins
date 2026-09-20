@@ -1,0 +1,201 @@
+# Spec Front Matter Template
+# Used by: spec-synthesizer (Station 6). status starts at "reviewing" — never "approved".
+# Replace ALL {{PLACEHOLDER}} values. Do not leave any placeholder in the final output.
+# Full schema definition: ../references/spec-schema.md
+
+---
+spec-version: "1.1"
+timecode: "{{YYYYMMDD-HHmmss}}"
+type: "{{feature|app|domain|integration}}"
+status: "reviewing"
+
+metadata:
+  slug: "{{kebab-case-identifier}}"
+  title: "{{Human-Readable Feature Title}}"
+  created: "{{YYYY-MM-DDTHH:mm:ssZ}}"
+  updated: "{{YYYY-MM-DDTHH:mm:ssZ}}"
+  source-files:
+    - "{{filename1.md}}"
+  pipeline-rounds:
+    clarification: 0
+    completeness: 0
+    review: 0
+
+context:
+  problem: "{{What problem does this feature solve? 1-3 sentences.}}"
+  goal: "{{What does success look like? What measurable outcome does this achieve?}}"
+  target-users:
+    - "{{user role 1, e.g. 'admin'}}"
+    - "{{user role 2, e.g. 'standard user'}}"
+  existing-system: "{{Describe what currently exists that this extends or replaces. Use 'None - greenfield feature' if applicable.}}"
+  constraints:
+    - "{{constraint 1, e.g. 'Must integrate with existing OIDC auth'}}"
+  non-goals:
+    - "{{explicit out-of-scope item — mirror each Markdown 'Out of Scope' entry here}}"
+
+entities:
+  # Include ALL fields with real TS types (not just id + name) — the prototype renders one
+  # table column / form field per field. Entities with lifecycle states MUST have a status field
+  # typed <Entity>Status whose description enumerates the allowed values (drives status badges).
+  - name: "{{EntityName}}"
+    description: "{{What this entity represents in the domain.}}"
+    fields:
+      - name: "id"
+        type: "string"
+        required: true
+        description: "Unique identifier"
+      - name: "{{fieldName}}"
+        type: "{{TypeScript type: string | number | boolean | Date | string[] | etc.}}"
+        required: true
+        description: "{{Field description}}"
+      - name: "status"
+        type: "{{EntityName}}Status"
+        required: true
+        description: "{{Lifecycle status. One of: NEW, ACTIVE, DECLINED (enumerate the real values).}}"
+    relationships:
+      - entity: "{{RelatedEntityName}}"
+        type: "{{one-to-one|one-to-many|many-to-many}}"
+        description: "{{Relationship description}}"
+
+user-stories:
+  - id: US-001
+    as: "{{user role, e.g. 'admin'}}"
+    i-want: "{{capability, e.g. 'create a new profile with a name and type'}}"
+    so-that: "{{benefit/outcome, e.g. 'I can manage user access to the system'}}"
+    priority: "{{must|should|could|wont}}"
+  - id: US-002
+    as: "{{user role}}"
+    i-want: "{{capability}}"
+    so-that: "{{benefit}}"
+    priority: "{{must|should|could|wont}}"
+
+acceptance-criteria:
+  - id: AC-001
+    story-ref: US-001
+    given: "{{Precondition — the starting state}}"
+    when: "{{Action — what the user does}}"
+    then: "{{Observable outcome — what the system does}}"
+    testable: true
+  - id: AC-002
+    story-ref: US-001
+    given: "{{Error precondition, e.g. 'a profile with the same name already exists'}}"
+    when: "{{Same user action}}"
+    then: "{{Error outcome, e.g. 'a validation error is shown: \"Profile name already exists\"'}}"
+    testable: true
+
+api-surface:
+  endpoints:
+    - id: API-001
+      method: "{{GET|POST|PUT|PATCH|DELETE}}"
+      path: "{{/v1/resource or /v1/resource/{id}}}"
+      description: "{{What this endpoint does}}"
+      auth-required: true
+      request:
+        path-params:
+          id: "string"
+        query-params: {}
+        body: {}
+      response:
+        success:
+          status: 200
+          schema: "{{EntityName or array}}"
+        errors:
+          - status: 404
+            message: "{{Resource}} not found"
+          - status: 403
+            message: "Insufficient permissions"
+  mutations:
+    - id: API-002
+      method: "POST"
+      path: "{{/v1/resource}}"
+      description: "{{What this mutation does}}"
+      auth-required: true
+      request:
+        path-params: {}
+        query-params: {}
+        body:
+          "{{fieldName}}": "{{type}}"
+      response:
+        success:
+          status: 201
+          schema: "{{EntityName}}"
+        errors:
+          - status: 409
+            message: "{{Resource}} already exists"
+          - status: 422
+            message: "Validation error"
+
+ui-surface:
+  # notes MUST name the primary entity AND start with a page-type-revealing phrase
+  # (list/browse/filter → list; view/detail/manage → detail; create/add/new → form;
+  # dashboard/overview → dashboard; settings → settings). components[] MUST be specific named
+  # components (incl. any modal/form) — the prototype picks the layout from notes and renders these.
+  screens:
+    - id: SCR-001
+      title: "{{Screen Title}}"
+      route: "{{/path/to/screen or /path/:id}}"
+      states:
+        - loading
+        - empty
+        - error
+        - success
+      components:
+        - "{{Specific component, e.g. 'ProfilesTable'}}"
+        - "{{Specific component, e.g. 'StatusFilterDropdown'}}"
+        - "{{Specific component, e.g. 'CreateProfileModal'}}"
+      notes: "{{Action-oriented one-liner naming the primary entity, e.g. 'List and filter all Profiles; each row opens the profile detail.'}}"
+  interactions:
+    - id: INT-001
+      trigger: "{{User action, e.g. 'clicks Create Profile button'}}"
+      response: "{{System response, e.g. 'opens Create Profile modal'}}"
+      screen-ref: SCR-001
+
+non-functional:
+  performance:
+    - "{{e.g. 'List screen loads in < 500ms at p95 on standard connection'}}"
+  accessibility:
+    - "WCAG 2.2 AA compliance"
+    - "Keyboard navigation for all interactive elements"
+  security:
+    - "All endpoints require Bearer token authentication"
+    - "{{Any additional security requirements}}"
+  scalability:
+    - "{{e.g. 'Supports up to 10,000 profiles without pagination performance degradation'}}"
+  observability:
+    - "{{e.g. 'Log userId, action, entityId, timestamp for all create/update/delete mutations'}}"
+
+risks:
+  - id: RISK-001
+    description: "{{Risk description}}"
+    likelihood: "{{low|medium|high}}"
+    impact: "{{low|medium|high}}"
+    mitigation: "{{How to mitigate this risk}}"
+
+assumptions:
+  - id: ASSM-001
+    description: "{{What was assumed to fill a gap in the requirements}}"
+    source: "{{user|analyst|enricher}}"
+    confidence: "{{low|medium|high}}"
+    requires-confirmation: true
+
+open-questions:
+  - id: Q-001
+    question: "{{Unanswered question that should be resolved before or during build}}"
+    raised-by: "{{analyst|enricher|user}}"
+    status: "open"
+    answer: ""
+
+traceability:
+  source-requirements:
+    - file: "{{filename.md}}"
+      section: "{{Heading or line reference}}"
+      maps-to:
+        - "US-001"
+        - "AC-001"
+  decisions:
+    - id: DEC-001
+      decision: "{{What was decided}}"
+      rationale: "{{Why this decision was made}}"
+      alternatives-considered:
+        - "{{Alternative 1 and why it was rejected}}"
+---

@@ -1,0 +1,22 @@
+{
+  "plugin": "feature-dev-kit",
+  "source": "./app-dev-kit/feature-dev-kit",
+  "component": "skills",
+  "cases": [
+    { "prompt": "Scaffold the route-level screen that composes these widgets and features", "expect": "create-page" },
+    { "prompt": "Build this entire new feature end to end following our FSD conventions", "expect": "feature-dev" },
+    { "prompt": "Wire up the routing table and lazy import for the new page", "expect": "add-route" },
+    { "prompt": "I need a library for date formatting, check context7 and give me a risk summary before we bring it in", "expect": "investigate-dependency" },
+    { "prompt": "Run typecheck, lint, boundaries, and build as one pass or fail gate", "expect": "run-quality-gates" },
+    { "prompt": "Scaffold a large self-contained widget block that assembles shadcn blocks", "expect": "create-widget" },
+    { "prompt": "Pull a new UI primitive from the shadcn registry into shared UI", "expect": "create-shared-ui" },
+    { "prompt": "Add a new user-facing string key to the shared text content config", "expect": "add-text-content" },
+    { "prompt": "Scaffold a new business entity slice with model and api segments", "expect": "create-entity" },
+    { "prompt": "Scaffold a presentational component in the correct FSD layer with matching tests", "expect": "create-react-component" },
+    { "prompt": "Scaffold the interaction slice for editing a record with typed handlers and mutations", "expect": "create-feature" },
+    { "prompt": "Add sidebar menu, navigation, and breadcrumb entries for this already-routed screen", "expect": "wire-navigation" },
+    { "prompt": "Rebase this approved feature over develop and open the PR via gh", "expect": "create-pr" },
+    { "prompt": "Create the base layer and slice folder structure with a correct public API", "expect": "create-slice" },
+    { "prompt": "Turn this raw feature request into a structured testable spec with clarifying questions", "expect": "generate-feature-spec" }
+  ]
+}

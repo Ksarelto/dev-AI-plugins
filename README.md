@@ -11,6 +11,12 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 | [pptx-dev-kit](pptx-dev-kit/) | Skills + Agents | Create a 16:9 `.pptx` from a brief via a checked-in layout engine, or edit an existing deck via OOXML |
 | [agent-dev-kit](agent-dev-kit/) | Rules + Skills + Agents + MCP | TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter, `@openai/agents` or LangGraph.js |
 | [backend-dev-kit](backend-dev-kit/) | Rules + Skills + Agents + MCP | Node.js APIs: Express 5, TypeScript, Drizzle, Zod, Vitest |
+| [spec-dev-kit](app-dev-kit/spec-dev-kit/) | Skills + Agents | Raw `.spec/context/` requirements → approved hybrid YAML+Markdown spec |
+| [html-generator-kit](app-dev-kit/html-generator-kit/) | Skills + Agents | Validated spec → CDN-free Alpine.js multi-page HTML prototype |
+| [feature-dev-kit](app-dev-kit/feature-dev-kit/) | Skills + Agents + Rules + MCP | One React FSD screen-task from a spec + optional prototype; hub-and-spoke; architecture-audit; never a PR |
+| [orchestrator-kit](app-dev-kit/orchestrator-kit/) | Skills | Spec → prototype → one `/feature-dev` per screen-task, tracked on a persisted checklist |
+
+The last four are separate marketplace plugins under [`app-dev-kit/`](app-dev-kit/). See that README for the pipeline map. Discoverability evals live in `evals/cases/<plugin-name>.json` (plus `<plugin-name>-agents.json` when the kit ships agents).
 
 `pptx-dev-kit` needs `python3`; it installs `python-pptx` on demand when rendering or editing.
 
@@ -34,6 +40,10 @@ This makes all plugins available for install in any project.
 /plugin install pptx-dev-kit@dev-cursor-plugins
 /plugin install agent-dev-kit@dev-cursor-plugins
 /plugin install backend-dev-kit@dev-cursor-plugins
+/plugin install spec-dev-kit@dev-cursor-plugins
+/plugin install html-generator-kit@dev-cursor-plugins
+/plugin install feature-dev-kit@dev-cursor-plugins
+/plugin install orchestrator-kit@dev-cursor-plugins
 ```
 
 ### Load locally during development
@@ -43,6 +53,10 @@ claude --plugin-dir ./frontend-dev-kit
 claude --plugin-dir ./pptx-dev-kit
 claude --plugin-dir ./agent-dev-kit
 claude --plugin-dir ./backend-dev-kit
+claude --plugin-dir ./app-dev-kit/spec-dev-kit
+claude --plugin-dir ./app-dev-kit/html-generator-kit
+claude --plugin-dir ./app-dev-kit/feature-dev-kit
+claude --plugin-dir ./app-dev-kit/orchestrator-kit
 ```
 
 Or reload inside a session after changes:
@@ -109,7 +123,7 @@ Plugins that declare MCP servers read secrets from the environment (Claude-compa
 
 | Variable | Used by |
 |----------|---------|
-| `CONTEXT7_API_KEY` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
+| `CONTEXT7_API_KEY` | frontend-dev-kit, agent-dev-kit, backend-dev-kit, feature-dev-kit |
 | `GITLAB_PERSONAL_ACCESS_TOKEN`, `GITLAB_API_URL` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
 | `JIRA_URL`, `JIRA_USERNAME`, `JIRA_API_TOKEN` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
 | `CONFLUENCE_URL`, `CONFLUENCE_USERNAME`, `CONFLUENCE_API_TOKEN` | frontend-dev-kit, agent-dev-kit, backend-dev-kit |
@@ -140,18 +154,19 @@ scripts/
   validate-marketplace.mjs  # Dual Claude + Cursor validation
   install-cursor-local.mjs  # Symlink kits into ~/.cursor/plugins/local
 evals/                      # Skill/agent discoverability evals (see evals/README.md)
-  cases/<plugin-name>.json  # Prompt -> expected skill/agent per plugin
+  cases/<plugin-name>.json  # Prompt -> expected skill per plugin
+  cases/<plugin-name>-agents.json
   runner.mjs
-<plugin>/
-  .claude-plugin/
-    plugin.json             # Claude Code plugin manifest
-  .cursor-plugin/
-    plugin.json             # Cursor plugin manifest (same paths)
-  agents/                   # Subagent definitions
-  skills/                   # Skill definitions (SKILL.md per skill)
-  commands/                 # Slash command definitions
-  rules/                    # Cursor .mdc rule files
-  .mcp.json                 # MCP server configs (where applicable)
+<plugin>/                   # most kits at repo root
+  .claude-plugin/plugin.json
+  .cursor-plugin/plugin.json
+  agents/ skills/ commands/ rules/
+  .mcp.json                 # MCP (Claude default filename)
+app-dev-kit/                # nested family; marketplace source ./app-dev-kit/<name>
+  spec-dev-kit/
+  html-generator-kit/
+  feature-dev-kit/          # MCP file is mcp.json (Cursor default; declared in plugin.json)
+  orchestrator-kit/
 ```
 
 ---
@@ -163,7 +178,7 @@ npm install
 npm run validate
 ```
 
-Validates both marketplaces, all Claude and Cursor `plugin.json` manifests, matching plugin lists, and that every declared source path exists.
+Validates both marketplaces, all Claude and Cursor `plugin.json` manifests, matching plugin lists, that every declared source path exists, and that declared `skills` / `agents` / `rules` / `mcpServers` paths exist (including `SKILL.md` in every skill directory).
 
 ## Evals
 
@@ -172,18 +187,19 @@ npm run eval
 ```
 
 Checks that every skill/agent's `description` is actually discoverable — that a realistic user
-prompt scores it above its siblings in the same plugin. Runs offline, no API key required. See
-[evals/README.md](evals/README.md) for the case format and scoring method.
+prompt scores it above its siblings in the same plugin — and that every skill/agent on disk has a
+case (and that every marketplace plugin that ships skills/agents has a suite). Runs offline, no
+API key required. See [evals/README.md](evals/README.md) for the case format and scoring method.
 
 ---
 
 ## Adding a plugin
 
-1. Create `<plugin-name>/` at repo root
+1. Create `<plugin-name>/` at repo root, or under `app-dev-kit/` for the spec → prototype → feature family. Marketplace `source` must match that directory (e.g. `./app-dev-kit/spec-dev-kit`).
 2. Add matching `<plugin-name>/.claude-plugin/plugin.json` and `<plugin-name>/.cursor-plugin/plugin.json`
 3. Add component directories
 4. Register in both `.claude-plugin/marketplace.json` and `.cursor-plugin/marketplace.json`
-5. Add `evals/cases/<plugin-name>.json` with a case per skill/agent
+5. Add `evals/cases/<plugin-name>.json` with a case per skill (and `evals/cases/<plugin-name>-agents.json` when the kit ships agents)
 6. Run `npm run validate && npm run eval`
 
 Adding a skill or agent to an existing plugin, or changing its `description`, requires the same

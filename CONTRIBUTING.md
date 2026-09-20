@@ -2,7 +2,7 @@
 
 ## Adding a plugin
 
-1. Create a new directory at the repo root using **kebab-case** (e.g. `my-new-plugin`)
+1. Create a new directory using **kebab-case** (e.g. `my-new-plugin`) at the repo root, or under `app-dev-kit/` for the spec → prototype → feature family. Marketplace `source` must match that directory.
 2. Add **both** harness manifests with the same fields and component paths:
    - `.claude-plugin/plugin.json`
    - `.cursor-plugin/plugin.json`
@@ -10,14 +10,15 @@
 4. Register the plugin in **both** marketplaces:
    - `.claude-plugin/marketplace.json`
    - `.cursor-plugin/marketplace.json`
-5. Add an eval suite in `evals/cases/<plugin-name>.json` — one case per skill/agent (see [evals/README.md](evals/README.md))
+5. Add an eval suite in `evals/cases/<plugin-name>.json` — one case per skill. Multi-agent kits also add `evals/cases/<plugin-name>-agents.json` with one case per agent (see [evals/README.md](evals/README.md))
 6. Run `npm run validate` and `npm run eval` before submitting
 
 ## Adding a skill or agent to an existing plugin
 
 Whenever you add a new skill or agent (or change one's `description`), add or update its case in
-`evals/cases/<plugin-name>.json` in the same change. An undiscoverable skill — one whose description
-doesn't match how a user would actually ask for it — is a bug even if `npm run validate` passes.
+`evals/cases/<plugin-name>.json` (skills) or `evals/cases/<plugin-name>-agents.json` (agents) in the
+same change. An undiscoverable skill — one whose description doesn't match how a user would actually
+ask for it — is a bug even if `npm run validate` passes.
 See [evals/README.md](evals/README.md) for the case format.
 
 Content is shared; only the manifest directories differ. Keep the two `plugin.json` files in sync when you change metadata or paths.
@@ -44,7 +45,7 @@ rules, skills, commands, and agents, plus the creation flow and orchestration pa
 - [ ] `README.md` documents usage for the plugin
 - [ ] All paths in manifests are relative and valid
 - [ ] Plugin registered in both `.claude-plugin/marketplace.json` and `.cursor-plugin/marketplace.json`
-- [ ] Eval suite added at `evals/cases/<plugin-name>.json` with a case per skill/agent
+- [ ] Eval suite added at `evals/cases/<plugin-name>.json` (and `<plugin-name>-agents.json` when the kit ships agents) with a case per skill/agent
 - [ ] `npm run validate` passes
 - [ ] `npm run eval` passes
 

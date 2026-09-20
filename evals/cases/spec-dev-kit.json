@@ -1,0 +1,9 @@
+{
+  "plugin": "spec-dev-kit",
+  "source": "./app-dev-kit/spec-dev-kit",
+  "component": "skills",
+  "cases": [
+    { "prompt": "Turn these raw requirements into an approved YAML and Markdown spec", "expect": "generate-spec" },
+    { "prompt": "Run intake, gap analysis, and human review to publish a new feature spec", "expect": "generate-spec" }
+  ]
+}

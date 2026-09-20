@@ -23,7 +23,6 @@ procedures live in skills, so a file edit costs ~2.5k tokens of rules rather tha
 
 | Rule | Globs | Topic |
 |------|-------|-------|
-| `architecture` | `src/**/*` | Layer model, segment ownership, pure core and ports, dependency direction |
 | `component-structure` | `**/features|widgets|entities/**/ui/**`, `**/shared/ui/**` | Kebab-case component folders and files (`button.tsx`, `custom-button.tsx`); PascalCase export |
 | `code-style` | `**/*.{ts,tsx}` | TypeScript discipline, naming, complexity, components, JSX, quality bar |
 | `react` | `**/*.{tsx}` | Purity, hooks rules, effects, keys, memoization under the Compiler, refs, boundaries |
@@ -43,7 +42,6 @@ Workflow guides with few-shot templates in each skill's `examples.md`.
 |-------|----------|
 | `react-feature` | Building a new page or feature slice |
 | `architecture-audit` | Checking whether `src/` matches the FSD layer/slice/segment model; report violations, then fix after confirmation |
-| `feature-architecture` | Deciding where code belongs, ports and use cases, state ownership, cross-feature deps and workflows, splitting a feature, boundary enforcement |
 | `accessibility` | Auditing or fixing a11y; shadcn accessible names; verifying with axe or Playwright |
 | `react-19-apis` | `useActionState`, `useOptimistic`, `use()`, async `<form action>` |
 | `react-query-hook` | Creating query or mutation hooks |

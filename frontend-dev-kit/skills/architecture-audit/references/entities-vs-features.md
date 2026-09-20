@@ -7,10 +7,12 @@ An entity is a real-life business noun that **two or more features** need. A sin
 **Hard**
 
 - Entity→entity via `@/entities/{other}` (`index.ts`), not `@/entities/{other}/model/...`. Graph is acyclic.
-- `@x` path: `entities/{A}/@x/{B}.ts` exports only the slice entity B needs. Provider folder, consumer filename.
+- `@x` path: `entities/{A}/@x/{B}.ts` exports only the slice entity B needs. Provider folder, consumer filename. Prefer an id reference, then a type parameter, before `@x`. `@x` is a type/narrow export — never a live object graph to dodge the id-reference rule.
 - Default relations: `customerId: string`, not a nested live `Customer` object.
 - Not entities: DTOs/view-models, single-feature helpers, generic geometry → `shared/model/`.
 - Entity `api/` + `endpoints.ts` only for canonical ops (the noun's own query/command). Feature operations (`placeOrder`) do not live on the entity.
+- A class with `fromDTO` / invariants is **optional**, not required. Plain object + mapper is the default; a class is earned when construction must enforce an invariant (`Money` rejecting negatives).
+- Cross-model policy (order total spanning cart × tier × tax) lives in the owning feature's `models/`, not on an entity.
 
 **Judgment**
 

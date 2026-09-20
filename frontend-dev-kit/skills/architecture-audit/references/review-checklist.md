@@ -13,11 +13,17 @@ Final sweep after the other topics. Do not restate import-direction, public-API,
 - Cross-model policy sitting in `entities/` instead of the owning feature.
 - Analytics call that enriches its payload by reading another slice's cache or store.
 - Non-idempotent event-shaped side effect (toast, per-change analytics) fired from a query transition (`usePrevious` + `notify`) instead of the SSE subscription owner.
+- A second slice subscribing to an event type another slice already owns, just to add its own toast.
+- New `shared/` entry with a business-specific name, or promoted before the **third** real duplicate (rule of three).
+- Business rule inlined next to `await`s in an orchestration hook (threshold, predicate, "which step ran") instead of a named `models/` function.
+- `models/` touching `window`/DOM/storage outside the persist-store storage binding.
+- Client-side dedup / minted idempotency key (if cross-slice-workflows did not already file it).
 
 **Judgment — under-engineering**
 
 - Missing empty/error/stale on a data-driven surface (if routing already covered it, skip).
 - Mutation with missing or wrong invalidation, already covered by api-layer — only file leftovers.
+- Anemic `models/` (types only; every rule sits in `hooks/`).
 
 **Judgment — over-engineering**
 

@@ -1,0 +1,43 @@
+{
+  "plugin": "html-generator-kit",
+  "source": "./app-dev-kit/html-generator-kit",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Have the html-orchestrator drive remaining stations and hand back a REVIEW_PACKET without asking me",
+      "expect": "html-orchestrator"
+    },
+    {
+      "prompt": "Run spec-interpreter as a read-only YAML parser so pages and entities come back as a compact summary from SPEC_FILE",
+      "expect": "spec-interpreter"
+    },
+    {
+      "prompt": "Have design-strategist query ui-ux-pro-max and write design-brief.md plus ux-directives.md",
+      "expect": "design-strategist"
+    },
+    {
+      "prompt": "Fill tokens.css base.css and components.css from the brief via design-system-author",
+      "expect": "design-system-author"
+    },
+    {
+      "prompt": "Have component-library-author write Alpine stores in app.js and entity mock data in data.js",
+      "expect": "component-library-author"
+    },
+    {
+      "prompt": "Generate one standalone HTML page file with a screen-generator instance for this screen only",
+      "expect": "screen-generator"
+    },
+    {
+      "prompt": "Use assembly-wiring to build index.html and navigation.js after every page exists",
+      "expect": "assembly-wiring"
+    },
+    {
+      "prompt": "Run qa-validator read-only for spec coverage HTML quality and accessibility without modifying files",
+      "expect": "qa-validator"
+    },
+    {
+      "prompt": "Have modification-router decompose this change request into station re-entry tasks",
+      "expect": "modification-router"
+    }
+  ]
+}

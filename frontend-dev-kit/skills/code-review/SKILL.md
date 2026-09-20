@@ -46,11 +46,14 @@ sub-agent will skip and report "no spec available".
 Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or
 `CONTRIBUTING.md`.
 
-This kit's own standards are also always in scope, sourced two ways:
+This kit's own standards are also always in scope, sourced as follows:
 
 - Where a dedicated rule file already exists, use it directly — `rules/typescript.md`,
-  `rules/react.mdc`, `rules/architecture.mdc`, `rules/general-coding-principles.md`,
-  `rules/honesty.mdc`. No copy of these lives in this skill; read the rule file itself.
+  `rules/react.mdc`, `rules/general-coding-principles.md`, `rules/honesty.mdc`. No copy of
+  these lives in this skill; read the rule file itself.
+- FSD architecture (layers, slices, segments, public APIs, query keys, state ownership) lives in
+  the `architecture-audit` skill, not a rule. Load that skill and only the `references/*.md` files
+  that match the changed paths. Do not invent a second architecture summary.
 - Where no rule file exists yet (the topic only lives inside a skill today), use this skill's own
   `references/*.md` instead: `references/styling-and-shadcn.md`, `references/accessibility.md`,
   `references/i18n.md`, `references/data-fetching.md`, `references/testing.md`.
@@ -101,8 +104,9 @@ Each smell reads what it is → how to fix; match it against the diff:
 **Standards sub-agent prompt** should include:
 
 - The full diff command and commit list.
-- The list of standards-source files you found in step 3 — repo docs, matching kit rule files, and
-  matching `references/*.md` files from this skill — with their contents pasted in full, plus the
+- The list of standards-source files you found in step 3 — repo docs, matching kit rule files,
+  matching `architecture-audit` `references/*.md` for `src/**` diffs, and matching
+  `references/*.md` files from this skill — with their contents pasted in full, plus the
   smell baseline from step 3 pasted in full (the sub-agent has no other access to any of this).
 - The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented
   standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and
@@ -151,9 +155,9 @@ Existing kit rule files — read directly, no copy kept here:
 |---|---|
 | `rules/typescript.md` | any `.ts`/`.tsx` |
 | `rules/react.mdc` | `.tsx` |
-| `rules/architecture.mdc` | `src/**` |
 | `rules/general-coding-principles.md` | any `.ts`/`.tsx` |
 | `rules/honesty.mdc` | any `.ts`/`.tsx`/`.md` (always applies) |
+| `architecture-audit` skill | `src/**` — load matching `references/`, not a rule file |
 
 Topics with no dedicated rule file yet — distilled into this skill's own reference file instead:
 

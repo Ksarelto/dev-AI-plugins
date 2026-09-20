@@ -72,7 +72,7 @@ function runEvalFile(file) {
 
   if (candidates.length === 0) {
     console.error(`FAIL [${suite.plugin}]: no ${suite.component} found at ${suite.source}/${suite.component}`);
-    return { passed: 0, failed: suite.cases.length, warned: 0 };
+    return { passed: 0, failed: suite.cases.length, warned: 0, plugin: suite.plugin, component: suite.component };
   }
 
   let passed = 0;
@@ -118,19 +118,49 @@ function runEvalFile(file) {
     }
   }
 
-  return { passed, failed, warned };
+  const uncovered = candidates
+    .map((c) => c.name)
+    .filter((name) => !suite.cases.some((c) => c.expect === name));
+  if (uncovered.length) {
+    console.error(
+      `FAIL [${suite.plugin}]: ${suite.component} with no eval case: ${uncovered.join(", ")}`
+    );
+    failed += uncovered.length;
+  }
+
+  return { passed, failed, warned, plugin: suite.plugin, component: suite.component };
 }
 
 const files = readdirSync(casesDir).filter((f) => f.endsWith(".json"));
 let totalPassed = 0;
 let totalFailed = 0;
 let totalWarned = 0;
+const suites = [];
 
 for (const file of files) {
-  const { passed, failed, warned } = runEvalFile(file);
+  const { passed, failed, warned, plugin, component } = runEvalFile(file);
   totalPassed += passed;
   totalFailed += failed;
   totalWarned += warned;
+  suites.push({ plugin, component });
+}
+
+const marketplacePath = join(root, ".claude-plugin", "marketplace.json");
+if (existsSync(marketplacePath)) {
+  const marketplace = JSON.parse(readFileSync(marketplacePath, "utf8"));
+  for (const entry of marketplace.plugins ?? []) {
+    for (const component of ["skills", "agents"]) {
+      const candidates = loadCandidates(entry.source, component);
+      if (candidates.length === 0) continue;
+      const hasSuite = suites.some((s) => s.plugin === entry.name && s.component === component);
+      if (!hasSuite) {
+        console.error(
+          `FAIL [${entry.name}]: has ${component} at ${entry.source} but no evals/cases file for them`
+        );
+        totalFailed++;
+      }
+    }
+  }
 }
 
 console.log(

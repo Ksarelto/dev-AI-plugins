@@ -1,0 +1,39 @@
+{
+  "plugin": "spec-dev-kit",
+  "source": "./app-dev-kit/spec-dev-kit",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Have the spec-orchestrator drive remaining stations and hand back a CLARIFY_PACKET without asking me",
+      "expect": "spec-orchestrator"
+    },
+    {
+      "prompt": "Run spec-analyst on the intake report so analysis.json records gap scores and conflicts",
+      "expect": "spec-analyst"
+    },
+    {
+      "prompt": "Ask spec-interrogator for a batched questions packet from open gaps, not a user prompt",
+      "expect": "spec-interrogator"
+    },
+    {
+      "prompt": "Have spec-enricher fill remaining gaps and persist assumptions into enriched.json",
+      "expect": "spec-enricher"
+    },
+    {
+      "prompt": "Run spec-completeness to mechanically score the 10-category checklist into completeness.json",
+      "expect": "spec-completeness"
+    },
+    {
+      "prompt": "Have spec-synthesizer write the hybrid YAML Markdown spec.md still in reviewing status",
+      "expect": "spec-synthesizer"
+    },
+    {
+      "prompt": "Use spec-diagram to append Mermaid into the Visual Reference from the validated spec",
+      "expect": "spec-diagram"
+    },
+    {
+      "prompt": "Have spec-review-facilitator compose the review packet and apply my requested spec edits",
+      "expect": "spec-review-facilitator"
+    }
+  ]
+}
