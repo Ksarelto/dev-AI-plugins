@@ -8,6 +8,9 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 |--------|-----------|-------------|
 | [base-dev-kit](base-dev-kit/) | Rules + Skills | Honesty + security rules (always applied); clean code, git workflow, TDD, dependencies, documentation skills |
 | [frontend-dev-kit](frontend-dev-kit/) | Rules + Skills + MCP | React + TypeScript + shadcn/ui + Tailwind + react-query |
+| [pptx-dev-kit](pptx-dev-kit/) | Skills + Agents | Create a 16:9 `.pptx` from a brief via a checked-in layout engine, or edit an existing deck via OOXML |
+
+`pptx-dev-kit` needs `python3`; it installs `python-pptx` on demand when rendering or editing.
 
 ## Claude Code
 
@@ -26,12 +29,14 @@ This makes all plugins available for install in any project.
 # In any Claude Code session
 /plugin install base-dev-kit@dev-cursor-plugins
 /plugin install frontend-dev-kit@dev-cursor-plugins
+/plugin install pptx-dev-kit@dev-cursor-plugins
 ```
 
 ### Load locally during development
 
 ```bash
 claude --plugin-dir ./frontend-dev-kit
+claude --plugin-dir ./pptx-dev-kit
 ```
 
 Or reload inside a session after changes:

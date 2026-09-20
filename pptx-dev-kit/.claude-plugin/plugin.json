@@ -1,0 +1,14 @@
+{
+  "name": "pptx-dev-kit",
+  "displayName": "PPTX Presentation Dev Kit",
+  "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML — design schema, outline, deck.json render, and structural validation.",
+  "version": "0.3.1",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["pptx", "powerpoint", "presentation", "slides", "python-pptx", "design-system", "orchestration", "slide-deck", "ooxml"],
+  "category": "productivity",
+  "skills": "./skills/",
+  "agents": "./agents/"
+}

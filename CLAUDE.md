@@ -89,3 +89,4 @@ npm run install:cursor-local
 |--------|-----------|
 | `base-dev-kit` | Rules: honesty, security (always applied). Skills: clean code, dependencies, documentation, git workflow, TDD |
 | `frontend-dev-kit` | Rules + Skills + MCP: React 19/TS/shadcn/Tailwind stack |
+| `pptx-dev-kit` | Skills + Agents: create a 16:9 `.pptx` via design schema → outline → `deck.json` → checked-in layout renderer; or edit an existing deck via OOXML unpack/replace/pack |

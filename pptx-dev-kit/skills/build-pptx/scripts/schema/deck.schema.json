@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dev-cursor-plugins.local/pptx-dev-kit/deck.schema.json",
+  "title": "pptx-dev-kit deck.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["theme", "slides"],
+  "properties": {
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fonts", "colors"],
+      "properties": {
+        "canvas": {
+          "type": "object",
+          "properties": {
+            "width_in": { "type": "number" },
+            "height_in": { "type": "number" }
+          }
+        },
+        "fonts": {
+          "type": "object",
+          "required": ["title", "body"],
+          "properties": {
+            "title": { "type": "string" },
+            "body": { "type": "string" }
+          }
+        },
+        "colors": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "required": [
+            "bg", "surface", "text", "muted", "accent",
+            "accent_text", "cover_bg", "cover_text"
+          ]
+        },
+        "footer": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string" },
+            "show_on_cover": { "type": "boolean" }
+          }
+        },
+        "type_scale_pt": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        }
+      }
+    },
+    "slides": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["layout"],
+        "properties": {
+          "layout": {
+            "type": "string",
+            "enum": [
+              "cover", "toc", "section", "bullets", "two_column",
+              "kpi_row", "icon_grid", "chart", "quote", "cta",
+              "bento", "timeline"
+            ]
+          },
+          "title": { "type": "string" },
+          "subtitle": { "type": "string" },
+          "meta": { "type": "string" },
+          "index": { "type": ["string", "integer"] },
+          "notes": { "type": "array", "items": { "type": "string" } },
+          "insight": { "type": "string" },
+          "bullets": { "type": "array", "items": { "type": "string" } },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["title"],
+              "properties": {
+                "title": { "type": "string" },
+                "body": { "type": "string" },
+                "icon": { "type": "string" }
+              }
+            }
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["title", "body"],
+              "properties": {
+                "title": { "type": "string" },
+                "body": {
+                  "oneOf": [
+                    { "type": "string" },
+                    { "type": "array", "items": { "type": "string" } }
+                  ]
+                }
+              }
+            }
+          },
+          "kpis": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["value", "label"],
+              "properties": {
+                "value": { "type": "string" },
+                "label": { "type": "string" },
+                "delta": { "type": "string" },
+                "spark": { "type": "array", "items": { "type": "number" } }
+              }
+            }
+          },
+          "quote": {
+            "type": "object",
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string" },
+              "attribution": { "type": "string" }
+            }
+          },
+          "chart": {
+            "type": "object",
+            "required": ["type", "categories", "series"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["column", "bar", "line", "pie", "doughnut"]
+              },
+              "categories": { "type": "array", "items": { "type": "string" } },
+              "series": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["name", "values"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "values": { "type": "array", "items": { "type": "number" } }
+                  }
+                }
+              },
+              "number_format": { "type": "string" },
+              "alt": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

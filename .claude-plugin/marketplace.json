@@ -22,6 +22,13 @@
       "description": "Rules, skills, and MCP servers for React + TypeScript + shadcn/ui + Tailwind CSS + react-query.",
       "category": "productivity",
       "tags": ["react", "typescript", "shadcn", "tailwind", "react-query", "mcp"]
+    },
+    {
+      "name": "pptx-dev-kit",
+      "source": "./pptx-dev-kit",
+      "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML.",
+      "category": "productivity",
+      "tags": ["pptx", "powerpoint", "presentation", "slides", "python-pptx", "design-system", "orchestration"]
     }
   ]
 }

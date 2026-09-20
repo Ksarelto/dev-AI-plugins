@@ -1,0 +1,108 @@
+{
+  "theme": {
+    "canvas": { "width_in": 13.333, "height_in": 7.5 },
+    "fonts": { "title": "Calibri", "body": "Calibri" },
+    "colors": {
+      "bg": "F4F6F8",
+      "surface": "FFFFFF",
+      "text": "1B1B1B",
+      "muted": "5C6570",
+      "accent": "2A9D8F",
+      "accent_text": "FFFFFF",
+      "cover_bg": "1B365D",
+      "cover_text": "F4F6F8"
+    },
+    "footer": { "text": "Q3 product update", "show_on_cover": false },
+    "type_scale_pt": {
+      "cover": 52,
+      "title": 36,
+      "subtitle": 20,
+      "body": 18,
+      "caption": 12,
+      "kpi": 44
+    }
+  },
+  "slides": [
+    {
+      "layout": "cover",
+      "title": "Q3 shipped the platform customers asked for",
+      "subtitle": "Product update for the customer success and sales teams",
+      "meta": "September 2026  ·  Internal",
+      "notes": [
+        "Open with the outcome, not a table of contents.",
+        "Name who this is for so the room knows why they are here."
+      ]
+    },
+    {
+      "layout": "toc",
+      "title": "What we will cover",
+      "items": [
+        { "title": "The numbers", "body": "Activation, expansion, and support load" },
+        { "title": "The sequence", "body": "What shipped, month by month" },
+        { "title": "The ask", "body": "Ten named-account pilots" }
+      ],
+      "notes": [
+        "Keep this under 20 seconds.",
+        "Do not preview the ask yet."
+      ]
+    },
+    {
+      "layout": "bento",
+      "title": "Activation is the number that moved the quarter",
+      "insight": "Saved views turned a Monday rebuild into a default. The other two numbers explain why the funnel held.",
+      "kpis": [
+        { "value": "38%", "label": "Trial-to-paid", "delta": "+9 pts vs Q2", "spark": [22, 26, 29, 38] },
+        { "value": "1.4x", "label": "Net revenue retention", "delta": "Demo figure", "spark": [1.1, 1.15, 1.28, 1.4] },
+        { "value": "12d", "label": "Median time to value", "delta": "Was 19 days", "spark": [19, 17, 14, 12] }
+      ],
+      "notes": [
+        "Trial-to-paid is the hero; the other two explain it.",
+        "NRR is a demo figure — replace before an external audience."
+      ]
+    },
+    {
+      "layout": "timeline",
+      "title": "The inbox launch is the hinge in the year",
+      "items": [
+        { "title": "May", "body": "Support still rebuilt the same view every Monday" },
+        { "title": "July", "body": "Shared inbox goes live for every ticket" },
+        { "title": "August", "body": "Saved views ship; activations keep climbing" },
+        { "title": "Now", "body": "Pilot those views on ten named accounts" }
+      ],
+      "notes": [
+        "July is the first full month with shared inbox.",
+        "Do not claim causality beyond the launch date."
+      ]
+    },
+    {
+      "layout": "chart",
+      "title": "Weekly activations climbed after the inbox launch",
+      "insight": "August is 86% above May. July is the first full inbox month.",
+      "chart": {
+        "type": "column",
+        "categories": ["May", "Jun", "Jul", "Aug"],
+        "series": [{ "name": "Activations", "values": [42, 47, 61, 78] }],
+        "number_format": "0",
+        "alt": "Column chart of weekly activations rising from 42 in May to 78 in August after the shared inbox launch"
+      },
+      "notes": [
+        "Read the takeaway card first, then the bars.",
+        "August includes the saved-views release."
+      ]
+    },
+    {
+      "layout": "cta",
+      "title": "Pilot saved views with your top ten accounts this month",
+      "bullets": [
+        "Pick ten named accounts",
+        "Turn on saved views by Friday",
+        "Send blockers by month-end"
+      ],
+      "meta": "Questions: product@example.com",
+      "notes": [
+        "Close on the action, not a recap of the KPIs.",
+        "Leave two minutes for the first objection."
+      ]
+    }
+  ]
+}
