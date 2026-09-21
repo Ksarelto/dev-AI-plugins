@@ -1,0 +1,7 @@
+{
+  "type": "REVIEW_PACKET",
+  "spec_path": ".spec/backend/profile.md",
+  "slug": "profile",
+  "branch": "backend/profile",
+  "review_packet": "## Backend Review: profile\n\n**Decision required**: approve · changes-requested · abort\n"
+}

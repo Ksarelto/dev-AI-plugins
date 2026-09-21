@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// Writes app-dev-kit/kit-result/v1 JSON. Schema: orchestrator-kit references/result-envelope.md
+// Writes app-dev-kit/kit-result/v1 JSON.
+// Schema: app-orchestrator-kit/skills/orchestrate-app/references/result-envelope.md
 // Usage: node write-kit-result.mjs --out <path> --kit <name> --outcome approved|aborted|error [fields]
 // Optional: --also <second-path>
 
@@ -27,17 +28,25 @@ if (!['approved', 'aborted', 'error'].includes(outcome)) {
   process.exit(2)
 }
 
+function str(name) {
+  const v = flag(name)
+  return String(v === true ? '' : v || '')
+}
+
 const result = {
   envelope: 'app-dev-kit/kit-result/v1',
-  kit: String(flag('kit') || ''),
+  kit: str('kit'),
   outcome,
-  spec_path: String(flag('spec-path') === true ? '' : flag('spec-path') || ''),
-  prototype_ref: String(flag('prototype-ref') === true ? '' : flag('prototype-ref') || ''),
-  feature_spec: String(flag('feature-spec') === true ? '' : flag('feature-spec') || ''),
-  slug: String(flag('slug') === true ? '' : flag('slug') || ''),
-  branch: String(flag('branch') === true ? '' : flag('branch') || ''),
-  run_dir: String(flag('run-dir') === true ? '' : flag('run-dir') || ''),
-  reason: String(flag('reason') === true ? '' : flag('reason') || ''),
+  spec_path: str('spec-path'),
+  prototype_ref: str('prototype-ref'),
+  feature_spec: str('feature-spec'),
+  backend_spec: str('backend-spec'),
+  agent_spec: str('agent-spec'),
+  work_plan: str('work-plan'),
+  slug: str('slug'),
+  branch: str('branch'),
+  run_dir: str('run-dir'),
+  reason: str('reason'),
   written: new Date().toISOString(),
 }
 

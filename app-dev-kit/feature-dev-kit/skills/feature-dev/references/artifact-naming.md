@@ -18,7 +18,7 @@ Station 0, is what lets a resumed run find its own files.
 ### Derivation order
 
 1. **Explicit argument** — `/feature-dev decline-profile` → normalize and use it.
-2. **`SLUG_HINT`** — orchestrator-kit kebab of the screen or screen-less story title. Use this
+2. **`SLUG_HINT`** — frontend-orchestrator-kit kebab of the screen title. Use this
    before any app-level slug. Required when `SCREEN_REF` is empty.
 3. **Screen-task** — if `SCREEN_REF` / task title is present, slug from the **screen**
    (`Sign in` → `sign-in`), not from the app spec's `metadata.slug`. One blackboard per

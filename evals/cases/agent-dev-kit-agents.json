@@ -1,6 +1,6 @@
 {
   "plugin": "agent-dev-kit",
-  "source": "./agent-dev-kit",
+  "source": "./app-dev-kit/agent-dev-kit",
   "component": "agents",
   "cases": [
     {
@@ -26,6 +26,38 @@
     {
       "prompt": "Write the ingestion module, OpenRouter embeddings, Qdrant hybrid retrieve, rerank, and citation generation with Vitest golden-set judges — not an Agent Runner",
       "expect": "rag-builder"
+    },
+    {
+      "prompt": "Coordinate the agent-dev-kit hub-and-spoke pipeline from architecture through scaffold tools Runner eval and RETURN a REVIEW_PACKET without writing src/",
+      "expect": "agent-dev-orchestrator"
+    },
+    {
+      "prompt": "Drive the spec-scoped named agent increment on the agent blackboard only — never AskUserQuestion, never write src/",
+      "expect": "agent-dev-orchestrator"
+    },
+    {
+      "prompt": "Parse the spec-dev-kit YAML filtered to one agent-surface agent and extract that agent's tools knowledge bases and prototype chat-page path — never write source code",
+      "expect": "agent-interpreter"
+    },
+    {
+      "prompt": "Fast read-only parser for one agent-surface row at agent-dev intake before agent-analyst — do not pass the full spec body onward",
+      "expect": "agent-interpreter"
+    },
+    {
+      "prompt": "Review the scoped agent blackboard for a testable contract — runtime, tools, embed, eval bar — before architecture",
+      "expect": "agent-analyst"
+    },
+    {
+      "prompt": "Return a CLARIFY_PACKET if the agent contract is ambiguous at Station 0 after import-upstream — never write src/",
+      "expect": "agent-analyst"
+    },
+    {
+      "prompt": "Run the agent-dev-kit mechanical quality gates typecheck lint vitest optional eval via run-gates.sh and write the Gate Log on the agent blackboard",
+      "expect": "quality-gate-runner"
+    },
+    {
+      "prompt": "Execute run-gates.sh for the agent increment and append JSON to Gate Log — never treat a skipped eval script as a pass when the script exists",
+      "expect": "quality-gate-runner"
     }
   ]
 }

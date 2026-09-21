@@ -80,7 +80,7 @@ Name them in each delegation `APPLY`. Companion **frontend-dev-kit** supplies `a
 | Working tree clean | `git status --porcelain` | Ask the human to commit or stash first |
 
 A spec from `/generate-spec` in `.spec/app/spec-*/spec.md` is **optional but preferred**. When
-orchestrator-kit (or the human) also passes `TASK_ID` / `SCREEN_REF`, Station 0 imports **only that
+frontend-orchestrator-kit (or the human) also passes `TASK_ID` / `SCREEN_REF`, Station 0 imports **only that
 screen-task**. Never ingest a whole `type: app` spec into one feature run.
 
 ---
@@ -91,7 +91,7 @@ screen-task**. Never ingest a whole `type: app` spec into one feature run.
 |----------|----------|-------------|
 | `[feature-slug or request]` | Optional | An existing slug in `.spec/features/` resumes that feature. Free text starts a new one. Omitted → this skill asks for the request. |
 
-Structured fields (from orchestrator-kit or the human) may accompany the argument: `UPSTREAM_SPEC`,
+Structured fields (from frontend-orchestrator-kit or the human) may accompany the argument: `UPSTREAM_SPEC`,
 `TASK_ID`, `SCREEN_REF`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`, `PROTOTYPE_REF`, `CHECKLIST_PATH`,
 `SLUG_HINT`, `RESULT_OUT`. `REQUEST` may be a one-line pointer when `UPSTREAM_SPEC` + `TASK_ID`
 are set — do not expect an inlined spec body. See `references/upstream-contract.md`.
@@ -233,7 +233,7 @@ Loop on `type`:
 
 ### Step 6 — Result envelope, report, hand off
 
-Write the path-only envelope **before** the human-readable report (orchestrator-kit reads the file):
+Write the path-only envelope **before** the human-readable report (frontend-orchestrator-kit reads the file):
 
 ```bash
 node {KIT_DIR}/skills/feature-dev/scripts/write-kit-result.mjs \

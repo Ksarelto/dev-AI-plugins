@@ -48,7 +48,7 @@ Then load templates and schema:
 
 Work through each YAML field systematically:
 
-**`spec-version`**: Always `"1.1"` (current schema version).
+**`spec-version`**: Always `"1.2"` (current schema version).
 
 **`timecode`**: Use `TIMECODE` parameter from orchestrator.
 
@@ -95,6 +95,14 @@ Work through each YAML field systematically:
 - `raw_api_hints` in intake
 - Entity CRUD operations implied by user stories
 - Explicit API mentions in requirements
+
+**`agent-surface`**: Optional. Populate only when requirements mention an AI agent, assistant, RAG
+corpus, tool-calling bot, or LLM workflow. Otherwise omit the block or set `agents: []`.
+- `agents[]`: one row per named agent (`AGT-NNN`), `kind` and `runtime` from the architect
+  decision table in agent-dev-kit (`openai-agents` default; `langgraph` only for custom graphs /
+  checkpoint / `interruptBefore`).
+- `tools[]`: one `TOOL-NNN` per callable tool; set `api-ref` when the tool wraps an `api-surface` id.
+- `knowledge-bases[]`: one `KB-NNN` per corpus. Leave empty when there is no retrieval.
 
 **`ui-surface`**: Derive from:
 - `raw_ui_hints` in intake

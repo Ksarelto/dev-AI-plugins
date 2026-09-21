@@ -1,0 +1,7 @@
+{
+  "type": "REVIEW_PACKET",
+  "spec_path": ".spec/agents/campus-assistant.md",
+  "slug": "campus-assistant",
+  "branch": "agent/campus-assistant",
+  "review_packet": "## Agent Review: campus-assistant\n\n**Decision required**: approve · changes-requested · abort\n"
+}

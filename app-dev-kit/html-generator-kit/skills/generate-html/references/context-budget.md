@@ -17,6 +17,6 @@ Payload contracts for `html-orchestrator`. Paths and slices, not blobs.
 6. Review/revise cycles pass `CHANGE_REQUEST` + `pages[]` ids/titles/domains, not the spec again.
 
 7. Cross-kit: write `{dirname(SPEC_FILE)}/html-kit-result.json` and return that path. Never paste
-   HTML, CSS, or the spec body back to `orchestrate-app`.
+   HTML, CSS, or the spec body back to `orchestrate-frontend` or `orchestrate-app`.
 
 If a spawn prompt would include the spec markdown, stop and pass `SPEC_FILE` instead.

@@ -56,7 +56,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `templates/page-shell.md` | `screen-generator` (Station 4) | standalone page HTML structure |
 | `templates/index-shell.md` | `assembly-wiring` (Station 5) | landing app-map structure |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
-| `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for orchestrator-kit |
+| `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
 ---
 
@@ -87,7 +87,7 @@ Else Glob `.spec/app/spec-*/spec.md` (spec lives **one level inside** the timeco
 - If multiple match or no argument: sort by the timecode segment in the folder name **descending** and take the most recent.
 - If nothing found: `"No spec found in .spec/app/. Run /generate-spec first."` → STOP (no envelope).
 
-Read the selected `spec.md` **only to extract identity** (do not pass the full file to the orchestrator or back to `orchestrate-app`):
+Read the selected `spec.md` **only to extract identity** (do not pass the full file to the orchestrator or back to `orchestrate-frontend` / `orchestrate-app`):
 - `metadata.slug` (or derive from folder name: part after `_`)
 - `metadata.title` (or fallback: slug with hyphens → spaces)
 
@@ -95,7 +95,7 @@ Keep `SPEC_FILE` as the path. The `spec-interpreter` agent reads the file itself
 
 On any STOP after `SPEC_FILE` is known (Step 2 decline, Step 2.5 Abort, review Abort, escalation
 abort), write `{dirname(SPEC_FILE)}/html-kit-result.json` with `outcome: aborted` before returning
-so `orchestrate-app` does not scrape chat.
+so parent orchestrators do not scrape chat.
 
 ### Step 2 — Generate timecode and confirm
 
@@ -255,7 +255,7 @@ to the HTML page `id`. Skip a page that has no `spec_id` — never use the HTML 
 ```
 
 Fill identity fields from the last `REVIEW_PACKET` (and `pages[]` on that packet). Then write the
-path-only envelope (orchestrator-kit reads this, not the HTML):
+path-only envelope (parent orchestrators read this, not the HTML):
 
 ```bash
 node {KIT_DIR}/skills/generate-html/scripts/write-kit-result.mjs \

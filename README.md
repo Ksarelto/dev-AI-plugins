@@ -9,14 +9,15 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 | [base-dev-kit](base-dev-kit/) | Rules + Skills | Honesty + security rules (always applied); clean code, git workflow, TDD, dependencies, documentation skills |
 | [frontend-dev-kit](frontend-dev-kit/) | Rules + Skills + MCP | React + TypeScript + shadcn/ui + Tailwind + react-query |
 | [pptx-dev-kit](pptx-dev-kit/) | Skills + Agents | Create a 16:9 `.pptx` from a brief via a checked-in layout engine, or edit an existing deck via OOXML |
-| [agent-dev-kit](agent-dev-kit/) | Rules + Skills + Agents + MCP | TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter, `@openai/agents` or LangGraph.js |
-| [backend-dev-kit](backend-dev-kit/) | Rules + Skills + Agents + MCP | Node.js APIs: Express 5, TypeScript, Drizzle, Zod, Vitest |
+| [agent-dev-kit](app-dev-kit/agent-dev-kit/) | Rules + Skills + Agents + MCP | TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter; `/agent-dev` factory from a spec |
+| [backend-dev-kit](app-dev-kit/backend-dev-kit/) | Rules + Skills + Agents + MCP | Node.js APIs: Express 5, TypeScript, Drizzle, Zod, Vitest; `/backend-dev` factory from a spec |
 | [spec-dev-kit](app-dev-kit/spec-dev-kit/) | Skills + Agents | Raw `.spec/context/` requirements → approved hybrid YAML+Markdown spec |
 | [html-generator-kit](app-dev-kit/html-generator-kit/) | Skills + Agents | Validated spec → CDN-free Alpine.js multi-page HTML prototype |
 | [feature-dev-kit](app-dev-kit/feature-dev-kit/) | Skills + Agents + Rules + MCP | One React FSD screen-task from a spec + optional prototype; hub-and-spoke; architecture-audit; never a PR |
-| [orchestrator-kit](app-dev-kit/orchestrator-kit/) | Skills | Spec → prototype → one `/feature-dev` per screen-task, tracked on a persisted checklist |
+| [frontend-orchestrator-kit](app-dev-kit/frontend-orchestrator-kit/) | Skills | Spec → prototype → one `/feature-dev` per UI screen-task, tracked on a persisted checklist |
+| [app-orchestrator-kit](app-dev-kit/app-orchestrator-kit/) | Skills | Analyze spec + prototype, then dispatch backend / agent / frontend tracks against a work-plan |
 
-The last four are separate marketplace plugins under [`app-dev-kit/`](app-dev-kit/). See that README for the pipeline map. Discoverability evals live in `evals/cases/<plugin-name>.json` (plus `<plugin-name>-agents.json` when the kit ships agents).
+The last seven are separate marketplace plugins under [`app-dev-kit/`](app-dev-kit/). See that README for the pipeline map. Discoverability evals live in `evals/cases/<plugin-name>.json` (plus `<plugin-name>-agents.json` when the kit ships agents).
 
 `pptx-dev-kit` needs `python3`; it installs `python-pptx` on demand when rendering or editing.
 
@@ -38,12 +39,13 @@ This makes all plugins available for install in any project.
 /plugin install base-dev-kit@dev-cursor-plugins
 /plugin install frontend-dev-kit@dev-cursor-plugins
 /plugin install pptx-dev-kit@dev-cursor-plugins
-/plugin install agent-dev-kit@dev-cursor-plugins
-/plugin install backend-dev-kit@dev-cursor-plugins
 /plugin install spec-dev-kit@dev-cursor-plugins
 /plugin install html-generator-kit@dev-cursor-plugins
 /plugin install feature-dev-kit@dev-cursor-plugins
-/plugin install orchestrator-kit@dev-cursor-plugins
+/plugin install frontend-orchestrator-kit@dev-cursor-plugins
+/plugin install backend-dev-kit@dev-cursor-plugins
+/plugin install agent-dev-kit@dev-cursor-plugins
+/plugin install app-orchestrator-kit@dev-cursor-plugins
 ```
 
 ### Load locally during development
@@ -51,12 +53,13 @@ This makes all plugins available for install in any project.
 ```bash
 claude --plugin-dir ./frontend-dev-kit
 claude --plugin-dir ./pptx-dev-kit
-claude --plugin-dir ./agent-dev-kit
-claude --plugin-dir ./backend-dev-kit
 claude --plugin-dir ./app-dev-kit/spec-dev-kit
 claude --plugin-dir ./app-dev-kit/html-generator-kit
 claude --plugin-dir ./app-dev-kit/feature-dev-kit
-claude --plugin-dir ./app-dev-kit/orchestrator-kit
+claude --plugin-dir ./app-dev-kit/frontend-orchestrator-kit
+claude --plugin-dir ./app-dev-kit/backend-dev-kit
+claude --plugin-dir ./app-dev-kit/agent-dev-kit
+claude --plugin-dir ./app-dev-kit/app-orchestrator-kit
 ```
 
 Or reload inside a session after changes:
@@ -166,7 +169,10 @@ app-dev-kit/                # nested family; marketplace source ./app-dev-kit/<n
   spec-dev-kit/
   html-generator-kit/
   feature-dev-kit/          # MCP file is mcp.json (Cursor default; declared in plugin.json)
-  orchestrator-kit/
+  frontend-orchestrator-kit/
+  backend-dev-kit/
+  agent-dev-kit/
+  app-orchestrator-kit/
 ```
 
 ---
@@ -195,7 +201,7 @@ API key required. See [evals/README.md](evals/README.md) for the case format and
 
 ## Adding a plugin
 
-1. Create `<plugin-name>/` at repo root, or under `app-dev-kit/` for the spec → prototype → feature family. Marketplace `source` must match that directory (e.g. `./app-dev-kit/spec-dev-kit`).
+1. Create `<plugin-name>/` at repo root, or under `app-dev-kit/` for the spec → prototype → build family. Marketplace `source` must match that directory (e.g. `./app-dev-kit/spec-dev-kit`).
 2. Add matching `<plugin-name>/.claude-plugin/plugin.json` and `<plugin-name>/.cursor-plugin/plugin.json`
 3. Add component directories
 4. Register in both `.claude-plugin/marketplace.json` and `.cursor-plugin/marketplace.json`

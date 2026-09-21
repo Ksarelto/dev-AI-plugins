@@ -13,7 +13,7 @@ enriched requirements.
   `artifacts/qa-log.md` from disk. The synthesizer reads the same file from disk.
 - The full spec lives on disk at `{RUN_DIR}/spec.md`. Downstream kits receive `SPEC_PATH` and
   `{RUN_DIR}/kit-result.json`, not the file contents.
-- Cross-kit: never return a pasted spec to `orchestrate-app`. The envelope is the handoff.
+- Cross-kit: never return a pasted spec to `orchestrate-frontend` or `orchestrate-app`. The envelope is the handoff.
 - The orchestrator does **not** write artifacts. Specialists and the skill persist them.
 
 ## Intermediate Artifacts on Disk

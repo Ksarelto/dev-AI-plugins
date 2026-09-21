@@ -1,6 +1,6 @@
 {
   "plugin": "agent-dev-kit",
-  "source": "./agent-dev-kit",
+  "source": "./app-dev-kit/agent-dev-kit",
   "component": "skills",
   "cases": [
     {
@@ -58,6 +58,14 @@
     {
       "prompt": "Mount an @openai/agents POST chat router on the current HTTP service without replacing env.ts — Zod body, OpenAPI, auth, 503 when the key is unset",
       "expect": "embed-agent"
+    },
+    {
+      "prompt": "Import agent-surface from the approved spec-dev-kit spec via UPSTREAM_SPEC plus html-generator-kit prototype, run the hub-and-spoke agent increment, then write kit-result.json after human review",
+      "expect": "agent-dev"
+    },
+    {
+      "prompt": "Build one TypeScript AI agent increment from an approved spec with scoped agent-surface import, quality gates, and mandatory human review — not scaffold-agent alone and not agent-architect",
+      "expect": "agent-dev"
     }
   ]
 }

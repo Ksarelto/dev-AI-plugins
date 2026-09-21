@@ -3,7 +3,7 @@
 **Entry point**: `/feature-dev [feature-slug or request]` → `skills/feature-dev/SKILL.md`
 
 Builds **one screen-task** end-to-end under **Feature-Sliced Design**, from a raw request or a
-scoped spec-dev-kit payload (orchestrator-kit splits an app spec) to a reviewed, gate-green
+scoped spec-dev-kit payload (frontend-orchestrator-kit splits an app spec) to a reviewed, gate-green
 branch — and **stops there**. Shipping is a separate, human-typed command.
 
 Required companion: **frontend-dev-kit** (`architecture-audit`, `code-review`, `testing`).
@@ -57,7 +57,7 @@ Set `CONTEXT7_API_KEY` in the environment (see [`mcp.json`](./mcp.json) and
 
 ## Quick start
 
-1. *(optional)* Run `/generate-spec` then `/orchestrate-app` so each `/feature-dev` run receives one screen-task (`TASK_ID`, `SCREEN_REF`, …).
+1. *(optional)* Run `/generate-spec` then `/orchestrate-frontend` so each `/feature-dev` run receives one screen-task (`TASK_ID`, `SCREEN_REF`, …).
 2. Confirm **frontend-dev-kit** is installed and `src/` is FSD.
 3. Run `/feature-dev` (or `/feature-dev sign-in`).
 4. Answer clarification questions, then approve the acceptance criteria (**gate 1**).
@@ -172,7 +172,7 @@ the emitted `.tsx` looks like goes in `rules/`.
 ## Pipeline
 
 ```
-request (or orchestrator-kit screen-task + .spec/app/spec-*/spec.md)
+request (or frontend-orchestrator-kit screen-task + .spec/app/spec-*/spec.md)
       │
 feature-dev skill
   Station 0    intake — upstream-interpreter + spec-analyst → .spec/features/<slug>.md
@@ -241,10 +241,10 @@ Thresholds are defined once in `references/quality-gates.md` and referenced ever
 ```
 /generate-spec   (spec-dev-kit)      → .spec/app/spec-*/spec.md
       ├────────────────────────────► /generate-html (html-generator-kit) → clickable prototype
-      └────────────────────────────► /orchestrate-app → /feature-dev once per screen-task
+      └────────────────────────────► /orchestrate-frontend → /feature-dev once per screen-task
 ```
 
-`/feature-dev` reads a **scoped** upstream payload (`SCREEN_REF`, `AC_REFS`, …) when orchestrator-kit
+`/feature-dev` reads a **scoped** upstream payload (`SCREEN_REF`, `AC_REFS`, …) when frontend-orchestrator-kit
 (or the human) provides one. It never dumps every app screen into one blackboard.
 
 ---

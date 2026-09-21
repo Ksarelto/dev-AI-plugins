@@ -1,6 +1,6 @@
 {
   "plugin": "backend-dev-kit",
-  "source": "./backend-dev-kit",
+  "source": "./app-dev-kit/backend-dev-kit",
   "component": "agents",
   "cases": [
     {
@@ -26,6 +26,38 @@
     {
       "prompt": "Write the Vitest coverage matrix of supertest cases against createApp plus unit tests with a fake repository, then run vitest",
       "expect": "test-writer"
+    },
+    {
+      "prompt": "Coordinate the backend-dev-kit hub-and-spoke pipeline for one resource increment and RETURN a DEP_PACKET or REVIEW_PACKET without writing src/",
+      "expect": "backend-orchestrator"
+    },
+    {
+      "prompt": "Drive discovery, build-plan, api-implementer, gates, and auto-review on the backend blackboard only — never AskUserQuestion",
+      "expect": "backend-orchestrator"
+    },
+    {
+      "prompt": "Parse the spec-dev-kit YAML filtered to one backend resource increment and extract only that task's entities and api-surface — never write source code",
+      "expect": "backend-interpreter"
+    },
+    {
+      "prompt": "Fast read-only parser for a scoped backend increment from UPSTREAM_SPEC before backend-analyst — do not pass the full spec body onward",
+      "expect": "backend-interpreter"
+    },
+    {
+      "prompt": "Review the scoped backend blackboard for testable acceptance criteria and a complete API data contract before implementation",
+      "expect": "backend-analyst"
+    },
+    {
+      "prompt": "Return a CLARIFY_PACKET if the backend contract is ambiguous at Station 0 after import-upstream — never write src/",
+      "expect": "backend-analyst"
+    },
+    {
+      "prompt": "Run the backend-dev-kit mechanical quality gates typecheck lint vitest via run-gates.sh and write the Gate Log on the backend blackboard",
+      "expect": "quality-gate-runner"
+    },
+    {
+      "prompt": "Execute run-gates.sh for the backend increment and append JSON results to Gate Log — never interpret a failure as a pass",
+      "expect": "quality-gate-runner"
     }
   ]
 }

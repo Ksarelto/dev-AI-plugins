@@ -1,0 +1,13 @@
+{
+  "name": "app-orchestrator-kit",
+  "displayName": "App Orchestrator Kit",
+  "description": "Full-stack app dispatcher: analyzes an approved spec-dev-kit spec and optional html-generator-kit prototype, then runs backend-dev-kit, agent-dev-kit, and frontend-orchestrator-kit only when needed, against a persisted work-plan.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["orchestration", "pipeline", "spec", "prototype", "backend", "agent", "frontend", "work-plan", "app-dev-kit"],
+  "category": "productivity",
+  "skills": "./skills/"
+}
