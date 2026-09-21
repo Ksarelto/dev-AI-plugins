@@ -4,7 +4,7 @@
 # Full schema definition: ../references/spec-schema.md
 
 ---
-spec-version: "1.1"
+spec-version: "1.2"
 timecode: "{{YYYYMMDD-HHmmss}}"
 type: "{{feature|app|domain|integration}}"
 status: "reviewing"
@@ -124,6 +124,25 @@ api-surface:
             message: "{{Resource}} already exists"
           - status: 422
             message: "Validation error"
+
+# Optional — omit the whole block (or leave agents: []) when the product has no AI.
+agent-surface:
+  agents:
+    - id: AGT-001
+      name: "{{kebab-case-agent-name}}"
+      kind: "{{conversational|rag|tool-using|graph}}"
+      runtime: "{{openai-agents|langgraph}}"
+      description: "{{What this agent does for the user}}"
+      tool-refs:
+        - TOOL-001
+      knowledge-base-refs: []
+      embed: "{{none|backend-route|frontend-widget}}"
+  tools:
+    - id: TOOL-001
+      name: "{{tool-name}}"
+      description: "{{What the tool does}}"
+      api-ref: "API-001"
+  knowledge-bases: []
 
 ui-surface:
   # notes MUST name the primary entity AND start with a page-type-revealing phrase

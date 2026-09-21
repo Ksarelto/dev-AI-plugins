@@ -13,7 +13,7 @@ const STATUSES = [
   'draft', 'awaiting-clarification', 'analyzing', 'enriching',
   'reviewing', 'approved', 'building', 'changes-requested', 'done',
 ]
-const SUPPORTED_SCHEMA_VERSIONS = ['1.0', '1.1']
+const SUPPORTED_SCHEMA_VERSIONS = ['1.0', '1.1', '1.2']
 
 const args = process.argv.slice(2)
 const requireApproved = args.includes('--require-approved')
@@ -112,6 +112,61 @@ if (Array.isArray(endpoints)) {
   for (const e of endpoints) {
     if (!HTTP_METHODS.includes(e?.method)) {
       err('HTTP_METHOD_INVALID', `api-surface.endpoints ${e?.id ?? '(no id)'} method ${JSON.stringify(e?.method)} is not an HTTP verb`)
+    }
+  }
+}
+
+const AGENT_KINDS = ['conversational', 'rag', 'tool-using', 'graph']
+const AGENT_RUNTIMES = ['openai-agents', 'langgraph']
+const AGENT_EMBEDS = ['none', 'backend-route', 'frontend-widget']
+const KB_RETRIEVAL = ['hybrid', 'dense', 'keyword']
+
+const agentSurface = fm['agent-surface']
+if (agentSurface && typeof agentSurface === 'object') {
+  const agents = Array.isArray(agentSurface.agents) ? agentSurface.agents : []
+  const tools = Array.isArray(agentSurface.tools) ? agentSurface.tools : []
+  const kbs = Array.isArray(agentSurface['knowledge-bases']) ? agentSurface['knowledge-bases'] : []
+  const toolIds = new Set(tools.map((t) => t?.id).filter(Boolean))
+  const kbIds = new Set(kbs.map((k) => k?.id).filter(Boolean))
+  const apiIds = new Set([
+    ...(Array.isArray(fm['api-surface']?.endpoints) ? fm['api-surface'].endpoints : []),
+    ...(Array.isArray(fm['api-surface']?.mutations) ? fm['api-surface'].mutations : []),
+  ].map((e) => e?.id).filter(Boolean))
+
+  for (const a of agents) {
+    if (!/^AGT-\d+$/.test(String(a?.id ?? ''))) {
+      err('AGENT_ID_FORMAT_INVALID', `agent-surface.agents[].id must match AGT-\\d+ (got ${JSON.stringify(a?.id)})`)
+    }
+    if (a?.kind && !AGENT_KINDS.includes(a.kind)) {
+      err('AGENT_KIND_INVALID', `agent-surface.agents ${a?.id ?? '(no id)'} kind ${JSON.stringify(a.kind)} is invalid`)
+    }
+    if (a?.runtime && !AGENT_RUNTIMES.includes(a.runtime)) {
+      err('AGENT_RUNTIME_INVALID', `agent-surface.agents ${a?.id ?? '(no id)'} runtime ${JSON.stringify(a.runtime)} is invalid`)
+    }
+    if (a?.embed && !AGENT_EMBEDS.includes(a.embed)) {
+      err('AGENT_EMBED_INVALID', `agent-surface.agents ${a?.id ?? '(no id)'} embed ${JSON.stringify(a.embed)} is invalid`)
+    }
+    for (const ref of a?.['tool-refs'] ?? []) {
+      if (!toolIds.has(ref)) err('BROKEN_TOOL_REF', `agent ${a?.id ?? '(no id)'} tool-ref ${JSON.stringify(ref)} does not match any TOOL id`)
+    }
+    for (const ref of a?.['knowledge-base-refs'] ?? []) {
+      if (!kbIds.has(ref)) err('BROKEN_KB_REF', `agent ${a?.id ?? '(no id)'} knowledge-base-ref ${JSON.stringify(ref)} does not match any KB id`)
+    }
+  }
+  for (const t of tools) {
+    if (!/^TOOL-\d+$/.test(String(t?.id ?? ''))) {
+      err('TOOL_ID_FORMAT_INVALID', `agent-surface.tools[].id must match TOOL-\\d+ (got ${JSON.stringify(t?.id)})`)
+    }
+    if (t?.['api-ref'] && !apiIds.has(t['api-ref'])) {
+      err('BROKEN_API_REF', `tool ${t?.id ?? '(no id)'} api-ref ${JSON.stringify(t['api-ref'])} does not match any API id`)
+    }
+  }
+  for (const k of kbs) {
+    if (!/^KB-\d+$/.test(String(k?.id ?? ''))) {
+      err('KB_ID_FORMAT_INVALID', `agent-surface.knowledge-bases[].id must match KB-\\d+ (got ${JSON.stringify(k?.id)})`)
+    }
+    if (k?.retrieval && !KB_RETRIEVAL.includes(k.retrieval)) {
+      err('KB_RETRIEVAL_INVALID', `knowledge-base ${k?.id ?? '(no id)'} retrieval ${JSON.stringify(k.retrieval)} is invalid`)
     }
   }
 }

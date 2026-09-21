@@ -1,0 +1,15 @@
+{
+  "plugin": "app-orchestrator-kit",
+  "source": "./app-dev-kit/app-orchestrator-kit",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Analyze the approved spec and HTML prototype then dispatch backend, agent, and frontend kits only if needed against a persisted work-plan",
+      "expect": "orchestrate-app"
+    },
+    {
+      "prompt": "Resume the full-stack work-plan and continue the next backend or agent increment then the frontend sequencer",
+      "expect": "orchestrate-app"
+    }
+  ]
+}

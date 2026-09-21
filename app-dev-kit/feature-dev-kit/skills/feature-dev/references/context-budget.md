@@ -23,7 +23,7 @@ The spec file at `.spec/features/<slug>.md` is the ONLY shared state passed betw
 - Workers receive **only the section paths they need to read**, not the full spec content.
 - Workers write directly to their assigned sections; the orchestrator does not proxy writes.
 - The orchestrator itself reads only the sections it needs to decide the next station — not the entire spec every hop.
-- Cross-kit: return `.spec/features/{slug}.kit-result.json` (paths + outcome) to `orchestrate-app`.
+- Cross-kit: return `.spec/features/{slug}.kit-result.json` (paths + outcome) to `orchestrate-frontend`.
   Never paste the blackboard or a diff into the parent conversation.
 
 ## Per-worker input allowlist

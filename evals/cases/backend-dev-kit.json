@@ -1,6 +1,6 @@
 {
   "plugin": "backend-dev-kit",
-  "source": "./backend-dev-kit",
+  "source": "./app-dev-kit/backend-dev-kit",
   "component": "skills",
   "cases": [
     {
@@ -66,6 +66,14 @@
     {
       "prompt": "Add a BullMQ due-soon queue, cache-aside GET with TTL invalidation in the service, and rate-limit login via Redis",
       "expect": "redis-backplane"
+    },
+    {
+      "prompt": "Import UPSTREAM_SPEC entities and api-surface from the approved spec-dev-kit spec plus html-generator-kit prototype, run the hub-and-spoke backend resource increment, then write kit-result.json after human review",
+      "expect": "backend-dev"
+    },
+    {
+      "prompt": "Build one Express API resource increment from an approved spec with scoped UPSTREAM_SPEC, quality gates, and a mandatory human review — not scaffold-service and not express-feature without a spec",
+      "expect": "backend-dev"
     }
   ]
 }

@@ -54,7 +54,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-spec/…`. Never h
 | `templates/spec-body.md` | synthesizer (Station 6) | Markdown body template |
 | `scripts/validate-spec.mjs` | orchestrator (Station 7, Bash) | deterministic schema validation |
 | `scripts/new-run.sh` | this skill (Station 0, Bash) | timecode freeze + run-folder scaffold |
-| `scripts/write-kit-result.mjs` | this skill (publish or abort) | `{RUN_DIR}/kit-result.json` path-only envelope for orchestrator-kit |
+| `scripts/write-kit-result.mjs` | this skill (publish or abort) | `{RUN_DIR}/kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
 ---
 
@@ -146,7 +146,7 @@ Max rounds are enforced by the orchestrator; this skill still stops if a loop ex
 Only after explicit approval (or approve-as-is escalation):
 
 1. Set `status: approved` in `{RUN_DIR}/spec.md` (synthesizer left `reviewing`).
-2. Write the path-only envelope (orchestrator-kit reads this file, not this report):
+2. Write the path-only envelope (parent orchestrators read this file, not this report):
 
 ```bash
 node {KIT_DIR}/skills/generate-spec/scripts/write-kit-result.mjs \

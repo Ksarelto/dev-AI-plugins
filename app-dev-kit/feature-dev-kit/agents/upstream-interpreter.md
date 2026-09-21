@@ -1,6 +1,6 @@
 ---
 name: upstream-interpreter
-description: Fast read-only parser for a spec-dev-kit YAML spec filtered to one orchestrator-kit screen-task. Extracts only that task's screen, stories, acceptance criteria, and entities plus an optional html-generator-kit prototype page path. Use at feature intake before spec-analyst. Never writes source code. Never passes the full spec body onward.
+description: Fast read-only parser for a spec-dev-kit YAML spec filtered to one frontend-orchestrator-kit screen-task. Extracts only that task's screen, stories, acceptance criteria, and entities plus an optional html-generator-kit prototype page path. Use at feature intake before spec-analyst. Never writes source code. Never passes the full spec body onward.
 model: haiku
 tools: [Read, Bash]
 ---

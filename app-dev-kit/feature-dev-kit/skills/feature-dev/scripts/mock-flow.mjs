@@ -20,7 +20,7 @@ const pipelinePath = join(skillDir, 'references/pipeline-flow.md')
 const packetsDir = join(skillDir, 'templates/packets')
 const specFixture = join(repoRoot, '.spec/app/spec-20260917-124658_building-cupboard/spec.md')
 const protoFixture = join(repoRoot, '.spec/prototype/20260918-063204_building-cupboard')
-const checklistScript = join(repoRoot, 'app-dev-kit/orchestrator-kit/skills/orchestrate-app/scripts/build-checklist.mjs')
+const checklistScript = join(repoRoot, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/build-checklist.mjs')
 const importScript = join(here, 'import-upstream.mjs')
 const validateScript = join(here, 'validate-feature-spec.mjs')
 

@@ -4,7 +4,7 @@
 
 Transforms raw requirements in `.spec/context/` into a validated, approved hybrid YAML+Markdown
 spec in `.spec/app/spec-{timecode}_{slug}/spec.md`. The spec is read by downstream kits:
-`/feature-dev` and `/generate-html`.
+`/generate-html`, `/backend-dev`, `/agent-dev`, `/feature-dev`, and the orchestrators.
 
 Human gates (`AskUserQuestion`) are owned by the **skill**. The orchestrator is a subagent and
 returns packets (`CLARIFY_PACKET`, `REVIEW_PACKET`, `ESCALATION_PACKET`, `READY_TO_PUBLISH`).

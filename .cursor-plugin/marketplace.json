@@ -32,14 +32,14 @@
     },
     {
       "name": "agent-dev-kit",
-      "source": "./agent-dev-kit",
+      "source": "./app-dev-kit/agent-dev-kit",
       "description": "TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter, @openai/agents or LangGraph.js, hybrid retrieval, Vitest eval.",
       "category": "productivity",
       "tags": ["ai-agents", "typescript", "nodejs", "openrouter", "openai-sdk", "langgraph-js", "rag", "qdrant"]
     },
     {
       "name": "backend-dev-kit",
-      "source": "./backend-dev-kit",
+      "source": "./app-dev-kit/backend-dev-kit",
       "description": "Rules, skills, and agents for Node.js backends with Express 5, TypeScript, Drizzle ORM, Zod, and Vitest.",
       "category": "productivity",
       "tags": ["nodejs", "typescript", "express", "drizzle", "zod", "vitest", "rest-api", "mcp", "auth", "observability"]
@@ -66,11 +66,18 @@
       "tags": ["react", "fsd", "feature-sliced-design", "orchestration", "shadcn", "mcp", "app-dev-kit"]
     },
     {
-      "name": "orchestrator-kit",
-      "source": "./app-dev-kit/orchestrator-kit",
-      "description": "End-to-end app pipeline: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit to build every derived feature one by one against a persisted, resumable task checklist.",
+      "name": "frontend-orchestrator-kit",
+      "source": "./app-dev-kit/frontend-orchestrator-kit",
+      "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit to build every UI screen-task against a persisted checklist. Use /orchestrate-app for the full-stack dispatcher.",
       "category": "productivity",
-      "tags": ["orchestration", "pipeline", "spec", "prototype", "feature-dev", "checklist", "app-dev-kit"]
+      "tags": ["orchestration", "pipeline", "spec", "prototype", "feature-dev", "checklist", "frontend", "app-dev-kit"]
+    },
+    {
+      "name": "app-orchestrator-kit",
+      "source": "./app-dev-kit/app-orchestrator-kit",
+      "description": "Full-stack app dispatcher: analyzes an approved spec and optional HTML prototype, then runs backend-dev-kit, agent-dev-kit, and frontend-orchestrator-kit only when needed, against a persisted work-plan.",
+      "category": "productivity",
+      "tags": ["orchestration", "pipeline", "spec", "prototype", "backend", "agent", "frontend", "work-plan", "app-dev-kit"]
     }
   ]
 }

@@ -2,7 +2,7 @@
 
 ## Adding a plugin
 
-1. Create a new directory using **kebab-case** (e.g. `my-new-plugin`) at the repo root, or under `app-dev-kit/` for the spec → prototype → feature family. Marketplace `source` must match that directory.
+1. Create a new directory using **kebab-case** (e.g. `my-new-plugin`) at the repo root, or under `app-dev-kit/` for the spec → prototype → build family. Marketplace `source` must match that directory.
 2. Add **both** harness manifests with the same fields and component paths:
    - `.claude-plugin/plugin.json`
    - `.cursor-plugin/plugin.json`

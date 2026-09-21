@@ -1,7 +1,7 @@
 # Spec Schema — YAML Front Matter
 
-**Version**: 1.1
-**Consumed by**: `spec-synthesizer` (write), `scripts/validate-spec.mjs` (validate), `feature-dev-kit/spec-analyst` (read), `html-generator-kit` (read)
+**Version**: 1.2
+**Consumed by**: `spec-synthesizer` (write), `scripts/validate-spec.mjs` (validate), `feature-dev-kit/spec-analyst` (read), `html-generator-kit` (read), `backend-dev-kit` (read), `agent-dev-kit` (read)
 
 ---
 
@@ -9,7 +9,7 @@
 
 ```yaml
 ---
-spec-version: "1.1"                      # Schema version — bump on breaking changes
+spec-version: "1.2"                      # Schema version — bump on breaking changes
 timecode: "YYYYMMDD-HHmmss"              # Pipeline run timestamp (ISO 8601 compact)
 type: feature                            # feature | app | domain | integration
 status: draft                            # See Status Lifecycle below
@@ -77,6 +77,27 @@ api-surface:
         success: {}
         errors: []
   mutations: []                          # Same shape as endpoints, for write ops
+
+agent-surface:                           # v1.2 optional — omit or leave empty when the product has no AI
+  agents:
+    - id: AGT-001
+      name: ""                           # kebab-case agent name
+      kind: conversational               # conversational | rag | tool-using | graph
+      runtime: openai-agents             # openai-agents | langgraph
+      description: ""
+      tool-refs: []                      # TOOL-xxx ids
+      knowledge-base-refs: []            # KB-xxx ids
+      embed: none                        # none | backend-route | frontend-widget
+  tools:
+    - id: TOOL-001
+      name: ""
+      description: ""
+      api-ref: ""                        # optional API-xxx from api-surface
+  knowledge-bases:
+    - id: KB-001
+      name: ""
+      source: ""
+      retrieval: hybrid                  # hybrid | dense | keyword
 
 ui-surface:
   screens:
@@ -172,7 +193,7 @@ draft
 
 | Field | Rule | Error |
 |-------|------|-------|
-| `spec-version` | Must be `"1.0"` or `"1.1"` (semver string) | `SCHEMA_VERSION_INVALID` |
+| `spec-version` | Must be `"1.0"`, `"1.1"`, or `"1.2"` (semver string) | `SCHEMA_VERSION_INVALID` |
 | `timecode` | Must match `\d{8}-\d{6}` | `TIMECODE_FORMAT_INVALID` |
 | `type` | Must be one of: `feature`, `app`, `domain`, `integration` | `TYPE_INVALID` |
 | `status` | Must be valid lifecycle value | `STATUS_INVALID` |
@@ -249,5 +270,5 @@ When the schema changes:
 3. Update `scripts/validate-spec.mjs` (`SUPPORTED_SCHEMA_VERSIONS`) to accept both old and new versions.
 4. Add migration note in the spec body `## Schema History` section.
 
-Current version `1.1` — additive over `1.0` (added optional `context.non-goals[]`). `1.0` specs
-remain valid; the validator accepts both.
+Current version `1.2` — additive over `1.1` (optional `agent-surface`). `1.0` and `1.1` specs
+remain valid; the validator accepts all three. `1.1` added optional `context.non-goals[]`.

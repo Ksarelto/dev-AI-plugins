@@ -1,23 +1,23 @@
 # Upstream Contract — feature-dev-kit
 
 What one `/feature-dev` run is allowed to read. A `type: app` spec from spec-dev-kit describes
-a whole surface; **orchestrator-kit** splits it into screen-tasks. This kit builds **one
+a whole surface; **frontend-orchestrator-kit** splits it into UI screen-tasks. This kit builds **one
 screen-task per run**. Dumping every `ui-surface.screens[]` entry into one blackboard is invalid.
 
-Canonical YAML schema: spec-dev-kit `references/spec-schema.md` (version 1.1).
-Task derivation: orchestrator-kit `references/task-decomposition.md`.
+Canonical YAML schema: spec-dev-kit `references/spec-schema.md` (version 1.2).
+Task derivation: frontend-orchestrator-kit `references/task-decomposition.md`.
 
 ---
 
-## Spawn payload (orchestrator-kit → feature-dev)
+## Spawn payload (frontend-orchestrator-kit → feature-dev)
 
-The `orchestrate-app` skill (or a human invoking `/feature-dev` with the same fields) must pass:
+The `orchestrate-frontend` skill (or a human invoking `/feature-dev` with the same fields) must pass:
 
 | Field | Required | Meaning |
 |-------|----------|---------|
 | `REQUEST` | no, when `UPSTREAM_SPEC` + `TASK_ID` | One line naming the task. **Never** paste spec YAML, stories, or ACs — `import-upstream.mjs` reads `UPSTREAM_SPEC`. Required only for standalone free-text runs |
 | `UPSTREAM_SPEC` | preferred | Path to `.spec/app/spec-{tc}_{slug}/spec.md` |
-| `TASK_ID` | when from orchestrator-kit | Checklist id, e.g. `T-001` |
+| `TASK_ID` | when from frontend-orchestrator-kit | Checklist id, e.g. `T-001` |
 | `SCREEN_REF` | when the task is a screen | `ui-surface.screens[].id`, e.g. `SCR-001` |
 | `STORY_REFS` | when known | `US-xxx` list for this task only |
 | `AC_REFS` | when known | `AC-xxx` list for this task only |
@@ -95,9 +95,9 @@ fails an app spec that was imported with no `task-id` / `screen-ref`.
 
 ## What this kit must never do
 
-- Re-derive the orchestrator-kit task list.
+- Re-derive the frontend-orchestrator-kit task list.
 - Build every screen in one run.
-- Pass `SPEC_CONTENT` (the full spec body) to `feature-orchestrator` or back to `orchestrate-app`.
+- Pass `SPEC_CONTENT` (the full spec body) to `feature-orchestrator` or back to `orchestrate-frontend`.
 - Treat HTML prototype files as production source.
 - Edit `task-checklist.md` (`CHECKLIST_PATH` is orchestrator write-back only).
 - Write a pasted review packet into the parent chat as the handoff — write
