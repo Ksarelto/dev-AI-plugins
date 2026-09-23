@@ -199,7 +199,7 @@ second layer — then promote to `standard`.
 | Orchestrator edits files under `src/` | Workers own `src/` |
 | Build the next layer on a red gate | Later layers inherit the defect |
 | Pass raw `git diff` or a worker report into the orchestrator chat | Return `HANDOFF` + `CONTAINS` |
-| Pass the full app spec body to the hub | One run is one screen-task |
+| Pass the full app spec body to the hub | One run is one feature (its nested screens only) |
 | Spawn `feature-orchestrator` for a patch | The skill runs `slice-engineer` directly |
 | Run `yarn build` or `yarn test:auto` after every layer | Those run once at Station 9 |
 | Audit all of `src/` at Station 1.5 | Scope is `## FSD Impact` |

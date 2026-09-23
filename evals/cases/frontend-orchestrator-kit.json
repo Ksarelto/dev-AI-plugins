@@ -3,7 +3,7 @@
   "source": "./app-dev-kit/frontend-orchestrator-kit",
   "component": "skills",
   "cases": [
-    { "prompt": "Build every React screen-task from this approved spec using the frontend feature checklist, one /feature-dev at a time", "expect": "orchestrate-frontend" },
-    { "prompt": "Resume the persisted frontend UI task checklist and continue the next screen-task with feature-dev-kit", "expect": "orchestrate-frontend" }
+    { "prompt": "Build every React feature from this approved spec using the frontend checklist, one /feature-dev at a time for each feature's nested screen-tasks", "expect": "orchestrate-frontend" },
+    { "prompt": "Resume the persisted frontend checklist and continue the next feature with feature-dev-kit", "expect": "orchestrate-frontend" }
   ]
 }

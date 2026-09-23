@@ -219,17 +219,23 @@ if (!existsSync(specFixture)) {
     } else {
       const checklistPath = join(tmp, 'task-checklist.md')
       const cl = parseFrontmatter(checklistPath).fm
-      const tasks = cl?.tasks ?? []
+      const features = cl?.features ?? []
+      const tasks = features.length
+        ? features.flatMap((f) => (f.tasks ?? []).map((t) => ({ ...t, _feature: f })))
+        : (cl?.tasks ?? [])
       if (tasks.length < 1) fail('build-checklist produced zero tasks')
-      else pass(`build-checklist produced ${tasks.length} tasks`)
+      else pass(`build-checklist produced ${features.length} features, ${tasks.length} tasks`)
+      if (cl['checklist-version'] !== '1.1') fail(`checklist-version ${cl['checklist-version']} (want 1.1)`)
+      else pass('checklist-version 1.1')
       const missingRefs = tasks.filter((t) => t['screen-ref'] && !(t['ac-refs']?.length >= 0))
       if (missingRefs.length) fail('a screen task is missing ac-refs')
       const signIn = tasks.find((t) => t['screen-ref'] === 'SCR-001' || /sign in/i.test(t.title ?? ''))
       if (!signIn) {
         fail('no Sign in / SCR-001 task derived')
       } else {
-        if (!signIn['slug-hint']) fail('sign-in task missing slug-hint')
-        else pass(`slug-hint ${signIn['slug-hint']}`)
+        const hint = signIn._feature?.['slug-hint'] || signIn['slug-hint']
+        if (!hint) fail('sign-in feature missing slug-hint')
+        else pass(`slug-hint ${hint}`)
         const outBoard = join(tmp, 'sign-in.md')
         const imported = node(importScript, [
           '--spec', specCopy,
@@ -342,6 +348,80 @@ if (!existsSync(specFixture)) {
     const dump = node(importScript, ['--spec', specCopy, '--require-scoped', '--stdout-only'])
     if (dump.status === 0) fail('import-upstream --require-scoped without SCREEN_REF should fail')
     else pass('require-scoped rejects a whole-app dump')
+
+    const groupedSpec = join(tmp, 'grouped', 'spec.md')
+    mkdirSync(join(tmp, 'grouped'), { recursive: true })
+    writeFileSync(groupedSpec, `---
+type: app
+metadata:
+  title: Grouped
+  slug: grouped
+user-stories:
+  - id: US-001
+    as: a member
+    i-want: sign in and see home
+    so-that: I can start
+    priority: must
+acceptance-criteria:
+  - id: AC-001
+    story-ref: US-001
+    given: signed out
+    when: I open Sign in
+    then: I see the form
+  - id: AC-002
+    story-ref: US-001
+    given: signed in
+    when: I open Home
+    then: I see the dashboard
+ui-surface:
+  screens:
+    - id: SCR-001
+      title: Sign in
+      route: /sign-in
+      states: [empty]
+      components: []
+    - id: SCR-002
+      title: Home
+      route: /home
+      states: [ready]
+      components: []
+---
+# Grouped
+`)
+    const grouped = node(checklistScript, [groupedSpec])
+    if (grouped.status !== 0) {
+      fail(`grouped build-checklist failed: ${grouped.stderr || grouped.stdout}`)
+    } else {
+      const g = parseFrontmatter(join(tmp, 'grouped', 'task-checklist.md')).fm
+      const gFeatures = g.features ?? []
+      const gTasks = gFeatures.flatMap((f) => f.tasks ?? [])
+      if (gFeatures.length !== 1 || gTasks.length !== 2) {
+        fail(`two screens on one story should be 1 feature / 2 tasks (got ${gFeatures.length} / ${gTasks.length})`)
+      } else pass('two screens on one story → one feature, two tasks')
+      const both = node(importScript, [
+        '--spec', groupedSpec,
+        '--out', join(tmp, 'sign-in-and-see-home.md'),
+        '--slug', 'sign-in-and-see-home',
+        '--feature-id', gFeatures[0].id,
+        '--task-ids', gTasks.map((t) => t.id).join(','),
+        '--screen-refs', gTasks.map((t) => t['screen-ref']).join(','),
+        '--require-scoped',
+      ])
+      if (both.status !== 0) {
+        fail(`multi-screen import failed: ${both.stderr || both.stdout}`)
+      } else {
+        const board = readFileSync(join(tmp, 'sign-in-and-see-home.md'), 'utf8')
+        if (!board.includes('SCR-001') || !board.includes('SCR-002')) {
+          fail('multi-screen import dropped a nested screen')
+        } else pass('multi-screen import includes both screens')
+        const validated = node(validateScript, [join(tmp, 'sign-in-and-see-home.md'), '--require-scoped'])
+        if (validated.status !== 0) fail(`multi-screen validate: ${validated.stderr || validated.stdout}`)
+        else pass('multi-screen blackboard passes --require-scoped')
+      }
+      const unscoped = node(importScript, ['--spec', groupedSpec, '--require-scoped', '--stdout-only'])
+      if (unscoped.status === 0) fail('unscoped two-screen dump should fail --require-scoped')
+      else pass('unscoped two-screen dump still fails --require-scoped')
+    }
   } finally {
     rmSync(tmp, { recursive: true, force: true })
   }

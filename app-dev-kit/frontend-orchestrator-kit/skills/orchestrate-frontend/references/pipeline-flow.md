@@ -52,40 +52,45 @@ Do **not** use a second mapping. `SKILL.md` and this file must match.
 
 ---
 
-## Station 3 — Task Loop
+## Station 3 — Feature Loop
 
 ```
-tasks = read(task-checklist.md).tasks
-for task in tasks (in file order):
-  if task.status in [done, skipped]: continue
-  if task.status == blocked: ask human whether to retry or keep skipping; else continue
-  if git working tree dirty: ask commit / stash / abort-task; do not spawn dirty
+features = read(task-checklist.md).features
+for feature in features (in file order):
+  if feature.status in [done, skipped]: continue
+  if feature.status == blocked: ask human whether to retry or keep skipping; else continue
+  if git working tree dirty: ask commit / stash / abort-feature; do not spawn dirty
 
-  set task.status = in-progress; persist checklist
+  set feature.status = in-progress; persist checklist
+  do not check out develop / main / master between features
 
-  spawn feature-dev-kit:feature-dev with:
-    REQUEST:        one line — task id + "read UPSTREAM_SPEC"
+  spawn feature-dev-kit:feature-dev once for this feature (nested tasks are not extra calls):
+    REQUEST:        one line — feature id + "nested tasks in CHECKLIST_PATH; read UPSTREAM_SPEC"
     UPSTREAM_SPEC:  {spec.md path}
-    TASK_ID, SCREEN_REF, STORY_REFS, AC_REFS, ENTITY_REFS
+    FEATURE_ID:     feature.id
+    TASK_IDS:       comma-separated nested task ids
+    SCREEN_REFS:    comma-separated nested screen-refs
     PROTOTYPE_REF:  checklist.prototype-ref      # may be empty
     CHECKLIST_PATH: {task-checklist.md path}
-    SLUG_HINT:      task.slug-hint
-    RESULT_OUT:     {checklist dir}/results/{task.id}.json
+    SLUG_HINT:      feature.slug-hint
+    PARENT_BRANCH:  current HEAD when it is feature/*; empty on the first feature
+    RESULT_OUT:     {checklist dir}/results/{feature.id}.json
     (never inline spec body, stories, or ACs)
 
   envelope = Read(RESULT_OUT)   # fallback feature kit-result.json
-  apply Outcomes table above
+  copy slug, branch, parent_branch onto the feature; mark nested tasks done on approved
   persist checklist
 
-  if more tasks remain:
-    AskUserQuestion — continue (may stack on current feature/* HEAD) / pause / abort
+  if more features remain:
+    AskUserQuestion — continue (checkout -b the next feature on this HEAD) / pause / abort
 ```
 
-**Never auto-run more than one `feature-dev-kit` sub-run without asking.**
+**No second feature starts until that question is answered.**
 
-Git: `new-feature.sh` refuses a dirty tree. `git checkout -b` for the next task is from **current
-HEAD**, not from the printed `BASE`. Independent PRs require pause + `/create-pr` (or merge)
-before Continue.
+Git: `new-feature.sh` refuses a dirty tree and prints `PARENT` as the branch it was cut from.
+`git checkout -b` for the next feature is from **current HEAD** (the previous `feature/*` branch).
+Do not retarget that parent to `develop` / `main` / `master`. Independent PRs require pause +
+`/create-pr` (or merge) before Continue.
 
 ---
 
@@ -96,7 +101,7 @@ before Continue.
 | Empty `.spec/context/` and no approved spec | STOP before invoking generate-spec |
 | Envelope `aborted` / `error` from Station 1 | STOP — nothing downstream can run |
 | `html-generator-kit` declined or envelope aborted | `PROTOTYPE_REF = ""`; continue to Station 2a |
-| `build-checklist.mjs` produces zero tasks | Surface `SPEC_PATH` and stop |
+| `build-checklist.mjs` produces zero features | Surface `SPEC_PATH` and stop |
 | Dirty tree at Station 3 | Do not spawn; commit/stash/block |
 | feature-dev envelope missing | Leave `in-progress`; never mark `done` |
 | Checklist file corrupted / unparsable | STOP — human fixes or deletes it |

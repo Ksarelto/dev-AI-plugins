@@ -101,9 +101,13 @@ if (fm['upstream-spec'] && !none(fm['upstream-spec'])) {
 }
 
 const hasTask = !none(fm['task-id'])
-const hasScreen = !none(fm['screen-ref'])
-if (requireScoped && !hasTask && !hasScreen) {
-  err('REQUIRE_SCOPED', 'task-id and screen-ref are both empty — a type:app spec must be imported as one screen-task')
+const hasFeature = !none(fm['feature-id'])
+const screenRefs = none(fm['screen-ref'])
+  ? []
+  : String(fm['screen-ref']).split(',').map((s) => s.trim()).filter(Boolean)
+const hasScreen = screenRefs.length > 0
+if (requireScoped && !hasTask && !hasScreen && !hasFeature) {
+  err('REQUIRE_SCOPED', 'feature-id, task-id, and screen-ref are empty — a type:app spec must be imported as one feature')
 }
 
 // --- Sections ---
@@ -133,8 +137,10 @@ for (const name of REQUIRED_SECTIONS) {
 
 if (hasScreen) {
   const ui = sections.get('ui surface') ?? ''
-  if (ui && !ui.includes(fm['screen-ref'])) {
-    err('SCREEN_REF_MISSING_FROM_UI', `"## UI Surface" must mention screen-ref ${fm['screen-ref']}`)
+  for (const ref of screenRefs) {
+    if (ui && !ui.includes(ref)) {
+      err('SCREEN_REF_MISSING_FROM_UI', `"## UI Surface" must mention screen-ref ${ref}`)
+    }
   }
 }
 

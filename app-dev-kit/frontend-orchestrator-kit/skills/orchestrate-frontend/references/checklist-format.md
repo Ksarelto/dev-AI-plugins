@@ -15,36 +15,47 @@ spec-dev-kit's `spec.md`.
 
 ```yaml
 ---
-checklist-version: "1.0"
+checklist-version: "1.1"
 spec-ref: ".spec/app/spec-{tc}_{slug}/spec.md"
 prototype-ref: ".spec/prototype/{proto-tc}_{slug}/"  # html-generator's NEW timecode; empty if skipped
 generated: "YYYY-MM-DDTHH:mm:ssZ"
 updated: "YYYY-MM-DDTHH:mm:ssZ"
 
-tasks:
-  - id: T-001
-    title: ""                     # from screen title, or story summary for screen-less tasks
-    screen-ref: SCR-001           # empty for screen-less tasks
-    story-refs: [US-001, US-002]
-    ac-refs: [AC-001, AC-002]
-    entity-refs: [Profile]
+features:
+  - id: F-001
+    title: Sign in
+    slug-hint: sign-in            # kebab of the feature title; never app metadata.slug
+    story-refs: [US-001]
     priority: must                # must | should | could  (wont is never listed)
-    status: pending                # pending | in-progress | done | blocked | skipped
-    slug-hint: sign-in            # kebab screen/story title for feature-dev; never app metadata.slug
-    slug: ""                      # feature-dev-kit slug once a run starts (screen-task, not the app slug)
-    branch: ""                    # feature-dev-kit branch once resolved
-    blocked-reason: ""            # only set when status: blocked
+    status: pending               # pending | in-progress | done | blocked | skipped
+    slug: ""                      # feature-dev slug once the run starts
+    branch: ""                    # feature/<slug> once resolved
+    parent-branch: ""             # branch this one was cut from
+    blocked-reason: ""
+    tasks:
+      - id: T-001
+        title: Sign in
+        screen-ref: SCR-001
+        story-refs: [US-001]
+        ac-refs: [AC-001]
+        entity-refs: [Session]
+        status: pending           # follows the feature; blocked if the source screen disappears
+        blocked-reason: ""
 ---
 ```
+
+A feature is one user story plus the screens whose acceptance criteria belong to that story.
+Nested tasks stay screen-level. `slug`, `branch`, and `parent-branch` live on the feature.
+A legacy checklist that still has a flat `tasks[]` list is re-derived into this shape.
 
 ## Body (appended, never rewritten)
 
 ```markdown
 ## Log
 
-- {ISO timestamp} — checklist generated from {spec-ref} ({N} tasks)
-- {ISO timestamp} — T-003 status: pending → in-progress
-- {ISO timestamp} — T-003 status: in-progress → done (slug: decline-profile, branch: feature/decline-profile)
+- {ISO timestamp} — checklist generated from {spec-ref} ({N} features, {M} tasks)
+- {ISO timestamp} — F-001 status: pending → in-progress
+- {ISO timestamp} — F-001 status: in-progress → done (slug: sign-in, branch: feature/sign-in, parent: develop)
 ```
 
 The log is append-only — it is the audit trail for "what happened when", which the YAML `status`
@@ -61,7 +72,7 @@ pending ──► in-progress ──► done          (envelope outcome: approve
    │             ├──► blocked             (envelope outcome: error, or dirty-tree abort)
    │             └──► in-progress         (no envelope — crash; resume re-offers)
    │
-   └──► skipped                           (human at Station 2a or between-task prompt)
+   └──► skipped                           (human at Station 2a or between-feature prompt)
    │
    └──► blocked                           (source screen removed on re-derivation)
 ```
@@ -76,9 +87,10 @@ Only a human decision (via `AskUserQuestion`) writes `skipped`. `build-checklist
 
 | Field | Rule |
 |-------|------|
-| `id` | Unique, `T-` prefixed, sequential at first generation |
-| `status` | One of the five lifecycle values above |
-| `slug` / `branch` | Must be non-empty when `status: done` |
+| `features[].id` | Unique, `F-` prefixed, sequential at first generation |
+| `tasks[].id` | Unique, `T-` prefixed, stable across re-derivation |
+| `status` | One of the five lifecycle values above (on the feature; nested tasks follow it) |
+| `slug` / `branch` | Must be non-empty on the feature when `status: done` |
 | `blocked-reason` | Must be non-empty when `status: blocked` |
 | `spec-ref` | Must point to a file that exists |
 

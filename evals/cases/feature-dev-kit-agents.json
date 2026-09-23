@@ -12,7 +12,7 @@
       "expect": "architecture-auditor"
     },
     {
-      "prompt": "Run upstream-interpreter as a read-only YAML parser so one screen-task slice comes back compact from SPEC_FILE",
+      "prompt": "Run upstream-interpreter as a read-only YAML parser so one feature's nested screen-tasks come back compact from SPEC_FILE",
       "expect": "upstream-interpreter"
     },
     {
