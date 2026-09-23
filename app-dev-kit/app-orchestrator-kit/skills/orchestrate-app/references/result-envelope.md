@@ -41,6 +41,7 @@ If the orchestrator passes `RESULT_OUT`, the callee writes **that path as well**
   "work_plan": "",
   "slug": "demo",
   "branch": "",
+  "parent_branch": "",
   "run_dir": ".spec/app/spec-20260920-120000_demo",
   "reason": "",
   "written": "2026-09-20T12:00:00.000Z"
@@ -59,6 +60,7 @@ If the orchestrator passes `RESULT_OUT`, the callee writes **that path as well**
 | `work_plan` | `.spec/app/spec-{tc}_{slug}/work-plan.md` (orchestrate-app) |
 | `slug` | App slug or increment slug |
 | `branch` | `feature/{slug}` / `backend/{slug}` / `agent/{slug}` when created |
+| `parent_branch` | Branch the feature was cut from (`feature-dev` only). Empty for other kits |
 | `run_dir` | Spec run folder, prototype dir, or increment dir |
 | `reason` | Short abort/error note; empty on success |
 

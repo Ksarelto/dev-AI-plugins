@@ -80,8 +80,8 @@ Name them in each delegation `APPLY`. Companion **frontend-dev-kit** supplies `a
 | Working tree clean | `git status --porcelain` | Ask the human to commit or stash first |
 
 A spec from `/generate-spec` in `.spec/app/spec-*/spec.md` is **optional but preferred**. When
-frontend-orchestrator-kit (or the human) also passes `TASK_ID` / `SCREEN_REF`, Station 0 imports **only that
-screen-task**. Never ingest a whole `type: app` spec into one feature run.
+frontend-orchestrator-kit (or the human) also passes `FEATURE_ID` / `SCREEN_REFS`, Station 0 imports
+**only that feature's nested screens**. Never ingest a whole `type: app` spec into one feature run.
 
 ---
 
@@ -92,8 +92,8 @@ screen-task**. Never ingest a whole `type: app` spec into one feature run.
 | `[feature-slug or request]` | Optional | An existing slug in `.spec/features/` resumes that feature. Free text starts a new one. Omitted → this skill asks for the request. |
 
 Structured fields (from frontend-orchestrator-kit or the human) may accompany the argument: `UPSTREAM_SPEC`,
-`TASK_ID`, `SCREEN_REF`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`, `PROTOTYPE_REF`, `CHECKLIST_PATH`,
-`SLUG_HINT`, `RESULT_OUT`. `REQUEST` may be a one-line pointer when `UPSTREAM_SPEC` + `TASK_ID`
+`FEATURE_ID`, `TASK_IDS`, `SCREEN_REFS`, `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`,
+`PARENT_BRANCH`, `RESULT_OUT`. `REQUEST` may be a one-line pointer when `UPSTREAM_SPEC` + `FEATURE_ID`
 are set — do not expect an inlined spec body. See `references/upstream-contract.md`.
 
 ```
@@ -112,16 +112,16 @@ Do not read `pipeline-flow.md` into this conversation. The tier table below is t
 
 1. `Glob(".spec/features/*.md")`. If the argument matches an existing slug, read **frontmatter `status` only**. If `.spec/features/{slug}.context/session.md` exists, that path is the resume context — do not read the whole blackboard. Report: `"Resuming {slug} at Station {N}."`
 2. Otherwise derive a slug per `references/artifact-naming.md`. **Do not** reuse the app spec's
-   `metadata.slug` as the feature slug when the run is one screen-task — derive from `SLUG_HINT`
-   (orchestrator kebab of the screen/story title), then the screen title / `SCREEN_REF`, so
-   `.spec/features/sign-in.md` does not collide with the app slug. For screen-less tasks
-   (`SCREEN_REF` empty), `SLUG_HINT` is required; never fall back to the app slug.
+   `metadata.slug` as the feature slug — derive from `SLUG_HINT` (the feature's kebab title),
+   so `.spec/features/sign-in.md` does not collide with the app slug. `SLUG_HINT` is required
+   when the checklist feature has no title to kebab. Never fall back to the app slug.
 3. Resolve upstream:
    - If `UPSTREAM_SPEC` was passed, use it.
    - Else `Glob(".spec/app/spec-*/spec.md")`. If a spec's title or slug matches the **app**, note
-     the path. Then `Glob` sibling `task-checklist.md`. If a task row matches the request
-     (title, `screen-ref`, or slug), adopt that row's `TASK_ID` / `SCREEN_REF` / refs /
-     `prototype-ref`. If nothing matches, standalone feature — no whole-app dump.
+     the path. Then `Glob` sibling `task-checklist.md`. If a **feature** matches the request
+     (title, slug-hint, or a nested task `screen-ref`), adopt that feature's `FEATURE_ID`,
+     nested `TASK_IDS` / `SCREEN_REFS`, and `prototype-ref`. If nothing matches, standalone
+     feature — no whole-app dump.
 
 | Spec `status` | Resume at |
 |---------------|-----------|
@@ -135,11 +135,15 @@ Do not read `pipeline-flow.md` into this conversation. The tier table below is t
 
 ### Step 2 — Scaffold + scoped import (Station 0)
 
+If `PARENT_BRANCH` is set and `HEAD` is not that branch, `git checkout {PARENT_BRANCH}` first.
+Do not check out `develop` / `main` / `master` between features.
+
 ```bash
 bash {KIT_DIR}/skills/feature-dev/scripts/new-feature.sh {slug}
 ```
 
-Capture `SLUG`, `BRANCH`, and `SPEC_PATH` from stdout.
+Capture `SLUG`, `BRANCH`, `PARENT`, and `SPEC_PATH` from stdout. `PARENT` is the branch this one
+was cut from (`git checkout -b` off the current HEAD). Nested tasks do not call this script.
 
 If `UPSTREAM_SPEC` is set, run the deterministic mapper (never paste spec body into a prompt):
 
@@ -148,8 +152,9 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
   --spec {UPSTREAM_SPEC} \
   --out {SPEC_PATH} \
   --slug {slug} \
-  --task-id {TASK_ID} \
-  --screen-ref {SCREEN_REF} \
+  --feature-id {FEATURE_ID} \
+  --task-ids {TASK_IDS} \
+  --screen-refs {SCREEN_REFS} \
   --story-refs {comma-separated or omit} \
   --ac-refs {comma-separated or omit} \
   --entity-refs {comma-separated or omit} \
@@ -176,7 +181,7 @@ Relay each returned question via `AskUserQuestion` (batched, max 3 rounds per
 node {KIT_DIR}/skills/feature-dev/scripts/validate-feature-spec.mjs {SPEC_PATH}
 ```
 
-When this run has `TASK_ID` / `SCREEN_REF`, also pass `--require-scoped`.
+When this run has `FEATURE_ID` / `TASK_IDS` / `SCREEN_REFS`, also pass `--require-scoped`.
 
 Exit 1 means required sections are missing or acceptance criteria are untestable — route the
 `ERROR [CODE]` lines back to `spec-analyst` (max 2 correction passes).
@@ -226,11 +231,16 @@ Loop on `type`:
 
 ### Step 5 — Human review gate (Station 12 — THIS skill owns it, max 3 cycles)
 
-1. Read `review_path` **once** (patch runs: the slice-engineer handoff plus `git diff --stat`). Then add:
-   - `git diff --stat {base}...HEAD`
-   - `Review locally: git diff {base}...HEAD`
-   Do not paste the blackboard or the diff body into chat.
-2. `AskUserQuestion` — "Review the feature. How should I proceed?":
+1. Stage the feature once. Do not commit yet, and do not commit per nested task:
+
+   ```bash
+   bash {KIT_DIR}/skills/feature-dev/scripts/commit-feature.sh {slug} --stage-only
+   ```
+
+   Read `review_path` **once** (patch runs: the slice-engineer handoff). Then show
+   `git diff --cached --stat`. Say `Review locally: git diff --cached`. Do not paste the
+   blackboard or the diff body into chat.
+2. `AskUserQuestion` — "Review the staged feature. How should I proceed?":
    - **Approve** → set `status: done` (human-only transition), go to Step 6.
    - **Request changes** → write `session.md` (the change request and `review_path`, not the review body), then re-spawn. Patch stays on `slice-engineer` unless the change adds a dependency, a route, or a second layer. Standard and full:
      ```
@@ -241,10 +251,17 @@ Loop on `type`:
      SLUG / SPEC_PATH / BRANCH / KIT_DIR: (same as build)
      ```
      The orchestrator re-enters at the lowest affected station, replays Stations 9–10 (including 9.5), and returns a fresh packet.
-   - **Abort** → write kit-result `aborted` (below) and stop. The branch and spec stay in place.
+   - **Abort** → do not commit. Leave the index as it is. Write kit-result `aborted` and stop.
 3. After 3 change cycles without approval, ask: accept-as-is, keep iterating, or abort.
 
 ### Step 6 — Result envelope, report, hand off
+
+On approve: one commit for the feature, then the envelope. Do not push. On abort or error, skip
+the commit and write the envelope only.
+
+```bash
+bash {KIT_DIR}/skills/feature-dev/scripts/commit-feature.sh {slug}
+```
 
 Write the path-only envelope **before** the human-readable report (frontend-orchestrator-kit reads the file):
 
@@ -256,7 +273,8 @@ node {KIT_DIR}/skills/feature-dev/scripts/write-kit-result.mjs \
   --spec-path .spec/features/{slug}.md \
   --feature-spec .spec/features/{slug}.md \
   --slug {slug} \
-  --branch {branch}
+  --branch {branch} \
+  --parent-branch {PARENT}
 ```
 
 If `RESULT_OUT` was passed, add `--also {RESULT_OUT}`. On abort / escalation stop, same command
@@ -285,8 +303,8 @@ be typed by a human.
 2. **No unapproved dependency.** `yarn add` runs only after Station 1b sign-off.
 3. **Bottom-up, gate-per-layer.** No layer is built on a red gate.
 4. **The spec is the handoff medium.** Workers read and write sections; chat output is not state.
-5. **One screen-task per run.** Orchestrator-kit splits the app spec; this kit does not re-split it
-   and does not dump every screen into one blackboard.
+5. **One feature per run.** Nested screen-tasks share this branch and this commit. FSD slices
+   inside the run are not new feature-dev calls, branches, or commits. Do not dump every app screen.
 6. **Architecture-audit is a gate on standard and full.** Station 9.5 is `DIFF_SCOPE`. Station 1.5 runs on the full tier only, scoped to FSD Impact paths. Patch skips both. A missing companion plugin on a tier that requires the audit → escalate, do not skip.
 7. **Automation never ships.** No agent pushes, merges, or opens a PR.
 
@@ -313,6 +331,6 @@ be typed by a human.
 | Same gate fails 3× | Expected escalation. Read the gate log in the spec; the plan or spec is usually wrong |
 | Orchestrator returned no packet | It hit a hard stop — read the spec's `Gate log` and `status` |
 | Worker touched files outside its slice | The delegation was under-specified; tighten `BOUNDARY` per `templates/delegation-message.md` |
-| Import dumped every app screen | Pass `SCREEN_REF` / `TASK_ID` and `--require-scoped` |
+| Import dumped every app screen | Pass `FEATURE_ID` / `SCREEN_REFS` and `--require-scoped` |
 | Coverage stuck below threshold | Do not weaken thresholds — find the untested branches listed in the gate output |
 | Want to restart clean | Set spec `status: draft` and re-run `/feature-dev {slug}` |

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Deterministic mapper: spec-dev-kit YAML (+ optional html prototype) → feature blackboard.
-// One screen-task per run. Usage:
+// One feature per run (one screen, or several screens nested under that feature).
+// Usage:
 //   node import-upstream.mjs --spec <spec.md> --out <feature.md> [filters] [--require-scoped]
 // Exit 0 = wrote (or printed). Exit 1 = scoped-import failure. Exit 2 = usage/parse failure.
 
@@ -26,8 +27,11 @@ const specPath = flag('spec')
 const outPath = flag('out')
 const requireScoped = Boolean(flag('require-scoped'))
 const stdoutOnly = Boolean(flag('stdout-only'))
+const featureId = flag('feature-id') === true ? '' : (flag('feature-id') || '')
 const taskId = flag('task-id') === true ? '' : (flag('task-id') || '')
+const taskIds = listFlag('task-ids')
 const screenRef = flag('screen-ref') === true ? '' : (flag('screen-ref') || '')
+const screenRefsArg = listFlag('screen-refs')
 const slugArg = flag('slug') === true ? '' : (flag('slug') || '')
 const prototypeRef = flag('prototype-ref') === true ? '' : (flag('prototype-ref') || '')
 const storyRefsArg = listFlag('story-refs')
@@ -35,7 +39,7 @@ const acRefsArg = listFlag('ac-refs')
 const entityRefsArg = listFlag('entity-refs')
 
 if (!specPath) {
-  console.error('usage: node import-upstream.mjs --spec <spec.md> [--out <feature.md>] [--screen-ref SCR-001] [--task-id T-001] [--require-scoped]')
+  console.error('usage: node import-upstream.mjs --spec <spec.md> [--out <feature.md>] [--feature-id F-001] [--screen-refs SCR-001,SCR-002] [--task-ids T-001,T-002] [--require-scoped]')
   process.exit(2)
 }
 
@@ -72,17 +76,26 @@ const endpoints = [
   ...(spec['api-surface']?.mutations ?? []),
 ]
 
+const screenRefs = [...new Set([...screenRefsArg, ...(screenRef ? [screenRef] : [])])]
+const allTaskIds = [...new Set([...taskIds, ...(taskId ? [taskId] : [])])]
+
 const isApp = spec.type === 'app' || screens.length > 1
-if (requireScoped && isApp && !screenRef && !taskId) {
-  console.error('ERROR [REQUIRE_SCOPED] type:app (or multiple screens) imported with no TASK_ID / SCREEN_REF — one /feature-dev run is one screen-task')
+if (requireScoped && isApp && screenRefs.length === 0 && allTaskIds.length === 0 && !featureId) {
+  console.error('ERROR [REQUIRE_SCOPED] type:app (or multiple screens) imported with no FEATURE_ID / SCREEN_REFS — one /feature-dev run is one feature, not the whole app')
   process.exit(1)
 }
 
-const screen = screenRef ? screens.find((s) => s.id === screenRef) : (screens.length === 1 ? screens[0] : null)
-if (screenRef && !screen) {
-  console.error(`ERROR [SCREEN_MISSING] screen-ref "${screenRef}" not in ui-surface.screens[]`)
-  process.exit(1)
+const selectedScreens = []
+for (const ref of screenRefs) {
+  const found = screens.find((s) => s.id === ref)
+  if (!found) {
+    console.error(`ERROR [SCREEN_MISSING] screen-ref "${ref}" not in ui-surface.screens[]`)
+    process.exit(1)
+  }
+  selectedScreens.push(found)
 }
+if (selectedScreens.length === 0 && screens.length === 1) selectedScreens.push(screens[0])
+const screen = selectedScreens[0] ?? null
 
 function titleKeywords(s) {
   return (s.title ?? '')
@@ -91,17 +104,29 @@ function titleKeywords(s) {
     .filter((w) => w.length > 3)
 }
 
-function derivedAcs() {
-  if (!screen) return []
-  const keywords = titleKeywords(screen)
+function acsForScreen(s) {
+  const keywords = titleKeywords(s)
   return acs.filter((ac) => {
     const viaInteraction = interactions.some(
-      (i) => i['screen-ref'] === screen.id
+      (i) => i['screen-ref'] === s.id
         && (ac.when?.includes(i.trigger) || ac.then?.includes(i.response)),
     )
     const text = `${ac.given ?? ''} ${ac.when ?? ''} ${ac.then ?? ''}`.toLowerCase()
-    return viaInteraction || text.includes(String(screen.id).toLowerCase()) || keywords.some((k) => text.includes(k))
+    return viaInteraction || text.includes(String(s.id).toLowerCase()) || keywords.some((k) => text.includes(k))
   })
+}
+
+function derivedAcs() {
+  const merged = []
+  const seen = new Set()
+  for (const s of selectedScreens) {
+    for (const ac of acsForScreen(s)) {
+      if (seen.has(ac.id)) continue
+      seen.add(ac.id)
+      merged.push(ac)
+    }
+  }
+  return merged
 }
 
 const filteredAcs = acRefsArg.length
@@ -115,8 +140,9 @@ const filteredStories = stories.filter((s) => storyIds.includes(s.id))
 function derivedEntities() {
   if (entityRefsArg.length) return entityRefsArg
   const names = entities.map((e) => e.name)
-  if (!screen) return []
-  return names.filter((name) => screen.components?.some((c) => String(c).includes(name)))
+  return names.filter((name) =>
+    selectedScreens.some((s) => s.components?.some((c) => String(c).includes(name))),
+  )
 }
 const entityNames = derivedEntities()
 const filteredEntities = entities.filter((e) => entityNames.includes(e.name))
@@ -182,9 +208,10 @@ function resolvePrototypePage(protoDir, s, ref) {
 }
 
 const protoDir = prototypeRef || ''
-const prototypePage = resolvePrototypePage(protoDir, screen, screenRef || screen?.id)
 const slug = slugArg || kebab(screen?.title) || spec.metadata?.slug || 'feature'
-const title = screen?.title ?? spec.metadata?.title ?? slug
+const title = selectedScreens.length > 1
+  ? selectedScreens.map((s) => s.title).join(', ')
+  : (screen?.title ?? spec.metadata?.title ?? slug)
 const today = new Date().toISOString().slice(0, 10)
 
 function acLine(ac) {
@@ -192,7 +219,9 @@ function acLine(ac) {
 }
 
 const requestLines = [
-  screen ? `${screen.title} (${screen.route}).` : (spec.metadata?.title ?? ''),
+  selectedScreens.length
+    ? selectedScreens.map((s) => `${s.title} (${s.route}).`).join('\n')
+    : (spec.metadata?.title ?? ''),
   spec.context?.goal ? `Goal: ${spec.context.goal}` : '',
   filteredStories.length
     ? 'User stories:\n' + filteredStories.map((s) => `- As a ${s.as}, I want ${s['i-want']}, so that ${s['so-that']}.`).join('\n')
@@ -203,22 +232,25 @@ const acMarkdown = filteredAcs.length
   ? filteredAcs.map((ac, i) => `${i + 1}. [${ac.id}] ${acLine(ac)}`).join('\n')
   : '1. TBD: no acceptance criteria mapped to this screen-task'
 
-const uiMarkdown = screen
-  ? [
-      `- screen-ref: ${screen.id}`,
-      `- title: ${screen.title}`,
-      `- route: ${screen.route}`,
-      `- states: ${(screen.states ?? []).join(', ')}`,
-      `- components: ${(screen.components ?? []).join(', ')}`,
-      screen.notes ? `- notes: ${screen.notes}` : '',
-      prototypePage ? `- prototype-page: ${prototypePage}` : '',
-      interactions.filter((i) => i['screen-ref'] === screen.id).length
-        ? '- interactions:\n' + interactions
-          .filter((i) => i['screen-ref'] === screen.id)
-          .map((i) => `  - ${i.trigger} → ${i.response}`)
-          .join('\n')
-        : '',
-    ].filter(Boolean).join('\n')
+function screenBlock(s) {
+  const page = resolvePrototypePage(protoDir, s, s.id)
+  const screenInteractions = interactions.filter((i) => i['screen-ref'] === s.id)
+  return [
+    `- screen-ref: ${s.id}`,
+    `- title: ${s.title}`,
+    `- route: ${s.route}`,
+    `- states: ${(s.states ?? []).join(', ')}`,
+    `- components: ${(s.components ?? []).join(', ')}`,
+    s.notes ? `- notes: ${s.notes}` : '',
+    page ? `- prototype-page: ${page}` : '',
+    screenInteractions.length
+      ? '- interactions:\n' + screenInteractions.map((i) => `  - ${i.trigger} → ${i.response}`).join('\n')
+      : '',
+  ].filter(Boolean).join('\n')
+}
+
+const uiMarkdown = selectedScreens.length
+  ? selectedScreens.map(screenBlock).join('\n\n')
   : '<standalone feature — no ui-surface.screens[] row imported>'
 
 function entityBlock(e) {
@@ -236,13 +268,14 @@ const apiMarkdown = [
 const compact = [
   `SLUG: ${slug}`,
   `TITLE: ${title}`,
-  `TASK_ID: ${taskId || '(none)'}`,
-  `SCREEN_REF: ${screen?.id || '(none)'}`,
-  `PROTOTYPE_PAGE: ${prototypePage || '(none)'}`,
+  `FEATURE_ID: ${featureId || '(none)'}`,
+  `TASK_ID: ${allTaskIds.join(', ') || '(none)'}`,
+  `SCREEN_REF: ${selectedScreens.map((s) => s.id).join(', ') || '(none)'}`,
+  `PROTOTYPE_PAGE: ${selectedScreens.map((s) => resolvePrototypePage(protoDir, s, s.id)).filter(Boolean).join(', ') || '(none)'}`,
   `STORIES: ${filteredStories.map((s) => s.id).join(', ') || '(none)'}`,
   `ACS: ${filteredAcs.map((a) => a.id).join(', ') || '(none)'}`,
   `ENTITIES: ${filteredEntities.map((e) => e.name).join(', ') || '(none)'}`,
-  `SCREENS_IMPORTED: ${screen ? 1 : 0}`,
+  `SCREENS_IMPORTED: ${selectedScreens.length}`,
 ].join('\n')
 
 if (stdoutOnly && !outPath) {
@@ -287,8 +320,9 @@ function replaceSection(heading, content) {
 replaceFm('slug', slug)
 replaceFm('created', today)
 replaceFm('upstream-spec', specPath)
-replaceFm('task-id', taskId || 'none')
-replaceFm('screen-ref', screen?.id || 'none')
+replaceFm('feature-id', featureId || 'none')
+replaceFm('task-id', allTaskIds.join(',') || 'none')
+replaceFm('screen-ref', selectedScreens.map((s) => s.id).join(',') || 'none')
 replaceFm('prototype-ref', protoDir || 'none')
 board = board.replace(/# Feature: <name>/, `# Feature: ${title}`)
 board = board.replace(/<feature-slug>/g, slug)

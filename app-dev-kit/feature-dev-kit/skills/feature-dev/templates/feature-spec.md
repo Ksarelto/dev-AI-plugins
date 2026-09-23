@@ -5,6 +5,7 @@ created: <YYYY-MM-DD>
 ticket: <TICKET-ID or TBD>
 branch: <feature/…>
 upstream-spec: none
+feature-id: none
 task-id: none
 screen-ref: none
 prototype-ref: none

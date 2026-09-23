@@ -1,6 +1,6 @@
 ---
 name: orchestrate-frontend
-description: Runs the frontend-only app-dev-kit pipeline — spec-dev-kit to author a spec if needed, html-generator-kit to prototype it, then feature-dev-kit to build every UI screen-task one by one — tracked against a persisted, resumable frontend checklist. Does not build backend APIs or AI agents (use /orchestrate-app for the full-stack dispatcher, or /backend-dev and /agent-dev). Cross-kit handoff is file paths and kit-result.json envelopes, never inlined spec or prototype bodies. Use when starting or resuming a React/FSD screen-task loop, not a single feature (for a single feature, use feature-dev-kit's /feature-dev directly).
+description: Runs the frontend-only app-dev-kit pipeline — spec-dev-kit to author a spec if needed, html-generator-kit to prototype it, then feature-dev-kit once per feature (nested UI screen-tasks share that call, stacked branch, and commit) — tracked against a persisted, resumable frontend checklist. Does not build backend APIs or AI agents (use /orchestrate-app for the full-stack dispatcher, or /backend-dev and /agent-dev). Cross-kit handoff is file paths and kit-result.json envelopes, never inlined spec or prototype bodies. Use when starting or resuming a React/FSD feature loop, not a single feature (for a single feature, use feature-dev-kit's /feature-dev directly).
 argument-hint: "[app-name or existing spec/checklist slug]"
 disable-model-invocation: false
 allowed-tools: [Read, Glob, Grep, Write, Bash, Skill, AskUserQuestion]
@@ -110,9 +110,9 @@ Read `references/pipeline-flow.md` and `references/context-budget.md` before sta
    - If `spec.md` is newer than checklist `updated`, or `build-checklist.mjs` would add/block
      tasks: `AskUserQuestion` — **Re-derive checklist** (run Station 2a, keep existing
      `done`/`skipped` ids) · **Resume as-is** · **Abort**.
-   - Otherwise jump to **Station 3** at the first task whose `status` is not `done` or `skipped`.
+   - Otherwise jump to **Station 3** at the first **feature** whose `status` is not `done` or `skipped`.
      Treat leftover `in-progress` as the first item to re-offer (do not mark it `done`).
-     Report: `"Resuming frontend {slug} — {done}/{total} tasks done."`
+     Report: `"Resuming frontend {slug} — {done}/{total} features done."`
 2. Otherwise this is a new run — continue to Station 1 (or Station 2a when `SKIP_UPSTREAM` is set).
 
 ### Station 1 — Spec
@@ -168,58 +168,60 @@ node {KIT_DIR}/skills/orchestrate-frontend/scripts/build-checklist.mjs {SPEC_PAT
 ```
 
 The script Reads `spec.md` from disk. Do not pre-load the spec into chat.
-It emits **UI screen-tasks only** — no API-only or agent-only stories.
+It groups screens into **features** (one user story each). Nested tasks stay screen-level.
+No API-only or agent-only stories.
 
 Exit 1 — no buildable (non-`wont`) screens — report `SPEC_PATH` and stop.
 Exit 2 — parse/usage failure — report the error lines and stop.
 
-On exit 0, Read `task-checklist.md` YAML `tasks[]` and present **id, title, priority** via one
-`AskUserQuestion`: **Approve as-is** · **Edit** (relay free text; apply to YAML `tasks[]`;
-re-present) · **Abort**.
+On exit 0, Read `task-checklist.md` YAML `features[]`. Present each feature **id, title, priority**
+and its nested task titles via one `AskUserQuestion`: **Approve as-is** · **Edit** (relay free
+text; you may move a task between features in the YAML; re-present) · **Abort**.
 
-### Station 3 — Task loop
+### Station 3 — Feature loop
 
-For each task in checklist order, skipping `done` / `skipped`:
+For each feature in checklist order, skipping `done` / `skipped`. One `feature-dev` call per
+feature. Nested tasks are not separate calls, branches, or commits.
 
 1. If `status: blocked`, ask once whether to retry (`pending`) or keep skipping.
-2. If `status: in-progress` (crashed prior run): re-offer this task; do not assume it finished.
+2. If `status: in-progress` (crashed prior run): re-offer this feature; do not assume it finished.
 3. `git status --porcelain` — if dirty, `AskUserQuestion`: **Commit** (you wait; re-check) ·
-   **Stash** · **Abort this task** (`blocked`, reason: dirty tree). Never spawn feature-dev dirty.
+   **Stash** · **Abort this feature** (`blocked`, reason: dirty tree). Never spawn feature-dev dirty.
    `new-feature.sh` will exit 1 if you skip this.
-4. Set `status: in-progress`, append a `## Log` line, write the checklist.
+4. Set the feature `status: in-progress`, append a `## Log` line, write the checklist.
+   Do **not** check out the integration branch between features. Stay on the current HEAD.
 5. Invoke `feature-dev-kit:feature-dev` with **paths and ids only**:
 
    ```
-   REQUEST:        Screen-task {task.id} ({task.slug-hint or task.screen-ref}). Read UPSTREAM_SPEC / CHECKLIST_PATH; do not expect an inlined spec.
+   REQUEST:        Feature {feature.id} ({feature.slug-hint}). Nested tasks in CHECKLIST_PATH. Read UPSTREAM_SPEC.
    UPSTREAM_SPEC:  {SPEC_PATH}
-   TASK_ID:        {task.id}
-   SCREEN_REF:     {task.screen-ref}
-   STORY_REFS:     {task.story-refs}
-   AC_REFS:        {task.ac-refs}
-   ENTITY_REFS:    {task.entity-refs}
+   FEATURE_ID:     {feature.id}
+   TASK_IDS:       {comma-separated nested task ids}
+   SCREEN_REFS:    {comma-separated nested screen-refs}
    PROTOTYPE_REF:  {checklist prototype-ref}
    CHECKLIST_PATH: {path to task-checklist.md}
-   SLUG_HINT:      {task.slug-hint}
-   RESULT_OUT:     {dirname(CHECKLIST_PATH)}/results/{task.id}.json
+   SLUG_HINT:      {feature.slug-hint}
+   PARENT_BRANCH:  {current HEAD when it is feature/*; empty on the first feature}
+   RESULT_OUT:     {dirname(CHECKLIST_PATH)}/results/{feature.id}.json
    ```
 
    Do **not** paste user stories, ACs, or spec YAML into `REQUEST`. feature-dev’s
    `import-upstream.mjs` reads `UPSTREAM_SPEC`.
-6. After return, Read `RESULT_OUT` (fallback: `.spec/features/{slug}.kit-result.json` from
-   envelope glob if `RESULT_OUT` is missing).
-   - `outcome: approved` → `status: done`; copy `slug` / `branch` from the envelope; log.
-   - `outcome: aborted` → `status: pending`; log `reason`.
-   - `outcome: error` → `status: blocked`; `blocked-reason` = envelope `reason`.
+6. After return, Read `RESULT_OUT` (fallback: `.spec/features/{slug}.kit-result.json`).
+   - `outcome: approved` → feature `status: done`; copy `slug`, `branch`, and `parent_branch`
+     onto `slug` / `branch` / `parent-branch`; mark nested tasks `done`; log.
+   - `outcome: aborted` → feature `status: pending`; log `reason`. Do not start the next feature.
+   - `outcome: error` → feature `status: blocked`; `blocked-reason` = envelope `reason`.
    - missing envelope after a crash → leave `in-progress`; log “no kit-result”; on resume, re-offer.
-7. If tasks remain: `AskUserQuestion` —
-   "Task {n}/{total} finished. Next feature-dev will stack on the current HEAD if you are still
-   on `feature/*` (independent PRs need `/create-pr` or merge first). Continue, pause, or abort?"
-   - **Continue** → next task.
-   - **Pause** → write the run-level envelope (`outcome: approved` if any task `done`, else
+7. If features remain: `AskUserQuestion` —
+   "Feature {n}/{total} is committed on {branch}. Continue cuts the next branch with checkout -b
+   on top of this one. Continue, pause, or abort?"
+   - **Continue** → next feature (stacked on the current feature branch).
+   - **Pause** → write the run-level envelope (`outcome: approved` if any feature `done`, else
      `aborted`) and STOP. Re-running `/orchestrate-frontend {slug}` resumes here.
    - **Abort** → write envelope `aborted`; STOP; checklist stays as-is.
 
-**Never run a second `feature-dev` without this confirmation.**
+**No second feature starts until that question is answered.**
 
 ### Station 4 — Report
 
@@ -244,11 +246,11 @@ Read the checklist file. Report **paths and counts only**:
 ✅ Frontend pipeline run for {slug}
 Spec:       {SPEC_PATH}
 Prototype:  {PROTOTYPE_REF or "skipped"}
-Checklist:  {done}/{total} done, {skipped} skipped, {blocked} blocked
+Checklist:  {done}/{total} features done, {skipped} skipped, {blocked} blocked
 Envelope:   {dirname(SPEC_PATH)}/frontend-kit-result.json
 
 Branches ready for review (run /create-pr yourself for each):
-  - {task.branch}  ({task.title})
+  - {feature.branch}  ({feature.title}, parent {feature.parent-branch})
   ...
 
 Remaining: {pending titles} — re-run /orchestrate-frontend {slug} to continue.
@@ -261,7 +263,7 @@ Remaining: {pending titles} — re-run /orchestrate-frontend {slug} to continue.
 1. **Never bypass a delegated kit’s gate.** Wait; do not pre-approve.
 2. **Progress lives in `task-checklist.md` + `kit-result.json`, not in chat.**
 3. **Paths, not blobs** — `references/context-budget.md`.
-4. **One feature sub-run at a time**, with confirmation between each.
+4. **One feature sub-run at a time**, with confirmation between each. Nested tasks share that run.
 5. **Automation never ships.** `/create-pr` stays human-typed.
 6. **UI screen-tasks only.** Do not spawn feature-dev for API-only or agent-only stories.
 

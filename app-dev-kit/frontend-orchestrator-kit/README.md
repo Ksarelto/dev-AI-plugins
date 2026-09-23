@@ -67,8 +67,9 @@ Also install **frontend-dev-kit** — `feature-dev-kit` requires it.
 2. Approve the spec at its review gate (owned by spec-dev-kit), unless one is already approved.
 3. Approve the prototype at its review gate (owned by html-generator-kit), or skip it.
 4. Approve the derived **UI** task checklist (owned by this kit).
-5. For each screen-task, `/feature-dev` runs to completion and stops at **its own** human review gate.
-6. Re-run `/orchestrate-frontend my-app` any time to resume from the first unfinished task.
+5. For each feature, `/feature-dev` runs once (nested screen-tasks share that call) and stops at
+   **its own** human review gate. Approve commits that feature; Continue cuts the next branch on top.
+6. Re-run `/orchestrate-frontend my-app` any time to resume from the first unfinished feature.
 
 ---
 
@@ -76,8 +77,8 @@ Also install **frontend-dev-kit** — `feature-dev-kit` requires it.
 
 - `.spec/app/spec-{tc}_{slug}/spec.md` — from spec-dev-kit (unchanged).
 - `.spec/prototype/{tc}_{slug}/` — from html-generator-kit (unchanged).
-- `.spec/app/spec-{tc}_{slug}/task-checklist.md` — one row per UI screen-task.
+- `.spec/app/spec-{tc}_{slug}/task-checklist.md` — one feature per user story, with nested screen-tasks.
 - `{RUN_DIR}/frontend-kit-result.json` — path-only outcome for `orchestrate-app`.
-- One feature branch per completed task, each still requiring a manual `/create-pr`.
+- One stacked feature branch and one commit per completed feature. Each still needs a manual `/create-pr`.
 
 See `skills/orchestrate-frontend/references/checklist-format.md` for the exact schema.

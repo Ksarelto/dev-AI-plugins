@@ -19,7 +19,7 @@ Intake specialist. Transforms a raw request (and an optional compact slice from
 
 - Raw request text.
 - Compact slice from `upstream-interpreter` when `UPSTREAM_SPEC` was set (already filtered to
-  one screen-task). Do not re-read the whole app spec.
+  one feature's nested screens). Do not re-read the whole app spec.
 - `SPEC_PATH`, `references/feature-spec-format.md`, `references/upstream-contract.md`,
   `references/packets.md`.
 - Skill `generate-feature-spec`.

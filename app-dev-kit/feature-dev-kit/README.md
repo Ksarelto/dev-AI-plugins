@@ -2,9 +2,10 @@
 
 **Entry point**: `/feature-dev [feature-slug or request]` → `skills/feature-dev/SKILL.md`
 
-Builds **one screen-task** end-to-end under **Feature-Sliced Design**, from a raw request or a
-scoped spec-dev-kit payload (frontend-orchestrator-kit splits an app spec) to a reviewed, gate-green
-branch — and **stops there**. Shipping is a separate, human-typed command.
+Builds **one feature** (its nested screen-tasks share one branch and one commit) end-to-end under
+**Feature-Sliced Design**, from a raw request or a scoped spec-dev-kit payload
+(frontend-orchestrator-kit groups an app spec) to a reviewed, gate-green branch — and **stops
+there**. Shipping is a separate, human-typed command.
 
 Required companion: **frontend-dev-kit** (`architecture-audit`, `code-review`, `testing`).
 Host app must already be an FSD tree under `src/` — this kit does not clone a starter.
@@ -57,7 +58,7 @@ Set `CONTEXT7_API_KEY` in the environment (see [`mcp.json`](./mcp.json) and
 
 ## Quick start
 
-1. *(optional)* Run `/generate-spec` then `/orchestrate-frontend` so each `/feature-dev` run receives one screen-task (`TASK_ID`, `SCREEN_REF`, …).
+1. *(optional)* Run `/generate-spec` then `/orchestrate-frontend` so each `/feature-dev` run receives one feature (`FEATURE_ID`, `SCREEN_REFS`, …).
 2. Confirm **frontend-dev-kit** is installed and `src/` is FSD.
 3. Run `/feature-dev` (or `/feature-dev sign-in`).
 4. Answer clarification questions, then approve the acceptance criteria (**gate 1**).
@@ -113,7 +114,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
       references/                            ← loaded on demand by the station that needs them
         pipeline-flow.md                     ← CANONICAL station map (single source of truth)
         development-cycle.md                 ← outer hub loop + inner increment loop
-        upstream-contract.md                 ← spawn payload + YAML field map (one screen-task)
+        upstream-contract.md                 ← spawn payload + YAML field map (one feature)
         packets.md                           ← CLARIFY / DEP / REVIEW / ESCALATION envelopes
         orchestration-protocol.md            ← delegation contract, handoff-via-spec, escalation
         feature-spec-format.md               ← blackboard schema + status lifecycle
@@ -240,11 +241,11 @@ Thresholds are defined once in `references/quality-gates.md` and referenced ever
 ```
 /generate-spec   (spec-dev-kit)      → .spec/app/spec-*/spec.md
       ├────────────────────────────► /generate-html (html-generator-kit) → clickable prototype
-      └────────────────────────────► /orchestrate-frontend → /feature-dev once per screen-task
+      └────────────────────────────► /orchestrate-frontend → /feature-dev once per feature
 ```
 
-`/feature-dev` reads a **scoped** upstream payload (`SCREEN_REF`, `AC_REFS`, …) when frontend-orchestrator-kit
-(or the human) provides one. It never dumps every app screen into one blackboard.
+`/feature-dev` reads a **scoped** upstream payload (`FEATURE_ID`, `SCREEN_REFS`, …) when
+frontend-orchestrator-kit (or the human) provides one. It never dumps every app screen into one blackboard.
 
 ---
 

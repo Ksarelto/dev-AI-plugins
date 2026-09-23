@@ -45,6 +45,7 @@ const result = {
   work_plan: str('work-plan'),
   slug: str('slug'),
   branch: str('branch'),
+  parent_branch: str('parent-branch'),
   run_dir: str('run-dir'),
   reason: str('reason'),
   written: new Date().toISOString(),

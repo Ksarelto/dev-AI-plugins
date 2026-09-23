@@ -2,7 +2,7 @@
 
 Every feature developed through this kit has a spec file at `.spec/features/<feature-slug>.md`. This file is the single source of truth and the human-review artifact. It is checked in.
 
-One file = **one screen-task** (or a standalone request). See `upstream-contract.md`.
+One file = **one feature** with its nested screen-tasks (or a standalone request). See `upstream-contract.md`.
 
 ---
 
@@ -32,8 +32,9 @@ created: YYYY-MM-DD
 ticket: TBD
 branch: feature/<slug>
 upstream-spec: .spec/app/spec-{tc}_{slug}/spec.md  # or none
-task-id: T-001                                     # or none
-screen-ref: SCR-001                                # or none
+feature-id: F-001                                  # or none
+task-id: T-001,T-002                               # comma-separated, or none
+screen-ref: SCR-001,SCR-002                        # comma-separated, or none
 prototype-ref: .spec/prototype/{tc}_{slug}/        # or none
 ```
 

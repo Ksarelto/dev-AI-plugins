@@ -10,7 +10,8 @@
 # Prints to stdout:
 #   SLUG=<slug>
 #   BRANCH=<feature/[ticket-]slug>
-#   BASE=<base branch>
+#   PARENT=<branch this one was cut from, or the branch checked out on resume>
+#   BASE=<same as PARENT — the stack parent, not forced back to develop>
 #   SPEC_PATH=<features-dir>/<slug>.md
 #   CREATED=<true|false>   # false when resuming an existing spec
 
@@ -49,16 +50,7 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-base="$(git rev-parse --abbrev-ref HEAD)"
-# Resuming from the feature branch itself: fall back to the first integration branch that exists.
-if [[ "$base" == feature/* ]]; then
-  for candidate in develop main master; do
-    if git show-ref --verify --quiet "refs/heads/${candidate}"; then
-      base="$candidate"
-      break
-    fi
-  done
-fi
+parent="$(git rev-parse --abbrev-ref HEAD)"
 
 if [[ -n "$ticket" ]]; then
   branch="feature/${ticket}-${slug}"
@@ -69,6 +61,7 @@ fi
 if git show-ref --verify --quiet "refs/heads/${branch}"; then
   git checkout "$branch" >&2
 else
+  # Cut from the current HEAD. A feature/* HEAD stacks the next feature on the previous one.
   git checkout -b "$branch" >&2
 fi
 
@@ -89,6 +82,7 @@ fi
 
 echo "SLUG=${slug}"
 echo "BRANCH=${branch}"
-echo "BASE=${base}"
+echo "PARENT=${parent}"
+echo "BASE=${parent}"
 echo "SPEC_PATH=${spec_path}"
 echo "CREATED=${created}"

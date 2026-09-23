@@ -27,7 +27,7 @@ The inner loop is specified in `increment-protocol.md`. Name that file only if t
 
 | Step | Station | Who | Done when |
 |------|---------|-----|-----------|
-| 1. Intake | 0 | `upstream-interpreter` + `spec-analyst` | Blackboard exists; scoped to one screen-task |
+| 1. Intake | 0 | `upstream-interpreter` + `spec-analyst` | Blackboard exists; scoped to one feature |
 | 2. Spec approval | 0.5 | `feature-dev` skill (human) | `status: approved` |
 | 3. Discover | 1 | `code-explorer` | FSD Impact + Reuse Map written |
 | 4. Baseline architecture | 1.5 | `architecture-auditor` (REPORT_ONLY), **full tier only** | Summary + path on the blackboard; report in the context dir |
