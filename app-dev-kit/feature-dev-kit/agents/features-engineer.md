@@ -60,6 +60,17 @@ Run `yarn typecheck` and `yarn lint` scoped to the feature slice. Verify all imp
 - `features/<slice>/index.ts` — public API.
 - Spec "Build plan" updated with files created.
 
+## Handoff
+
+Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line>
+```
+
+If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+
 ## Boundaries
 
 Works only within the target feature slice and its `index.ts`. Imports only from `entities/*` and `shared/*` public APIs — never from `widgets`, `pages`, or `app`, and never from another feature slice's internals. Does not modify entity or shared code; if a gap is found there, reports it to the orchestrator to spawn the appropriate engineer.

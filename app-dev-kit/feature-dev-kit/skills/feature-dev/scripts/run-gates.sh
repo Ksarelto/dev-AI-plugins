@@ -3,9 +3,10 @@
 # Used by quality-gate-runner so gate results are a fact, not a judgement.
 # Gate order and thresholds are owned by ../references/quality-gates.md.
 #
-# Usage:   run-gates.sh [--from <gate>] [--only <gate>] [--log <path>]
+# Usage:   run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>]
 #   --from   start at this gate, skipping earlier ones (default: types)
-#   --only   run exactly one gate
+#   --until  stop after this gate, even when it passed (layer profile: --until fsd)
+#   --only   run exactly one gate (cannot combine with --from or --until)
 #   --log    write full output of failing gates here (default: .spec/.gate-log)
 #
 # Gates, in order: types · lint · fsd · build · coverage
@@ -31,19 +32,26 @@ cmd_for() {
 }
 
 from=""
+until=""
 only=""
 log=".spec/.gate-log"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --from) from="${2:-}"; shift 2 ;;
+    --until) until="${2:-}"; shift 2 ;;
     --only) only="${2:-}"; shift 2 ;;
     --log)  log="${2:-}";  shift 2 ;;
-    *) echo "usage: run-gates.sh [--from <gate>] [--only <gate>] [--log <path>]" >&2; exit 2 ;;
+    *) echo "usage: run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>]" >&2; exit 2 ;;
   esac
 done
 
-for g in "$from" "$only"; do
+if [[ -n "$only" && ( -n "$from" || -n "$until" ) ]]; then
+  echo "error: --only cannot be combined with --from or --until" >&2
+  exit 2
+fi
+
+for g in "$from" "$until" "$only"; do
   if [[ -n "$g" && -z "$(cmd_for "$g")" ]]; then
     echo "error: unknown gate '$g' (known: ${GATES[*]})" >&2
     exit 2
@@ -83,6 +91,10 @@ for gate in "${GATES[@]}"; do
       echo
     } >> "$log"
     # A failing gate blocks every later gate — later output would be noise from a known-bad tree.
+    break
+  fi
+
+  if [[ -n "$until" && "$gate" == "$until" ]]; then
     break
   fi
 done

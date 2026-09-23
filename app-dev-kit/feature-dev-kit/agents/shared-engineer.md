@@ -54,6 +54,17 @@ After all `shared` work is complete, verify that every new item is exported from
 - Each segment's `index.ts` updated to export new public surface.
 - Summary of what was added, what was registry-sourced vs. hand-authored, and what packages were installed — written back into the spec's "Build plan" under the shared tasks.
 
+## Handoff
+
+Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line>
+```
+
+If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+
 ## Boundaries
 
 Works only within `shared/*`. Does not build entity slices, feature slices, widgets, or pages. Does not import from `entities`, `features`, `widgets`, or `pages` — `shared` must have no upward dependencies. Package installation is limited strictly to the human-approved list from station 1b.

@@ -16,7 +16,7 @@ Every packet has `type` and `spec_path`. Extra fields depend on the type.
 |--------|-------------|------------|
 | `CLARIFY_PACKET` | `spec-analyst` (Station 0) | `AskUserQuestion` with `questions[]`; write answers into `## Clarifications`; re-spawn analyst |
 | `DEP_PACKET` | `feature-orchestrator` (Station 1b) | Per-package Approve / Reject-alternative / Abort; write verdicts; re-spawn `MODE: build` from Station 2 |
-| `REVIEW_PACKET` | `feature-orchestrator` (end of 11) | Present `review_packet`; Approve / Request changes / Abort (Station 12) |
+| `REVIEW_PACKET` | `feature-orchestrator` (end of 11) | Read `review_path` once; Approve / Request changes / Abort (Station 12) |
 | `ESCALATION_PACKET` | `feature-orchestrator` or a spoke that cannot proceed | `AskUserQuestion` with `errors[]` and `options[]` |
 
 Do not continue past a packet. Do not invent a fifth type.
@@ -71,12 +71,12 @@ Returned only when `## Dependencies` has rows still `awaiting-human-approval`.
   "spec_path": ".spec/features/<slug>.md",
   "slug": "<slug>",
   "branch": "feature/<slug>",
-  "review_packet": ""
+  "review_path": ".spec/features/<slug>.context/feature-orchestrator-12.md"
 }
 ```
 
-`review_packet` is the markdown in `../templates/review-packet.md`. Also append it to
-`## Human Review` on the blackboard before returning.
+`review_path` is the handoff written from `../templates/review-packet.md`. Also record that path
+under `## Human Review` on the blackboard. Do not put the review body in the packet.
 
 ---
 

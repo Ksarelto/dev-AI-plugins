@@ -31,6 +31,17 @@ Records findings and a dependency proposal on the blackboard. Never installs. Ne
 
 The orchestrator returns a `DEP_PACKET` when unapproved packages exist. This agent does not.
 
+## Handoff
+
+Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line>
+```
+
+If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+
 ## Boundaries
 
 No `yarn add`, no `package.json` edits, no `src/` edits except none. No `AskUserQuestion`.

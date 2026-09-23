@@ -1,6 +1,8 @@
 # Quality Gates
 
-All gates must pass before the orchestrator advances past station 9 and emits the station-12 human packet. Gates run in the order listed. A failing gate blocks all subsequent gates.
+Station 9 runs every gate below, in order, once. A failing gate blocks later gates in that sweep.
+Between layers (Stations 3–7) and on a **patch** run, run only `run-gates.sh --until fsd`
+(types, lint, fsd). `yarn build` and `yarn test:auto` are Station 9, not per layer.
 
 ---
 
@@ -51,12 +53,10 @@ Human gates (not automated commands):
 
 ## Fix Loop
 
-The orchestrator runs the fix loop as follows:
+1. Identify the first failing gate. The transcript is `.spec/.gate-log`. Pass that **path** to the fix engineer, not the transcript.
+2. The engineer applies the smallest diff that can make that gate pass, then writes a handoff file.
+3. Re-run the failed gate plus `types` (`run-gates.sh --only types`, then `--only <failed>` when they differ).
+4. Re-run `fsd` only if the fix touched imports. Re-run `coverage` only if the fix touched tests. Do not run `yarn build` after a type error.
+5. If the same gate fails again after 2 more attempts (3 total), escalate. Set spec status to `awaiting-human`. Stop.
 
-1. Identify the first failing gate.
-2. Delegate to a fix engineer with: the gate name, the full error output, and the relevant spec sections.
-3. The fix engineer applies a targeted fix (minimum diff to make the gate pass).
-4. The orchestrator re-runs **all gates from #1** (not just the failing one) to catch regressions.
-5. If the same gate fails again after 2 more attempts (3 total), escalate to human with the full gate log. Set spec status to `awaiting-human`. Stop.
-
-Do not skip gates after a fix. Always re-run the full gate sequence from the top.
+A green layer gate (`--until fsd`) does not replace the Station 9 sweep.

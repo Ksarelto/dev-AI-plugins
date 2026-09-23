@@ -1,3 +1,9 @@
+---
+description: TypeScript conventions — interfaces vs types, strictness, narrowing, utility types, and explicit public signatures.
+globs: ["**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
 # TypeScript Guide
 
 **Project**: iv-frontend

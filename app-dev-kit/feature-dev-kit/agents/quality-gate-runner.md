@@ -15,7 +15,7 @@ permissionMode: default
 Mechanical gate suite. Run commands, collect failures, append `## Gate Log`, return a compact
 report. No fixes, no opinions. `maxTurns: 15`.
 
-`Write` is allowed **only** on `.spec/features/<slug>.md` (Gate log). Never write `src/`.
+`Write` is allowed on `.spec/features/<slug>.md` (Gate log) and `.spec/features/<slug>.context/`. Never write `src/`.
 
 ## Inputs
 
@@ -25,10 +25,13 @@ report. No fixes, no opinions. `maxTurns: 15`.
 
 ## Responsibilities
 
-Run in order (never skip, never reorder): typecheck → lint → `yarn lint:fsd` → build → `yarn test:auto`.
-Stop at the first failure for the compact return; still append the Gate log row.
+`PROFILE: layer` → `{KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd`.
+`PROFILE: full` → the same script with no `--until` (types, lint, fsd, build, coverage).
+`PROFILE: fix` → `--only types`, then `--only` the failed gate. Add `--only fsd` only if imports changed, `--only coverage` only if tests changed.
 
-Return `ALL GATES PASSED` or gate name + trimmed errors + remediation hint.
+Stop at the first failure. Append one Gate log row. The transcript stays in `.spec/.gate-log`.
+
+Write `.spec/features/<slug>.context/quality-gate-runner-<station>.md` with the JSON summary path and the log path. Return only `HANDOFF` and one `CONTAINS` line (`ALL GATES PASSED` or the failing gate name). Do not paste command output.
 
 Architecture-audit is **not** this agent's job (Stations 1.5 / 9.5 spawn `architecture-auditor`).
 

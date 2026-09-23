@@ -12,6 +12,8 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 
 Station 5. Invoke to author `features/<slice>/` for a single user interaction (one action per slice). Used by `features-engineer`. Examples: `decline-profile`, `create-profile`, `apply-filters`.
 
+When the slice has a form, read `references/form-patterns.md` once. Do not read `rules/form-patterns.mdc` — it is already attached by glob.
+
 ## Steps
 
 1. **Scaffold the slice** using `create-slice` for `features/<slice>/` with segments `model/`, `ui/`, and `api/` (only if feature-specific mutations are needed — entity mutations stay in `entities/`).

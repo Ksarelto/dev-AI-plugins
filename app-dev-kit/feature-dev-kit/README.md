@@ -92,7 +92,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
   .claude-plugin/plugin.json
   .cursor-plugin/plugin.json                 ← same fields and paths as Claude
   agents/                                    # 15 pipeline agents
-    feature-orchestrator.md                  ← opus | sequences stations 1–11; packets only; blackboard Write; never src/
+    feature-orchestrator.md                  ← sonnet | sequences stations 1–11; packets only; blackboard + context Write; never src/
     architecture-auditor.md                  ← sonnet | Stations 1.5 / 9.5 REPORT_ONLY; no Write; preloads architecture-audit
     upstream-interpreter.md                  ← haiku | scoped YAML + prototype → compact slice
     spec-analyst.md                          ← sonnet | request → testable spec; CLARIFY_PACKET; never approved
@@ -106,7 +106,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
     app-engineer.md                          ← sonnet | routes, navigation, providers
     test-engineer.md                         ← sonnet | colocated tests; frontend-dev-kit:testing
     quality-gate-runner.md                   ← haiku | runs gates, Gate log Write, returns only failures
-    code-reviewer.md                         ← opus | conventions + AC coverage; FSD audit is station 9.5
+    code-reviewer.md                         ← sonnet | conventions + AC coverage; FSD audit is station 9.5
   skills/
     feature-dev/                             ← the pipeline entry point
       SKILL.md                               ← prerequisites, resume table, the skill-owned human gates
@@ -161,7 +161,7 @@ root** (this directory when installed). Never hardcode `.spec/feature-dev-kit/`.
 |---|---|---|
 | Contains | How the **pipeline** runs: stations, gates, budgets, protocols | How the **code** is written: React, TS, queries, forms, styling, a11y |
 | Read by | The orchestrator and the station that needs it | Whichever engineer is authoring a file |
-| Loaded | On demand, named in the delegation's `APPLY` | Auto-attached by glob in Cursor (`.mdc` frontmatter); named explicitly for agents |
+| Loaded | On demand, when a station card names the file | Auto-attached by glob. `APPLY` names one skill, not these files |
 | Ships to | plugin `skills/feature-dev/references/` | plugin `rules/*.mdc` |
 
 A protocol that changes how agents coordinate goes in `references/`. A convention that changes what
@@ -178,23 +178,22 @@ feature-dev skill
   Station 0    intake — upstream-interpreter + spec-analyst → .spec/features/<slug>.md
   Station 0.5  🧑 GATE: spec approval (validate-feature-spec.mjs, then human)
       │
-  ⇢ spawn feature-orchestrator (MODE: build)
+  Classify TIER
+      patch     → slice-engineer, then run-gates.sh --until fsd, then Station 12
+      standard  → feature-orchestrator (skip Station 1.5)
+      full      → feature-orchestrator
       Station 1    discovery — code-explorer            → FSD impact + reuse map
-      Station 1.5  baseline architecture-auditor         → REPORT_ONLY
+      Station 1.5  baseline architecture-auditor         → full tier, FSD Impact paths only
       Station 1a   investigation — research-analyst      ← conditional (context7)
       Station 1b   ⇢ DEP_PACKET                          ← 🧑 GATE: dependency approval
       Station 2    planning                              ↓ GATE: build-plan
-      Station 3    shared/                               ↓ GATE: layer-green
-      Station 4    entities/     × N PARALLEL            ↓ GATE: layer-green
-      Station 5    features/     × N PARALLEL            ↓ GATE: layer-green
-      Station 6    widgets/ + pages/ × N PARALLEL        ↓ GATE: layer-green
-      Station 7    app/                                  ↓ GATE: layer-green
-      Station 8    tests — test-engineer                 ↓ GATE: coverage
-      Station 9    gate sweep — quality-gate-runner      ↓ GATE: all-green
-      Station 9.5  architecture-auditor (changed paths)   ↓ GATE: architecture-clean
+      Station 3–7  layers                                ↓ GATE: --until fsd
+      Station 8    test-engineer                          ← only if coverage fails
+      Station 9    full sweep — build + coverage once    ↓ GATE: all-green
+      Station 9.5  architecture-auditor DIFF_SCOPE        ↓ GATE: architecture-clean
       Station 10   auto-review — code-reviewer           ↓ GATE: review-clean
-      Station 11   fix loop (max 3 per gate → escalate)
-      ⇢ RETURN REVIEW_PACKET
+      Station 11   fix loop (failed gate + types, max 3)
+      ⇢ RETURN REVIEW_PACKET (review_path only)
       │
 feature-dev skill
   Station 12   🧑 GATE: human review (max 3 cycles)
@@ -214,7 +213,7 @@ For per-station contracts, revise re-entry points, and parallelism rules see
 |------|-------|---------------|-----------|
 | Spec approval | skill (human) | Criteria testable; validator exits 0 | 3 clarification rounds → unknowns become open questions |
 | Dependency approval | skill (human) | Every proposed package signed off | Rejected → plan returns for an alternative |
-| Layer green | orchestrator | typecheck · lint · FSD boundaries | 3 fix attempts → escalate with gate log |
+| Layer green | orchestrator | `run-gates.sh --until fsd` (types, lint, FSD) | 3 fix attempts → escalate; transcript stays in `.spec/.gate-log` |
 | Coverage | orchestrator | branches ≥73 · functions ≥78 · lines ≥87 · statements ≥86 | 2 attempts → escalate; never game coverage |
 | Auto-review | orchestrator | No `[CRITICAL]`, no unresolved `[IMPORTANT]` | 2 attempts → escalate with findings |
 | Architecture audit | architecture-auditor | REPORT_ONLY: zero hard violations on changed paths | Fix loop; missing companion skill → escalate |
@@ -230,7 +229,7 @@ Thresholds are defined once in `references/quality-gates.md` and referenced ever
    in-agent gate would silently self-approve.
 2. **No package is installed without human sign-off.** Adding a dependency is hard to reverse.
 3. **Bottom-up, gated per layer.** Nothing is built on a red gate.
-4. **The spec file is the handoff medium.** Chat output is not state.
+4. **Handoffs are file paths.** Spokes return `HANDOFF` + one `CONTAINS` line. The detail lives in `.spec/features/<slug>.context/`. Chat output is not state.
 5. **One screen-task per run.** Orchestrator-kit splits the app spec.
 6. **No agent ships.** No push, no merge, no PR — `/create-pr` is human-typed only.
 

@@ -8,6 +8,17 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 
 # Create React Component
 
+Read one recipe file only when that step needs it. Do not read the matching `rules/*.mdc` — globs already attach them.
+
+| Step | Recipe |
+|------|--------|
+| Component shape | `references/component-patterns.md` |
+| Exported types | `references/typescript.md` |
+| Classes and tokens | `references/styling.md` |
+| States and layout | `references/ui-quality.md` |
+| Labels, focus, live regions | `references/a11y.md` |
+| Colocated test | `references/test-patterns.md` |
+
 ## Step 0 — Choose the type
 
 | Type | Where | When |

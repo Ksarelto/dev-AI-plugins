@@ -2,7 +2,7 @@
 name: upstream-interpreter
 description: Fast read-only parser for a spec-dev-kit YAML spec filtered to one frontend-orchestrator-kit screen-task. Extracts only that task's screen, stories, acceptance criteria, and entities plus an optional html-generator-kit prototype page path. Use at feature intake before spec-analyst. Never writes source code. Never passes the full spec body onward.
 model: haiku
-tools: [Read, Bash]
+tools: [Read, Bash, Write]
 ---
 
 # Upstream Interpreter
@@ -44,7 +44,15 @@ YAML front matter is the source of truth — same keys as html-generator-kit `sp
 If `type: app` (or more than one screen) and no `SCREEN_REF`/`TASK_ID`, return a failure string
 `REQUIRE_SCOPED` — do not dump every screen.
 
-## Output
+## Handoff
 
-Return the script's compact block (SLUG, SCREEN_REF, ACS, ENTITIES, PROTOTYPE_PAGE, SCREENS_IMPORTED)
-plus a one-line note if the prototype HTML was missing. Keep under 80 lines. Never echo the full spec.
+Write the script's compact block (SLUG, SCREEN_REF, ACS, ENTITIES, PROTOTYPE_PAGE, SCREENS_IMPORTED)
+to `.spec/features/<slug>.context/upstream-interpreter-0.md`. `Write` is allowed only in that
+directory. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line — screen ref and whether a prototype page was bound>
+```
+
+Never echo the full spec. If the prototype HTML was missing, say so in the handoff file, not as a pasted dump.

@@ -68,6 +68,17 @@ Before returning, run `yarn typecheck` and `yarn lint` locally on the touched fi
 - Each slice's `index.ts` updated to export the public surface.
 - Summary of what was built, which shared primitives were reused, and any decisions taken — written back into the spec's Build plan under the entity tasks. Set the entity slice's build status to `done`.
 
+## Handoff
+
+Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line>
+```
+
+If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+
 ## Boundaries
 
 Works only within `entities/*`. Never imports from `features/`, `widgets/`, `pages/`, or from another entity slice. Does not add new packages (that is the `shared-engineer`'s job). Does not modify `shared/*` — if a needed primitive is missing from `shared`, escalate to the orchestrator with a proposed extension.

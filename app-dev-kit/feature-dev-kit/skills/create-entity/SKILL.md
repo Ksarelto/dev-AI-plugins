@@ -12,6 +12,8 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 
 Station 4. Invoke to author `entities/<domain>/` after the shared layer exists. Used by `entities-engineer`. One invocation per business entity (profile, document, client, file).
 
+When writing `api/` hooks, read `references/query-patterns.md` once. Do not read `rules/tanstack-query-v5.mdc` — it is already attached by glob.
+
 ## Steps
 
 1. **Scaffold the slice** using `create-slice` for `entities/<domain>/` with segments `model/`, `api/`, `ui/`.

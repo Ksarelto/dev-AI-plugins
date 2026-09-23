@@ -10,15 +10,16 @@ allowed-tools: [Bash, Read, Grep]
 
 ## When to use
 
-Station 9, after each layer group completes. Also use during the fix loop to verify that a fix resolves all failing gates. Used by `quality-gate-runner`. This skill reports only — it never fixes.
+Station 9 runs the full sweep. After each layer, and on a patch run, stop at FSD (`--until fsd`). A fix re-runs the failed gate plus types. Used by `quality-gate-runner`. This skill reports only — it never fixes. Write the result to the handoff file. Do not paste the transcript.
 
 ## Fast path
 
 When the kit is installed, run the whole sequence in one call instead of stepping through it:
 
 ```bash
-bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh            # full sweep
-bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --only types
+bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh                 # Station 9 full sweep
+bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd       # layer gate and patch
+bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --only types       # fix loop
 bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --from lint
 ```
 

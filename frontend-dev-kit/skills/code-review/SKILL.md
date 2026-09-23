@@ -48,8 +48,8 @@ Anything in the repo that documents how code should be written, such as `CODING_
 
 This kit's own standards are also always in scope, sourced as follows:
 
-- Where a dedicated rule file already exists, use it directly — `rules/typescript.md`,
-  `rules/react.mdc`, `rules/general-coding-principles.md`, `rules/honesty.mdc`. No copy of
+- Where a dedicated rule file already exists, use it directly — `rules/typescript.mdc`,
+  `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/honesty.mdc`. No copy of
   these lives in this skill; read the rule file itself.
 - FSD architecture (layers, slices, segments, public APIs, query keys, state ownership) lives in
   the `architecture-audit` skill, not a rule. Load that skill and only the `references/*.md` files
@@ -153,9 +153,9 @@ Existing kit rule files — read directly, no copy kept here:
 
 | File | Applies to |
 |---|---|
-| `rules/typescript.md` | any `.ts`/`.tsx` |
+| `rules/typescript.mdc` | any `.ts`/`.tsx` |
 | `rules/react.mdc` | `.tsx` |
-| `rules/general-coding-principles.md` | any `.ts`/`.tsx` |
+| `rules/general-coding-principles.mdc` | any `.ts`/`.tsx` |
 | `rules/honesty.mdc` | any `.ts`/`.tsx`/`.md` (always applies) |
 | `architecture-audit` skill | `src/**` — load matching `references/`, not a rule file |
 

@@ -1,0 +1,391 @@
+On-demand recipe. Read this file only when the skill that owns it tells you to. The matching rule under `rules/` is the constraint list and is already attached by glob — do not read it again.
+
+
+# Vitest 3 + RTL 16 Patterns
+
+**Stack**: Vitest 3 · @testing-library/react 16 · @testing-library/user-event 14 · jsdom
+
+---
+
+## File Location
+
+Co-locate test files with source files. Never put tests in a separate `__tests__/` directory.
+
+```
+src/
+├── entities/profile/
+│   ├── api/
+│   │   ├── profile.queries.ts
+│   │   └── profile.queries.test.ts   ← API hook tests
+│   └── ui/
+│       ├── ProfileCard.tsx
+│       └── ProfileCard.test.tsx       ← Component tests
+├── features/decline-profile/
+│   ├── ui/
+│   │   ├── DeclineProfileForm.tsx
+│   │   └── DeclineProfileForm.test.tsx
+```
+
+---
+
+## Renderer — Always Use the Custom Wrapper
+
+```ts
+// ALWAYS import render and renderHook from the project wrapper
+import { render, renderHook } from '@/utils/rendererRTL'
+
+// Import DOM utilities directly from RTL
+import { screen, waitFor, act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+```
+
+`rendererRTL` wraps components with `QueryClientProvider` (`retry: false`, `gcTime: Infinity`) and `ThemeProvider`. Using the upstream RTL `render` directly will cause provider-related failures in tests that touch queries or styled-components.
+
+Use `renderHook` from `@testing-library/react` directly **only** for pure hooks that need no providers.
+
+---
+
+## Standard Mock Setup
+
+```ts
+import { mockEnv } from '@/mocks/mockEnv'
+import { apiRequest } from '@/utils/apiRequest'
+
+vi.mock('@/utils/env', () => mockEnv)   // always if the file touches ENV or any API hook
+vi.mock('@/utils/apiRequest')           // always for API hook tests
+
+beforeEach(() => vi.clearAllMocks())
+```
+
+**Required mocks per test type:**
+
+| Test type | Must mock |
+|-----------|-----------|
+| API hook (`useGetX`, `useCreateX`) | `@/utils/env` + `@/utils/apiRequest` |
+| Container component | `@/utils/env` + API hooks via `vi.mock('@/api/<domain>')` |
+| Presentational component | None typically; add `@/utils/env` if it reads ENV |
+| Page | `@/utils/env` + all API hooks used by children |
+
+---
+
+## Query Priority (Highest to Lowest)
+
+Always prefer queries that reflect user experience and accessibility.
+
+| Priority | Query | When to use |
+|----------|-------|-------------|
+| 1 | `getByRole` | Every interactive element and landmark. Add `{ name: ... }` to filter by accessible name. |
+| 2 | `getByLabelText` | Form fields by their `<label>`. |
+| 3 | `getByPlaceholderText` | Unlabeled inputs as fallback. |
+| 4 | `getByText` | Non-interactive text (headings, paragraphs). |
+| 5 | `getByDisplayValue` | Form elements showing a filled value. |
+| 6 | `getByAltText` | Images. |
+| 7 | `getByTestId` | **Last resort** — only for structural elements where no semantic role is meaningful. |
+
+```ts
+// Prefer
+screen.getByRole('button', { name: TextContent.CANCEL })
+screen.getByRole('heading', { level: 1, name: TextContent.PAGE_TITLE })
+screen.getByRole('textbox', { name: TextContent.PROFILE_NAME_LABEL })
+
+// Fallback (structural container with no semantic role)
+screen.getByTestId(TEST_ID.DRAWER)
+```
+
+---
+
+## Async Patterns
+
+| Tool | When |
+|------|------|
+| `findByRole(...)` | Wait for a **single specific element** to appear. Combines `getBy` + `waitFor`. |
+| `waitFor(() => expect(...))` | Wait for **any assertion** to pass — mock calls, hook state, multiple conditions. |
+| `waitForElementToBeRemoved(el)` | Assert an element **disappears**. |
+
+```ts
+// Hook async state
+const { result } = renderHook(() => useGetProfile('1'))
+await waitFor(() => expect(result.current.isSuccess).toBe(true))
+// Synchronous assertions AFTER anchor — state is stable
+expect(result.current.data).toEqual(mockProfile)
+expect(apiRequest.get).toHaveBeenCalledWith(expectedUrl)
+
+// Component async state
+await waitFor(() => {
+  expect(screen.getByRole('heading', { name: TextContent.PROFILE_NAME })).toBeInTheDocument()
+})
+
+// findBy — element appearance
+const button = await screen.findByRole('button', { name: TextContent.SUBMIT })
+```
+
+**Anti-patterns:**
+- Do not assert synchronously on state derived from a resolved promise — always use `waitFor` or `findBy`.
+- Do not nest `waitFor` inside `waitFor` — the outer call already polls; nesting causes confusion.
+
+---
+
+## Mock Patterns
+
+### Module mock
+
+```ts
+// Full replacement
+vi.mock('@/utils/env', () => mockEnv)
+vi.mock('@/utils/apiRequest')
+
+// Partial mock — spread original, override specific exports
+vi.mock('@/utils/notification', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@/utils/notification')>()
+  return { ...original, notifySuccess: vi.fn(), notifyWarning: vi.fn() }
+})
+
+// Inline hook mock — for container component tests
+vi.mock('@/api/profiles', () => ({
+  useGetProfile: vi.fn(),
+  useDeclineProfile: vi.fn(),
+}))
+```
+
+### Per-test return values
+
+```ts
+// Resolved value (preferred over factory default for per-test variability)
+vi.mocked(apiRequest.get).mockResolvedValueOnce({ data: mockProfile })
+vi.mocked(apiRequest.post).mockResolvedValueOnce({ data: { id: 'profile-1' } })
+
+// Rejected value (error path)
+vi.mocked(apiRequest.post).mockRejectedValueOnce({ response: { data: { message: 'Error' } } })
+
+// Hook return value (type-safe)
+vi.mocked(useGetProfile).mockReturnValue({
+  data: mockProfile,
+  isLoading: false,
+  isError: false,
+} as ReturnType<typeof useGetProfile>)
+
+// Partial mock when full type is complex
+vi.mocked(useDeclineProfile).mockReturnValue({ mutateAsync: vi.fn() } as never)
+```
+
+### Reset strategy
+
+```ts
+// Use clearAllMocks — resets call counts and mockReturnValue implementations
+beforeEach(() => vi.clearAllMocks())
+
+// Do NOT use resetAllMocks or restoreAllMocks globally
+// resetAllMocks removes implementations set in beforeEach
+// restoreAllMocks restores to original — breaks modules mocked at module level
+```
+
+### Vitest 3 — `spy.mockReset()` behavior change
+
+In Vitest 3, calling `spy.mockReset()` now **restores the original implementation** (changed from v2 noop behavior). Use `spy.mockClear()` to reset only call history.
+
+---
+
+## Hook Test Pattern
+
+```ts
+import { mockEnv } from '@/mocks/mockEnv'
+import { waitFor } from '@testing-library/react'
+import { apiRequest } from '@/utils/apiRequest'
+import { renderHook } from '@/utils/rendererRTL'
+import { apiMap } from '@/utils/apiMap'
+import { useGetProfile } from './profile.queries'
+
+vi.mock('@/utils/env', () => mockEnv)
+vi.mock('@/utils/apiRequest')
+
+const mockProfile: IProfile = { id: '1', name: 'Profile 1', status: ProfileStatus.NEW }
+
+beforeEach(() => vi.clearAllMocks())
+
+test('fetches profile by id', async () => {
+  vi.mocked(apiRequest.get).mockResolvedValueOnce({ data: mockProfile })
+
+  const { result } = renderHook(() => useGetProfile('1'))
+
+  await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+  expect(apiRequest.get).toHaveBeenCalledWith(apiMap.profiles.v1.profile.get('1'))
+  expect(result.current.data).toEqual(mockProfile)
+})
+
+test('does not fetch when id is empty', () => {
+  const { result } = renderHook(() => useGetProfile(''))
+  expect(result.current.isFetching).toBe(false)
+  expect(apiRequest.get).not.toHaveBeenCalled()
+})
+```
+
+---
+
+## Component Test Pattern
+
+```ts
+import { mockEnv } from '@/mocks/mockEnv'
+import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { render } from '@/utils/rendererRTL'
+import { ProfileCard } from './ProfileCard'
+
+vi.mock('@/utils/env', () => mockEnv)
+vi.mock('@/api/profiles', () => ({
+  useGetProfile: vi.fn(() => ({ data: mockProfile, isPending: false })),
+}))
+
+const defaultProps: IProfileCardProps = { profileId: '1' }
+
+beforeEach(() => vi.clearAllMocks())
+
+test('renders profile name', () => {
+  render(<ProfileCard {...defaultProps} />)
+  expect(screen.getByText(mockProfile.name)).toBeInTheDocument()
+})
+
+test('calls onClose when cancel button is clicked', async () => {
+  const onClose = vi.fn()
+  render(<ProfileCard {...defaultProps} onClose={onClose} />)
+  await userEvent.click(screen.getByRole('button', { name: TextContent.CANCEL }))
+  expect(onClose).toHaveBeenCalledTimes(1)
+})
+
+test('shows loading skeleton when isPending', () => {
+  vi.mocked(useGetProfile).mockReturnValueOnce({ data: undefined, isPending: true } as never)
+  render(<ProfileCard {...defaultProps} />)
+  expect(screen.getByTestId(TEST_ID.SKELETON)).toBeInTheDocument()
+})
+```
+
+---
+
+## Container Test Coverage Requirements
+
+Each container must cover these states before a test file is considered complete:
+
+| State | What to verify |
+|-------|---------------|
+| Loading | Skeleton or spinner is rendered; content is absent |
+| Empty / no data | Empty state message or placeholder is shown |
+| Error | Error UI or notification; content is absent |
+| Happy path | Data renders correctly with expected content |
+| User interaction | Callbacks invoked, state changes triggered |
+
+---
+
+## `userEvent` Usage
+
+```ts
+// Standard interaction
+await userEvent.click(screen.getByRole('button', { name: TextContent.SUBMIT }))
+await userEvent.type(screen.getByRole('textbox'), 'search term')
+await userEvent.selectOptions(screen.getByRole('combobox'), ['option-1'])
+await userEvent.clear(screen.getByRole('textbox'))
+
+// For complex multi-step interactions, use setup() to share event state
+const user = userEvent.setup()
+await user.click(button)
+await user.keyboard('{Enter}')
+```
+
+**`userEvent` vs `fireEvent`:**
+- `userEvent` dispatches the full browser event sequence (focus, keydown, input, keyup, blur) and checks visibility. **Use for all user interactions.**
+- `fireEvent` dispatches a single synthetic event with no pre-checks. Use only when testing low-level event dispatch specifically.
+
+---
+
+## Shallow Mocking Child Components
+
+```ts
+// mockComponent — prevents rendering internals
+vi.mock('@/components/ProfileCard', () => mockComponent('ProfileCard'))
+
+// mockShallowComponent — renders with props as data-* attributes
+vi.mock('@/components/ProfileCard', () => mockShallowComponent('ProfileCard'))
+
+// Assert props passed to shallow-mocked child
+const card = screen.getByTestId('ProfileCard')
+expect(card).toHaveAttribute('data-prop-profile-id', '1')
+```
+
+---
+
+## `act` Usage
+
+```ts
+// Imperative calls that trigger state changes inside a hook
+await act(async () => {
+  await result.current.download({ 'file-1': 'document.pdf' })
+})
+
+// Synchronous state updates outside RTL's event system
+act(() => {
+  result.current.dispatch({ type: 'RESET' })
+})
+```
+
+Do not wrap `waitFor` in `act` — `waitFor` handles its own act wrapping internally.
+
+---
+
+## Coverage Configuration
+
+Coverage thresholds are defined once in `skills/feature-dev/references/quality-gates.md` and referenced by every agent. Do not restate them here.
+
+| Metric | Threshold (source: `skills/feature-dev/references/quality-gates.md`) |
+|--------|-----------|
+| Branches | ≥ 73% |
+| Functions | ≥ 78% |
+| Lines | ≥ 87% |
+| Statements | ≥ 86% |
+
+**Excluded from coverage (do not write tests for these):**
+- `*.styles.ts` — styled-components files
+- `*.types.ts`, `types.ts` — type-only files
+- `enums/**`, `constants/**`, `**/constants.ts` — constants and enums
+- `**/index.ts` — barrel files
+- `mocks/**` — test utilities
+
+**Ignore specific unreachable lines:**
+```ts
+/* v8 ignore next -- @preserve */  // the -- @preserve suffix is required for TypeScript
+if (impossibleCondition) { ... }
+```
+
+---
+
+## Vitest 3 Breaking Changes (Do Not Regress)
+
+| Area | Change |
+|------|--------|
+| `spy.mockReset()` | Now **restores the original implementation** (was a noop in v2). Use `spy.mockClear()` to reset calls only. |
+| Fake timers | All timer APIs mocked by default including `performance.now()`. Pass explicit `toFake` array to opt out. |
+| Error equality | Compares `name` + `message` + prototype. `TypeError !== Error` now. |
+| `vi.spyOn()` on already-mocked method | Reuses the existing mock (no duplicate spy creation). |
+| Test options argument | New form: `test(name, { timeout }, callback)` — old form `test(name, callback, { timeout })` is deprecated. |
+| Coverage test file exclusion | Test files are permanently excluded from coverage reports — non-overridable. |
+
+---
+
+## Globals (No Import Needed)
+
+`describe`, `it`, `test`, `expect`, `vi`, `beforeEach`, `afterEach`, `beforeAll`, `afterAll` are all global — do not import them. This is configured via `globals: true` in vitest config.
+
+---
+
+## Test Writing Checklist
+
+1. Co-locate: `[Name].test.tsx` or `[Name].test.ts` in the same directory as the source.
+2. Import `render`, `renderHook` from `@/utils/rendererRTL`.
+3. Import `screen`, `waitFor`, `act` from `@testing-library/react`.
+4. Add `vi.mock('@/utils/env', () => mockEnv)` for any file touching ENV or API hooks.
+5. Add `vi.mock('@/utils/apiRequest')` for API hook tests.
+6. Mock hook dependencies via `vi.mock('@/api/<domain>')` in container/page tests.
+7. Set default mocks in `beforeEach`; per-test variations with `mockReturnValueOnce`.
+8. Reset with `beforeEach(() => vi.clearAllMocks())`.
+9. Prefer `getByRole` / `getByText`; use `getByTestId` only as last resort.
+10. Use `waitFor` for async assertions; `findBy*` for async element appearance.
+11. Cover: loading, empty, error, and happy-path states for containers.
+12. Run: `yarn test src/path/to/File.test.tsx` before considering the task done.

@@ -1,107 +1,14 @@
 ---
-description: Git workflow — branch naming, rebase with --force-with-lease, human-only /create-pr ship flow.
+description: Git constraints — ticketed branch names, imperative commits, rebase with --force-with-lease, human-only ship.
 globs: ["**/.spec/features/*.md"]
 alwaysApply: false
 ---
 
-# Git Workflow
+# Git
 
----
-
-## Branch Naming
-
-| Pattern | When to use | Example |
-|---------|-------------|---------|
-| `nt-<slug>` | Internal tasks without a ticket | `nt-decline-profile-status` |
-| `<ticket>-<slug>` | Jira/tracker-linked work | `amnadeps-192-validation-errors` |
-
-Slug rules: lowercase, hyphens only, descriptive of the feature (not `fix-stuff`).
-
----
-
-## Commit Convention
-
-Format: `[TICKET] imperative message`
-
-```
-[NT] Add decline profile mutation hook
-[AMNADEPS-192] Show validation errors on document review page
-[NT] Wire DeclineProfileFeature into ProfileDetailPage
-```
-
-Rules:
-- Imperative mood ("Add", "Fix", "Wire", not "Added" or "Adds").
-- One logical change per commit.
-- No commit messages like "WIP", "fix", or "update".
-
----
-
-## Rebase and Push
-
-`/create-pr` inlines rebase + push. The sequence is:
-
-1. `git fetch origin develop`
-2. `git rebase origin/develop`
-3. `git push --force-with-lease origin <branch>`
-
-Never use `--force` (without `--lease`). `--force-with-lease` prevents overwriting remote commits you have not seen.
-
-Never rebase or force-push `develop` or `main`.
-
----
-
-## Protected Branches Policy
-
-| Branch | Force-push | Rebase by automation | Direct commit |
-|--------|-----------|----------------------|---------------|
-| `main` | Never | Never | Never |
-| `develop` | Never | Never | Never |
-| `nt-*` / `<ticket>-*` | `--force-with-lease` only | Allowed | Allowed |
-
----
-
-## Ship Flow
-
-1. All quality gates must be green (see quality-gates.md).
-2. Spec status must be `done` (human approved at station 12).
-3. Human invokes `/create-pr` manually.
-4. Automation (rebase, `--force-with-lease` push, `gh pr create`) runs only at human direction.
-
-The orchestrator never invokes `/create-pr` autonomously.
-
----
-
-## PR Body Template
-
-`/create-pr` generates a PR body from the spec:
-
-```markdown
-## Summary
-<2–3 sentences from spec Request + Clarifications>
-
-## Acceptance Criteria
-<numbered list from spec>
-
-## FSD Impact
-| Slice | Layer | Change |
-|-------|-------|--------|
-
-## Test Plan
-- [ ] All quality gates pass (typecheck, lint, fsd-boundaries, build, coverage, auto-review)
-- [ ] <manual test step derived from each AC>
-
-## Spec
-.spec/features/<slug>.md
-
-🤖 Generated with Claude Code
-```
-
----
-
-## Pre-PR Checklist (automated verify before `gh pr create`)
-
-- Branch is rebased on latest `develop` (no merge conflicts).
-- `yarn lint` exits 0.
-- `yarn typecheck` exits 0.
-- `yarn build` succeeds.
-- Spec status is `done`.
+- Branch: `feature/<ticket>-<slug>` or `nt-<slug>`. Slug is lowercase and hyphenated.
+- Commit: `[TICKET] imperative summary`. One logical change. No `WIP`, `fix`, or `update`.
+- Rebase onto the integration branch. Push with `--force-with-lease`. Never `--force`.
+- Do not commit to `main`, `master`, or `develop` directly.
+- Shipping is `/create-pr`, typed by a human after spec status is `done`. No agent pushes or opens a PR.
+- A PR body comes from the spec (summary, acceptance criteria, FSD impact, test plan). The procedure is the `create-pr` skill.
