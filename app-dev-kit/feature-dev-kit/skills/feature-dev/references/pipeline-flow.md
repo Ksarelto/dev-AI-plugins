@@ -1,16 +1,26 @@
 # Pipeline Flow — feature-dev-kit
 
-**CANONICAL station map. Single source of truth.** Every agent reads this before starting a station.
-Where any other file disagrees with this one, this file wins.
+**CANONICAL station map.** Where any other file disagrees with this one, this file wins.
 
-`KIT_DIR` is the **plugin root** (the directory that contains `agents/` and `skills/`). The
-`feature-dev` skill resolves it. Scripts and references are `{KIT_DIR}/skills/feature-dev/…`.
-Never hardcode `.spec/feature-dev-kit/`.
+`KIT_DIR` is the plugin root (the directory that contains `agents/` and `skills/`). Scripts and
+references are `{KIT_DIR}/skills/feature-dev/…`. Never hardcode `.spec/feature-dev-kit/`.
 
-Station *contracts* (delegation format, retry policy) live in `orchestration-protocol.md`.
-Gate *commands and thresholds* live in `quality-gates.md`. Packets live in `packets.md`.
-The nested implement → typecheck → test loop lives in `development-cycle.md` + `increment-protocol.md`.
-This file owns **order, gates, and loop guards**.
+The `feature-orchestrator` reads this file **once** at the start of a run. Workers do not. A
+delegation station card is enough for a spoke. Gate commands live in `quality-gates.md`. Handoff
+shape lives in `context-budget.md`.
+
+---
+
+## Tiers
+
+Chosen by the `feature-dev` skill after Station 0.5, from the approved blackboard only (slice
+count, new package, new route). Do not read the upstream app spec to classify.
+
+| Tier | When | What runs |
+|------|------|-----------|
+| **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree), then `run-gates.sh --until fsd`. Skip Stations 1, 1.5, 1a, 8, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
+| **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. Skip Station 1.5. Layer gates are `--until fsd`. Build and coverage once at Station 9. `test-engineer` only if coverage fails. Station 9.5 is `DIFF_SCOPE`. |
+| **full** | Six or more slices, or a new route plus a new entity | Same as standard, plus Station 1.5 scoped to `## FSD Impact` paths (not all of `src/`). Parallel worktree engineers only when a layer has two or more independent slices. One slice in a layer uses `slice-engineer`. |
 
 ---
 
@@ -24,13 +34,14 @@ Station 0    Intake — upstream-interpreter (scoped YAML) then spec-analyst
       ↓
 Station 0.5  🧑 SPEC APPROVAL GATE — human confirms acceptance criteria
       ↓
-  ⇢ spawn feature-orchestrator (MODE: build)
+  Classify TIER. patch → slice-engineer, then Station 12.
+  standard | full → spawn feature-orchestrator (MODE: build, TIER)
 ──────────────────────────────────────────────────────────────────
 
 ── feature-orchestrator subagent (MODE: build) ────────────────────
 Station 1    Discovery (code-explorer)                  → FSD impact + Reuse map
       ↓
-Station 1.5  Baseline architecture-audit (architecture-auditor, REPORT_ONLY)  → ## Architecture Baseline
+Station 1.5  Baseline architecture-audit (architecture-auditor, REPORT_ONLY)  → full tier only
       ↓
 Station 1a   Investigation (research-analyst)           ← CONDITIONAL
       ↓
@@ -38,7 +49,7 @@ Station 1b   ⇢ RETURN DEP_PACKET to the skill           ← HARD STOP if any n
       ↓
 Station 2    Planning (orchestrator, blackboard only)   ← GATE: build-plan
       ↓
-Station 3    shared/      (shared-engineer)             ← GATE: layer-green
+Station 3    shared/      (shared-engineer)             ← GATE: layer-green (--until fsd)
       ↓
 Station 4    entities/    (entities-engineer × N)       ← PARALLEL · GATE: layer-green
       ↓
@@ -48,11 +59,11 @@ Station 6    widgets/ + pages/ (composition-engineer)   ← PARALLEL · GATE: la
       ↓
 Station 7    app/         (app-engineer)                ← GATE: layer-green
       ↓
-Station 8    Tests (test-engineer × layer group)        ← GATE: coverage
+Station 8    Tests (test-engineer × layer group)        ← only if Station 9 coverage fails
       ↓
-Station 9    Full gate sweep (quality-gate-runner)      ← GATE: all-green
+Station 9    Full gate sweep (quality-gate-runner)      ← GATE: all-green (build + coverage once)
       ↓
-Station 9.5  Architecture-audit changed paths (architecture-auditor, REPORT_ONLY) ← GATE: architecture-clean
+Station 9.5  Architecture-audit changed paths (architecture-auditor, REPORT_ONLY, DIFF_SCOPE)
       ↓
 Station 10   Auto-review (code-reviewer)                ← GATE: review-clean
       ↓
@@ -74,15 +85,10 @@ Station 12   🧑 HUMAN REVIEW GATE (max 3 cycles)
 ```
 
 **Why every human gate is skill-owned:** the orchestrator is a subagent, and a subagent's
-`AskUserQuestion` never reaches the real user — an in-agent gate would silently self-approve. Only
-the skill runs in the main conversation loop, so only it can truly pause. The orchestrator *returns
-a packet*; it never asks.
+`AskUserQuestion` never reaches the real user. The orchestrator returns a packet; it never asks.
 
 **Packets:** `CLARIFY_PACKET`, `DEP_PACKET`, `REVIEW_PACKET`, `ESCALATION_PACKET` — see `packets.md`.
-
-**Small-scope heuristic:** 1–2 slices in a single layer → one `slice-engineer` (parameterised
-`LAYER` + `SLICE`) instead of three layer workers. APPLY names the matching `create-*` skill
-(`slice-engineer.md`).
+Each packet is small JSON plus a file path. The body lives in `.spec/features/<slug>.context/`.
 
 ---
 
@@ -90,21 +96,24 @@ a packet*; it never asks.
 
 | Gate | Station | Condition | On failure |
 |------|---------|-----------|-----------|
-| `spec-approved` | 0.5→1 | Human confirms acceptance criteria; spec status `approved` | STOP — back to spec-analyst for another clarification round |
-| `dep-approved` | 1b→2 | Every package in `## Dependencies` marked human-approved | HARD STOP — orchestrator returns DEP_PACKET and halts |
-| `build-plan` | 2→3 | Build plan written, every affected slice assigned, parallel groups marked | STOP — re-run Station 1 discovery |
-| `layer-green` | 3–7 | typecheck + lint + FSD boundaries pass for the layer just built | Fix loop (Station 11) — never build the next layer on a red gate |
-| `coverage` | 8→9 | Thresholds in `quality-gates.md` met; every acceptance criterion has a test | Route uncovered paths back to `test-engineer` |
-| `all-green` | 9→9.5 | Full gate sweep passes from gate #1 | Fix loop |
-| `architecture-clean` | 9.5→10 | `architecture-auditor` REPORT_ONLY: zero hard violations on changed paths + importers | Fix loop (owning engineer). Missing agent/companion skill → ESCALATION_PACKET |
-| `review-clean` | 10→11 | No `[CRITICAL]`; no unresolved `[IMPORTANT]` | Route each finding to the owning engineer |
-| `human-approved` | 12 | Human replies `approve` | Skill sets `status: done`. Request-changes → `MODE: revise`. Never merge, never open a PR |
+| `spec-approved` | 0.5→1 | Human confirms acceptance criteria; spec status `approved` | STOP — back to spec-analyst |
+| `dep-approved` | 1b→2 | Every package in `## Dependencies` marked human-approved | HARD STOP — `DEP_PACKET` |
+| `build-plan` | 2→3 | Build plan written, every affected slice assigned | STOP — re-run Station 1 |
+| `layer-green` | 3–7 | `run-gates.sh --until fsd` (types, lint, fsd) | Fix loop — never build the next layer on a red gate |
+| `coverage` | 9 | Thresholds in `quality-gates.md`; every AC has a test | Spawn `test-engineer` for the failing layer group (Station 8), then re-run coverage |
+| `all-green` | 9→9.5 | Full sweep, including build and coverage, once | Fix loop |
+| `architecture-clean` | 9.5→10 | `architecture-auditor` REPORT_ONLY + `DIFF_SCOPE`: zero hard violations on changed paths | Fix loop. Missing agent or companion skill → `ESCALATION_PACKET` |
+| `review-clean` | 10→11 | No `[CRITICAL]`; no unresolved `[IMPORTANT]` | Owning engineer |
+| `human-approved` | 12 | Human replies `approve` | Skill sets `status: done` |
 
-**Gate bypass is never allowed.** A gate that "would probably pass" has not passed. After any fix,
-re-run the gate sequence **from gate #1** — targeted re-runs miss regressions the fix introduced.
+**Gate bypass is never allowed.** A patch run still runs `--until fsd`. It does not run `yarn build`
+or `yarn test:auto`.
 
-Station 1.5 (baseline audit) is not a hard fail for the whole tree: hard violations **on files this
-feature will touch** escalate; unrelated legacy issues go to `## Architecture Baseline` as notes.
+Station 1.5 is full tier only. Scope is the paths in `## FSD Impact` plus their importers, not `src/`.
+Hard violations on those paths escalate. Unrelated legacy issues stay as notes.
+
+After a fix, re-run the **failed** gate plus `types`. Re-run `fsd` only if the fix touched imports.
+Re-run `coverage` only if the fix touched tests. Do not rebuild after a type error.
 
 ---
 
@@ -112,94 +121,73 @@ feature will touch** escalate; unrelated legacy issues go to `## Architecture Ba
 
 | Loop | Location | Max cycles | Exit condition | On exceed |
 |------|----------|-----------|----------------|-----------|
-| Clarification | Station 0 | 3 rounds | Acceptance criteria unambiguous and testable | Remaining unknowns → `## Decisions & Open Questions`; ask the human to decide |
-| Fix loop (per gate) | Station 11 | 3 attempts | The failing gate passes | Escalate: append gate log to spec, status `awaiting-human`, ESCALATION_PACKET |
-| Coverage loop | Station 8 | 2 attempts | Thresholds met | Escalate — never game coverage with assertion-free tests |
+| Clarification | Station 0 | 3 rounds | Acceptance criteria unambiguous and testable | Unknowns → `## Decisions & Open Questions` |
+| Fix loop (per gate) | Station 11 | 3 attempts | The failing gate passes | `ESCALATION_PACKET` |
+| Coverage loop | Station 8 | 2 attempts | Thresholds met | Escalate — never game coverage |
 | Auto-review loop | Station 10 | 2 attempts | No CRITICAL / unresolved IMPORTANT | Escalate with the finding list |
 | Human review | Station 12 (skill) | 3 cycles | Human approves | Ask: accept-as-is, keep iterating, or abort |
-
-Escalation is a **success path**, not a failure. Three failed attempts on the same gate means the
-spec or the plan is wrong, and more attempts will not discover that.
 
 ---
 
 ## Parallelism Rules
 
-### Parallel by default (stations 4, 5, 6)
-
-Independent slices inside one layer are spawned **in a single message**. Sequential spawning
-serializes execution and defeats the point.
+Independent slices inside one layer are spawned **in a single message**.
 
 | Station | Parallel unit | Isolation |
 |---------|--------------|-----------|
-| 4 | one `entities-engineer` per entity slice | `isolation: worktree` |
-| 5 | one `features-engineer` per feature slice | `isolation: worktree` |
-| 6 | one `composition-engineer` per widget/page | `isolation: worktree` |
+| 4 | one `entities-engineer` per entity slice, only when that layer has 2+ independent slices | `isolation: worktree` |
+| 5 | one `features-engineer` per feature slice, only when 2+ | `isolation: worktree` |
+| 6 | one `composition-engineer` per widget/page, only when 2+ | `isolation: worktree` |
 
-Two slices are independent only when neither imports the other and they share no files. A slice
-pair that both edit `shared/config/textContent.ts` is **not** independent — sequence them.
+A single slice in a layer uses `slice-engineer` with no worktree. Two slices that both edit
+`shared/config/textContent.ts` are not independent — sequence them.
 
-### Strictly sequential (stations 1, 1.5, 2, 3, 7, 8, 9, 9.5, 10)
-
-The FSD layer order *is* the dependency order: each layer's imports must already exist. Never start
-a layer before the layer below it is green. Architecture-audit and auto-review are sequential
-because they read the whole diff.
-
-### Worker-count heuristic (scale effort to complexity)
-
-| Scope | Strategy |
-|-------|----------|
-| Copy/text tweak, 1 file | No orchestrator. Run the authoring skill inline. |
-| 1–2 slices, single layer | One consolidated `slice-engineer` for all segments |
-| 3–5 slices across 2 layers | One engineer per layer group |
-| 6+ slices or cross-cutting | One parallel engineer per slice, worktree-isolated |
-
-Spawning five agents for a two-file change costs more than it saves.
+Stations 1, 1.5, 2, 3, 7, 9, 9.5, and 10 stay sequential.
 
 ---
 
 ## Context Passing Rules
 
-Each agent receives **only** the spec sections it needs — never the whole upstream app spec, never
-raw diffs, never another worker's file list. The per-agent allowlist and size guards live in
-`context-budget.md`; that file is binding. Upstream YAML filtering is in `upstream-contract.md`.
+Spokes return a handoff path, not a report. See `context-budget.md`.
 
 | Agent | Receives |
 |-------|----------|
-| `upstream-interpreter` | `UPSTREAM_SPEC` path + `SCREEN_REF` / `AC_REFS` / `ENTITY_REFS` / `PROTOTYPE_REF` — never spec body |
-| `spec-analyst` | Raw request + compact slice from upstream-interpreter (or standalone request) |
-| `code-explorer` | Acceptance criteria + Request |
-| `research-analyst` | The capability gap only — not the build plan |
-| `shared-engineer` | Dependencies, Reuse map, Build plan (shared rows) |
-| `entities-engineer` | API contract, Data model, Build plan (its entity rows) |
-| `features-engineer` | UI surface (its interaction), Build plan (its feature rows) |
-| `composition-engineer` | UI surface (its screen), Reuse map, Build plan (its rows), prototype-page path if any |
-| `app-engineer` | UI surface (route map), Build plan (app row) |
-| `slice-engineer` | The one LAYER + SLICE it was parameterised with, plus that row's spec sections |
-| `test-engineer` | Acceptance criteria + `SLICE_PATHS` for one layer group |
-| `quality-gate-runner` | Gate log section only |
-| `architecture-auditor` | `MODE` + scope (FSD Impact or changed-file list). Returns report markdown; hub writes the blackboard |
-| `code-reviewer` | Changed-file **list** — it reads diffs itself, per file. No FSD architecture-audit references — those ran at 9.5 |
+| `upstream-interpreter` | `UPSTREAM_SPEC` path + ids — never spec body |
+| `spec-analyst` | Compact slice path, or the standalone request |
+| `code-explorer` | Acceptance criteria + Request section paths |
+| `research-analyst` | The capability gap only |
+| `shared-engineer` | Checkpoint path + its build-plan rows |
+| `entities-engineer` | Checkpoint path + its entity rows |
+| `features-engineer` | Checkpoint path + its feature rows |
+| `composition-engineer` | Checkpoint path + its screen rows |
+| `app-engineer` | Checkpoint path + the app row |
+| `slice-engineer` | The one `LAYER` + `SLICE` |
+| `test-engineer` | Acceptance criteria path + `SLICE_PATHS` for one layer group |
+| `quality-gate-runner` | `PROFILE: layer` (`--until fsd`) or `PROFILE: full` |
+| `architecture-auditor` | `MODE` + `SCOPE`. Diff mode also gets `DIFF_SCOPE` and `TOPICS` |
+| `code-reviewer` | Changed-file **list**. It reads diffs per file |
+
+After each layer, the orchestrator rewrites `orchestrator-checkpoint.md` and spawns the next
+worker with that path plus one handoff link. It does not restate earlier spoke chat.
 
 ---
 
 ## Revise Re-entry Points
 
-When the human requests changes at Station 12, the orchestrator re-enters at the **lowest** station
-the change touches, then replays every station above it.
+When the human requests changes at Station 12, re-enter at the **lowest** station the change
+touches, then replay Stations 9, 9.5, and 10 before a new `REVIEW_PACKET`. Patch-tier revisions
+stay on `slice-engineer` plus `--until fsd` unless the change adds a dependency, a route, or a
+second layer — then promote to `standard`.
 
 | Change type | Re-entry | Cascade |
 |-------------|----------|---------|
-| Copy, label, or text content | Station 6 (target page/widget) | Re-run 8–10 (including 9.5) |
-| Styling / component variant | Station 3 if `shared/ui`, else the owning slice's station | Re-run from that layer up |
-| Interaction behaviour | Station 5 (target feature slice) | Re-run 6–10 |
-| API contract or data shape | Station 4 (entity slice) | Re-run 5–10 — everything above depends on it |
+| Copy, label, or text content | Owning slice | Re-run 9–10 (including 9.5) on standard/full |
+| Styling / component variant | Owning slice | Re-run from that layer up |
+| Interaction behaviour | Station 5 | Re-run 6–10 |
+| API contract or data shape | Station 4 | Re-run 5–10 |
 | New route / navigation | Station 7 | Re-run 8–10 |
-| Architecture-audit hard violation | Station 9.5 after the owning engineer fixes | Re-run 9–10 |
-| Acceptance criteria changed | Station 0 | Full re-plan; the spec changed, so the plan is stale |
-
-Always re-run Stations 9, 9.5, and 10 before returning a new REVIEW_PACKET. A revision that skips
-the gate sweep is how a "small fix" ships a type error.
+| Architecture-audit hard violation | Owning engineer, then 9.5 | Re-run 9–10 |
+| Acceptance criteria changed | Station 0 | Full re-plan |
 
 ---
 
@@ -207,13 +195,13 @@ the gate sweep is how a "small fix" ships a type error.
 
 | Never | Why |
 |-------|-----|
-| Orchestrator calls `AskUserQuestion` | Subagent prompts never reach the user — the gate self-approves silently |
-| Orchestrator edits files under `src/` | It is a coordinator; direct edits bypass the boundary contract workers are held to |
-| Build the next layer on a red gate | Every later layer inherits the defect and multiplies the fix cost |
-| Pass raw `git diff` to `code-reviewer` | Reviewer prompt grows linearly with feature size; use the file list |
-| Pass the full app spec body to the hub | Context overflow; one run is one screen-task (`upstream-contract.md`) |
-| Spawn parallel workers in separate messages | Serializes them; no speedup, same token cost |
-| Loop a failing gate more than 3× | Repeated failure is a spec/plan problem, not an effort problem |
-| Any agent runs `/create-pr`, `git push`, or merges | Shipping is human-only, by construction |
-| Skip architecture-audit because Steiger passed | Steiger is mechanical import direction; `architecture-auditor` checks segments, public APIs, query keys |
-| Re-plan from scratch on a copy tweak | Route to the lowest re-entry station instead |
+| Orchestrator calls `AskUserQuestion` | Subagent prompts never reach the user |
+| Orchestrator edits files under `src/` | Workers own `src/` |
+| Build the next layer on a red gate | Later layers inherit the defect |
+| Pass raw `git diff` or a worker report into the orchestrator chat | Return `HANDOFF` + `CONTAINS` |
+| Pass the full app spec body to the hub | One run is one screen-task |
+| Spawn `feature-orchestrator` for a patch | The skill runs `slice-engineer` directly |
+| Run `yarn build` or `yarn test:auto` after every layer | Those run once at Station 9 |
+| Audit all of `src/` at Station 1.5 | Scope is `## FSD Impact` |
+| Any agent runs `/create-pr`, `git push`, or merges | Shipping is human-only |
+| Skip `DIFF_SCOPE` architecture-audit on standard/full because Steiger passed | Steiger is import direction; 9.5 checks segments, public APIs, and query keys |

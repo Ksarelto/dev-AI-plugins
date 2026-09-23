@@ -12,8 +12,13 @@ allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 Check the current tree against the FSD layer/slice/segment model. Report first. Edit only after confirmation (or when the user already asked to fix).
 
 **REPORT_ONLY.** If the prompt contains `REPORT_ONLY`, run steps 1–5 and **stop**. Skip step 6.
-Do not edit. Do not ask which findings to fix. Return the report markdown only. Feature-dev-kit
-Stations 1.5 and 9.5 always pass this flag.
+Do not edit. Do not ask which findings to fix. Feature-dev-kit Stations 1.5 and 9.5 always pass
+this flag. If the prompt names a handoff path, write the report there and return only `HANDOFF`
+plus one `CONTAINS` line. Otherwise return the report markdown only.
+
+**DIFF_SCOPE.** If the prompt contains `DIFF_SCOPE`, skip the always-run topic list. Load only the
+reference files named on the `TOPICS:` line (basenames under `references/`, without `.md`). Do not
+load any other topic. Still run the mechanical checks, and only on the named scope.
 
 Not this skill: scaffolding (`react-feature`); a branch/PR standards review (`code-review`).
 

@@ -16,13 +16,43 @@ working pipeline into a stalling one.
 Both are fixed the same way: name the exact sections and rule files, and nothing else. Aim for under
 ~2,000 lines of focused context per worker. Context window size is not attention budget.
 
+## Handoff by link
+
+Chat is a pointer. The orchestrator does not receive a worker's report, diff, gate log, or file bodies.
+
+Directory: `.spec/features/<slug>.context/`
+
+| File | Writer | What is inside |
+|------|--------|----------------|
+| `<agent>-<station>.md` | the spoke that just finished | station, outcome, paths touched, decisions, open questions, link to any longer artifact |
+| `architecture-auditor-<station>.md` | `architecture-auditor` | the full architecture report. The blackboard stores this path plus one summary line |
+| `orchestrator-checkpoint.md` | `feature-orchestrator` | current station, status, decisions, next action, links to spoke handoffs |
+| `session.md` | `feature-dev` skill | where the human-facing run left off, which packet is pending, links only |
+
+Chat return from any spoke, at most five lines:
+
+```
+HANDOFF: .spec/features/<slug>.context/<agent>-<station>.md
+CONTAINS: <one line — files touched, gate result, open questions>
+```
+
+**Always:** do not inline. The next agent opens a handoff only when its station card names that path.
+
+**When a spoke is near its limit** (it has read a large diff, a long spec section, or a gate transcript, or it is about to re-read something it already summarized): refresh its handoff with the main facts and keep working from that file.
+
+**When the orchestrator is near its limit** (a layer just finished, or it has more than one spoke return and is about to spawn the next station): rewrite `orchestrator-checkpoint.md`, then spawn the next worker with only that checkpoint path, the station card, and the one handoff link that worker must read. Do not restate earlier spoke chat. Do not `Read` source files the worker just wrote.
+
+**When the main `feature-dev` conversation is near its limit** (several clarify rounds, a revise cycle, or a returned packet plus a long spec): rewrite `session.md`. The next spawn receives `session.md` plus `SPEC_PATH`. Do not replay the prior conversation.
+
+Packets stay small JSON. `REVIEW_PACKET.review_path` points at the review handoff. The skill reads that file once when it asks the human.
+
 ## Blackboard-first rule
 
-The spec file at `.spec/features/<slug>.md` is the ONLY shared state passed between agents. Chat history is never a handoff medium (already enforced by `orchestration-protocol.md`). This rule extends that:
+The spec file at `.spec/features/<slug>.md` is the shared state for decisions. Chat history is never a handoff medium. Long artifacts live in `.spec/features/<slug>.context/`.
 
 - Workers receive **only the section paths they need to read**, not the full spec content.
 - Workers write directly to their assigned sections; the orchestrator does not proxy writes.
-- The orchestrator itself reads only the sections it needs to decide the next station — not the entire spec every hop.
+- The orchestrator reads the checkpoint and the sections it needs for the next station — not the entire spec every hop.
 - Cross-kit: return `.spec/features/{slug}.kit-result.json` (paths + outcome) to `orchestrate-frontend`.
   Never paste the blackboard or a diff into the parent conversation.
 
@@ -37,18 +67,18 @@ SPEC_SECTIONS:
   read:  <exact section headers the worker needs>
   write: <exact section headers the worker will update>
 TARGET: <layer>/<slice>/<segment>
-APPLY: <rule files>
+APPLY: skill: <one skill>
 BOUNDARY: <paths>
-RETURN: <expected outputs>
+RETURN: HANDOFF path + one CONTAINS line. No file bodies, diffs, or command output.
 ```
 
-Workers open the spec file, jump to their listed sections, and never scan sections outside their allowlist.
+Workers open the spec sections they were named, and never scan sections outside their allowlist. They do not `Read` rule files; globs already attach them. `APPLY` names one skill.
 
 ## Layer-specific slices
 
 | Worker | read sections | write sections |
 |--------|--------------|----------------|
-| `upstream-interpreter` | (reads `UPSTREAM_SPEC` file, not the blackboard) | none — returns a compact slice |
+| `upstream-interpreter` | (reads `UPSTREAM_SPEC` file, not the blackboard) | none — writes a compact slice handoff |
 | `spec-analyst` | Request, Clarifications, Acceptance criteria, UI surface, API contract | those same sections; never status `approved` |
 | `code-explorer` | Request, Acceptance criteria, UI surface | FSD Impact, Reuse map, UI surface (refine), Decisions |
 | `research-analyst` | FSD Impact, API contract, UI surface | Tech Investigation, Dependencies |
@@ -60,8 +90,8 @@ Workers open the spec file, jump to their listed sections, and never scan sectio
 | `slice-engineer` | The sections for its LAYER + SLICE only | Build plan (its row), Gate log |
 | `test-engineer` | Acceptance criteria, Build plan | Build plan (test rows), Gate log |
 | `quality-gate-runner` | Gate log | Gate log |
-| `architecture-auditor` | FSD Impact (baseline) or changed-file list (diff) | **none** — returns report markdown; hub writes the blackboard |
-| `feature-orchestrator` | Build plan, Gate log, status, Human Review | **only** `.spec/features/<slug>.md` (never `src/`) |
+| `architecture-auditor` | FSD Impact paths (full-tier baseline) or changed-file list (diff) | **none on the blackboard** — writes the report to its handoff file |
+| `feature-orchestrator` | Build plan, Gate log, status, Human Review, checkpoint | `.spec/features/<slug>.md` and `.spec/features/<slug>.context/` (never `src/`) |
 
 Anything outside the listed sections is off-limits without an explicit orchestrator note extending the allowlist.
 
@@ -104,7 +134,7 @@ When independent slices run in parallel (worktree-isolated), each parallel worke
 | Pass raw `git diff` output to `code-reviewer` | Reviewer's prompt grows linearly with feature size |
 | Pass all slice paths to every worker | Parallel workers should not know about each other's files |
 | Batch multiple stations' outputs into one prompt | Every station's payload is single-purpose |
-| Return command output or file contents to the orchestrator | Return summaries and paths; the orchestrator re-reads what it needs |
+| Return command output or file contents to the orchestrator | Return `HANDOFF` + `CONTAINS`; the next agent opens the file only if named |
 | Say "follow the project conventions" instead of naming rule files | An unnamed rule loads nothing — that is starvation |
 | Inline the same reference into every parallel worker | Pass the path; each worker loads it in its own window |
 

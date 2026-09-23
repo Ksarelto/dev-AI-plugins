@@ -67,6 +67,17 @@ Widgets and pages expose only what their consumers need. Consumers of a widget r
 - Each slice's `index.ts` updated to export the public surface (or a page default export).
 - Summary of what was composed, which entities and features were consumed, and any decisions taken — written back into the spec's Build plan under the widget and page tasks. Set each slice's build status to `done`.
 
+## Handoff
+
+Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line>
+```
+
+If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+
 ## Boundaries
 
 Works only within `widgets/*` and `pages/*`. Never adds API hooks (that is the `entities-engineer`'s job). Never adds interaction state that belongs in a feature (that is the `features-engineer`'s job). Does not wire routes or providers (that is the `app-engineer`'s job at station 7). If the composition reveals a missing feature or entity primitive, escalate to the orchestrator rather than duplicating logic in the widget or page layer.

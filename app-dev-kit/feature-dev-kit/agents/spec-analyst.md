@@ -40,6 +40,17 @@ Intake specialist. Transforms a raw request (and an optional compact slice from
 - Updated blackboard sections listed above.
 - Exactly one `CLARIFY_PACKET` (possibly with empty `questions` when intake is complete).
 
+## Handoff
+
+Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line>
+```
+
+If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+
 ## Boundaries
 
 Only the spec file. No source code. No architecture decisions. No discovery or build.

@@ -11,19 +11,17 @@ nothing outside the assigned boundary.
 ## The increment cycle
 
 ```
-Implement smallest complete piece → typecheck → test → verify → next increment
-        ▲                                                  │
-        └────────── never more than ~100 lines ────────────┘
+Implement one segment → next segment → when the slice is complete: typecheck once → colocated test
 ```
 
-1. **Implement** one complete piece — a hook, a component, a segment.
-2. **Typecheck** (`yarn typecheck`) — the cheapest signal, run it first.
-3. **Test** — write or extend the colocated test; run it.
-4. **Verify** — the piece does what the acceptance criterion says, at runtime.
-5. **Next increment.** Carry forward; do not restart.
+1. **Implement** one complete piece — a hook, a component, a segment. Stay inside `BOUNDARY`.
+2. **Next segment.** Do not shell out to `yarn typecheck` between segments.
+3. **Typecheck once** (`yarn typecheck`) when the assigned slice is complete.
+4. **Test** — write or extend the colocated test and run that file.
+5. **Stop.** Write the handoff file. Do not scan the rest of the repo.
 
-Do not write the whole slice, then typecheck once at the end. A type error in the first segment
-makes every later segment wrong in the same way, and you will be debugging five files instead of one.
+A slice that does not compile at the end is not done. A typecheck after every hundred lines burns
+the run without changing the result.
 
 ---
 
@@ -86,9 +84,8 @@ otherwise finished.
 
 ## Rule 2 — Keep it compiling
 
-The slice must typecheck and build after every increment. Never leave a half-renamed symbol or a
-component importing a hook that does not exist yet across an increment boundary — an engineer
-running in a parallel worktree may pull your state.
+The slice must typecheck when you finish it. Never leave a half-renamed symbol or a component
+importing a hook that does not exist yet — a parallel worktree may pull your state.
 
 ---
 
@@ -102,21 +99,19 @@ rather than leaving the tree broken.
 
 ## Per-increment checklist
 
-- [ ] The increment does one thing and does it completely
-- [ ] `yarn typecheck` passes
+- [ ] The slice does one thing and does it completely
+- [ ] `yarn typecheck` was run once at the end and passed
 - [ ] The new code has a colocated test that fails without it
-- [ ] Existing tests still pass
 - [ ] No file outside the assigned `BOUNDARY` was modified
-- [ ] The spec section owned by this worker reflects what was built
+- [ ] The handoff file lists the paths touched
 
-Run each command after a change that could affect it. Re-running an unchanged check adds no
-information and burns the run's budget.
+Do not re-run a check that the slice did not change.
 
 ---
 
 ## Red flags
 
-- More than ~100 lines written before the first typecheck
+- `yarn typecheck` between every segment instead of once at the end of the slice
 - Two unrelated concerns landing in one increment
 - "Let me just quickly also…" scope expansion
 - The slice left non-compiling between increments

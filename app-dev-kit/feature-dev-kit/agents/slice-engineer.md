@@ -3,7 +3,6 @@ name: slice-engineer
 description: Builds a small FSD change when only one or two slices in a single layer need work. Parameterised by LAYER and SLICE so the orchestrator can consolidate entities, features, and composition into one worker instead of spawning five. Use for a narrow single-slice feature or a copy/text tweak that still needs the increment cycle.
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep, Skill]
-isolation: worktree
 permissionMode: default
 ---
 
@@ -32,17 +31,17 @@ Do **not** preload every `create-*` skill. APPLY names the matching skill; invok
 - `LAYER` — one of `shared` | `entities` | `features` | `widgets` | `pages`
 - `SLICE` — folder name under that layer
 - `SPEC_PATH` + `SPEC_SECTIONS` for that row
-- `{KIT_DIR}/skills/feature-dev/references/development-cycle.md`
-- `{KIT_DIR}/skills/feature-dev/references/increment-protocol.md`
-- `{KIT_DIR}/skills/feature-dev/references/fsd-architecture.md`
-- `{KIT_DIR}/rules/` files named in `APPLY`
-- the `create-*` / `add-text-content` skill named in `APPLY`
+- the one `create-*` skill named in `APPLY`
+
+Do not open `pipeline-flow.md`, `development-cycle.md`, or rule files. Globs attach the rules. The skill names the one recipe file to read.
 
 ## Responsibilities
 
-Follow the inner development cycle: `model` → `api` → `lib` → `ui` → `index.ts`, typecheck and
-colocated test after each increment. Invoke the matching `create-*` skill for the layer. Stay
-inside `BOUNDARY`. Write Build plan row + Gate log on the blackboard before returning.
+Build `model` → `api` → `lib` → `ui` → `index.ts`. Typecheck once when the slice is done, then the colocated test. Invoke the matching `create-*` skill. Stay inside `BOUNDARY`. Update the build-plan row, then write the handoff.
+
+## Handoff
+
+Write `.spec/features/<slug>.context/slice-engineer-<layer>.md`. Return only `HANDOFF` and one `CONTAINS` line. If this context is near its limit, refresh that file and continue from it.
 
 ## Boundaries
 

@@ -36,7 +36,7 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 
 | Path | Loaded by | When |
 |------|-----------|------|
-| `references/pipeline-flow.md` | this skill, orchestrator, every agent | before starting — canonical station order, gates, loop guards, parallelism |
+| `references/pipeline-flow.md` | orchestrator, once | canonical station order, tiers, gates, loop guards. This skill does not load it into the main chat |
 | `references/development-cycle.md` | this skill, orchestrator, build engineers | outer + inner implement loops |
 | `references/upstream-contract.md` | this skill, `upstream-interpreter`, `spec-analyst` | spawn payload and YAML field map |
 | `references/packets.md` | this skill, orchestrator, spec-analyst, research-analyst | packet types the hub may return |
@@ -49,7 +49,7 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 | `references/definition-of-done.md` | orchestrator (Station 11), `code-reviewer` | the standing bar every increment clears |
 | `references/increment-protocol.md` | every build engineer | thin-slice discipline inside one slice |
 | `references/human-review-protocol.md` | this skill (Station 12) | what the human is shown and which decisions are offered |
-| `references/context-budget.md` | orchestrator, every worker | per-agent section allowlists and payload size guards |
+| `references/context-budget.md` | orchestrator, once | handoff-by-link contract and per-agent section allowlists |
 | `references/artifact-naming.md` | this skill (Station 0) | slug derivation, branch name, spec path |
 | `references/mcp-servers.md` | `shared-engineer`, `research-analyst` | shadcn + context7 setup and verification |
 | `templates/feature-spec.md` | `spec-analyst` (Station 0) | blackboard skeleton copied to `.spec/features/<slug>.md` |
@@ -106,12 +106,11 @@ are set — do not expect an inlined spec body. See `references/upstream-contrac
 
 ## Steps
 
-Read `{KIT_DIR}/skills/feature-dev/references/pipeline-flow.md` before Step 1.
+Do not read `pipeline-flow.md` into this conversation. The tier table below is the parent-loop contract. The orchestrator reads the station map once inside its own context.
 
 ### Step 1 — Resolve the feature
 
-1. `Glob(".spec/features/*.md")`. If the argument matches an existing slug, read it and jump to the
-   station implied by its `status` (see the resume table below). Report: `"Resuming {slug} at Station {N}."`
+1. `Glob(".spec/features/*.md")`. If the argument matches an existing slug, read **frontmatter `status` only**. If `.spec/features/{slug}.context/session.md` exists, that path is the resume context — do not read the whole blackboard. Report: `"Resuming {slug} at Station {N}."`
 2. Otherwise derive a slug per `references/artifact-naming.md`. **Do not** reuse the app spec's
    `metadata.slug` as the feature slug when the run is one screen-task — derive from `SLUG_HINT`
    (orchestrator kebab of the screen/story title), then the screen title / `SCREEN_REF`, so
@@ -162,8 +161,8 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
 screen. Standalone requests omit it.
 
 Then spawn `upstream-interpreter` with **paths and ids only** (it may re-run the same script).
-Pass its compact slice to `spec-analyst` together with `SPEC_PATH`. If `REQUEST` is more than one
-line of ids/paths, ignore the extra — the blackboard already has stories/ACs from import.
+Pass its `HANDOFF` path to `spec-analyst` together with `SPEC_PATH`. Do not paste the slice.
+If `REQUEST` is more than one line of ids/paths, ignore the extra — the blackboard already has stories/ACs from import.
 `spec-analyst` fills remaining gaps and returns a **CLARIFY_PACKET** — it does not ask the human
 and it never sets `status: approved`.
 
@@ -187,23 +186,35 @@ On exit 0, present the acceptance criteria and ask (single `AskUserQuestion`):
 
 On approval set `status: approved` in the spec front matter. No subagent may do this.
 
-### Step 4 — Spawn feature-orchestrator (Station 1 → 11)
+### Step 4 — Choose a tier, then build
+
+Classify from the approved blackboard only (slice count, new package, new route). Do not read the upstream app spec.
+
+| Tier | When | What this skill does |
+|------|------|----------------------|
+| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) with `LAYER`, `SLICE`, and one `create-*` skill. Then `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd`. Go to Step 5. |
+| **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. |
+| **full** | Six or more slices, or a new route plus a new entity | Spawn `feature-orchestrator` with `TIER: full`. |
+
+Orchestrator spawn (standard and full only):
 
 ```
 MODE:        build
+TIER:        standard | full
 SLUG:        {slug}
 SPEC_PATH:   .spec/features/{slug}.md
 BRANCH:      {branch}
 KIT_DIR:     {resolved plugin root}
+SESSION:     .spec/features/{slug}.context/session.md   (omit if it does not exist)
 
-Read {KIT_DIR}/skills/feature-dev/references/pipeline-flow.md before starting any station.
-It is the canonical map for station order, gates, loop guards, and context budgets.
-
-Run Stations 1 through 11. Return one packet per references/packets.md and STOP.
-Do NOT ask the user anything — return a packet instead. Do NOT run /create-pr, push, or merge.
-Do NOT write files under src/. Blackboard writes only at .spec/features/{slug}.md.
-Do NOT pass the upstream spec body — workers read SPEC_PATH and UPSTREAM_SPEC paths.
+Read pipeline-flow.md once. Run the stations for this TIER.
+Return one packet per references/packets.md (paths only) and STOP.
+Do NOT ask the user anything. Do NOT run /create-pr, push, or merge.
+Do NOT write files under src/.
+Do NOT pass the upstream spec body or any worker report — spokes return a HANDOFF path.
 ```
+
+If this conversation is near its limit (several clarify rounds, a revise cycle, or a packet plus a long spec), write `.spec/features/{slug}.context/session.md` first (status, pending packet path, links only) and pass that path. Do not replay the prior conversation into the spawn.
 
 Loop on `type`:
 
@@ -215,19 +226,21 @@ Loop on `type`:
 
 ### Step 5 — Human review gate (Station 12 — THIS skill owns it, max 3 cycles)
 
-1. Present the `review_packet` verbatim, then add:
+1. Read `review_path` **once** (patch runs: the slice-engineer handoff plus `git diff --stat`). Then add:
    - `git diff --stat {base}...HEAD`
    - `Review locally: git diff {base}...HEAD`
+   Do not paste the blackboard or the diff body into chat.
 2. `AskUserQuestion` — "Review the feature. How should I proceed?":
    - **Approve** → set `status: done` (human-only transition), go to Step 6.
-   - **Request changes** → relay the free-text description:
+   - **Request changes** → write `session.md` (the change request and `review_path`, not the review body), then re-spawn. Patch stays on `slice-engineer` unless the change adds a dependency, a route, or a second layer. Standard and full:
      ```
      MODE:           revise
+     TIER:           standard | full
      CHANGE_REQUEST: {user's text}
+     SESSION:        .spec/features/{slug}.context/session.md
      SLUG / SPEC_PATH / BRANCH / KIT_DIR: (same as build)
      ```
-     The orchestrator re-enters at the lowest affected station per `pipeline-flow.md`, replays
-     Stations 9–10 (including 9.5), and returns a fresh packet.
+     The orchestrator re-enters at the lowest affected station, replays Stations 9–10 (including 9.5), and returns a fresh packet.
    - **Abort** → write kit-result `aborted` (below) and stop. The branch and spec stay in place.
 3. After 3 change cycles without approval, ask: accept-as-is, keep iterating, or abort.
 
@@ -274,8 +287,7 @@ be typed by a human.
 4. **The spec is the handoff medium.** Workers read and write sections; chat output is not state.
 5. **One screen-task per run.** Orchestrator-kit splits the app spec; this kit does not re-split it
    and does not dump every screen into one blackboard.
-6. **Architecture-audit is a gate.** Spawn `architecture-auditor` (REPORT_ONLY) at 1.5 and 9.5.
-   Missing companion plugin → escalate, do not skip.
+6. **Architecture-audit is a gate on standard and full.** Station 9.5 is `DIFF_SCOPE`. Station 1.5 runs on the full tier only, scoped to FSD Impact paths. Patch skips both. A missing companion plugin on a tier that requires the audit → escalate, do not skip.
 7. **Automation never ships.** No agent pushes, merges, or opens a PR.
 
 ---
@@ -284,13 +296,10 @@ be typed by a human.
 
 | Phase | Typical |
 |-------|---------|
-| Intake + clarification | ~2–5 min (user response time dominates) |
-| Discovery (+ investigation + baseline audit) | ~2–5 min |
-| Build, per layer | ~2–4 min (parallel slices run concurrently) |
-| Tests + gate sweep + architecture-audit | ~4–8 min |
-| Auto-review + fix loop | ~2–8 min |
-| **Total, small feature (1 entity + 1 feature + 1 page)** | ~15–25 min |
-| **Total, large feature (6+ slices)** | ~40–70 min |
+| Intake + clarification | user response time |
+| **patch** (one slice, `--until fsd`, no orchestrator) | one worker plus a short gate |
+| **standard** (one screen, ≤5 slices) | discovery, layer gates without build, one full sweep, diff audit, review |
+| **full** (6+ slices) | standard, plus a scoped baseline audit and parallel slice workers |
 
 ---
 

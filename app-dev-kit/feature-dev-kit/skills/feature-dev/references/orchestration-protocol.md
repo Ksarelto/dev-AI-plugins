@@ -48,29 +48,33 @@ The orchestrator uses this exact format when delegating to a worker agent:
 OBJECTIVE: <one sentence — what the worker must produce>
 SPEC: .spec/features/<slug>.md — read sections: <list sections>; write to sections: <list sections>
 TARGET: <fsd-layer>/<slice>/<segment(s)>
-APPLY: rules/<rule-file>, rules/<rule-file>; skills/<skill-name> if applicable
+APPLY: skill: <one skill name>
 BOUNDARY: only touch files under <path>; do not modify <excluded paths>
-RETURN: <what the worker must output — updated spec sections + list of created/modified files>
+RETURN: HANDOFF path + one CONTAINS line
 ```
 
 Example:
 ```
 OBJECTIVE: Implement the useDeclineProfile mutation hook and its query-key invalidation.
 SPEC: .spec/features/decline-profile.md — read: API contract, Dependencies; write to: Build plan (mark api/ done), Gate log
-TARGET: entities/profile/api/ — files: profile.hooks.ts, profile.queryKeys.ts
-APPLY: references/development-cycle.md, references/increment-protocol.md, references/fsd-architecture.md, {KIT_DIR}/rules/typescript-patterns.mdc
+CHECKPOINT: .spec/features/decline-profile.context/orchestrator-checkpoint.md
+TARGET: entities/profile/api/
+APPLY: skill: create-entity
 BOUNDARY: only touch src/entities/profile/api/; do not modify index.ts (orchestrator wires that)
-RETURN: updated spec sections + file list with line counts
+RETURN: HANDOFF .spec/features/decline-profile.context/entities-engineer-4.md + one CONTAINS line
 ```
+
+Do not list `development-cycle.md`, `increment-protocol.md`, `fsd-architecture.md`, or rule files in `APPLY`. Rules attach by glob. The worker reads one skill recipe when that skill says to.
 
 ---
 
-## Handoff via Spec (Blackboard Principle)
+## Handoff via files
 
-- Workers read inputs from the spec file before starting.
-- Workers write their outputs (decisions, file lists, gate results) to the spec file before returning.
-- The orchestrator reads the spec — not the chat history — to determine the next station.
-- This survives context resets: the spec is the single source of truth.
+- Workers read the checkpoint and the spec sections named in the delegation.
+- Workers write decisions onto their spec sections, and write the detail to `.spec/features/<slug>.context/<agent>-<station>.md`.
+- The chat return is only `HANDOFF` and `CONTAINS`. The orchestrator does not read `src/` to learn what the worker did.
+- After a layer, the orchestrator rewrites `orchestrator-checkpoint.md` and passes that path to the next spawn.
+- If the orchestrator's own context is near the limit, it refreshes the checkpoint and continues from that file instead of the chat so far.
 
 ---
 
@@ -78,7 +82,7 @@ RETURN: updated spec sections + file list with line counts
 
 Build proceeds bottom-up: `shared` → `entities` → `features` → `widgets`+`pages` → `app`.
 
-After each layer group completes, the orchestrator runs quality gates. If any gate fails, the orchestrator enters the fix loop before proceeding to the next layer. It does not build the next layer on top of failing gates.
+After each layer group completes, run `run-gates.sh --until fsd`. If that fails, fix before the next layer. `yarn build` and coverage run once at Station 9.
 
 ---
 

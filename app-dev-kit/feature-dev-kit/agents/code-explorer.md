@@ -26,7 +26,18 @@ to reuse, and browses shadcn. Writes findings into the blackboard. Does not auth
 2. Write `## Reuse Map` — public `index.ts` imports only; plus a shadcn primitives subsection.
 3. Set `investigation-needed: true|false` in `## Decisions & Open Questions` with a reason.
 
-`Write` is allowed **only** on `.spec/features/<slug>.md`.
+`Write` is allowed only on `.spec/features/<slug>.md` and `.spec/features/<slug>.context/`.
+
+## Handoff
+
+Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+
+```
+HANDOFF: <that path>
+CONTAINS: <one line>
+```
+
+If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
 
 ## Boundaries
 

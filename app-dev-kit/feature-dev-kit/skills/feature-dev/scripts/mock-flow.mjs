@@ -114,8 +114,14 @@ for (const file of agentFiles) {
     }
   }
   if (fm.name === 'architecture-auditor') {
-    if (tools.includes('Write') || tools.includes('Edit') || tools.includes('Skill')) {
-      fail('architecture-auditor: must be read-only (no Write/Edit/Skill)')
+    if (tools.includes('Edit') || tools.includes('Skill')) {
+      fail('architecture-auditor: must not hold Edit or Skill')
+    }
+    if (!tools.includes('Write')) {
+      fail('architecture-auditor: needs Write for the context handoff file')
+    }
+    if (!/\.context\//.test(raw) || !/never write `src\/`|Never write `src\/`/i.test(raw)) {
+      fail('architecture-auditor: Write must be limited to .context/ and must forbid src/')
     }
     if (!skillArr.includes('architecture-audit')) {
       fail('architecture-auditor: must preload skills: [architecture-audit]')
@@ -184,6 +190,20 @@ for (const needle of STATION_NEEDLES) {
   if (!pipeline.includes(needle)) fail(`pipeline-flow.md missing "${needle}"`)
 }
 pass('pipeline-flow.md station graph + architecture-auditor')
+
+if (!pipeline.includes('TIER')) fail('pipeline-flow.md missing TIER')
+else pass('pipeline-flow.md names TIER')
+if (!/do \*\*not\*\* spawn `feature-orchestrator`/i.test(featureSkillBody)) {
+  fail('feature-dev SKILL.md patch tier must not spawn feature-orchestrator')
+} else pass('patch tier does not spawn feature-orchestrator')
+
+const gatesScript = readFileSync(join(skillDir, 'scripts/run-gates.sh'), 'utf8')
+if (!gatesScript.includes('--until')) fail('run-gates.sh missing --until')
+else pass('run-gates.sh supports --until')
+
+const budget = readFileSync(join(skillDir, 'references/context-budget.md'), 'utf8')
+if (!budget.includes('HANDOFF:')) fail('context-budget.md missing HANDOFF return')
+else pass('context-budget.md HANDOFF return (no inlined report)')
 
 // --- 3–5. Task derivation + scoped import + prototype ---
 if (!existsSync(specFixture)) {

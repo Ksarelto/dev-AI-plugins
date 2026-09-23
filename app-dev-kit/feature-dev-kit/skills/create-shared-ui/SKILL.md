@@ -12,6 +12,8 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 
 Station 3. Invoke when a feature build needs a new `shared/ui` primitive. Used by `shared-engineer`. Do not invoke if the component already exists in `shared/ui` — check first.
 
+When adapting a registry component, read `references/registry.md` once. Do not read `rules/shadcn-ui-conventions.mdc` — it is already attached by glob.
+
 ## Steps
 
 1. **Check if it already exists**: search `shared/ui/index.ts` and the directory for the component name. If it exists, verify it covers the needed variant — extend it rather than creating a duplicate.

@@ -1,3 +1,9 @@
+---
+description: Clean-code defaults for TypeScript modules — naming, function design, functional style, and the quality bar.
+globs: ["**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
 # General Coding Principles
 
 **Project**: iv-frontend
@@ -95,6 +101,7 @@ Before writing new plain code for a recurring problem, check whether an existing
 - **`null` over `undefined`** for an intentionally empty/absent value. Use `undefined` only when there's no reasonable way to avoid it (an optional prop/param, a third-party API that returns it).
 - **Blank line before `return`** when the block has preceding statements — separates the setup from the result. Skip it when `return` is the only line in the block.
 - **Objects and arrays with more than 2 properties/items**: one per line, trailing comma. Two or fewer can stay on one line.
+-**No nested conditions** is there are nested conditions make the solution flat or move part of the nested code to the separate method
 
 ```ts
 // ❌ Avoid

@@ -1,8 +1,7 @@
 # Template — Review Packet
 
-Returned by `feature-orchestrator` at the end of Station 11 and presented verbatim by the
-`feature-dev` skill at Station 12. It must fit on one screen: the human decides fast, then asks for
-detail on demand.
+Written by `feature-orchestrator` to `review_path` at the end of Station 11. The packet JSON
+carries that path, not this body. The `feature-dev` skill reads the file once at Station 12.
 
 ```markdown
 ## Feature Review: ⟨feature-slug⟩
