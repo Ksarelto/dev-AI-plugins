@@ -85,7 +85,7 @@ otherwise finished.
 ## Rule 2 — Keep it compiling
 
 The slice must typecheck when you finish it. Never leave a half-renamed symbol or a component
-importing a hook that does not exist yet — a parallel worktree may pull your state.
+importing a hook that does not exist yet.
 
 ---
 

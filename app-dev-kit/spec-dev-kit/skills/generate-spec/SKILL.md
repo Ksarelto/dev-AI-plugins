@@ -1,6 +1,6 @@
 ---
 name: generate-spec
-description: Transforms raw user requirements in .spec/context/ into a validated, approved hybrid YAML+Markdown spec in .spec/app/. Runs the full spec-dev-kit pipeline — intake, gap analysis, clarification, enrichment, completeness gating, synthesis, deterministic validation, diagram generation, and human review — then publishes the result. Use when starting any new feature, domain, or app where no spec exists yet, or when refining an earlier spec run.
+description: Transforms raw user requirements in .spec/context/ into a validated, approved hybrid YAML+Markdown spec in .spec/spec/. Runs the full spec-dev-kit pipeline — intake, gap analysis, clarification, enrichment, completeness gating, synthesis, deterministic validation, diagram generation, and human review — then publishes the result. Use when starting any new feature, domain, or app where no spec exists yet, or when the next feature's context files should continue the last app spec's story and screen ids.
 argument-hint: "[feature-name]"
 allowed-tools: [Read, Glob, Grep, Write, Bash, Agent, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---
@@ -19,8 +19,8 @@ orchestrator is a subagent and must never ask the user — it returns a packet a
 ## Purpose
 
 Transforms raw user requirements in `.spec/context/` into a structured, validated, approved
-hybrid YAML+Markdown spec. The spec becomes the single source of truth **on disk** for downstream kits. Pass them
-`{RUN_DIR}/spec.md` (and `{RUN_DIR}/kit-result.json`) — never the spec body in chat.
+hybrid YAML+Markdown spec under `.spec/spec/`. Downstream kits read `.spec/app/current.json`
+for the path — never the spec body in chat. Pass `{RUN_DIR}/spec.md` and `{RUN_DIR}/kit-result.json`.
 
 ---
 
@@ -53,7 +53,8 @@ All script and reference paths are `{KIT_DIR}/skills/generate-spec/…`. Never h
 | `templates/spec-frontmatter.yaml` | synthesizer (Station 6) | YAML front matter template |
 | `templates/spec-body.md` | synthesizer (Station 6) | Markdown body template |
 | `scripts/validate-spec.mjs` | orchestrator (Station 7, Bash) | deterministic schema validation |
-| `scripts/new-run.sh` | this skill (Station 0, Bash) | timecode freeze + run-folder scaffold |
+| `scripts/publish-spec.mjs` | this skill (Station 10, Bash) | set `approved`, re-validate, revert to `reviewing` on failure |
+| `scripts/continue-spec.mjs` | this skill (Station 0, Bash) | timecode freeze + run-folder scaffold |
 | `scripts/write-kit-result.mjs` | this skill (publish or abort) | `{RUN_DIR}/kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
 ---
@@ -101,14 +102,16 @@ Read `{KIT_DIR}/skills/generate-spec/references/pipeline-flow.md` before Station
 
 1. Read `references/artifact-naming.md`.
 2. Derive `slug` from `[feature-name]` (normalized) or from context file signals.
-3. Scaffold:
+3. Scaffold from the shared pointer (`.spec/app/current.json`), not from older context files.
+   `.spec/processed/` is archive, not input. See `references/app-state.md`.
 
 ```bash
-bash {KIT_DIR}/skills/generate-spec/scripts/new-run.sh {slug} .spec/app
+node {KIT_DIR}/skills/generate-spec/scripts/continue-spec.mjs --slug {slug}
 ```
 
-Capture `TIMECODE` and `RUN_DIR` from stdout.
-4. Log: `"[generate-spec] Timecode: {TIMECODE} | Slug: {slug} | Run dir: {RUN_DIR} | KIT_DIR: {KIT_DIR}"`
+Capture `MODE`, `SPEC_ID`, `RUN_DIR`, `PRIOR_INDEX`, `APP_SLUG`, and `TIMECODE` from stdout.
+Use `APP_SLUG` as the app slug from here on (`MODE=continue` keeps the existing app slug).
+4. Log: `"[generate-spec] Timecode: {TIMECODE} | Slug: {APP_SLUG} | Run dir: {RUN_DIR} | MODE: {MODE} | KIT_DIR: {KIT_DIR}"`
 
 ### Step 3 — Intake (Station 1)
 
@@ -125,10 +128,14 @@ Spawn `spec-orchestrator`. It **never** asks the user. Loop on packets:
 ```
 MODE:      build          # then resume | revise
 TIMECODE / SLUG / RUN_DIR / KIT_DIR
+APP_SLUG:  {APP_SLUG}
+CONTINUE:  {MODE}         # first | continue
+PRIOR_INDEX: {PRIOR_INDEX}
 INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json
 
 Read {KIT_DIR}/skills/generate-spec/references/pipeline-flow.md before any station.
-Do NOT call AskUserQuestion. Return one packet and STOP.
+Do NOT call AskUserQuestion. Do NOT inline base.spec.md or prior context files.
+Return one packet and STOP.
 ```
 
 | Packet `type` | This skill |
@@ -145,8 +152,24 @@ Max rounds are enforced by the orchestrator; this skill still stops if a loop ex
 
 Only after explicit approval (or approve-as-is escalation):
 
-1. Set `status: approved` in `{RUN_DIR}/spec.md` (synthesizer left `reviewing`).
-2. Write the path-only envelope (parent orchestrators read this file, not this report):
+1. Approve the spec only when it still passes the minimum-viable check. This sets
+   `status: approved`, re-runs the validator, and on failure puts `status` back to `reviewing`:
+
+```bash
+node {KIT_DIR}/skills/generate-spec/scripts/publish-spec.mjs {RUN_DIR}/spec.md
+```
+
+Exit 0: `status` is `approved`. Continue. Exit 1: `status` is `reviewing` again. Show the
+validator errors to the human. Do not archive. Do not write an approved envelope. Stop.
+
+2. Archive the inbox and move the shared pointer. Do this only after exit 0. An abort leaves
+   `.spec/context/` in place and does not change `current.json`.
+
+```bash
+node {KIT_DIR}/skills/generate-spec/scripts/archive-context.mjs --run {RUN_DIR}
+```
+
+3. Write the path-only envelope (parent orchestrators read this file, not this report):
 
 ```bash
 node {KIT_DIR}/skills/generate-spec/scripts/write-kit-result.mjs \
@@ -160,15 +183,17 @@ node {KIT_DIR}/skills/generate-spec/scripts/write-kit-result.mjs \
 
 If the caller passed `RESULT_OUT`, add `--also {RESULT_OUT}`.
 
-3. Report **paths only** (do not paste spec YAML):
+4. Report **paths only** (do not paste spec YAML):
 
 ```
 Spec published: {RUN_DIR}/spec.md
+Pointer: .spec/app/current.json
+Context archived: .spec/processed/{SPEC_ID}/
 Result: {RUN_DIR}/kit-result.json
 
 Next steps:
-  /feature-dev   → start building (reads this spec from disk)
-  /generate-html → generate clickable prototype (pass the spec.md path)
+  /generate-html → add screens to the prototype (reads current.json)
+  /feature-dev   → build one new feature (reads current.json)
 ```
 
 On any STOP after Step 2 created `RUN_DIR` (human abort, drop, unrecoverable escalation):
@@ -216,11 +241,16 @@ returns `ESCALATION_PACKET`. Semantic warnings surface in Station 9, not here.
 
 ## Re-Running
 
-Running `/generate-spec` again creates a **new** folder with a new timecode — never overwrites. The
-latest timecode folder is authoritative.
+A later `/generate-spec` reads `.spec/app/current.json`, copies that spec to `base.spec.md`, and
+assigns the next `US` / `SCR` / `AC` ids. The model sees `artifacts/prior-index.json` (id, title,
+route, entity name) plus the new inbox files — not the old notes and not the full previous spec.
+Publish writes a new `.spec/spec/{spec-id}/` folder, moves the inbox to `.spec/processed/{spec-id}/`,
+and leaves the previous spec on disk.
 
-To update an existing spec: add notes to `.spec/context/` then re-run. Station 9 applies targeted
-edits before this skill publishes.
+`revert-increment.mjs` points `current.json` at the parent spec and prototype. It does not delete
+the newer folders.
+
+Station 9 still applies targeted edits inside the current run before publish.
 
 ---
 

@@ -20,7 +20,7 @@ count, new package, new route). Do not read the upstream app spec to classify.
 |------|------|-----------|
 | **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree), then `run-gates.sh --until fsd`. Skip Stations 1, 1.5, 1a, 8, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
 | **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. Skip Station 1.5. Layer gates are `--until fsd`. Build and coverage once at Station 9. `test-engineer` only if coverage fails. Station 9.5 is `DIFF_SCOPE`. |
-| **full** | Six or more slices, or a new route plus a new entity | Same as standard, plus Station 1.5 scoped to `## FSD Impact` paths (not all of `src/`). Parallel worktree engineers only when a layer has two or more independent slices. One slice in a layer uses `slice-engineer`. |
+| **full** | Six or more slices, or a new route plus a new entity | Same as standard, plus Station 1.5 scoped to `## FSD Impact` paths (not all of `src/`). Slices in one layer run one after another on the feature branch. One slice in a layer uses `slice-engineer`. |
 
 ---
 
@@ -51,11 +51,11 @@ Station 2    Planning (orchestrator, blackboard only)   ← GATE: build-plan
       ↓
 Station 3    shared/      (shared-engineer)             ← GATE: layer-green (--until fsd)
       ↓
-Station 4    entities/    (entities-engineer × N)       ← PARALLEL · GATE: layer-green
+Station 4    entities/    (entities-engineer × N)       ← one after another · GATE: layer-green
       ↓
-Station 5    features/    (features-engineer × N)       ← PARALLEL · GATE: layer-green
+Station 5    features/    (features-engineer × N)       ← one after another · GATE: layer-green
       ↓
-Station 6    widgets/ + pages/ (composition-engineer)   ← PARALLEL · GATE: layer-green
+Station 6    widgets/ + pages/ (composition-engineer)   ← one after another · GATE: layer-green
       ↓
 Station 7    app/         (app-engineer)                ← GATE: layer-green
       ↓
@@ -106,8 +106,8 @@ Each packet is small JSON plus a file path. The body lives in `.spec/features/<s
 | `review-clean` | 10→11 | No `[CRITICAL]`; no unresolved `[IMPORTANT]` | Owning engineer |
 | `human-approved` | 12 | Human replies `approve` | Skill sets `status: done` |
 
-**Gate bypass is never allowed.** A patch run still runs `--until fsd`. It does not run `yarn build`
-or `yarn test:auto`.
+**Gate bypass is never allowed.** A patch run still runs `--until fsd`. It does not run the package build
+or `test:auto`.
 
 Station 1.5 is full tier only. Scope is the paths in `## FSD Impact` plus their importers, not `src/`.
 Hard violations on those paths escalate. Unrelated legacy issues stay as notes.
@@ -131,15 +131,15 @@ Re-run `coverage` only if the fix touched tests. Do not rebuild after a type err
 
 ## Parallelism Rules
 
-Independent slices inside one layer are spawned **in a single message**.
+Same-layer slices run one after another on the feature branch. Do not use a git worktree and do not merge.
 
-| Station | Parallel unit | Isolation |
-|---------|--------------|-----------|
-| 4 | one `entities-engineer` per entity slice, only when that layer has 2+ independent slices | `isolation: worktree` |
-| 5 | one `features-engineer` per feature slice, only when 2+ | `isolation: worktree` |
-| 6 | one `composition-engineer` per widget/page, only when 2+ | `isolation: worktree` |
+| Station | Unit |
+|---------|------|
+| 4 | one `entities-engineer` per entity slice, in order, when that layer has 2+ slices |
+| 5 | one `features-engineer` per feature slice, in order, when 2+ |
+| 6 | one `composition-engineer` per widget/page, in order, when 2+ |
 
-A single slice in a layer uses `slice-engineer` with no worktree. Two slices that both edit
+A single slice in a layer uses `slice-engineer`. Two slices that both edit
 `shared/config/textContent.ts` are not independent — sequence them.
 
 Stations 1, 1.5, 2, 3, 7, 9, 9.5, and 10 stay sequential.
@@ -201,7 +201,7 @@ second layer — then promote to `standard`.
 | Pass raw `git diff` or a worker report into the orchestrator chat | Return `HANDOFF` + `CONTAINS` |
 | Pass the full app spec body to the hub | One run is one feature (its nested screens only) |
 | Spawn `feature-orchestrator` for a patch | The skill runs `slice-engineer` directly |
-| Run `yarn build` or `yarn test:auto` after every layer | Those run once at Station 9 |
+| Run the package build or `test:auto` after every layer | Those run once at Station 9 |
 | Audit all of `src/` at Station 1.5 | Scope is `## FSD Impact` |
 | Any agent runs `/create-pr`, `git push`, or merges | Shipping is human-only |
 | Skip `DIFF_SCOPE` architecture-audit on standard/full because Steiger passed | Steiger is import direction; 9.5 checks segments, public APIs, and query keys |

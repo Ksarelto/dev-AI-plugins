@@ -17,7 +17,7 @@ The `orchestrate-frontend` skill (or a human invoking `/feature-dev` with the sa
 | Field | Required | Meaning |
 |-------|----------|---------|
 | `REQUEST` | no, when `UPSTREAM_SPEC` + `FEATURE_ID` | One line naming the feature. **Never** paste spec YAML, stories, or ACs — `import-upstream.mjs` reads `UPSTREAM_SPEC`. Required only for standalone free-text runs |
-| `UPSTREAM_SPEC` | preferred | Path to `.spec/app/spec-{tc}_{slug}/spec.md` |
+| `UPSTREAM_SPEC` | preferred | Path to `.spec/spec/spec-{tc}_{slug}/spec.md` (or the `spec_path` in `.spec/app/current.json`) |
 | `FEATURE_ID` | when from frontend-orchestrator-kit | Checklist feature id, e.g. `F-001` |
 | `TASK_IDS` | when from frontend-orchestrator-kit | Nested task ids, comma-separated, e.g. `T-001,T-002` |
 | `SCREEN_REFS` | when the feature has screens | Nested `ui-surface.screens[].id` values, e.g. `SCR-001,SCR-002` |
@@ -86,7 +86,7 @@ row; `prototype-ref` may still be the directory.
 ```yaml
 slug: sign-in
 status: draft
-upstream-spec: .spec/app/spec-{tc}_{slug}/spec.md
+upstream-spec: .spec/spec/spec-{tc}_{slug}/spec.md
 feature-id: F-001
 task-id: T-001,T-002          # comma-separated nested tasks
 screen-ref: SCR-001,SCR-002   # comma-separated nested screens

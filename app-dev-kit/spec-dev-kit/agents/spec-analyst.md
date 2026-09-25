@@ -291,6 +291,9 @@ When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
     "unanalyzed_signals": [],
     "analysis_warning": null
   },
+  "change_intents": [
+    { "op": "added | modified | removed", "kind": "entity | user-story | acceptance-criterion | screen | endpoint | mutation | agent | tool", "id": "Profile" }
+  ],
   "qa_log": [
     { "round": 1, "questions": [], "answers": [] }
   ]
@@ -315,6 +318,10 @@ When thinking through gaps, use the extended thinking budget to:
 A thorough thinking pass here prevents multiple clarification rounds.
 
 ---
+
+## Continue runs
+
+When `BASE_SPEC` and `PRIOR_INDEX` are passed, read `PRIOR_INDEX` only (ids, one `i-want` per story, entity names, screen titles). Do not read `BASE_SPEC`. Add `change_intents` to the report. `id` is the entity `name` or an existing `US-` / `SCR-` / `AC-` / `API-` / `AGT-` / `TOOL-` id. A request that changes something already in the index is `modified` or `removed`. Something with no index match is `added` and may omit `id`. On a first run (no `PRIOR_INDEX`), write `"change_intents": []`.
 
 ## Persistence
 

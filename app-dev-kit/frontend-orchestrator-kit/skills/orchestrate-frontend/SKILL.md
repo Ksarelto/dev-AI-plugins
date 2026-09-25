@@ -11,7 +11,7 @@ allowed-tools: [Read, Glob, Grep, Write, Bash, Skill, AskUserQuestion]
 **Entry point for**: the frontend track (spec → prototype → UI screen-tasks)
 **Delegates to**: `spec-dev-kit:generate-spec`, `html-generator-kit:generate-html`,
 `feature-dev-kit:feature-dev` — each invoked as its own plugin skill, each keeping its own gates
-**State file**: `.spec/app/spec-{tc}_{slug}/task-checklist.md`
+**State file**: `.spec/app/task-checklist.md` (legacy runs keep it beside `spec.md`)
 **Handoff**: `references/result-envelope.md` + `references/context-budget.md`
 
 This skill runs in the **main conversation**. It owns every `AskUserQuestion` call **of its own**.
@@ -74,7 +74,7 @@ resolves those at run time.
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `[app-name or existing spec/checklist slug]` | Optional | Matches an existing `.spec/app/spec-*_{slug}/` run to resume. Free text starts a new app. Omitted → this skill asks for the app name/description. |
+| `[app-name or existing spec/checklist slug]` | Optional | Matches `slug` in `.spec/app/current.json`. Free text starts a new app. Omitted → this skill asks for the app name/description. |
 
 Structured fields (from `orchestrate-app` or the human) may accompany the argument:
 
@@ -83,7 +83,6 @@ SPEC_PATH:      {path to approved spec.md}
 PROTOTYPE_REF:  {prototype dir or empty}
 SKIP_UPSTREAM:  true          # skip Stations 1–2; spec already approved
 RESULT_OUT:     {optional extra envelope path}
-WORK_PLAN:      {path to work-plan.md — parent-owned; do not edit}
 ```
 
 ```
@@ -100,9 +99,12 @@ Read `references/pipeline-flow.md` and `references/context-budget.md` before sta
 
 ### Station 0 — Resume check
 
-1. If `SPEC_PATH` was passed and that `spec.md` exists, use it. Else
-   `Glob(".spec/app/spec-*/task-checklist.md")`. If the argument matches an existing run (slug
-   substring in the folder name):
+A fresh session starts by reading `.spec/app/current.json`. Do not recover the spec from chat.
+
+1. If `SPEC_PATH` was passed and that `spec.md` exists, use it. Else read `.spec/app/current.json`.
+   When `spec_path` is set and the argument is omitted or equals `slug`, use that path.
+   The checklist is `.spec/app/task-checklist.md` (not beside the spec folder).
+   If the argument matches `slug`:
    - Read the checklist YAML **only** (id/title/status/paths — not a dump of the spec).
    - `SPEC_PATH` = `spec-ref`. If that file is missing, STOP.
    - Read `status:` from the spec **front matter only**. If it is not `approved`, STOP — finish
@@ -119,8 +121,8 @@ Read `references/pipeline-flow.md` and `references/context-budget.md` before sta
 
 If `SKIP_UPSTREAM` is set or `SPEC_PATH` already points at an `approved` spec, skip to Station 2.
 
-`Glob(".spec/app/spec-*/spec.md")` filtered by the argument. For each candidate, read **only**
-the YAML `status` field. If one is `approved`, set `SPEC_PATH` to that file and skip to Station 2.
+Read `.spec/app/current.json`. If `spec_path` exists and the spec `status` is `approved`, set
+`SPEC_PATH` to that file and skip to Station 2. Do not glob for a newer spec folder.
 
 If none approved:
 
@@ -129,9 +131,9 @@ If none approved:
    Do **not** invoke generate-spec (it would stop the same way after loading its skill body).
 2. Invoke `spec-dev-kit:generate-spec` with the **slug/app name only** — never paste context-file
    contents. It owns its HITL gate.
-3. After it returns, `Glob(".spec/app/spec-*/kit-result.json")`, take the newest, Read it.
-   - `outcome: approved` → `SPEC_PATH` = envelope `spec_path`.
-   - `aborted` / `error` / missing file → STOP. Nothing downstream can run.
+3. After it returns, read `.spec/app/current.json`.
+   - `spec_path` set → `SPEC_PATH` = that path. Confirm `{dirname}/kit-result.json` is `approved`.
+   - missing pointer or `aborted` / `error` → STOP. Nothing downstream can run.
 
 Do not Read `spec.md` body here.
 
@@ -166,6 +168,8 @@ Never Read prototype HTML into this conversation.
 ```bash
 node {KIT_DIR}/skills/orchestrate-frontend/scripts/build-checklist.mjs {SPEC_PATH} --prototype-ref "{PROTOTYPE_REF}"
 ```
+
+If `{dirname(SPEC_PATH)}/artifacts/changes.json` exists, add `--changes` with that path.
 
 The script Reads `spec.md` from disk. Do not pre-load the spec into chat.
 It groups screens into **features** (one user story each). Nested tasks stay screen-level.
@@ -202,8 +206,11 @@ feature. Nested tasks are not separate calls, branches, or commits.
    CHECKLIST_PATH: {path to task-checklist.md}
    SLUG_HINT:      {feature.slug-hint}
    PARENT_BRANCH:  {current HEAD when it is feature/*; empty on the first feature}
+   CHANGE:         remove
    RESULT_OUT:     {dirname(CHECKLIST_PATH)}/results/{feature.id}.json
    ```
+
+   Pass `CHANGE=remove` only when a nested task `change` is `remove`. Those screen refs are deletions.
 
    Do **not** paste user stories, ACs, or spec YAML into `REQUEST`. feature-dev’s
    `import-upstream.mjs` reads `UPSTREAM_SPEC`.

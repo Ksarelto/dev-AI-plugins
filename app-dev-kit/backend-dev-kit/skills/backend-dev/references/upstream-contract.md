@@ -17,7 +17,6 @@ Task derivation: app-orchestrator-kit `references/track-decomposition.md`.
 | `API_REFS` | when known | `API-xxx` list |
 | `STORY_REFS` / `AC_REFS` | when known | scoped lists |
 | `PROTOTYPE_REF` | optional | Prototype dir — form-field hint, never inlined HTML |
-| `WORK_PLAN` | optional | Parent-owned; this kit never edits it |
 | `SLUG_HINT` | when no entity title | kebab resource slug |
 | `RESULT_OUT` | optional | Extra `kit-result.json` copy |
 

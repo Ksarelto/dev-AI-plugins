@@ -29,7 +29,7 @@
   in-agent gate would silently self-approve. `spec-interrogator` and `spec-review-facilitator`
   return structured packets; the orchestrator wraps them (`CLARIFY_PACKET` / `REVIEW_PACKET` /
   `ESCALATION_PACKET`) and **stops**. No agent holds `AskUserQuestion` in its tool list.
-- **Output path is fixed everywhere**: `.spec/app/spec-{timecode}_{slug}/spec.md`.
+- **Output path is fixed everywhere**: `.spec/spec/spec-{timecode}_{slug}/spec.md`. The shared pointer is `.spec/app/current.json` (`references/app-state.md`).
 - **Status lifecycle**: the synthesizer emits `status: reviewing` — never `approved`. Only human
   approval at Station 9 unlocks `approved`, which the **skill** sets at Station 10 (publish).
 - **Diagrams derive from a validated spec**: Station 8 runs only after Station 7 passes.
@@ -44,7 +44,7 @@
 
 | # | Station | Owner | Model / Effort | Notes |
 |---|---------|-------|----------------|-------|
-| 0 | Context discovery + naming | **skill** | — | globs `.spec/context/*.md`, freezes timecode, derives slug, scaffolds run dir via `{KIT_DIR}/skills/generate-spec/scripts/new-run.sh` |
+| 0 | Context discovery + naming | **skill** | — | globs `.spec/context/*.md` only, freezes timecode, scaffolds `.spec/spec/` via `continue-spec.mjs` (copies the last spec when `current.json` exists) |
 | 1 | Intake & normalize | **skill** | — | reads + normalizes context files per `references/context-protocol.md`; writes `artifacts/intake.json` |
 | 2 | Gap & conflict analysis | `spec-analyst` | sonnet / **xhigh** (`effort: xhigh`) | writes `artifacts/analysis.json` |
 | 2a | Clarification questions | `spec-interrogator` → **skill** asks | sonnet / **xhigh** | interrogator returns `questions[]`; orchestrator returns `CLARIFY_PACKET`; skill calls `AskUserQuestion` |
@@ -52,7 +52,7 @@
 | 3 | Pre-enrich gate | orchestrator | opus | **blocking-gap check BEFORE enrichment** |
 | 4 | Enrichment | `spec-enricher` | sonnet / **xhigh** | writes `artifacts/enriched.json` |
 | 5 | Completeness gate | `spec-completeness` | haiku | writes `artifacts/completeness.json`; `< 85` → analysis re-entry → `CLARIFY_PACKET` |
-| 6 | Synthesis | `spec-synthesizer` | sonnet / **xhigh** | writes `{RUN_DIR}/spec.md`; `status: reviewing` |
+| 6 | Synthesis | `spec-synthesizer` | sonnet / **xhigh** | first run writes `spec.md`; a continued run writes `artifacts/delta.yaml`, then `merge-spec.mjs` writes `spec.md`. `status: reviewing` |
 | 7 | Validation gate | orchestrator + `validate-spec.mjs` | — | Bash; on fail ×2 return `ESCALATION_PACKET` |
 | 8 | Diagram generation | `spec-diagram` | sonnet | patches `## Visual Reference` in `spec.md` |
 | 9 | Review loop (HARD STOP) | `spec-review-facilitator` → **skill** asks | sonnet | orchestrator returns `REVIEW_PACKET`; skill asks; `MODE: revise` to apply |
@@ -179,9 +179,15 @@ Workers (and the skill) persist stage output so later stages read **paths**, not
 (see `references/context-budget.md`).
 
 ```
-.spec/app/spec-{tc}_{slug}/
-  spec.md                      ← synthesizer writes (reviewing); skill sets approved
+.spec/spec/spec-{tc}_{slug}/
+  spec.md                      ← synthesizer or merge-spec.mjs (reviewing); skill sets approved
+  base.spec.md                 ← copy of the previous spec when MODE=continue; not a model prompt
   artifacts/
+    prior-index.json           ← continue-spec.mjs (ids + one line per existing screen)
+    prior-items.yaml           ← lookup-spec.mjs, full items for modified ids
+    delta.yaml                 ← synthesizer, continue runs: add, modify, and removed:
+    delta.md                   ← synthesizer, only when the narrative changes
+    changes.json               ← merge-spec.mjs
     intake.json                ← Station 1 (skill)
     analysis.json              ← spec-analyst (overwritten per round)
     completeness.json          ← spec-completeness
@@ -217,8 +223,8 @@ Do **not** fan-out Stations 2–10. Do **not** run Station 8 before Station 7.
 
 ## Downstream Integration
 
-After the spec is published at `.spec/app/spec-{tc}_{slug}/spec.md`:
+After the spec is published, `.spec/app/current.json` points at `.spec/spec/spec-{tc}_{slug}/spec.md`
+and the inbox has moved to `.spec/processed/{spec-id}/`.
 
-- **feature-dev-kit** (station 0): `Glob(".spec/app/spec-*_{slug}/spec.md")` → latest timecode;
-  pre-populate the feature blackboard (skips duplicate clarification).
-- **html-generator-kit** (`/generate-html`): same glob; read `ui-surface.screens[]` and `entities[]`.
+- **html-generator-kit**, **feature-dev-kit**, **backend-dev-kit**, **agent-dev-kit**, and both
+  orchestrators read `current.json` in a fresh session. They do not glob for the newest spec.

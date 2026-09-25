@@ -22,7 +22,7 @@ Station 0, is what lets a resumed run find its own files.
    before any app-level slug. Required when `SCREEN_REF` is empty.
 3. **Screen-task** — if `SCREEN_REF` / task title is present, slug from the **screen**
    (`Sign in` → `sign-in`), not from the app spec's `metadata.slug`. One blackboard per
-   screen-task; the app slug stays on `.spec/app/spec-*/`.
+   screen-task; the app slug stays on `.spec/spec/spec-*/`. Runs that still keep `spec.md` under `.spec/app/spec-*/` remain valid.
 4. **From the request text** — take the primary verb + primary business noun.
    `"reviewers should be able to decline a profile with a reason"` → `decline-profile`.
 5. **Collision** — append the smallest integer suffix: `decline-profile-2`.

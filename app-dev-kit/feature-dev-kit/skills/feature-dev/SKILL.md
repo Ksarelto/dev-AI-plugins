@@ -79,7 +79,7 @@ Name them in each delegation `APPLY`. Companion **frontend-dev-kit** supplies `a
 | context7 MCP responding | see `references/mcp-servers.md` | Warn; Station 1a falls back to web search |
 | Working tree clean | `git status --porcelain` | Ask the human to commit or stash first |
 
-A spec from `/generate-spec` in `.spec/app/spec-*/spec.md` is **optional but preferred**. When
+A spec from `/generate-spec` at the `spec_path` in `.spec/app/current.json` (`.spec/spec/spec-*/spec.md`) is **optional but preferred**. When
 frontend-orchestrator-kit (or the human) also passes `FEATURE_ID` / `SCREEN_REFS`, Station 0 imports
 **only that feature's nested screens**. Never ingest a whole `type: app` spec into one feature run.
 
@@ -115,13 +115,15 @@ Do not read `pipeline-flow.md` into this conversation. The tier table below is t
    `metadata.slug` as the feature slug — derive from `SLUG_HINT` (the feature's kebab title),
    so `.spec/features/sign-in.md` does not collide with the app slug. `SLUG_HINT` is required
    when the checklist feature has no title to kebab. Never fall back to the app slug.
-3. Resolve upstream:
+3. Resolve upstream from disk, not from chat:
    - If `UPSTREAM_SPEC` was passed, use it.
-   - Else `Glob(".spec/app/spec-*/spec.md")`. If a spec's title or slug matches the **app**, note
-     the path. Then `Glob` sibling `task-checklist.md`. If a **feature** matches the request
+   - Else read `.spec/app/current.json`. Set `UPSTREAM_SPEC` to `spec_path` and `PROTOTYPE_REF`
+     to `prototype_ref` when those fields are non-empty.
+   - Then read `.spec/app/task-checklist.md`. If a **feature** matches the request
      (title, slug-hint, or a nested task `screen-ref`), adopt that feature's `FEATURE_ID`,
-     nested `TASK_IDS` / `SCREEN_REFS`, and `prototype-ref`. If nothing matches, standalone
-     feature — no whole-app dump.
+     nested `TASK_IDS` / `SCREEN_REFS`. A `done` feature is not rebuilt unless that feature,
+     or one of its tasks, is `pending` with `blocked-reason: spec changed`. If nothing matches,
+     standalone feature — no whole-app dump. Do not glob `.spec/spec/spec-*/spec.md` or `.spec/app/spec-*/spec.md`.
 
 | Spec `status` | Resume at |
 |---------------|-----------|
@@ -131,7 +133,7 @@ Do not read `pipeline-flow.md` into this conversation. The tier table below is t
 | `building` | Station 2 (re-plan from the Build plan section) |
 | `review`, `changes-requested` | Station 11 |
 | `awaiting-human` | Station 12 |
-| `done` | Report and stop — nothing to do |
+| `done` | Report and stop — nothing to do, unless the checklist row is `pending` with `blocked-reason: spec changed`. Then import with `--changes` and resume at Station 1 |
 
 ### Step 2 — Scaffold + scoped import (Station 0)
 
@@ -159,11 +161,12 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
   --ac-refs {comma-separated or omit} \
   --entity-refs {comma-separated or omit} \
   --prototype-ref {PROTOTYPE_REF or omit} \
-  --require-scoped
+  --require-scoped \
+  --changes {dirname(UPSTREAM_SPEC)}/artifacts/changes.json
 ```
 
-`--require-scoped` is mandatory when the upstream spec `type` is `app` or has more than one
-screen. Standalone requests omit it.
+Pass `--changes` only when that file exists. `--require-scoped` is mandatory when the upstream spec `type` is `app` or has more than one
+screen. Standalone requests omit it. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement.
 
 Then spawn `upstream-interpreter` with **paths and ids only** (it may re-run the same script).
 Pass its `HANDOFF` path to `spec-analyst` together with `SPEC_PATH`. Do not paste the slice.
@@ -300,7 +303,7 @@ be typed by a human.
 ## Non-negotiables
 
 1. **The human gates are real.** Stations 0.5, 1b, and 12 are owned by this skill, never by a subagent.
-2. **No unapproved dependency.** `yarn add` runs only after Station 1b sign-off.
+2. **No unapproved dependency.** The lockfile's package manager runs only after Station 1b sign-off.
 3. **Bottom-up, gate-per-layer.** No layer is built on a red gate.
 4. **The spec is the handoff medium.** Workers read and write sections; chat output is not state.
 5. **One feature per run.** Nested screen-tasks share this branch and this commit. FSD slices

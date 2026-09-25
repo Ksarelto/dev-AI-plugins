@@ -57,7 +57,7 @@ Scripts: `{KIT_DIR}/skills/agent-dev/…`.
 ## Arguments
 
 `UPSTREAM_SPEC`, `TASK_ID`, `AGENT_REF`, `STORY_REFS`, `AC_REFS`, `PROTOTYPE_REF`,
-`WORK_PLAN`, `SLUG_HINT`, `RESULT_OUT`. `REQUEST` is one line when those are set.
+`SLUG_HINT`, `RESULT_OUT`. `REQUEST` is one line when those are set.
 
 ```
 /agent-dev
@@ -72,15 +72,20 @@ Read `references/pipeline-flow.md`.
 
 ### Station 0
 
-Resume or `new-agent.sh {slug}` from `SLUG_HINT`. Import:
+Resume or `new-agent.sh {slug}` from `SLUG_HINT`. If the blackboard `status` is `done`, report complete and stop unless the matching work-plan task is `pending` with `blocked-reason: spec changed`. Import then sets `status: approved`; skip Station 0.5 and continue at station 1. If `UPSTREAM_SPEC` is empty, read
+`.spec/app/current.json` and set `UPSTREAM_SPEC` from `spec_path` and `PROTOTYPE_REF` from
+`prototype_ref`. Do not glob for a spec. Import:
 
 ```bash
 node {KIT_DIR}/skills/agent-dev/scripts/import-upstream.mjs \
   --spec {UPSTREAM_SPEC} --out .spec/agents/{slug}.md \
   --task-id {TASK_ID} --agent-ref {AGENT_REF} \
   --story-refs {STORY_REFS} --ac-refs {AC_REFS} \
-  --prototype-ref "{PROTOTYPE_REF}" --require-scoped
+  --prototype-ref "{PROTOTYPE_REF}" --require-scoped \
+  --changes {dirname(UPSTREAM_SPEC)}/artifacts/changes.json
 ```
+
+Pass `--changes` only when that file exists. A reopened board has `## Change request`. When `CHANGE=remove`, delete the existing agent module for that ref. Do not scaffold a replacement.
 
 Spawn `agent-interpreter` then `agent-analyst`. `CLARIFY_PACKET` → this skill asks.
 

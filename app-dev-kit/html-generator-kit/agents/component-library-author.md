@@ -18,6 +18,12 @@ No HTML authoring — JS and one markdown reference file.
 - `entities[]` — array of `{ name, fields[], statuses[], api_contract }` for each entity
 - `KIT_DIR` — plugin root (contains `agents/` and `skills/`; never assume `.spec/html-generator-kit/`)
 - `OUTPUT_DIR`
+- `MODE` — omit on a first build. `update` patches existing mock data.
+- `ENTITIES_CHANGED` — entity names to patch when `MODE` is `update`
+
+## Update mode
+
+When `MODE` is `update`, edit only the `Alpine.data` blocks in `{OUTPUT_DIR}/js/data.js` for `ENTITIES_CHANGED`. Leave every other block, `js/app.js`, and CSS unchanged. Append a manifest row only for an entity that has no block yet.
 
 ## Steps
 

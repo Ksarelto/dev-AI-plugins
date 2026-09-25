@@ -142,6 +142,8 @@ API_CONTRACTS:
 
 ## Limits
 
+- Full build only. Append mode does not call this agent; `delta-pages.json` is the page list and
+  the 15-screen cap does not apply to it.
 - If spec has more than 15 screens: extract first 15, append note: `(+N more screens — truncated to 15)`.
 - If an entity has more than 12 fields: keep the 12 most relevant to the UI.
 - Keep the entire output under 100 lines.

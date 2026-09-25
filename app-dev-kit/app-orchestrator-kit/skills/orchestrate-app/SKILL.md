@@ -12,7 +12,7 @@ allowed-tools: [Read, Glob, Grep, Write, Bash, Skill, AskUserQuestion]
 **Delegates to**: `spec-dev-kit:generate-spec`, `html-generator-kit:generate-html`,
 `backend-dev-kit:backend-dev`, `agent-dev-kit:agent-dev`,
 `frontend-orchestrator-kit:orchestrate-frontend`
-**State file**: `.spec/app/spec-{tc}_{slug}/work-plan.md`
+**State file**: `.spec/app/work-plan.md` (pointer: `.spec/app/current.json`)
 **Handoff**: `references/result-envelope.md` + `references/context-budget.md`
 
 This skill runs in the **main conversation**. It owns every `AskUserQuestion` call **of its own**.
@@ -68,7 +68,7 @@ Do not pre-install callee dependencies. Track order is backend → agent → fro
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `[app-name or existing spec/work-plan slug]` | Optional | Matches `.spec/app/spec-*_{slug}/` to resume. |
+| `[app-name or existing spec/work-plan slug]` | Optional | Matches `slug` in `.spec/app/current.json` to resume. |
 
 ```
 /orchestrate-app
@@ -84,7 +84,7 @@ Read `references/pipeline-flow.md` and `references/context-budget.md` before sta
 
 ### Station 0 — Resume
 
-`Glob(".spec/app/spec-*/work-plan.md")`. If the argument matches:
+Read `.spec/app/current.json` and `.spec/app/work-plan.md`. If the argument matches `slug`:
 
 - Read YAML only (track/task id/status/paths).
 - `SPEC_PATH` = `spec-ref`. If missing or spec `status` is not `approved`, STOP.
@@ -98,14 +98,14 @@ Otherwise continue to Station 1.
 
 ### Station 1 — Spec
 
-`Glob(".spec/app/spec-*/spec.md")`. Read YAML `status` only. If one is `approved`, set
-`SPEC_PATH` and skip to Station 2.
+Read `.spec/app/current.json`. If `spec_path` exists and that spec's `status` is `approved`, set
+`SPEC_PATH` and skip to Station 2. Do not glob for a newer spec folder.
 
 If none:
 
 1. Empty `.spec/context/` → STOP without invoking generate-spec.
 2. Invoke `spec-dev-kit:generate-spec` with the slug/app name only.
-3. Read newest `{RUN_DIR}/kit-result.json`. `approved` → `SPEC_PATH` = `spec_path`. Else STOP.
+3. Read `.spec/app/current.json`. `spec_path` set → `SPEC_PATH` = that path. Else STOP.
 
 Do not Read `spec.md` body.
 
@@ -125,6 +125,8 @@ On **Skip**: `PROTOTYPE_REF = ""`. Never Read prototype HTML.
 node {KIT_DIR}/skills/orchestrate-app/scripts/analyze-capabilities.mjs {SPEC_PATH} --prototype-ref "{PROTOTYPE_REF}"
 ```
 
+If `{dirname(SPEC_PATH)}/artifacts/changes.json` exists, add `--changes` with that path.
+
 Exit 1 — no needed tracks — report and stop. Exit 2 — parse failure — stop.
 
 Read `work-plan.md` YAML `tracks[]` (id, needed, confidence, task counts). Present one
@@ -142,7 +144,7 @@ For each `tasks[]` with `track: backend` that is not `done`/`skipped`:
 3. Invoke `backend-dev-kit:backend-dev`:
 
    ```
-   REQUEST:        Backend-task {id} ({slug-hint}). Read UPSTREAM_SPEC / WORK_PLAN.
+   REQUEST:        Backend-task {id} ({slug-hint}). Read UPSTREAM_SPEC.
    UPSTREAM_SPEC:  {SPEC_PATH}
    TASK_ID:        {id}
    ENTITY_REFS:    {entity-refs}
@@ -150,17 +152,19 @@ For each `tasks[]` with `track: backend` that is not `done`/`skipped`:
    STORY_REFS:     {story-refs}
    AC_REFS:        {ac-refs}
    PROTOTYPE_REF:  {PROTOTYPE_REF}
-   WORK_PLAN:      {work-plan.md}
    SLUG_HINT:      {slug-hint}
-   RESULT_OUT:     {dirname(WORK_PLAN)}/results/{id}.json
+   CHANGE:         remove
+   RESULT_OUT:     .spec/app/results/{id}.json
    ```
+
+   Pass `CHANGE=remove` only when the task `change` is `remove`. Station 4 does the same.
 
 4. Read `RESULT_OUT` (fallback `.spec/backend/{slug}.kit-result.json`). Apply the outcome table
    in `result-envelope.md`.
 5. If tasks remain: continue / pause / abort. Never auto-run the next increment.
 
 When all `B-*` tasks are `done` or `skipped`, set track `done` and `result` to the last envelope
-(or `{dirname}/results/` if mixed).
+(or `.spec/app/results/` if mixed).
 
 ### Station 4 — Agent loop
 
@@ -184,8 +188,7 @@ Invoke `frontend-orchestrator-kit:orchestrate-frontend`:
 SPEC_PATH:      {SPEC_PATH}
 PROTOTYPE_REF:  {PROTOTYPE_REF}
 SKIP_UPSTREAM:  true
-WORK_PLAN:      {work-plan.md}
-RESULT_OUT:     {dirname(WORK_PLAN)}/results/frontend.json
+RESULT_OUT:     .spec/app/results/frontend.json
 ```
 
 Read `{dirname(SPEC_PATH)}/frontend-kit-result.json` (or `RESULT_OUT`). Apply the outcome table
@@ -200,7 +203,7 @@ node {KIT_DIR}/skills/orchestrate-app/scripts/write-kit-result.mjs \
   --outcome approved \
   --spec-path {SPEC_PATH} \
   --prototype-ref "{PROTOTYPE_REF}" \
-  --work-plan {WORK_PLAN} \
+  --work-plan .spec/app/work-plan.md \
   --slug {slug} \
   --run-dir {dirname(SPEC_PATH)}
 ```
@@ -211,7 +214,7 @@ Report paths and counts only:
 ✅ App pipeline run for {slug}
 Spec:       {SPEC_PATH}
 Prototype:  {PROTOTYPE_REF or "skipped"}
-Work plan:  {WORK_PLAN}
+Work plan:  .spec/app/work-plan.md
 Tracks:     backend {status}, agent {status}, frontend {status}
 Envelope:   {dirname(SPEC_PATH)}/app-kit-result.json
 ```

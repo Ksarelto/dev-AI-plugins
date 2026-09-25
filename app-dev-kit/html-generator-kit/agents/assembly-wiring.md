@@ -24,11 +24,13 @@ All design decisions follow the design-system-ref passed by the orchestrator.
 
 ## Steps
 
-### 1. Verify all pages exist
+### 1. Build the full page list
 
 Glob `{OUTPUT_DIR}/pages/*.html`.
-Cross-check against the `pages[]` IDs.
-If any expected page is missing: report the list to the orchestrator and STOP — do not proceed with partial wiring.
+Start from `pages[]`. For each HTML file whose id is not already in `pages[]`, append
+`{ id, title: id, domain: "", description: "" }` using the filename without `.html`.
+If any `pages[]` id has no matching file, report those ids and STOP.
+Write the nav from this combined list so pages that already existed stay linked.
 
 ### 2. Write js/navigation.js
 

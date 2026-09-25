@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
   lstatSync,
@@ -128,6 +129,28 @@ function isSymlink(path) {
   }
 }
 
+function installYaml(entry) {
+  const target = resolve(root, entry.source);
+  const pkgPath = join(target, "package.json");
+  if (!existsSync(pkgPath)) return true;
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+  if (!pkg.dependencies?.yaml) return true;
+  if (dryRun) {
+    console.log(`[dry-run] npm install --omit=dev in ${target}`);
+    return true;
+  }
+  const result = spawnSync("npm", ["install", "--omit=dev"], {
+    cwd: target,
+    stdio: "inherit",
+  });
+  if (result.status !== 0) {
+    console.error(`FAIL: npm install --omit=dev in ${target}`);
+    return false;
+  }
+  console.log(`OK: yaml installed in ${entry.name}`);
+  return true;
+}
+
 let ok = true;
 
 if (!uninstall) {
@@ -136,7 +159,8 @@ if (!uninstall) {
 
 for (const entry of plugins) {
   const passed = uninstall ? uninstallOne(entry) : installOne(entry);
-  ok = passed && ok;
+  const deps = passed && !uninstall ? installYaml(entry) : true;
+  ok = passed && deps && ok;
 }
 
 if (!ok) {

@@ -50,13 +50,12 @@ RETURN:     HANDOFF: .spec/features/decline-profile.context/entities-engineer-4.
 |-------|------|
 | `OBJECTIVE` | One sentence, one deliverable. Two sentences means two workers. |
 | `SPEC_SECTIONS` | Named headers only. "The spec" is not an allowlist — see `references/context-budget.md`. |
-| `TARGET` | Exactly one slice. A worker spanning two slices cannot be worktree-isolated. |
+| `TARGET` | Exactly one slice. |
 | `APPLY` | One skill. Do not name rule files or the pipeline references. |
 | `BOUNDARY` | Always state what must **not** be touched, especially shared files two workers might both edit. |
 | `RETURN` | `HANDOFF` path plus one `CONTAINS` line. The detail is the file. |
 
-## Parallel dispatch
+## Sequential dispatch
 
-Independent slices in one layer are dispatched in a **single message**, one delegation block per
-worker, each with its own slice-scoped `SPEC_SECTIONS`. Never inline every slice's sections into
-every worker — parallel workers should not know about each other's files.
+Slices in one layer are dispatched one after another on the feature branch, each with its own
+slice-scoped `SPEC_SECTIONS`. Do not spawn them in one parallel message and do not use a git worktree.

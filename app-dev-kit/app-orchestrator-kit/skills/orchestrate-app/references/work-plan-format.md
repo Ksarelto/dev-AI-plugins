@@ -3,14 +3,14 @@
 **Written by**: `scripts/analyze-capabilities.mjs` (Station 2a) and the `orchestrate-app` skill
 (track/task status updates).
 **Read by**: `orchestrate-app` on every invocation (Station 0).
-**Location**: `.spec/app/spec-{tc}_{slug}/work-plan.md` — beside the `spec.md` it was derived from.
+**Location**: `.spec/app/work-plan.md` when the spec lives under `.spec/spec/`. Legacy specs keep it beside `spec.md`.
 
 Hybrid YAML front matter + append-only Markdown `## Log`.
 
 ```yaml
 ---
 work-plan-version: "1.0"
-spec-ref: ".spec/app/spec-{tc}_{slug}/spec.md"
+spec-ref: ".spec/spec/spec-{tc}_{slug}/spec.md"
 prototype-ref: ".spec/prototype/{proto-tc}_{slug}/"
 generated: "YYYY-MM-DDTHH:mm:ssZ"
 updated: "YYYY-MM-DDTHH:mm:ssZ"
@@ -44,6 +44,7 @@ tasks:
     title: Profile
     entity-refs: [Profile]
     api-refs: [API-001]
+    tool-refs: []
     agent-ref: ""
     story-refs: [US-001]
     ac-refs: [AC-001]
@@ -53,6 +54,7 @@ tasks:
     slug: ""
     branch: ""
     blocked-reason: ""
+    change: ""                # remove — delete the existing resource instead of building it
 ---
 ```
 

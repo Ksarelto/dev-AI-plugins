@@ -20,14 +20,41 @@ set -uo pipefail
 
 GATES=(types lint fsd build coverage)
 
-cmd_for() {
+script_for() {
   case "$1" in
-    types)    echo "yarn typecheck" ;;
-    lint)     echo "yarn lint" ;;
-    fsd)      echo "yarn lint:fsd" ;;
-    build)    echo "yarn build" ;;
-    coverage) echo "yarn test:auto" ;;
+    types)    echo "typecheck" ;;
+    lint)     echo "lint" ;;
+    fsd)      echo "lint:fsd" ;;
+    build)    echo "build" ;;
+    coverage) echo "test:auto" ;;
     *)        echo "" ;;
+  esac
+}
+
+pm_bin() {
+  if [[ -f pnpm-lock.yaml ]]; then echo pnpm
+  elif [[ -f yarn.lock ]]; then echo yarn
+  else echo npm
+  fi
+}
+
+has_script() {
+  node --input-type=module -e '
+    import { existsSync, readFileSync } from "node:fs"
+    if (!existsSync("package.json")) process.exit(1)
+    const pkg = JSON.parse(readFileSync("package.json", "utf8"))
+    process.exit(pkg.scripts && Object.hasOwn(pkg.scripts, process.argv[1]) ? 0 : 1)
+  ' "$1"
+}
+
+cmd_for() {
+  local script
+  script="$(script_for "$1")"
+  [[ -n "$script" ]] || { echo ""; return; }
+  case "$(pm_bin)" in
+    pnpm) echo "pnpm run $script" ;;
+    yarn) echo "yarn run $script" ;;
+    *)    echo "npm run $script" ;;
   esac
 }
 
@@ -72,9 +99,14 @@ for gate in "${GATES[@]}"; do
   fi
 
   command="$(cmd_for "$gate")"
+  script="$(script_for "$gate")"
   start=$SECONDS
 
-  if output="$(eval "$command" 2>&1)"; then
+  if ! has_script "$script"; then
+    status=fail
+    overall=1
+    output="missing package.json script: $script"
+  elif output="$(eval "$command" 2>&1)"; then
     status=pass
   else
     status=fail

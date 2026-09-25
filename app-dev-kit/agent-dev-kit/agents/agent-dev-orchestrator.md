@@ -15,6 +15,8 @@ Read `{KIT_DIR}/skills/agent-dev/references/pipeline-flow.md`. Blackboard only
 
 Inputs: `MODE` (`build`|`revise`), `SLUG`, `SPEC_PATH` (blackboard), `KIT_DIR`, `UPSTREAM_SPEC`.
 
+If the blackboard has `## Change request`, edit the existing agent. Do not scaffold a second one.
+
 Stations: architect → DEP_PACKET if needed → plan → scaffold-agent or embed-agent (STOP with
 `error` if embed is backend-route and `create-app.ts` is missing) → agent-builder or
 langgraph-agent → rag-builder if KBs → eval → quality-gate-runner → code-level review via

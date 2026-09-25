@@ -34,7 +34,10 @@ Workers persist their own artifacts. This agent only reads those files and decid
 Always:
 
 - `MODE` — `build` | `resume` | `revise` (default `build`)
-- `TIMECODE`, `SLUG`, `RUN_DIR` — `.spec/app/spec-{TIMECODE}_{SLUG}/`
+- `TIMECODE`, `SLUG`, `RUN_DIR` — `.spec/spec/spec-{TIMECODE}_{SLUG}/`
+- `CONTINUE` — `first` or `continue`
+- `PRIOR_INDEX` — path to `artifacts/prior-index.json` (do not inline it; the analyst and synthesizer read it)
+- `BASE_SPEC` — `{RUN_DIR}/base.spec.md` on a continue run. Pass the path. Do not paste the file.
 - `KIT_DIR` — plugin root (see skill for resolution)
 - `INTAKE_REPORT_PATH` — `{RUN_DIR}/artifacts/intake.json`
 
@@ -90,16 +93,26 @@ Do **not** continue past a packet. Do **not** ask the user yourself.
 
 Initialize `clarification_rounds` from the skill (0 on `build`).
 
+On `CONTINUE=continue`, every spec-analyst spawn also receives `BASE_SPEC` and `PRIOR_INDEX` (paths only). After each `analysis.json` write, collect `change_intents` whose `op` is `modified` and whose `id` is set. If that list is non-empty:
+
+```
+Bash: node {KIT_DIR}/skills/generate-spec/scripts/lookup-spec.mjs --spec {RUN_DIR}/base.spec.md --ids {comma-separated ids} --out {RUN_DIR}/artifacts/prior-items.yaml
+```
+
+If there are no modified ids, write `{}\n` to `{RUN_DIR}/artifacts/prior-items.yaml`. Pass `PRIOR_ITEMS` (that path) to spec-enricher and spec-synthesizer. Do not paste `prior-items.yaml` or `base.spec.md`.
+
 ```
 Spawn spec-analyst (Pass 1) unless RESUME_AT is 2b:
   OBJECTIVE: Deep gap and conflict analysis.
   KIT_DIR, RUN_DIR
   INTAKE_REPORT_PATH: {INTAKE_REPORT_PATH}
   ANALYSIS_OUT_PATH: {RUN_DIR}/artifacts/analysis.json
+  BASE_SPEC, PRIOR_INDEX   # continue runs only
   RULES: Read {KIT_DIR}/skills/generate-spec/references/clarification-protocol.md
   RETURN: after writing analysis.json
 
 Read artifacts/analysis.json (do not inline it into later prompts unless the contract allows).
+Refresh artifacts/prior-items.yaml from change_intents (continue runs only).
 
 if gap_score ≤ 25 AND conflicts.length === 0:
   continue Station 3
@@ -124,7 +137,9 @@ Spawn spec-analyst (Pass 2):
   INTAKE_REPORT_PATH
   ANALYSIS_PATH (compact: prior gaps + conflicts — agent reads the file)
   NEW_ANSWERS: {this round only}
+  BASE_SPEC, PRIOR_INDEX   # continue runs only
   ANALYSIS_OUT_PATH: overwrite analysis.json
+Refresh artifacts/prior-items.yaml from change_intents (continue runs only).
 
 Then re-evaluate the Station 2 exit condition (may return another CLARIFY_PACKET).
 ```
@@ -148,6 +163,7 @@ Otherwise continue to Station 4.
 ```
 Spawn spec-enricher:
   ANALYSIS_PATH, QA_LOG_PATH: {RUN_DIR}/artifacts/qa-log.md
+  PRIOR_ITEMS: {RUN_DIR}/artifacts/prior-items.yaml   # continue runs only; path, not contents
   ENRICHED_OUT_PATH: {RUN_DIR}/artifacts/enriched.json
   RULES: clarification-protocol.md Assumption Tiering
 ```
@@ -171,13 +187,14 @@ if score ≥ 85 OR completeness_rounds >= 3:
 
 completeness_rounds++
 Spawn spec-analyst MODE: completeness_gap_analysis (writes analysis.json)
+  BASE_SPEC, PRIOR_INDEX   # continue runs only; then refresh prior-items.yaml
 Spawn spec-interrogator (max 4 questions)
 Return CLARIFY_PACKET { resume_at: "5", questions, completeness_rounds } and STOP.
 ```
 
 ### Resume at 5
 
-Integrate `NEW_ANSWERS` via spec-enricher update pass (overwrites `enriched.json`), then re-run completeness.
+Integrate `NEW_ANSWERS` via spec-enricher update pass (overwrites `enriched.json`; pass `PRIOR_ITEMS` on continue), then re-run completeness.
 
 ---
 
@@ -186,11 +203,20 @@ Integrate `NEW_ANSWERS` via spec-enricher update pass (overwrites `enriched.json
 ```
 Spawn spec-synthesizer:
   ENRICHED_PATH, QA_LOG_PATH, ANALYSIS_PATH  // paths only
-  RUN_DIR, TIMECODE, SLUG, KIT_DIR
+  RUN_DIR, TIMECODE, SLUG, KIT_DIR, CONTINUE, PRIOR_INDEX
+  PRIOR_ITEMS: {RUN_DIR}/artifacts/prior-items.yaml   // continue runs only
   TEMPLATES + spec-schema.md under {KIT_DIR}/skills/generate-spec/
 ```
 
-Synthesizer writes `{RUN_DIR}/spec.md` with `status: reviewing`. Continue Station 7.
+When `{RUN_DIR}/base.spec.md` exists (`CONTINUE=continue`), the synthesizer writes
+`{RUN_DIR}/artifacts/delta.yaml` only. Then:
+
+```
+Bash: node {KIT_DIR}/skills/generate-spec/scripts/merge-spec.mjs --run {RUN_DIR}
+```
+
+Otherwise the synthesizer writes `{RUN_DIR}/spec.md`. Either way `status` is `reviewing`.
+Do not paste `base.spec.md` into the spawn. Continue Station 7.
 
 ---
 

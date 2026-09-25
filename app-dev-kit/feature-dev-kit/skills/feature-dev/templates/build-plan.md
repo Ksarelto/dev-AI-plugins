@@ -21,7 +21,7 @@ done before returning.
 | 7 | 7 | app | — | routes, navigation | app-engineer | — | todo |
 | 8 | 8 | — | all | tests | test-engineer | — | todo |
 
-`Group` — rows sharing a group label are dispatched in one message and run in parallel worktrees.
+`Group` — rows sharing a group label run one after another on the feature branch.
 An empty group means the row runs alone. `Status` — `todo` → `in-progress` → `done` | `blocked`.
 
 ### Acceptance-criteria coverage

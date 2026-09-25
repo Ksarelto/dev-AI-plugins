@@ -72,7 +72,14 @@ question.
 | `qa-pass` | 6→6.5 | `critical_issues` list is empty from `qa-validator` | Auto-fix attempt (max 1 retry), then `ESCALATION_PACKET` |
 | `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 (`passed: true`) | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. Playwright missing → `SKIPPED` warning on `REVIEW_PACKET`, not a hard fail |
 
-**Gate bypass is never allowed** for the first four gates. The render gate is where the
+## Append mode
+
+When `current.json` has a `prototype_ref`, the skill copies that directory and sets `MODE: append`.
+Stations 1.5–3 are not re-run. The copied design files must still exist (the same gates, checked
+on disk). Station 4 runs only for screens listed in `delta-pages.json`. Station 5 receives the
+existing page-map entries plus those delta screens and rebuilds the nav. The 15-screen interpreter cap does not apply.
+
+**Gate bypass is never allowed** for the first four gates on a full build. The render gate is where the
 "looks broken / tiny / unstyled" class of bug is caught — never skip the **script** when the
 file exists; skip only the browser half when Playwright is unavailable (see verification-protocol).
 

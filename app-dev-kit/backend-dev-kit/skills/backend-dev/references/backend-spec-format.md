@@ -14,7 +14,7 @@ slug: kebab-case
 status: draft
 created: YYYY-MM-DD
 branch: backend/<slug>
-upstream-spec: .spec/app/spec-{tc}_{slug}/spec.md
+upstream-spec: .spec/spec/spec-{tc}_{slug}/spec.md
 task-id: B-001
 entity-refs: [Profile]
 api-refs: [API-001]

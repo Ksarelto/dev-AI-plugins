@@ -3,8 +3,9 @@
 **Written by**: `scripts/build-checklist.mjs` (Station 2a, create) and the `orchestrate-frontend` skill
 (Station 3, status updates)
 **Read by**: `orchestrate-frontend` skill, on every invocation (Station 0 resume check)
-**Location**: `.spec/app/spec-{timecode}_{slug}/task-checklist.md` — alongside the `spec.md` it was
-derived from, so the two never drift apart or get orphaned independently.
+**Location**: `.spec/app/task-checklist.md` when the spec lives under `.spec/spec/`. The checklist
+stays in the shared folder so a new spec version keeps `done` rows matched by `screen-ref`.
+Legacy specs under `.spec/app/spec-{timecode}_{slug}/` still keep the checklist beside `spec.md`.
 
 ---
 
@@ -16,7 +17,7 @@ spec-dev-kit's `spec.md`.
 ```yaml
 ---
 checklist-version: "1.1"
-spec-ref: ".spec/app/spec-{tc}_{slug}/spec.md"
+spec-ref: ".spec/spec/spec-{tc}_{slug}/spec.md"
 prototype-ref: ".spec/prototype/{proto-tc}_{slug}/"  # html-generator's NEW timecode; empty if skipped
 generated: "YYYY-MM-DDTHH:mm:ssZ"
 updated: "YYYY-MM-DDTHH:mm:ssZ"
@@ -41,6 +42,7 @@ features:
         entity-refs: [Session]
         status: pending           # follows the feature; blocked if the source screen disappears
         blocked-reason: ""
+        change: ""                # remove — delete the existing page instead of rebuilding it
 ---
 ```
 

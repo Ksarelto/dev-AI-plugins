@@ -3,21 +3,29 @@
 // Reads a spec-dev-kit spec.md, builds one task per screen, groups those tasks under
 // the highest-priority user story that owns them, and writes task-checklist.md.
 // One feature = one later /feature-dev call. Screen-less API/agent stories are omitted.
-// Usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>]
+// Usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>]
 // Exit 0 = written (features.length > 0). Exit 1 = zero buildable tasks. Exit 2 = usage/parse failure.
 // Algorithm of record: ../references/task-decomposition.md
 // File shape of record: ../references/checklist-format.md
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 
 const args = process.argv.slice(2)
-const specPath = args.find((a) => !a.startsWith('--'))
-const protoFlagIdx = args.indexOf('--prototype-ref')
-const prototypeRef = protoFlagIdx >= 0 ? args[protoFlagIdx + 1] ?? '' : ''
+function flagValue(name) {
+  const i = args.indexOf(`--${name}`)
+  if (i < 0) return ''
+  const next = args[i + 1]
+  if (!next || next.startsWith('--')) return ''
+  return next
+}
+const prototypeRef = flagValue('prototype-ref')
+const changesPath = flagValue('changes')
+const consumed = new Set([prototypeRef, changesPath].filter(Boolean))
+const specPath = args.find((a) => !a.startsWith('--') && !consumed.has(a))
 
 if (!specPath) {
-  console.error('usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>]')
+  console.error('usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>]')
   process.exit(2)
 }
 
@@ -30,16 +38,13 @@ try {
   // fall through to the check below
 }
 if (typeof parse !== 'function' || typeof stringify !== 'function') {
-  console.error(
-    'FATAL: the "yaml" package is not resolvable. Run this script from the repo root '
-      + '(where node_modules/yaml exists), or `yarn add -D yaml`.',
-  )
+  console.error('FATAL: the "yaml" package is not installed in this plugin directory. Run npm install from the plugin root.')
   process.exit(2)
 }
 
 function readFrontmatter(path) {
   const raw = readFileSync(path, 'utf8')
-  const match = raw.match(/^---\n([\s\S]*?)\n---/)
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (!match) {
     console.error(`FATAL: no YAML front matter found in ${path}`)
     process.exit(2)
@@ -48,7 +53,22 @@ function readFrontmatter(path) {
 }
 
 const spec = readFrontmatter(specPath)
-const checklistPath = join(dirname(specPath), 'task-checklist.md')
+if (changesPath && !existsSync(changesPath)) {
+  console.error(`FATAL: changes file not found: ${changesPath}`)
+  process.exit(2)
+}
+const changes = changesPath ? JSON.parse(readFileSync(changesPath, 'utf8')) : null
+const modifiedScreens = new Set(changes?.screens?.modified ?? [])
+const modifiedEntities = new Set(changes?.entities?.modified ?? [])
+const modifiedStories = new Set(changes?.['user-stories']?.modified ?? [])
+const modifiedAcs = new Set(changes?.['acceptance-criteria']?.modified ?? [])
+function checklistPathFor(specFile) {
+  const runDir = dirname(specFile)
+  const parent = dirname(runDir)
+  if (basename(parent) === 'spec') return join(dirname(parent), 'app', 'task-checklist.md')
+  return join(runDir, 'task-checklist.md')
+}
+const checklistPath = checklistPathFor(specPath)
 
 const existing = existsSync(checklistPath) ? readFrontmatter(checklistPath) : null
 
@@ -144,15 +164,25 @@ for (const screen of screens) {
   if (priority === 'wont') continue
 
   const prior = existingByScreen.get(screen.id)
+  const entityRefs = entityRefsForScreen(screen)
+  const priorStoryHit = (prior?.['story-refs'] ?? []).some((id) => modifiedStories.has(id))
+    || (prior?.['ac-refs'] ?? []).some((id) => modifiedAcs.has(id))
+  const reopened = prior?.status === 'done' && (
+    modifiedScreens.has(screen.id)
+    || entityRefs.some((name) => modifiedEntities.has(name))
+    || storyIds.some((id) => modifiedStories.has(id))
+    || acIds.some((id) => modifiedAcs.has(id))
+    || priorStoryHit
+  )
   tasks.push({
     id: allocateId('T', usedTaskIds, prior?.id),
     title: screen.title,
     'screen-ref': screen.id,
     'story-refs': storyIds,
     'ac-refs': acIds,
-    'entity-refs': entityRefsForScreen(screen),
-    status: prior?.status ?? 'pending',
-    'blocked-reason': prior?.['blocked-reason'] ?? '',
+    'entity-refs': entityRefs,
+    status: reopened ? 'pending' : (prior?.status ?? 'pending'),
+    'blocked-reason': reopened ? 'spec changed' : (prior?.['blocked-reason'] ?? ''),
     _priority: priority,
   })
 }
@@ -195,17 +225,21 @@ for (const { story, tasks: groupTasks } of groups.values()) {
     const { _priority, ...rest } = task
     return rest
   })
+  const reopenFeature = priorFeature?.status === 'done' && (
+    nested.some((task) => task.status === 'pending' && task['blocked-reason'] === 'spec changed')
+    || (story && modifiedStories.has(story.id))
+  )
   features.push({
     id: allocateId('F', usedFeatureIds, priorFeature?.id),
     title,
     'slug-hint': kebab(title) || kebab(story?.id) || kebab(groupTasks[0]['screen-ref']),
     'story-refs': story ? [story.id] : [],
     priority,
-    status: priorFeature?.status ?? 'pending',
+    status: reopenFeature ? 'pending' : (priorFeature?.status ?? 'pending'),
     slug: priorFeature?.slug ?? '',
     branch: priorFeature?.branch ?? '',
     'parent-branch': priorFeature?.['parent-branch'] ?? '',
-    'blocked-reason': priorFeature?.['blocked-reason'] ?? '',
+    'blocked-reason': reopenFeature ? 'spec changed' : (priorFeature?.['blocked-reason'] ?? ''),
     tasks: nested,
   })
 }
@@ -213,8 +247,9 @@ for (const { story, tasks: groupTasks } of groups.values()) {
 const currentRefs = new Set(tasks.map((t) => t['screen-ref']).filter(Boolean))
 for (const prior of priorTaskRows) {
   if (!prior['screen-ref']) continue
-  if (currentRefs.has(prior['screen-ref']) || prior.status === 'done' || prior.status === 'skipped') continue
+  if (currentRefs.has(prior['screen-ref']) || prior.status === 'skipped') continue
   if (features.some((f) => f.tasks.some((t) => t.id === prior.id))) continue
+  const removing = prior.status === 'done'
   const host = features.find((f) => f.id === prior._feature?.id)
     ?? features.find((f) => (f['story-refs'] ?? []).some((id) => (prior['story-refs'] ?? []).includes(id)))
   const blockedTask = {
@@ -224,22 +259,28 @@ for (const prior of priorTaskRows) {
     'story-refs': prior['story-refs'] ?? [],
     'ac-refs': prior['ac-refs'] ?? [],
     'entity-refs': prior['entity-refs'] ?? [],
-    status: 'blocked',
-    'blocked-reason': 'source screen removed from spec',
+    status: removing ? 'pending' : 'blocked',
+    change: removing ? 'remove' : '',
+    'blocked-reason': removing ? '' : 'source screen removed from spec',
   }
-  if (host) host.tasks.push(blockedTask)
-  else {
+  if (host) {
+    host.tasks.push(blockedTask)
+    if (removing && (host.status === 'done' || host.status === 'skipped')) {
+      host.status = 'pending'
+      host['blocked-reason'] = 'spec changed'
+    }
+  } else {
     features.push({
       id: allocateId('F', usedFeatureIds, prior._feature?.id),
       title: prior.title || prior['screen-ref'],
       'slug-hint': kebab(prior.title) || kebab(prior['screen-ref']),
       'story-refs': prior['story-refs'] ?? [],
       priority: 'should',
-      status: 'blocked',
+      status: removing ? 'pending' : 'blocked',
       slug: prior._feature?.slug ?? '',
       branch: prior._feature?.branch ?? '',
       'parent-branch': prior._feature?.['parent-branch'] ?? '',
-      'blocked-reason': 'source screen removed from spec',
+      'blocked-reason': removing ? 'spec changed' : 'source screen removed from spec',
       tasks: [blockedTask],
     })
   }
@@ -268,11 +309,12 @@ const logLine = existing
   : `- ${now} — checklist generated from ${specPath} (${features.length} features, ${taskCount} tasks)`
 
 const priorBody = existing
-  ? readFileSync(checklistPath, 'utf8').split(/^---\n[\s\S]*?\n---\n/)[1] ?? ''
+  ? readFileSync(checklistPath, 'utf8').split(/^---\r?\n[\s\S]*?\r?\n---\r?\n/)[1] ?? ''
   : `\n# Task Checklist — ${spec.metadata?.title ?? spec.metadata?.slug ?? ''}\n\n## Log\n`
 
 const body = existing ? `${priorBody.trimEnd()}\n${logLine}\n` : `${priorBody}${logLine}\n`
 
+mkdirSync(dirname(checklistPath), { recursive: true })
 writeFileSync(checklistPath, `---\n${stringify(front)}---\n${body}`, 'utf8')
 
 console.log(`OK: wrote ${checklistPath} (${features.length} features, ${taskCount} tasks)`)

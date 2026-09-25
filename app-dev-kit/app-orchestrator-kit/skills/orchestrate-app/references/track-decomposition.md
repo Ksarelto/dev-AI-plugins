@@ -37,8 +37,11 @@ matching story.
 
 ## Stable ids
 
-Re-derivation preserves `id` → `entity` / `agent-ref` / resource key. Removed sources become
-`blocked` (reason: source removed). `done` / `skipped` rows are kept.
+Re-derivation preserves `id` → `entity` / `agent-ref` / resource key. A removed source whose
+task was `done` becomes `pending` with `change: remove`. An unfinished removed source becomes
+`blocked` (reason: source removed). `skipped` rows are dropped. Story text is matched on
+`i-want` and `so-that` only, not the `as` role. A `done` task reopens when its entity, endpoint,
+story, or acceptance criterion is in `changes.json`.
 
 ---
 

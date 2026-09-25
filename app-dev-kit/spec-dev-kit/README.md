@@ -3,7 +3,7 @@
 **Entry point**: `/generate-spec [feature-name]` → `skills/generate-spec/SKILL.md`
 
 Transforms raw requirements in `.spec/context/` into a validated, approved hybrid YAML+Markdown
-spec in `.spec/app/spec-{timecode}_{slug}/spec.md`. The spec is read by downstream kits:
+spec in `.spec/spec/spec-{timecode}_{slug}/spec.md`. Downstream kits read `.spec/app/current.json`:
 `/generate-html`, `/backend-dev`, `/agent-dev`, `/feature-dev`, and the orchestrators.
 
 Human gates (`AskUserQuestion`) are owned by the **skill**. The orchestrator is a subagent and
@@ -49,7 +49,7 @@ Or add the marketplace in Agent chat:
 2. Run `/generate-spec` (or `/generate-spec my-feature-name`).
 3. Answer clarification questions as prompted (skill-owned).
 4. Approve the spec at the review gate (skill-owned).
-5. The spec is published to `.spec/app/spec-{timecode}_{slug}/spec.md`.
+5. The spec is published to `.spec/spec/spec-{timecode}_{slug}/spec.md`. The inbox moves to `.spec/processed/{spec-id}/`.
 
 ---
 
@@ -84,7 +84,7 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
         spec-body.md
       scripts/
         validate-spec.mjs
-        new-run.sh
+        continue-spec.mjs
 ```
 
 `KIT_DIR` is the plugin root (this directory when installed). Scripts are
@@ -109,7 +109,7 @@ not the only path.
       ▼ Station 9: review — HARD STOP (skill asks)
       ▼ Station 10: skill sets status: approved
       │
-      ▼ .spec/app/spec-{timecode}_{slug}/spec.md
+      ▼ .spec/spec/spec-{timecode}_{slug}/spec.md
 ```
 
 Canonical contracts: `skills/generate-spec/references/pipeline-flow.md`.

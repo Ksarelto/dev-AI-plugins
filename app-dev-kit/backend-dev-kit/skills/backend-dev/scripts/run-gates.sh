@@ -8,14 +8,29 @@ if [[ "${1:-}" == "--log" ]]; then
   log="${2:-$log}"
 fi
 
-run_cmd() {
-  local name="$1"
-  shift
-  if command -v yarn >/dev/null 2>&1 && [[ -f yarn.lock ]]; then
-    yarn "$@"
-  else
-    npm run "$name" --if-present
+pm_bin() {
+  if [[ -f pnpm-lock.yaml ]]; then echo pnpm
+  elif [[ -f yarn.lock ]]; then echo yarn
+  else echo npm
   fi
+}
+
+has_script() {
+  node --input-type=module -e '
+    import { existsSync, readFileSync } from "node:fs"
+    if (!existsSync("package.json")) process.exit(1)
+    const pkg = JSON.parse(readFileSync("package.json", "utf8"))
+    process.exit(pkg.scripts && Object.hasOwn(pkg.scripts, process.argv[1]) ? 0 : 1)
+  ' "$1"
+}
+
+run_script() {
+  local name="$1"
+  case "$(pm_bin)" in
+    pnpm) pnpm run "$name" ;;
+    yarn) yarn run "$name" ;;
+    *)    npm run "$name" ;;
+  esac
 }
 
 mkdir -p "$(dirname "$log")"
@@ -26,11 +41,15 @@ overall=0
 for gate in types lint test; do
   start=$(date +%s)
   case "$gate" in
-    types) cmd_name="typecheck"; extra=(typecheck) ;;
-    lint)  cmd_name="lint"; extra=(lint) ;;
-    test)  cmd_name="test"; extra=(test) ;;
+    types) cmd_name="typecheck" ;;
+    lint)  cmd_name="lint" ;;
+    test)  cmd_name="test" ;;
   esac
-  if run_cmd "$cmd_name" "${extra[@]}" >"${log}.${gate}" 2>&1; then
+  if ! has_script "$cmd_name"; then
+    status="fail"
+    overall=1
+    echo "missing package.json script: $cmd_name" >> "$log"
+  elif run_script "$cmd_name" >"${log}.${gate}" 2>&1; then
     status="pass"
   else
     status="fail"

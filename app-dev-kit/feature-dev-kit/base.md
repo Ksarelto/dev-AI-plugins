@@ -260,7 +260,7 @@ None exist today (`.claude/agents/` is empty). Format: markdown + YAML frontmatt
 **Removed**: ~~`integrator`~~ — shipping is now a separate human-invoked command (`/create-pr`), not an autonomous agent. No agent has git-push/PR authority.
 
 **Design notes**
-- **`isolation: worktree`** recommended for the build workers (`entities/features/composition/app`) so parallel slice work happens on isolated repo copies; empty worktrees auto-clean.
+- Build workers (`shared` / `entities` / `features` / `composition`) run on the feature branch, one slice after another. Do not use `isolation: worktree`.
 - **Consolidation option**: `entities/features/composition` can collapse into one parametrized `slice-engineer` (told which layer/slice to build) to cut spawn count on small features — decide via the complexity heuristic in `orchestration-protocol.md`.
 - **`maxTurns`** guard on `quality-gate-runner` to prevent runaway loops.
 - Build an agent only when we need *context isolation, tool restriction, or a distinct model*; otherwise the orchestrator invokes the **skill** directly in-context.
@@ -425,7 +425,7 @@ RETURN:     summary + files changed; update your spec section
 - Author `feature-orchestrator`; run end-to-end with the human approving spec + every gate + station 12.
 
 **Phase 4 — Dark factory (autonomous, but bounded)**
-- Reduce checkpoints to **spec-approval + human gate (station 12)**; enable parallel slice groups + worktree isolation; wire the evaluation harness. Shipping stays manual via `/create-pr`.
+- Reduce checkpoints to **spec-approval + human gate (station 12)**; keep same-layer slices sequential on the feature branch; wire the evaluation harness. Shipping stays manual via `/create-pr`.
 
 ---
 

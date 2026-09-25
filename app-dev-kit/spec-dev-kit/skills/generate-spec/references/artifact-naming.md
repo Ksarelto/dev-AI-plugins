@@ -6,27 +6,29 @@
 
 ## Output Structure
 
-Each pipeline run produces a **folder** in `.spec/app/`:
+Each pipeline run produces a **folder** in `.spec/spec/`. The app slug stays stable across features.
+Which folder is current lives in `.spec/app/current.json` (`app-state.md`), not in "latest timecode".
 
 ```
-.spec/app/spec-{YYYYMMDD-HHmmss}_{slug}/
+.spec/spec/spec-{YYYYMMDD-HHmmss}_{app-slug}/
   spec.md                ← hybrid spec (YAML front matter + Markdown body)
-  context-snapshot.md    ← optional: raw content of all .spec/context/ files at run time
+  base.spec.md           ← previous spec, only when this run continues an app
+  artifacts/prior-index.json
+  artifacts/delta.yaml   ← add, modify, and remove, continue runs
+  artifacts/delta.md     ← narrative replacement, only when it changes
+  artifacts/changes.json ← merge-spec.mjs: added, modified, removed ids
+  artifacts/prior-items.yaml ← full prior items for modified ids
 ```
 
 ### Examples
 
 ```
-.spec/app/spec-20240115-143022_profile-management/
-  spec.md
-  context-snapshot.md
-
-.spec/app/spec-20240201-091500_invoice-approval-workflow/
+.spec/spec/spec-20240115-143022_campus/
   spec.md
 
-.spec/app/spec-20240215-163045_user-authentication/
+.spec/spec/spec-20240201-091500_campus/
   spec.md
-  context-snapshot.md
+  base.spec.md
 ```
 
 ---
@@ -97,11 +99,11 @@ Use `untitled-{YYYYMMDD}`.
 
 ## Spec File Format
 
-Each `.spec.md` file in `.spec/app/` is a **hybrid spec**: YAML front matter followed by Markdown body.
+Each `spec.md` is a **hybrid spec**: YAML front matter followed by Markdown body.
 
 ```
 ---
-# YAML front matter (as defined in rules/spec-schema.md)
+# YAML front matter (as defined in references/spec-schema.md)
 spec-version: "1.0"
 timecode: "20240115-143022"
 ...
@@ -116,20 +118,9 @@ timecode: "20240115-143022"
 
 ## Versioning Within a Run
 
-If the same slug is specced multiple times (e.g., multiple `/generate-spec` runs for the same feature), **each run produces a new folder** with a different timecode. Do not overwrite.
-
-```
-.spec/app/spec-20240115-143022_profile-management/   ← first run
-.spec/app/spec-20240115-170000_profile-management/   ← revised run
-.spec/app/spec-20240116-090000_profile-management/   ← next day revision
-```
-
-The **latest timecode** is the authoritative spec. Older folders are historical record.
-
-**When downstream kits load a spec by slug**, they MUST load the folder with the latest timecode for that slug:
-```
-Glob(".spec/app/spec-*_{slug}/spec.md") → sort by timecode descending → take first
-```
+Each `/generate-spec` publish writes a new folder. It does not overwrite the previous spec.
+`continue-spec.mjs` copies the spec named by `current.json` and continues `US` / `SCR` / `AC` ids.
+Downstream kits load `current.json` `spec_path`. They do not pick the newest timecode themselves.
 
 ---
 
@@ -138,7 +129,7 @@ Glob(".spec/app/spec-*_{slug}/spec.md") → sort by timecode descending → take
 The publisher MAY also write a context snapshot inside the output folder:
 
 ```
-.spec/app/spec-{YYYYMMDD-HHmmss}_{slug}/context-snapshot.md
+.spec/processed/spec-{YYYYMMDD-HHmmss}_{slug}/   ← the inbox files moved here on publish
 ```
 
 This file contains the raw text of all `.spec/context/` files as they existed at run time — a snapshot for reproducibility. This is not required for pipeline operation but recommended for audit purposes.
@@ -152,7 +143,7 @@ When `feature-dev-kit` creates its blackboard file, it SHOULD record the source 
 ```markdown
 ---
 # In .spec/features/{slug}.md front matter:
-spec-source: ".spec/app/spec-20240115-143022_profile-management/spec.md"
+spec-source: ".spec/spec/spec-20240115-143022_campus/spec.md"
 ---
 ```
 

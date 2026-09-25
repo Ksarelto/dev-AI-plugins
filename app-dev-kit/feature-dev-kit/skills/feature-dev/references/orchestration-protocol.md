@@ -82,7 +82,7 @@ Do not list `development-cycle.md`, `increment-protocol.md`, `fsd-architecture.m
 
 Build proceeds bottom-up: `shared` → `entities` → `features` → `widgets`+`pages` → `app`.
 
-After each layer group completes, run `run-gates.sh --until fsd`. If that fails, fix before the next layer. `yarn build` and coverage run once at Station 9.
+After each layer group completes, run `run-gates.sh --until fsd`. If that fails, fix before the next layer. The package build and coverage run once at Station 9.
 
 ---
 
@@ -92,9 +92,9 @@ After each layer group completes, run `run-gates.sh --until fsd`. If that fails,
 |--------------------|-----------------|
 | 1–2 slices, single layer | Single `slice-engineer` handles all segments |
 | 3–5 slices across 2 layers | One engineer per layer group |
-| 6+ slices or cross-cutting concern | Parallel engineers per slice; each isolated in its own worktree |
+| 6+ slices or cross-cutting concern | One engineer per slice, one after another, on the feature branch |
 
-When independent slices exist within the same layer, run them in parallel. Use worktree isolation: each parallel build worker operates in its own git worktree to prevent file conflicts.
+When a layer has more than one slice, run those slices one after another on the feature branch. Do not use a git worktree and do not merge.
 
 ---
 

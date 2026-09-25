@@ -9,7 +9,6 @@ One `/agent-dev` run imports **one** `agent-surface.agents[]` row.
 | `AGENT_REF` | `AGT-001` |
 | `STORY_REFS` / `AC_REFS` | scoped |
 | `PROTOTYPE_REF` | optional chat-page hint |
-| `WORK_PLAN` | parent-owned |
 | `SLUG_HINT` / `RESULT_OUT` | slug + extra envelope |
 
 `--require-scoped` fails when `agent-surface.agents.length > 1` and no `AGENT_REF` / `TASK_ID`.

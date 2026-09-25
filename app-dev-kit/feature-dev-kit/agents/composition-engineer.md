@@ -4,7 +4,6 @@ description: Builds the FSD `widgets` and `pages` layers (station 6). Composes e
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 skills: [create-widget, create-page, create-react-component]
-isolation: worktree
 permissionMode: default
 ---
 

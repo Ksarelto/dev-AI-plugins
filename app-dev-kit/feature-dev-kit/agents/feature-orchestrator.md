@@ -1,9 +1,9 @@
 ---
 name: feature-orchestrator
 description: Drives the feature-dev-kit hub-and-spoke pipeline from discovery through architecture-audit and auto-review. Delegates to specialist agents, writes only the feature blackboard, then RETURNS a DEP_PACKET, REVIEW_PACKET, or ESCALATION_PACKET. Use to coordinate a screen-task build. Never calls AskUserQuestion — the feature-dev skill owns every human gate. Never writes src/.
-model: sonnet
+model: opus
 tools: [Read, Grep, Glob, Write, Edit, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet]
-maxTurns: 18
+maxTurns: 40
 permissionMode: default
 ---
 
@@ -49,6 +49,8 @@ See `{KIT_DIR}/skills/feature-dev/references/packets.md`.
 
 ### Station 1 — Discovery
 
+If the blackboard has `## Change request`, this increment edits the existing slice. Do not scaffold a second page, entity, or feature.
+
 Spawn `code-explorer` with `SPEC_PATH` and `SPEC_SECTIONS` (Request, Acceptance criteria, UI surface). It writes `## FSD Impact` and `## Reuse Map`, and a handoff file. Re-delegate if those sections are still placeholders.
 
 ### Station 1.5 — Baseline architecture-audit (full tier only)
@@ -81,11 +83,11 @@ If any `## Dependencies` row is `awaiting-human-approval`, set `status: awaiting
 
 ### Station 2 — Build plan
 
-Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. A layer with one slice uses `slice-engineer`. Two or more independent slices use the layer engineer with worktree isolation. Set `status: building`. Rewrite the checkpoint.
+Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. A layer with one slice uses `slice-engineer`. Two or more slices in one layer use that layer's engineer, one slice after another, on the feature branch. Do not use a git worktree and do not merge. Set `status: building`. Rewrite the checkpoint.
 
 ### Stations 3–7 — Delegation
 
-Spawn workers with `templates/delegation-message.md`. `APPLY` is one skill. Independent slices in one layer: **one message**, worktree isolation. After each layer, spawn `quality-gate-runner` with `PROFILE: layer` (`run-gates.sh --until fsd`). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
+Spawn workers with `templates/delegation-message.md`. `APPLY` is one skill. Slices in one layer run one after another on the feature branch. Do not spawn them in parallel and do not use a git worktree. After each layer, spawn `quality-gate-runner` with `PROFILE: layer` (`run-gates.sh --until fsd`). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
 
 ### Station 8 — Tests
 
