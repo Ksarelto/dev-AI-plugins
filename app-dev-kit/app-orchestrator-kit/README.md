@@ -41,6 +41,6 @@ npm run install:cursor-local
 
 ## What it produces
 
-- `.spec/app/spec-{tc}_{slug}/work-plan.md` — tracks + `B-*` / `A-*` tasks
+- `.spec/app/work-plan.md` — tracks + `B-*` / `A-*` tasks. Runs that still keep `spec.md` under `.spec/app/spec-{tc}_{slug}/` keep the plan beside that spec.
 - `{RUN_DIR}/app-kit-result.json` — path-only outcome
 - Increment blackboards and branches from delegated kits

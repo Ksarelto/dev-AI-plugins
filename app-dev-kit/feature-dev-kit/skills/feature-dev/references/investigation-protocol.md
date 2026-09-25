@@ -51,7 +51,7 @@ asks the human and writes answers into `## Clarifications`.
 
 ## Dependency Policy (Hard Gate)
 
-Every new package requires human approval at station 1b before any `yarn add` is run. This is a hard gate — no exceptions.
+Every new package requires human approval at station 1b before the lockfile's package manager installs it. This is a hard gate — no exceptions.
 
 Agents propose packages; they never install them.
 
@@ -79,8 +79,8 @@ Write this table into the spec `## Dependencies` section for each proposed packa
 | Last publish | 2025-03 |
 | Alternatives considered | `yup` (larger), `valibot` (smaller but less ecosystem) |
 | Red flags | None |
-| Install command | `yarn add zod` |
+| Install command | lockfile's package manager, e.g. `pnpm add zod` |
 | Status | **awaiting-human-approval** |
 ```
 
-Update the `Status` field to `approved` or `rejected` once the human responds. Only after `approved` may any engineer run `yarn add`.
+Update the `Status` field to `approved` or `rejected` once the human responds. Only after `approved` may any engineer install the package with the lockfile's package manager.

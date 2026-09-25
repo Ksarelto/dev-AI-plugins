@@ -1,0 +1,8 @@
+{
+  "name": "frontend-orchestrator-kit",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "yaml": "^2.6.1"
+  }
+}

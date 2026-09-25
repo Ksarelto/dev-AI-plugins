@@ -31,7 +31,8 @@ Workers persist their own artifacts. This agent only reads those files and decid
 
 Always:
 
-- `MODE` — `build` | `revise` (default `build`)
+- `MODE` — `build` | `append` | `revise` (default `build`)
+- `DELTA_PAGES` — path to `delta-pages.json` when `MODE` is `append`
 - `SPEC_FILE` — path to spec.md (not the file contents)
 - `TIMECODE` — UTC timestamp `YYYYMMDD-HHmmss`
 - `SLUG` — feature slug
@@ -54,6 +55,7 @@ References resolve as `{KIT_DIR}/skills/generate-html/references/…` and
 ### Mode dispatch (do this first)
 
 - `MODE == revise` → skip to **Revise flow** below.
+- `MODE == append` → **Append flow** below. Do not spawn `spec-interpreter`. Do not re-run design.
 - else (`build`) → start at **Station 0**.
 
 There is no `finalize` mode. The skill writes README after approval (Station 8).
@@ -263,6 +265,27 @@ Do **not** call `AskUserQuestion` and do **not** write README — the `generate-
 approval and Station 8.
 
 ---
+
+## Append flow (MODE == append)
+
+The skill already copied the previous prototype into `OUTPUT_DIR` and wrote `DELTA_PAGES`.
+Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerates changed screens.
+
+1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md`.
+2. Read `DELTA_PAGES`. If `screens` is empty, skip Station 4 and continue at Station 5.
+3. Confirm `{OUTPUT_DIR}/design-brief.md`, `css/tokens.css`, and `design-system-ref.md` exist.
+   If one is missing, return `ESCALATION_PACKET` and STOP. Do not re-run `design-strategist`
+   or `design-system-author` when those files are present.
+4. Read `design-system-ref.md` and `component-manifest.md` from `OUTPUT_DIR`.
+5. If `entities_changed` is non-empty, spawn `component-library-author` with `MODE: update`
+   and `ENTITIES_CHANGED` before Station 4. It patches only those entities in `js/data.js`.
+6. Station 4: spawn one `screen-generator` per screen in `DELTA_PAGES` only, in one message.
+   Pass `page` (`id`, `title`, `description`, `domain`, `entity`; `type` may be absent),
+   `entity_fields`, `entity_statuses`, `api_contract`, plus the compact design ref and manifest.
+   Do not pass other pages.
+7. Station 5: pass `assembly-wiring` `assembly_pages` from `DELTA_PAGES`
+   (`{ id, title, domain, description }` for every spec screen). Do not pass raw page-map pairs.
+8. Station 6 and Station 6.5, then return `REVIEW_PACKET`.
 
 ## Revise flow (MODE == revise)
 

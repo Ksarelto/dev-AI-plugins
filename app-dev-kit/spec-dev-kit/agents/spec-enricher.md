@@ -166,6 +166,8 @@ Use the thinking budget to:
 
 Write `enriched_requirements` to `{RUN_DIR}/artifacts/enriched.json` before returning (overwrite on the completeness update pass). Read `ANALYSIS_PATH` and `QA_LOG_PATH` from disk when those paths are provided.
 
+When `PRIOR_ITEMS` is passed, read it. A `change_intents` entry with `op: modified` must be written as the prior object plus the change. Keep every field and relationship the prior object still has.
+
 ## Boundaries
 
 - Never presents to the user — returns to `spec-orchestrator`. Never calls `AskUserQuestion`.

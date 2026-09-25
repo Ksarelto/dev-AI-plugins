@@ -59,7 +59,7 @@ Scripts live at `{KIT_DIR}/skills/backend-dev/…`.
 ## Arguments
 
 Structured fields from `orchestrate-app` or the human: `UPSTREAM_SPEC`, `TASK_ID`,
-`ENTITY_REFS`, `API_REFS`, `STORY_REFS`, `AC_REFS`, `PROTOTYPE_REF`, `WORK_PLAN`,
+`ENTITY_REFS`, `API_REFS`, `STORY_REFS`, `AC_REFS`, `PROTOTYPE_REF`,
 `SLUG_HINT`, `RESULT_OUT`. `REQUEST` is one line when those are set.
 
 ```
@@ -76,8 +76,10 @@ Read `references/pipeline-flow.md`.
 
 ### Station 0 — Intake
 
-1. Resume if `.spec/backend/{slug}.md` matches the argument.
+1. Resume if `.spec/backend/{slug}.md` matches the argument. If its `status` is `done`, report complete and stop unless the matching work-plan task is `pending` with `blocked-reason: spec changed`. Import then sets `status: approved`; skip Station 0.5 and continue at station 1.
 2. Else derive slug from `SLUG_HINT` (never the app `metadata.slug`).
+   If `UPSTREAM_SPEC` is empty, read `.spec/app/current.json` and set `UPSTREAM_SPEC` from
+   `spec_path` and `PROTOTYPE_REF` from `prototype_ref`. Do not glob for a spec.
 3. `bash {KIT_DIR}/skills/backend-dev/scripts/new-backend.sh {slug}`
 4. If `UPSTREAM_SPEC` is set:
 
@@ -86,8 +88,11 @@ Read `references/pipeline-flow.md`.
      --spec {UPSTREAM_SPEC} --out .spec/backend/{slug}.md \
      --task-id {TASK_ID} --entity-refs {ENTITY_REFS} --api-refs {API_REFS} \
      --story-refs {STORY_REFS} --ac-refs {AC_REFS} \
-     --prototype-ref "{PROTOTYPE_REF}" --require-scoped
+     --prototype-ref "{PROTOTYPE_REF}" --require-scoped \
+     --changes {dirname(UPSTREAM_SPEC)}/artifacts/changes.json
    ```
+
+Pass `--changes` only when that file exists. A reopened board has `## Change request`. When `CHANGE=remove`, delete the existing tables and routes for those refs. Do not scaffold a replacement.
 
 5. Spawn `backend-interpreter` then `backend-analyst` (paths only).
 6. `CLARIFY_PACKET` → this skill asks; write `## Clarifications`; max 3 rounds.
@@ -95,7 +100,7 @@ Read `references/pipeline-flow.md`.
 ### Station 0.5 — Human contract gate
 
 `validate-backend-spec.mjs`. Present id/title/ACs. Approve / edit / abort.
-Only this skill may set blackboard `status: approved`.
+Only this skill may set blackboard `status: approved`, except `import-upstream.mjs` on a spec-changed reopen.
 
 ### Stations 1–7 — Hub
 

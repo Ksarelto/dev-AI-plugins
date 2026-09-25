@@ -23,6 +23,8 @@ Never `AskUserQuestion`. Never `/create-pr`. Never write `src/`.
 
 ## Stations
 
+If the blackboard has `## Change request`, edit the existing router, table, and service. Do not scaffold a second resource.
+
 1. Discover existing `create-app.ts`, `compose.ts`, `tables/`. Write `## Reuse Map`.
 1b. If new packages are required, write `## Dependencies` and return `DEP_PACKET`.
 2. Write `## Build Plan` (table → zod → repo → service → router → compose → openapi).

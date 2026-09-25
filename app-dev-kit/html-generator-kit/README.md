@@ -153,8 +153,10 @@ fallback, not the only path.
 
 ## Pipeline
 
+Current specs live under `.spec/spec/`. Runs that still keep `spec.md` under `.spec/app/spec-{tc}_{slug}/` remain valid.
+
 ```
-.spec/app/spec-*/spec.md
+.spec/spec/spec-*/spec.md
       │
 generate-html skill: resolve KIT_DIR, Step 2.5 ui-ux-pro-max → UIUX_DIR
       │

@@ -1,6 +1,6 @@
 ---
 name: generate-html
-description: Transforms a validated spec from .spec/app/spec-*/spec.md into a clickable multi-page HTML prototype at .spec/prototype/{TIMECODE}_{SLUG}/. Design direction is sourced from the ui-ux-pro-max design-intelligence skill (installed on demand) so each prototype gets a current, product-appropriate look rather than a generic template. Output is split (one HTML per screen, dedicated css/*.css and js/*.js), fully CDN-free for styling (self-contained shadcn OKLCH tokens + component classes; no Tailwind runtime), verified with a headless-browser render check, and passes a mandatory human review gate before finalizing.
+description: Transforms a validated spec from .spec/app/current.json into a clickable multi-page HTML prototype at .spec/prototype/{TIMECODE}_{SLUG}/. When a prototype already exists, copies that directory and adds only the new screens so the previous pages stay. Design direction is sourced from the ui-ux-pro-max design-intelligence skill (installed on demand) so each prototype gets a current, product-appropriate look rather than a generic template. Output is split (one HTML per screen, dedicated css/*.css and js/*.js), fully CDN-free for styling (self-contained shadcn OKLCH tokens + component classes; no Tailwind runtime), verified with a headless-browser render check, and passes a mandatory human review gate before finalizing.
 argument-hint: "[spec-slug or spec.md path]"
 allowed-tools: [Read, Glob, Grep, Write, Bash, Agent, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---
@@ -9,7 +9,7 @@ allowed-tools: [Read, Glob, Grep, Write, Bash, Agent, AskUserQuestion, TaskCreat
 
 **Entry point for**: html-generator-kit pipeline
 **Pipeline driver**: `html-orchestrator` agent (see `../../agents/html-orchestrator.md`)
-**Spec source**: `.spec/app/spec-{YYYYMMDD-HHmmss}_{slug}/spec.md`
+**Spec source**: `.spec/app/current.json` → `spec_path` (a file under `.spec/spec/`)
 
 This skill runs in the **main conversation**. It owns every `AskUserQuestion` call. The
 orchestrator is a subagent and must never ask the user — it returns a packet and stops.
@@ -81,17 +81,20 @@ re-glob “most recent”.
 
 Else if the argument is a path that exists and ends with `spec.md`, use it as `SPEC_FILE`.
 
-Else Glob `.spec/app/spec-*/spec.md` (spec lives **one level inside** the timecoded folder):
+Else read `.spec/app/current.json` and use `spec_path` when that file exists. A fresh session
+starts here. Do not choose a spec by newest timecode when the pointer exists.
+
+If `current.json` is missing, Glob `.spec/spec/spec-*/spec.md` and then `.spec/app/spec-*/spec.md`:
 
 - Filter by argument slug if provided (substring match against folder name).
 - If multiple match or no argument: sort by the timecode segment in the folder name **descending** and take the most recent.
-- If nothing found: `"No spec found in .spec/app/. Run /generate-spec first."` → STOP (no envelope).
+- If nothing found: `"No spec found. Run /generate-spec first."` → STOP (no envelope).
 
 Read the selected `spec.md` **only to extract identity** (do not pass the full file to the orchestrator or back to `orchestrate-frontend` / `orchestrate-app`):
 - `metadata.slug` (or derive from folder name: part after `_`)
 - `metadata.title` (or fallback: slug with hyphens → spaces)
 
-Keep `SPEC_FILE` as the path. The `spec-interpreter` agent reads the file itself.
+Keep `SPEC_FILE` as the path. On a full build, `spec-interpreter` reads the file itself. Append mode does not call it.
 
 On any STOP after `SPEC_FILE` is known (Step 2 decline, Step 2.5 Abort, review Abort, escalation
 abort), write `{dirname(SPEC_FILE)}/html-kit-result.json` with `outcome: aborted` before returning
@@ -104,6 +107,28 @@ date -u +%Y%m%d-%H%M%S
 ```
 
 Output directory: `.spec/prototype/{TIMECODE}_{SLUG}/`
+
+Read `prototype_ref` from `.spec/app/current.json` (empty when this is the first prototype).
+
+- Empty `prototype_ref`: `BUILD_MODE=build`. The orchestrator runs design and every screen. Do not run the clone scripts.
+- `prototype_ref` set: copy the previous prototype, then add new screens and regenerate changed ones. Run:
+
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/clone-prototype.mjs \
+  --from "{prototype_ref}" \
+  --to ".spec/prototype/{TIMECODE}_{SLUG}"
+node {KIT_DIR}/skills/generate-html/scripts/delta-pages.mjs \
+  --spec "{SPEC_FILE}" \
+  --page-map ".spec/prototype/{TIMECODE}_{SLUG}/page-map.json" \
+  --out ".spec/prototype/{TIMECODE}_{SLUG}/delta-pages.json"
+```
+
+If `{dirname(SPEC_FILE)}/artifacts/changes.json` exists, add `--changes` with that path.
+Set `BUILD_MODE=append` and `DELTA_PAGES` to that `delta-pages.json`.
+Screen-generators receive only the delta screens, including `description`, `domain`, `entity`,
+`entity_fields`, `entity_statuses`, and `api_contract`. Assembly receives `assembly_pages`
+(`{ id, title, domain, description }`), not raw page-map pairs. If `entities_changed` is
+non-empty, the orchestrator runs `component-library-author` in update mode before those screens.
 
 Ask user (single AskUserQuestion):
 > "Generating HTML prototype from `{spec-filename}`. Output → `.spec/prototype/{TIMECODE}_{SLUG}/`. Proceed?"
@@ -171,12 +196,13 @@ Never fabricate a `UIUX_DIR`, and never claim the design was rule-sourced when i
 Spawn `html-orchestrator`. It **never** asks the user. Loop on packets:
 
 ```
-MODE:       build
+MODE:       {BUILD_MODE}     # build | append
 SPEC_FILE:  {full path to selected spec.md}
 TIMECODE:   {timecode}
 SLUG:       {slug}
 TITLE:      {title}
 OUTPUT_DIR: .spec/prototype/{TIMECODE}_{SLUG}/
+DELTA_PAGES: {path or omit on a full build}
 KIT_DIR:    {resolved plugin root}
 UIUX_DIR:   {resolved path from Step 2.5, or `none`}
 
@@ -246,6 +272,7 @@ Design authority: {ui-ux-pro-max | first-principles}
 
 Also write `{OUTPUT_DIR}/page-map.json` mapping each page's `spec_id` (`ui-surface.screens[].id`)
 to the HTML page `id`. Skip a page that has no `spec_id` — never use the HTML id as a spec key.
+In append mode, start from the copied `page-map.json` and add the new ids. Do not drop old keys.
 
 ```json
 {
@@ -270,7 +297,14 @@ node {KIT_DIR}/skills/generate-html/scripts/write-kit-result.mjs \
 ```
 
 If the caller passed `RESULT_OUT`, add another `--also {RESULT_OUT}` (or write it in a second
-invocation). Then report **paths only**:
+invocation). Then point the shared pointer at this prototype:
+
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/record-prototype.mjs \
+  --prototype-ref ".spec/prototype/{TIMECODE}_{SLUG}"
+```
+
+Then report **paths only**:
 
 ```
 Prototype generated
@@ -285,7 +319,7 @@ Serve:   npx serve .spec/prototype/{TIMECODE}_{SLUG}
 
 | Issue | Resolution |
 |-------|-----------|
-| "No spec found in .spec/app/" | Run `/generate-spec` first |
+| "No spec found" | Run `/generate-spec` first. The pointer is `.spec/app/current.json` |
 | Pipeline seems stuck | Check for a pending `AskUserQuestion` from **this** skill — answer it |
 | Scripts not found | Re-resolve `KIT_DIR` (plugin root, not `.spec/html-generator-kit/` unless that copy exists) |
 | Render check SKIPPED | Playwright is optional. This skill may install it if the user asks; the orchestrator must not `npm i` |

@@ -78,7 +78,9 @@ If the orchestrator is re-run against a spec that was edited after the checklist
 the feature's `id` / `status` / `slug` / `branch` / `parent-branch` (matched by story-ref, or by an
 overlapping screen). New screens append with the next free `T-NNN`; new features use the next
 `F-NNN`. A screen that disappeared from the spec has its task marked `blocked` (reason: "source
-screen removed from spec") rather than deleted.
+screen removed from spec") rather than deleted. When `--changes` is passed, a `done` task whose
+screen or entity is in `modified` returns to `pending` (`blocked-reason: spec changed`). The
+owning feature returns to `pending` with it.
 
 ---
 

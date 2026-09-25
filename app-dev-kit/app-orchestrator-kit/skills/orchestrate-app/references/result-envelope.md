@@ -33,7 +33,7 @@ If the orchestrator passes `RESULT_OUT`, the callee writes **that path as well**
   "envelope": "app-dev-kit/kit-result/v1",
   "kit": "generate-spec",
   "outcome": "approved",
-  "spec_path": ".spec/app/spec-20260920-120000_demo/spec.md",
+  "spec_path": ".spec/spec/spec-20260920-120000_demo/spec.md",
   "prototype_ref": "",
   "feature_spec": "",
   "backend_spec": "",
@@ -42,11 +42,13 @@ If the orchestrator passes `RESULT_OUT`, the callee writes **that path as well**
   "slug": "demo",
   "branch": "",
   "parent_branch": "",
-  "run_dir": ".spec/app/spec-20260920-120000_demo",
+  "run_dir": ".spec/spec/spec-20260920-120000_demo",
   "reason": "",
   "written": "2026-09-20T12:00:00.000Z"
 }
 ```
+
+Current runs live under `.spec/spec/spec-{tc}_{slug}/`, with the pointer in `.spec/app/current.json`. Runs that still keep `spec.md` under `.spec/app/spec-{tc}_{slug}/` remain valid.
 
 | Field | Values / meaning |
 |-------|------------------|
@@ -57,7 +59,7 @@ If the orchestrator passes `RESULT_OUT`, the callee writes **that path as well**
 | `feature_spec` | `.spec/features/{slug}.md` (feature-dev only) |
 | `backend_spec` | `.spec/backend/{slug}.md` (backend-dev only) |
 | `agent_spec` | `.spec/agents/{slug}.md` (agent-dev only) |
-| `work_plan` | `.spec/app/spec-{tc}_{slug}/work-plan.md` (orchestrate-app) |
+| `work_plan` | `.spec/app/work-plan.md` (orchestrate-app) |
 | `slug` | App slug or increment slug |
 | `branch` | `feature/{slug}` / `backend/{slug}` / `agent/{slug}` when created |
 | `parent_branch` | Branch the feature was cut from (`feature-dev` only). Empty for other kits |

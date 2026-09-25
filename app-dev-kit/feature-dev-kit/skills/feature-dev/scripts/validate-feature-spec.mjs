@@ -65,7 +65,7 @@ const err = (code, msg) => errors.push(`[${code}] ${msg}`)
 const warn = (code, msg) => warnings.push(`[${code}] ${msg}`)
 
 // --- Front matter (hand-parsed: flat key: value only, no yaml dependency) ---
-const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n/)
+const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/)
 if (!fmMatch) {
   console.error('FATAL: no YAML front matter found (expected a leading --- ... --- block).')
   process.exit(2)
@@ -95,8 +95,8 @@ if (fm.slug && fm.slug !== expectedSlug) {
 
 const none = (v) => !v || v === 'none' || v === '<path to .spec/app/spec-*/spec.md, or none>'
 if (fm['upstream-spec'] && !none(fm['upstream-spec'])) {
-  if (!/\.spec\/app\/spec-/.test(fm['upstream-spec']) && !/spec\.md$/.test(fm['upstream-spec'])) {
-    err('UPSTREAM_SPEC_FORMAT', `upstream-spec should point at spec.md under .spec/app/ (got ${JSON.stringify(fm['upstream-spec'])})`)
+  if (!/\.spec\/(app|spec)\/spec-/.test(fm['upstream-spec']) && !/spec\.md$/.test(fm['upstream-spec'])) {
+    err('UPSTREAM_SPEC_FORMAT', `upstream-spec should point at spec.md from .spec/app/current.json (got ${JSON.stringify(fm['upstream-spec'])})`)
   }
 }
 

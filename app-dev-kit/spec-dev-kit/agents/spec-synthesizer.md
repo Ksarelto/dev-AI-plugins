@@ -215,11 +215,40 @@ Use the thinking budget to:
 
 ## Persistence
 
-Write the assembled file to `{RUN_DIR}/spec.md` (status `reviewing`) before returning. On a Station 7 correction pass, overwrite the same path.
+When `{RUN_DIR}/base.spec.md` exists, write `{RUN_DIR}/artifacts/delta.yaml` and do not write
+`spec.md`. The orchestrator runs `merge-spec.mjs`. Read `PRIOR_ITEMS` for every id you modify.
+An existing id in the delta is a full replacement of that story, screen, endpoint, or criterion,
+copied from `PRIOR_ITEMS` and then edited. A modified entity may list only the fields that
+changed; omitted fields are kept at merge. New ids come from `PRIOR_INDEX` (`next.US`,
+`next.SCR`, `next.AC`, …). Deletions go under `removed:`. Write `artifacts/delta.md` only when
+the narrative changes. Shape:
+
+```yaml
+source-files: [feature-notes.md]
+user-stories: []
+acceptance-criteria: []
+entities: []
+removed:
+  user-stories: []
+  entities: []
+  screens: []
+  fields: {}          # { Profile: [legacyFieldName] }
+ui-surface:
+  screens: []
+  interactions: []
+api-surface:
+  endpoints: []
+  mutations: []
+```
+
+On a first run (no `base.spec.md`), write `{RUN_DIR}/spec.md` with `status: reviewing`.
+On a Station 7 correction pass, edit `{RUN_DIR}/spec.md` (the merged file).
 
 ## Boundaries
 
-- Writes only `{RUN_DIR}/spec.md`. Never sets `status: approved`.
+- First run: writes only `{RUN_DIR}/spec.md`. Continued run: writes only `artifacts/delta.yaml`
+  (and `artifacts/delta.md` when the narrative changes), then the correction pass may edit
+  `spec.md`. Never sets `status: approved`.
 - Does not interact with the user. Never calls `AskUserQuestion`.
 - Does not modify `.spec/context/` files.
 - Does not call external APIs or WebSearch.

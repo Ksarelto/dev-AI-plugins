@@ -20,7 +20,7 @@
 | 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` or an `approved` spec already matches. Requires `.spec/context/*.md` |
 | 2 | Prototype | `html-generator-kit:generate-html` | Optional. Skip when `SKIP_UPSTREAM`. Pass `SPEC_PATH`. Capture `{dirname(SPEC_PATH)}/html-kit-result.json` |
 | 2a | Checklist derivation | `scripts/build-checklist.mjs` + this skill | **UI screens only.** Script reads `spec.md` from disk. Human confirms the list |
-| 3 | Task loop | `feature-dev-kit:feature-dev` (once per task) | Paths + ids only. Clean git tree required. Envelope → `done` / `pending` / `blocked` / leave `in-progress` |
+| 3 | Task loop | `feature-dev-kit:feature-dev` (once per feature) | Paths + ids only. Clean git tree required. Envelope → `done` / `pending` / `blocked` / leave `in-progress` |
 | 4 | Report | this skill *(inline)* | Write `frontend-kit-result.json`; paths + checklist counts; remind `/create-pr` |
 
 ---
@@ -35,7 +35,7 @@
   are `kit-result.json` files. Chat is not a store.
 - **A task is `done` only when** feature-dev’s envelope `outcome` is `approved` (its Station 12).
   Never mark `done` from a partial transcript.
-- **Do not edit `WORK_PLAN`.** That file is owned by `app-orchestrator-kit`.
+- **Do not edit `.spec/app/work-plan.md`.** That file is owned by `app-orchestrator-kit`.
 
 ---
 

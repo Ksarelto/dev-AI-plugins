@@ -2,7 +2,7 @@
 // Deterministic mapper: spec-dev-kit YAML (+ optional html prototype) → feature blackboard.
 // One feature per run (one screen, or several screens nested under that feature).
 // Usage:
-//   node import-upstream.mjs --spec <spec.md> --out <feature.md> [filters] [--require-scoped]
+//   node import-upstream.mjs --spec <spec.md> --out <feature.md> [filters] [--require-scoped] [--changes <changes.json>]
 // Exit 0 = wrote (or printed). Exit 1 = scoped-import failure. Exit 2 = usage/parse failure.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
@@ -37,6 +37,29 @@ const prototypeRef = flag('prototype-ref') === true ? '' : (flag('prototype-ref'
 const storyRefsArg = listFlag('story-refs')
 const acRefsArg = listFlag('ac-refs')
 const entityRefsArg = listFlag('entity-refs')
+const changesArg = flag('changes')
+
+function loadChanges(changesFlag) {
+  if (!changesFlag || changesFlag === true) return null
+  const changesPath = String(changesFlag).startsWith('/') ? String(changesFlag) : join(process.cwd(), String(changesFlag))
+  if (!existsSync(changesPath)) {
+    console.error(`FATAL: changes file not found: ${changesPath}`)
+    process.exit(2)
+  }
+  return JSON.parse(readFileSync(changesPath, 'utf8'))
+}
+
+function changedIdSet(changes) {
+  const ids = new Set()
+  if (!changes || typeof changes !== 'object') return ids
+  for (const bucket of Object.values(changes)) {
+    if (!bucket || typeof bucket !== 'object' || Array.isArray(bucket)) continue
+    for (const list of [bucket.modified, bucket.removed]) {
+      for (const id of list ?? []) if (id) ids.add(String(id))
+    }
+  }
+  return ids
+}
 
 if (!specPath) {
   console.error('usage: node import-upstream.mjs --spec <spec.md> [--out <feature.md>] [--feature-id F-001] [--screen-refs SCR-001,SCR-002] [--task-ids T-001,T-002] [--require-scoped]')
@@ -51,13 +74,13 @@ try {
   parse = undefined
 }
 if (typeof parse !== 'function') {
-  console.error('FATAL: the "yaml" package is not resolvable. Run from the repo root.')
+  console.error('FATAL: the "yaml" package is not installed in this plugin directory. Run npm install from the plugin root.')
   process.exit(2)
 }
 
 function readFrontmatter(path) {
   const raw = readFileSync(path, 'utf8')
-  const match = raw.match(/^---\n([\s\S]*?)\n---/)
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (!match) {
     console.error(`FATAL: no YAML front matter found in ${path}`)
     process.exit(2)
@@ -290,7 +313,8 @@ if (!outPath) {
 
 const kitDir = join(dirname(fileURLToPath(import.meta.url)), '..')
 const templatePath = join(kitDir, 'templates', 'feature-spec.md')
-let board = existsSync(outPath)
+const hadBoard = existsSync(outPath)
+let board = hadBoard
   ? readFileSync(outPath, 'utf8')
   : existsSync(templatePath)
     ? readFileSync(templatePath, 'utf8')
@@ -305,7 +329,7 @@ function replaceFm(key, value) {
   const re = new RegExp(`^${key}:\\s*.*$`, 'm')
   const line = `${key}: ${value}`
   if (re.test(board)) board = board.replace(re, line)
-  else board = board.replace(/^---\n/, `---\n${line}\n`)
+  else board = board.replace(/^---\r?\n/, `---\n${line}\n`)
 }
 
 function replaceSection(heading, content) {
@@ -331,6 +355,30 @@ replaceSection('Request', requestLines || slug)
 replaceSection('Acceptance Criteria', acMarkdown)
 replaceSection('UI Surface', uiMarkdown)
 replaceSection('API Contract / Data Model', apiMarkdown)
+
+function fmValue(key) {
+  const match = board.match(new RegExp(`^${key}:\\s*(.*)$`, 'm'))
+  return match ? match[1].trim().replace(/^['"]|['"]$/g, '') : ''
+}
+
+const priorStatus = hadBoard ? fmValue('status') : ''
+const localIds = [
+  ...selectedScreens.map((screen) => screen.id),
+  ...filteredEntities.map((entity) => entity.name),
+  ...filteredStories.map((story) => story.id),
+  ...filteredAcs.map((ac) => ac.id),
+  ...filteredEndpoints.map((endpoint) => endpoint.id),
+]
+const changed = changedIdSet(loadChanges(changesArg))
+const overlap = [...new Set(localIds.filter(Boolean).map(String))].filter((id) => changed.has(id))
+const reopen = priorStatus === 'done' && overlap.length > 0
+if (reopen || (hadBoard && fmValue('prior-branch') && overlap.length > 0)) {
+  if (reopen) {
+    replaceFm('status', 'approved')
+    replaceFm('prior-branch', fmValue('branch') || 'none')
+  }
+  replaceSection('Change request', `Spec changed. Edit the existing slice.\n\n${overlap.map((id) => `- ${id}`).join('\n')}`)
+}
 
 mkdirSync(dirname(outPath), { recursive: true })
 writeFileSync(outPath, board, 'utf8')

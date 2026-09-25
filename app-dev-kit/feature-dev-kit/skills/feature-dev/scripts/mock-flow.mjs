@@ -44,7 +44,7 @@ function fail(msg) { console.error(`FAIL  ${msg}`); failed++ }
 
 function parseFrontmatter(filePath) {
   const raw = readFileSync(filePath, 'utf8')
-  const match = raw.match(/^---\n([\s\S]*?)\n---/)
+  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (!match) return { raw, fm: null }
   return { raw, fm: parseYaml(match[1]) }
 }

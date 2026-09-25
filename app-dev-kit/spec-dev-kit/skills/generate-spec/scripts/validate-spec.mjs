@@ -32,10 +32,7 @@ try {
   // fall through to the check below
 }
 if (typeof parse !== 'function') {
-  console.error(
-    'FATAL: the "yaml" package is not resolvable. Run this script from the repo root '
-      + '(where node_modules/yaml exists), or `yarn add -D yaml`.',
-  )
+  console.error('FATAL: the "yaml" package is not installed in this plugin directory. Run npm install from the plugin root.')
   process.exit(2)
 }
 
@@ -47,7 +44,7 @@ try {
   process.exit(2)
 }
 
-const fmMatch = raw.match(/^---\n([\s\S]*?)\n---/)
+const fmMatch = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
 if (!fmMatch) {
   console.error('FATAL: no YAML front matter found (expected a leading --- ... --- block).')
   process.exit(2)

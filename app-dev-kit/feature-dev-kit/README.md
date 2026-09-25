@@ -93,14 +93,14 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
   .claude-plugin/plugin.json
   .cursor-plugin/plugin.json                 ← same fields and paths as Claude
   agents/                                    # 15 pipeline agents
-    feature-orchestrator.md                  ← sonnet | sequences stations 1–11; packets only; blackboard + context Write; never src/
+    feature-orchestrator.md                  ← opus | sequences stations 1–11; packets only; blackboard + context Write; never src/
     architecture-auditor.md                  ← sonnet | Stations 1.5 / 9.5 REPORT_ONLY; no Write; preloads architecture-audit
     upstream-interpreter.md                  ← haiku | scoped YAML + prototype → compact slice
     spec-analyst.md                          ← sonnet | request → testable spec; CLARIFY_PACKET; never approved
     code-explorer.md                         ← haiku | reuse/impact mapping; blackboard Write only
     research-analyst.md                      ← sonnet | context7 investigation; proposes deps, never installs
     slice-engineer.md                        ← sonnet | small-scope consolidated builder (LAYER + SLICE)
-    shared-engineer.md                       ← sonnet | shared/ layer; the only agent that may run yarn add
+    shared-engineer.md                       ← sonnet | shared/ layer; the only agent that may install approved packages
     entities-engineer.md                     ← sonnet | entity slices: api + model + ui
     features-engineer.md                     ← sonnet | interaction slices
     composition-engineer.md                  ← sonnet | widgets + pages
@@ -173,7 +173,7 @@ the emitted `.tsx` looks like goes in `rules/`.
 ## Pipeline
 
 ```
-request (or frontend-orchestrator-kit screen-task + .spec/app/spec-*/spec.md)
+request (or frontend-orchestrator-kit feature + .spec/spec/spec-*/spec.md)
       │
 feature-dev skill
   Station 0    intake — upstream-interpreter + spec-analyst → .spec/features/<slug>.md
@@ -239,7 +239,7 @@ Thresholds are defined once in `references/quality-gates.md` and referenced ever
 ## Relationship to the other kits
 
 ```
-/generate-spec   (spec-dev-kit)      → .spec/app/spec-*/spec.md
+/generate-spec   (spec-dev-kit)      → .spec/spec/spec-*/spec.md
       ├────────────────────────────► /generate-html (html-generator-kit) → clickable prototype
       └────────────────────────────► /orchestrate-frontend → /feature-dev once per feature
 ```
@@ -257,7 +257,7 @@ frontend-orchestrator-kit (or the human) provides one. It never dumps every app 
 4. Confirm the gate commands in `references/quality-gates.md` match the project's `package.json`.
 5. Start narrow: one entity slice + one feature + one page, with every gate human-supervised.
 
-`isolation: worktree` on parallel engineers and TaskCreate/TaskUpdate tools on the hub are
-**Claude Code fields**. Cursor support is not verified; the station map still holds if the host
+Layer engineers run one slice after another on the feature branch. TaskCreate/TaskUpdate on the hub are
+**Claude Code fields**. Cursor support for those task tools is not verified; the station map still holds if the host
 runs those workers sequentially. Agent YAML MCP tool names (`mcp__shadcn__…`) are Claude-shaped;
 merge `{KIT_DIR}/mcp.json` into the consumer config (see `references/mcp-servers.md`).

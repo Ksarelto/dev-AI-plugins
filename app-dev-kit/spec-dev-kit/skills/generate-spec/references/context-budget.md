@@ -19,12 +19,17 @@ enriched requirements.
 ## Intermediate Artifacts on Disk
 
 ```
-.spec/app/spec-{tc}_{slug}/artifacts/
+.spec/spec/spec-{tc}_{slug}/artifacts/
   intake.json         ← Station 1 (skill)
   analysis.json       ← spec-analyst (overwritten per round)
   completeness.json   ← spec-completeness
   qa-log.md           ← skill, every AskUserQuestion round, appended (## Round {n})
   enriched.json       ← spec-enricher
+  prior-index.json    ← continue-spec.mjs
+  prior-items.yaml    ← lookup-spec.mjs (modified ids only)
+  delta.yaml          ← synthesizer on a continue run
+  delta.md            ← synthesizer, only when the narrative changes
+  changes.json        ← merge-spec.mjs
 ```
 
 Rules:
@@ -41,6 +46,7 @@ KIT_DIR, RUN_DIR
 INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json
 ANALYSIS_OUT_PATH:  {RUN_DIR}/artifacts/analysis.json
 CONTEXT_FILE_PATHS: [.spec/context/*.md]   # paths only
+BASE_SPEC, PRIOR_INDEX                 # continue runs only; paths, do not paste base.spec.md
 ```
 
 ### Station 2a (spec-interrogator)
@@ -58,6 +64,7 @@ INTAKE_REPORT_PATH: unchanged
 ANALYSIS_PATH: {RUN_DIR}/artifacts/analysis.json
 ANALYSIS_OUT_PATH: same
 NEW_ANSWERS: only answers from the latest AskUserQuestion — NOT the full qa-log
+BASE_SPEC, PRIOR_INDEX                 # continue runs only
 ```
 
 ### Station 4 (spec-enricher)
@@ -65,6 +72,7 @@ NEW_ANSWERS: only answers from the latest AskUserQuestion — NOT the full qa-lo
 KIT_DIR, RUN_DIR
 ANALYSIS_PATH: {RUN_DIR}/artifacts/analysis.json
 QA_LOG_PATH:   {RUN_DIR}/artifacts/qa-log.md
+PRIOR_ITEMS:   {RUN_DIR}/artifacts/prior-items.yaml   # continue runs only
 ENRICHED_OUT_PATH: {RUN_DIR}/artifacts/enriched.json
 ```
 
@@ -84,9 +92,10 @@ KIT_DIR, RUN_DIR, TIMECODE, SLUG
 ENRICHED_PATH: artifacts/enriched.json
 QA_LOG_PATH:   artifacts/qa-log.md
 ANALYSIS_PATH: artifacts/analysis.json
+CONTINUE, PRIOR_INDEX, PRIOR_ITEMS   # continue runs only
 ```
 
-Pass **paths, not content**. The synthesizer writes `{RUN_DIR}/spec.md`.
+Pass **paths, not content**. A first run writes `{RUN_DIR}/spec.md`. A continue run writes `artifacts/delta.yaml`.
 
 ### Station 7 (validate-spec.mjs)
 ```

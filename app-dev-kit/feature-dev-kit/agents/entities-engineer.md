@@ -4,7 +4,6 @@ description: Builds the FSD `entities` layer (station 4). Owns per-entity api/, 
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 skills: [create-entity, add-text-content]
-isolation: worktree
 permissionMode: default
 ---
 

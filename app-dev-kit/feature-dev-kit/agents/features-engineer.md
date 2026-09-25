@@ -4,7 +4,6 @@ description: Builds FSD feature (interaction) slices (station 5) — the user ac
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 skills: [create-feature, create-slice]
-isolation: worktree
 permissionMode: default
 ---
 

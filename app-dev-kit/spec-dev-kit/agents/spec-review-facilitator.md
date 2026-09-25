@@ -135,8 +135,8 @@ The skill calls `AskUserQuestion` with this packet (single question).
 
 ### Step 4 — Process Response (after orchestrator relays the user's answer)
 
-**If approved** (`"approved"`, `"looks good"`, `"yes"`, `"finalize"`, positive sentiment):
-- Note: `"sounds good"`, `"sure"`, or silence are **not** approval — return a restate packet asking
+**If approved** (`"approved"`, `"yes"`, `"finalize"`):
+- `"looks good"`, `"sounds good"`, `"sure"`, and silence are **not** approval — return a restate packet asking
   the user to confirm explicitly (see `references/clarification-protocol.md` § Restate & Confirm).
 - When genuinely approved: return `{ approved: true }` so the orchestrator can return
   `READY_TO_PUBLISH`. The skill sets `status: approved` at Station 10.

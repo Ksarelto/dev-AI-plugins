@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# Scaffold a new spec run: emit a frozen UTC timecode and create the run folder
-# (+ artifacts/) without touching existing runs. Replaces the mechanical part of
-# the old spec-publisher agent.
+# Not the Station 0 entry. generate-spec Station 0 is continue-spec.mjs.
+# This script still scaffolds .spec/spec/spec-{timecode}_{slug}/ for a one-off folder.
+# It emits a frozen UTC timecode and creates that folder (+ artifacts/) without
+# touching existing runs.
 #
 # Usage:   new-run.sh <slug> [app-dir]
 # Example: new-run.sh profile-management
-#          new-run.sh invoice-approval .spec/app
+#          new-run.sh invoice-approval .spec/spec
 #
 # Prints two lines to stdout:
 #   TIMECODE=<YYYYMMDD-HHmmss>
 #   RUN_DIR=<app-dir>/spec-<timecode>_<slug>
-# The generate-spec skill captures these. spec-synthesizer writes spec.md (reviewing);
-# the skill sets status approved at Station 10.
+# generate-spec does not call this script.
 
 set -euo pipefail
 
 slug="${1:-}"
-app_dir="${2:-.spec/app}"
+app_dir="${2:-.spec/spec}"
 
 if [[ -z "$slug" ]]; then
   echo "usage: new-run.sh <slug> [app-dir]" >&2

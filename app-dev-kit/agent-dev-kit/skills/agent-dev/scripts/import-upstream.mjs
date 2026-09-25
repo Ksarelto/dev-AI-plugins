@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Scoped spec YAML → agent blackboard. One agent-surface row per run.
-// Usage: node import-upstream.mjs --spec <spec.md> --out <agent.md> [filters] [--require-scoped]
+// Usage: node import-upstream.mjs --spec <spec.md> --out <agent.md> [filters] [--require-scoped] [--changes <changes.json>]
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -27,6 +27,29 @@ const agentRef = flag('agent-ref') === true ? '' : (flag('agent-ref') || '')
 const prototypeRef = flag('prototype-ref') === true ? '' : (flag('prototype-ref') || '')
 const storyRefs = listFlag('story-refs')
 const acRefs = listFlag('ac-refs')
+const changesArg = flag('changes')
+
+function loadChanges(changesFlag) {
+  if (!changesFlag || changesFlag === true) return null
+  const changesPath = String(changesFlag).startsWith('/') ? String(changesFlag) : join(process.cwd(), String(changesFlag))
+  if (!existsSync(changesPath)) {
+    console.error(`FATAL: changes file not found: ${changesPath}`)
+    process.exit(2)
+  }
+  return JSON.parse(readFileSync(changesPath, 'utf8'))
+}
+
+function changedIdSet(changes) {
+  const ids = new Set()
+  if (!changes || typeof changes !== 'object') return ids
+  for (const bucket of Object.values(changes)) {
+    if (!bucket || typeof bucket !== 'object' || Array.isArray(bucket)) continue
+    for (const list of [bucket.modified, bucket.removed]) {
+      for (const id of list ?? []) if (id) ids.add(String(id))
+    }
+  }
+  return ids
+}
 
 if (!specPath || !outPath) {
   console.error('usage: node import-upstream.mjs --spec <spec.md> --out <agent.md> [--require-scoped]')
@@ -42,12 +65,12 @@ try {
   // fall through
 }
 if (typeof parse !== 'function' || typeof stringify !== 'function') {
-  console.error('FATAL: yaml package not resolvable')
+  console.error('FATAL: the "yaml" package is not installed in this plugin directory. Run npm install from the plugin root.')
   process.exit(2)
 }
 
 const raw = readFileSync(specPath, 'utf8')
-const match = raw.match(/^---\n([\s\S]*?)\n---/)
+const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
 if (!match) {
   console.error('FATAL: no YAML front matter')
   process.exit(2)
@@ -84,14 +107,26 @@ if (prototypeRef && existsSync(join(prototypeRef, 'page-map.json'))) {
 let fm = {}
 if (existsSync(outPath)) {
   const existing = readFileSync(outPath, 'utf8')
-  const fmMatch = existing.match(/^---\n([\s\S]*?)\n---/)
+  const fmMatch = existing.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (fmMatch) fm = parse(fmMatch[1]) ?? {}
 }
 
 const slug = fm.slug || ''
+const priorStatus = fm.status ?? 'draft'
+const localIds = [
+  keptAgent?.id,
+  ...(keptAgent?.['tool-refs'] ?? []),
+  ...keptTools.map((tool) => tool.id),
+  ...keptTools.map((tool) => tool['api-ref']),
+  ...keptStories.map((story) => story.id),
+  ...keptAcs.map((ac) => ac.id),
+]
+const changed = changedIdSet(loadChanges(changesArg))
+const overlap = [...new Set(localIds.filter(Boolean).map(String))].filter((id) => changed.has(id))
+const reopen = priorStatus === 'done' && overlap.length > 0
 const front = {
   slug,
-  status: fm.status ?? 'draft',
+  status: reopen ? 'approved' : priorStatus,
   created: fm.created ?? new Date().toISOString().slice(0, 10),
   branch: fm.branch ?? (slug ? `agent/${slug}` : ''),
   'upstream-spec': specPath,
@@ -99,12 +134,28 @@ const front = {
   'agent-ref': keptAgent?.id ?? agentRef,
   'prototype-ref': prototypeRef,
 }
+if (reopen) front['prior-branch'] = fm.branch ?? ''
+else if (fm['prior-branch']) front['prior-branch'] = fm['prior-branch']
+const changeSection = overlap.length > 0 && (reopen || fm['prior-branch'])
+  ? `\n## Change request\n\nSpec changed. Edit the existing slice.\n\n${overlap.map((id) => `- ${id}`).join('\n')}\n`
+  : ''
 
 const acLines = keptAcs.length
   ? keptAcs.map((a) => `- ${a.id} (${a['story-ref']}): Given ${a.given}; when ${a.when}; then ${a.then}`).join('\n')
   : '- (none imported)'
+const endpoints = [
+  ...(spec['api-surface']?.endpoints ?? []),
+  ...(spec['api-surface']?.mutations ?? []),
+]
+function toolLine(tool) {
+  const endpoint = endpoints.find((item) => item.id === tool['api-ref'])
+  const contract = endpoint
+    ? ` ${endpoint.method ?? ''} ${endpoint.path ?? ''} request=${JSON.stringify(endpoint.request ?? {})} response=${JSON.stringify(endpoint.response ?? {})}`
+    : ''
+  return `- ${tool.id} ${tool.name} api-ref=${tool['api-ref'] ?? ''}${contract} — ${tool.description ?? ''}`
+}
 const toolLines = keptTools.length
-  ? keptTools.map((t) => `- ${t.id} ${t.name} api-ref=${t['api-ref'] ?? ''} — ${t.description ?? ''}`).join('\n')
+  ? keptTools.map(toolLine).join('\n')
   : '- (none)'
 const kbLines = keptKbs.length
   ? keptKbs.map((k) => `- ${k.id} ${k.name} retrieval=${k.retrieval ?? ''} source=${k.source ?? ''}`).join('\n')
@@ -160,6 +211,6 @@ ${protoHint}
 `
 
 mkdirSync(dirname(outPath), { recursive: true })
-writeFileSync(outPath, `---\n${stringify(front)}---\n${body}`)
+writeFileSync(outPath, `---\n${stringify(front)}---\n${body}${changeSection}`)
 console.log(`OK: wrote ${outPath}`)
 process.exit(0)

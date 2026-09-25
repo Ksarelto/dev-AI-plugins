@@ -114,9 +114,9 @@ diff-size guard still applies per path; do not invent a second triage agent.
   - `COVERAGE_TARGETS`: from `quality-gates.md`
 - The invocation writes coverage results per slice into the spec's Gate log before returning.
 
-## Parallel workers
+## Slice workers
 
-When independent slices run in parallel (worktree-isolated), each parallel worker receives ONLY its own slice's SPEC_SECTIONS. Do NOT batch-inline all slice sections into every worker — pass a slice-scoped payload per worker.
+Each worker receives only its own slice's `SPEC_SECTIONS`. Do not inline every slice's sections into one worker.
 
 ## Size guards
 
