@@ -16,7 +16,7 @@ returns packets (`CLARIFY_PACKET`, `REVIEW_PACKET`, `ESCALATION_PACKET`, `READY_
 ### Claude Code
 
 ```text
-/plugin install spec-dev-kit@dev-cursor-plugins
+/plugin install spec-dev-kit@dev-AI-plugins
 ```
 
 Local development from this marketplace repo:
@@ -38,7 +38,7 @@ Then **Developer: Reload Window** and enable the kit under **Customize → Plugi
 Or add the marketplace in Agent chat:
 
 ```text
-/add-plugin https://github.com/Ksarelto/dev-cursor-plugins
+/add-plugin https://github.com/Ksarelto/dev-AI-plugins
 ```
 
 ---

@@ -1,5 +1,5 @@
 {
-  "name": "dev-cursor-plugins",
+  "name": "dev-AI-plugins",
   "version": "0.1.0",
   "private": true,
   "description": "Plugin marketplace with reusable skills, rules, commands, and agents for Claude Code and Cursor",

@@ -24,8 +24,8 @@ Install **this plugin and `frontend-dev-kit`**.
 ### Claude Code
 
 ```text
-/plugin install frontend-dev-kit@dev-cursor-plugins
-/plugin install feature-dev-kit@dev-cursor-plugins
+/plugin install frontend-dev-kit@dev-AI-plugins
+/plugin install feature-dev-kit@dev-AI-plugins
 ```
 
 Local development from this marketplace repo:
@@ -48,7 +48,7 @@ Then **Developer: Reload Window** and enable the kits under **Customize → Plug
 Or add the marketplace in Agent chat:
 
 ```text
-/add-plugin https://github.com/Ksarelto/dev-cursor-plugins
+/add-plugin https://github.com/Ksarelto/dev-AI-plugins
 ```
 
 Set `CONTEXT7_API_KEY` in the environment (see [`mcp.json`](./mcp.json) and

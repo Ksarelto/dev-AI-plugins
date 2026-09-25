@@ -21,8 +21,8 @@ Upstream: **spec-dev-kit** (`/generate-spec`). Design dependency: **ui-ux-pro-ma
 ### Claude Code
 
 ```text
-/plugin install spec-dev-kit@dev-cursor-plugins
-/plugin install html-generator-kit@dev-cursor-plugins
+/plugin install spec-dev-kit@dev-AI-plugins
+/plugin install html-generator-kit@dev-AI-plugins
 ```
 
 Local development from this marketplace repo:
@@ -45,7 +45,7 @@ Then **Developer: Reload Window** and enable the kits under **Customize → Plug
 Or add the marketplace in Agent chat:
 
 ```text
-/add-plugin https://github.com/Ksarelto/dev-cursor-plugins
+/add-plugin https://github.com/Ksarelto/dev-AI-plugins
 ```
 
 ---

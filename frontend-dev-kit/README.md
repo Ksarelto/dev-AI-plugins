@@ -6,7 +6,7 @@ Plugin for building React applications with **TypeScript**, **shadcn/ui**, **Tai
 
 ```bash
 # Full marketplace
-ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-cursor-plugins
+ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-AI-plugins
 
 # This plugin only
 ln -s /path/to/dev-cusor-plugins/frontend-dev-kit ~/.cursor/plugins/local/frontend-dev-kit

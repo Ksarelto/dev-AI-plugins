@@ -1,4 +1,4 @@
-# dev-cursor-plugins
+# dev-AI-plugins
 
 A plugin marketplace with reusable **skills**, **rules**, **commands**, and **agents** for Claude Code and Cursor.
 
@@ -107,4 +107,4 @@ npm run install:cursor-local
 | `frontend-orchestrator-kit` | `app-dev-kit/frontend-orchestrator-kit/` | Skills: spec → html-generator → feature-dev, one UI screen-task at a time, against a persisted checklist | `evals/cases/frontend-orchestrator-kit.json` (skills only) |
 | `app-orchestrator-kit` | `app-dev-kit/app-orchestrator-kit/` | Skills: analyze spec + prototype, then dispatch backend / agent / frontend tracks against a persisted work-plan | `evals/cases/app-orchestrator-kit.json` (skills only) |
 
-The last seven are one pipeline family, but **seven marketplace plugins** — Claude Code and Cursor install them individually (`/plugin install spec-dev-kit@dev-cursor-plugins`, or `claude --plugin-dir ./app-dev-kit/<name>` / `npm run install:cursor-local`). `frontend-orchestrator-kit` and `app-orchestrator-kit` have no agents directory.
+The last seven are one pipeline family, but **seven marketplace plugins** — Claude Code and Cursor install them individually (`/plugin install spec-dev-kit@dev-AI-plugins`, or `claude --plugin-dir ./app-dev-kit/<name>` / `npm run install:cursor-local`). `frontend-orchestrator-kit` and `app-orchestrator-kit` have no agents directory.

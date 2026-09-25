@@ -1,4 +1,4 @@
-# dev-cursor-plugins
+# dev-AI-plugins
 
 A plugin marketplace with reusable **skills**, **rules**, **commands**, and **agents** for **Claude Code** and **Cursor**.
 
@@ -27,7 +27,7 @@ The last seven are separate marketplace plugins under [`app-dev-kit/`](app-dev-k
 
 ```bash
 # Add this repo as a marketplace source (once per machine)
-/plugin marketplace add artsiommurashko/dev-cursor-plugins
+/plugin marketplace add artsiommurashko/dev-AI-plugins
 ```
 
 This makes all plugins available for install in any project.
@@ -36,16 +36,16 @@ This makes all plugins available for install in any project.
 
 ```bash
 # In any Claude Code session
-/plugin install base-dev-kit@dev-cursor-plugins
-/plugin install frontend-dev-kit@dev-cursor-plugins
-/plugin install pptx-dev-kit@dev-cursor-plugins
-/plugin install spec-dev-kit@dev-cursor-plugins
-/plugin install html-generator-kit@dev-cursor-plugins
-/plugin install feature-dev-kit@dev-cursor-plugins
-/plugin install frontend-orchestrator-kit@dev-cursor-plugins
-/plugin install backend-dev-kit@dev-cursor-plugins
-/plugin install agent-dev-kit@dev-cursor-plugins
-/plugin install app-orchestrator-kit@dev-cursor-plugins
+/plugin install base-dev-kit@dev-AI-plugins
+/plugin install frontend-dev-kit@dev-AI-plugins
+/plugin install pptx-dev-kit@dev-AI-plugins
+/plugin install spec-dev-kit@dev-AI-plugins
+/plugin install html-generator-kit@dev-AI-plugins
+/plugin install feature-dev-kit@dev-AI-plugins
+/plugin install frontend-orchestrator-kit@dev-AI-plugins
+/plugin install backend-dev-kit@dev-AI-plugins
+/plugin install agent-dev-kit@dev-AI-plugins
+/plugin install app-orchestrator-kit@dev-AI-plugins
 ```
 
 ### Load locally during development
@@ -95,7 +95,7 @@ Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the sa
 In Agent chat:
 
 ```text
-/add-plugin https://github.com/Ksarelto/dev-cursor-plugins
+/add-plugin https://github.com/Ksarelto/dev-AI-plugins
 ```
 
 Or browse **Customize → Plugins** after adding the marketplace.

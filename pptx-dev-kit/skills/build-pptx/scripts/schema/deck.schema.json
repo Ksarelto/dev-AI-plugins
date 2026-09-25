@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://dev-cursor-plugins.local/pptx-dev-kit/deck.schema.json",
+  "$id": "https://dev-AI-plugins.local/pptx-dev-kit/deck.schema.json",
   "title": "pptx-dev-kit deck.json",
   "type": "object",
   "additionalProperties": false,

@@ -13,7 +13,7 @@ missing, the factory STOPs.
 
 ```bash
 # Full marketplace
-ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-cursor-plugins
+ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-AI-plugins
 
 # This plugin only
 ln -s /path/to/dev-cusor-plugins/app-dev-kit/agent-dev-kit ~/.cursor/plugins/local/agent-dev-kit
