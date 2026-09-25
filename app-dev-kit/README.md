@@ -35,13 +35,13 @@ marketplaces register them with `source: ./app-dev-kit/<name>`.
 Claude Code:
 
 ```text
-/plugin install spec-dev-kit@dev-cursor-plugins
-/plugin install html-generator-kit@dev-cursor-plugins
-/plugin install feature-dev-kit@dev-cursor-plugins
-/plugin install frontend-orchestrator-kit@dev-cursor-plugins
-/plugin install backend-dev-kit@dev-cursor-plugins
-/plugin install agent-dev-kit@dev-cursor-plugins
-/plugin install app-orchestrator-kit@dev-cursor-plugins
+/plugin install spec-dev-kit@dev-AI-plugins
+/plugin install html-generator-kit@dev-AI-plugins
+/plugin install feature-dev-kit@dev-AI-plugins
+/plugin install frontend-orchestrator-kit@dev-AI-plugins
+/plugin install backend-dev-kit@dev-AI-plugins
+/plugin install agent-dev-kit@dev-AI-plugins
+/plugin install app-orchestrator-kit@dev-AI-plugins
 ```
 
 From this repo:

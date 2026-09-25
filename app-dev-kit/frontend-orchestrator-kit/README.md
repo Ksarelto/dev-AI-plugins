@@ -34,10 +34,10 @@ This kit **delegates** to spec-dev-kit, html-generator-kit, and feature-dev-kit.
 ### Claude Code
 
 ```text
-/plugin install spec-dev-kit@dev-cursor-plugins
-/plugin install html-generator-kit@dev-cursor-plugins
-/plugin install feature-dev-kit@dev-cursor-plugins
-/plugin install frontend-orchestrator-kit@dev-cursor-plugins
+/plugin install spec-dev-kit@dev-AI-plugins
+/plugin install html-generator-kit@dev-AI-plugins
+/plugin install feature-dev-kit@dev-AI-plugins
+/plugin install frontend-orchestrator-kit@dev-AI-plugins
 ```
 
 Local development from this marketplace repo:

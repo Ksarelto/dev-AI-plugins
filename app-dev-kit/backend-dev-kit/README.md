@@ -12,7 +12,7 @@ path-only `kit-result.json`. Never opens a PR.
 
 ```bash
 # Full marketplace
-ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-cursor-plugins
+ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-AI-plugins
 
 # This plugin only
 ln -s /path/to/dev-cusor-plugins/app-dev-kit/backend-dev-kit ~/.cursor/plugins/local/backend-dev-kit
