@@ -11,13 +11,13 @@ nothing outside the assigned boundary.
 ## The increment cycle
 
 ```
-Implement one segment → next segment → when the slice is complete: typecheck once → colocated test
+Implement one segment → next segment → when the slice is complete: typecheck once → behavior test (colocated for a component, `tests/` for other executable files)
 ```
 
 1. **Implement** one complete piece — a hook, a component, a segment. Stay inside `BOUNDARY`.
 2. **Next segment.** Do not shell out to `yarn typecheck` between segments.
 3. **Typecheck once** (`yarn typecheck`) when the assigned slice is complete.
-4. **Test** — write or extend the colocated test and run that file.
+4. **Test** — write or extend the behavior test and run that file. Components: `{name}.test.tsx` in the component folder. Hooks, api, models, lib, route modules, guards: the segment `tests/` folder. Assert behavior, not that the module exists.
 5. **Stop.** Write the handoff file. Do not scan the rest of the repo.
 
 A slice that does not compile at the end is not done. A typecheck after every hundred lines burns
@@ -67,6 +67,7 @@ Touch only what the delegation's `BOUNDARY` allows. Do **not**:
 - "Clean up" adjacent code, imports, or formatting in files you are only reading
 - Modernize syntax in files outside the slice
 - Remove comments you do not fully understand
+- Add a comment only for non-obvious logic. Do not comment what the code already says
 - Add props, variants, or endpoints that are not in the spec because they "seem useful"
 
 Note improvements instead of making them — write them to the spec's `## Decisions & Open Questions`:
@@ -99,9 +100,10 @@ rather than leaving the tree broken.
 
 ## Per-increment checklist
 
+- [ ] New code has no comments except one line for non-obvious logic
 - [ ] The slice does one thing and does it completely
 - [ ] `yarn typecheck` was run once at the end and passed
-- [ ] The new code has a colocated test that fails without it
+- [ ] Every new executable file has a behavior test that fails without it (colocated for components, `tests/` otherwise)
 - [ ] No file outside the assigned `BOUNDARY` was modified
 - [ ] The handoff file lists the paths touched
 

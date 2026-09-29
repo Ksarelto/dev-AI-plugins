@@ -96,7 +96,7 @@ const EditUserForm = ({ userId }: { userId: string }): JSX.Element => {
 ```typescript
 // src/components/ErrorBoundary.tsx
 import { ErrorBoundary as REB, type FallbackProps } from 'react-error-boundary';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 
 const Fallback = ({ error, resetErrorBoundary }: FallbackProps) => {
   return (
@@ -120,6 +120,6 @@ export const ErrorBoundary = ({ children }: { children: ReactNode }): JSX.Elemen
   </REB>
 );
 
-// In routes.tsx — wrap each lazy page
+// In app/router/root/routes.tsx — wrap each lazy page
 { path: 'users', element: <ErrorBoundary><Suspense fallback={<PageSpinner />}><UsersPage /></Suspense></ErrorBoundary> }
 ```

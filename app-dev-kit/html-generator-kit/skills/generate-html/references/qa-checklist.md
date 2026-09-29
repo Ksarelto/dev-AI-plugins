@@ -79,7 +79,7 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 |---|-------|----------|-----------|
 | Q1 | No "Lorem ipsum" placeholder text | WARNING | qa-validator |
 | Q2 | No "TODO" / "PLACEHOLDER" text | WARNING | qa-validator |
-| Q3 | Mock data has ≥ 4 records per entity | WARNING | component-library-author |
+| Q3 | Mock data has 6–8 records per entity | WARNING | component-library-author |
 | Q4 | Mock data includes all status variants | WARNING | component-library-author |
 | Q5 | Empty state has a primary CTA button | WARNING | screen-generator |
 | Q6 | Error state has a Retry action | WARNING | screen-generator |

@@ -18,8 +18,8 @@ const agentsDir = join(kitDir, 'agents')
 const skillsRoot = join(kitDir, 'skills')
 const pipelinePath = join(skillDir, 'references/pipeline-flow.md')
 const packetsDir = join(skillDir, 'templates/packets')
-const specFixture = join(repoRoot, '.spec/app/spec-20260917-124658_building-cupboard/spec.md')
-const protoFixture = join(repoRoot, '.spec/prototype/20260918-063204_building-cupboard')
+const specFixture = join(here, 'fixtures/building-cupboard/spec.md')
+const protoFixture = join(here, 'fixtures/prototype')
 const checklistScript = join(repoRoot, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/build-checklist.mjs')
 const importScript = join(here, 'import-upstream.mjs')
 const validateScript = join(here, 'validate-feature-spec.mjs')
@@ -353,6 +353,7 @@ if (!existsSync(specFixture)) {
     mkdirSync(join(tmp, 'grouped'), { recursive: true })
     writeFileSync(groupedSpec, `---
 type: app
+status: approved
 metadata:
   title: Grouped
   slug: grouped

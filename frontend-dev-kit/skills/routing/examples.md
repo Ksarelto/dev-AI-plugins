@@ -1,57 +1,20 @@
 # Routing Examples
 
-## Example 1 — Full router setup
+## Example 1 — Router composition
+
+`routes.ts` only spreads the three branches. Login has no layout wrapper. Pages use `lazyFeature()`, not `React.lazy()`. The full branch files are in the routing skill.
 
 ```typescript
-// src/routes.tsx
 import { createBrowserRouter } from 'react-router';
-import { lazy, Suspense } from 'react';
-import { RootLayout } from './layouts/RootLayout';
-import { AuthLayout } from './layouts/AuthLayout';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { PageSpinner } from './components/PageSpinner';
-import { ErrorBoundary } from './components/ErrorBoundary';
-
-const DashboardPage = lazy(() => import('./features/dashboard/pages/DashboardPage'));
-const UsersPage     = lazy(() => import('./features/users/pages/UsersPage'));
-const UserDetail    = lazy(() => import('./features/users/pages/UserDetail'));
-const LoginPage     = lazy(() => import('./features/auth/pages/LoginPage'));
-
-const wrap = (el: ReactElement) => (
-  <ErrorBoundary>
-    <Suspense fallback={<PageSpinner />}>
-      {el}
-    </Suspense>
-  </ErrorBoundary>
-);
+import { authRoutes } from './auth';
+import { errorRoutes } from './error';
+import { rootRoutes } from './root';
 
 export const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <RootLayout />,
-    children: [
-      {
-        element: <ProtectedRoute />,
-        children: [
-          { index: true,        element: wrap(<DashboardPage />) },
-          { path: 'users',      element: wrap(<UsersPage />) },
-          { path: 'users/:id',  element: wrap(<UserDetail />) },
-        ],
-      },
-    ],
-  },
-  {
-    path: '/',
-    element: <AuthLayout />,
-    children: [
-      { path: 'login', element: wrap(<LoginPage />) },
-    ],
-  },
+  ...authRoutes,
+  ...rootRoutes,
+  ...errorRoutes,
 ]);
-
-// src/main.tsx
-import { RouterProvider } from 'react-router';
-root.render(<RouterProvider router={router} />);
 ```
 
 ---
@@ -61,7 +24,7 @@ root.render(<RouterProvider router={router} />);
 ```typescript
 // features/users/pages/UserDetail.tsx
 import { useParams, useNavigate } from 'react-router';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 import { useUser } from '../api/useUser';
 import { useDeleteUser } from '../api/useDeleteUser';
 
@@ -152,8 +115,14 @@ export const ProtectedRoute = ({ requiredRole }: Props): JSX.Element => {
 ```typescript
 // features/users/pages/UsersPage.tsx
 import { useSearchParams } from 'react-router';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/shared/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select';
 
 const UsersPage = (): JSX.Element => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -212,7 +181,7 @@ export default UsersPage;
 ## Example 5 — React Router data loader
 
 ```typescript
-// Attach loader to the route in routes.tsx
+// Attach loader to the route in app/router/root/routes.tsx
 import { userQueryOptions } from './features/users/api/userQueryOptions';
 
 {
@@ -246,7 +215,7 @@ export default UserDetail;
 ## Example 6 — Modal as a parallel child route
 
 ```typescript
-// routes.tsx — modal is a child of the list route
+// app/router/root/routes.tsx — modal is a child of the list route
 {
   path: 'users',
   element: wrap(<UsersPage />),
@@ -257,7 +226,7 @@ export default UserDetail;
 
 // UsersPage.tsx
 import { Outlet, Link } from 'react-router';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 
 const UsersPage = (): JSX.Element => {
   return (

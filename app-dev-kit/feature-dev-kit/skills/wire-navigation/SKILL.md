@@ -16,22 +16,14 @@ Station 7. Invoke with or after `add-route` to make the new page discoverable in
 
 1. **Read the existing navigation structure**: use `Glob` and `Read` to find the navigation config file (sidebar menu config, nav items array, or navigation component). Read all existing entries to understand the shape, grouping, and labelling conventions before making any changes.
 
-2. **Add the `TextContent` key** for the navigation label (if not already in `shared/config/textContent.ts`):
-   ```ts
-   // shared/config/textContent.ts
-   export const TextContent = {
-     // existing entries...
-     NAV_PROFILE_DETAIL: 'Profile Detail',
-   } as const
-   ```
-   Use `UPPER_SNAKE_CASE` for the key, human-readable title case for the value. Invoke `add-text-content` if this step is needed.
+2. **Add the nav label** via `add-text-content` (`frontend-dev-kit:i18n`) if it is not already a key.
 
 3. **Add the menu/sidebar entry**: locate the correct position in the navigation hierarchy. Match the existing entry object shape exactly:
    ```ts
    // If navigation is a config array:
    {
      key: 'profile-detail',
-     label: TextContent.NAV_PROFILE_DETAIL,
+     label: t('nav.profileDetail'),
      path: navigationMap.profileDetail(profileId),
      icon: <ProfileIcon />,  // if icons are used
    }
@@ -53,13 +45,13 @@ Station 7. Invoke with or after `add-route` to make the new page discoverable in
 
 - `add-route` has been run and the route path constant is available in `ROUTES`.
 - `navigationMap` is updated with the link builder function.
-- `TextContent` has the nav label key (or add it as part of this skill using `add-text-content`).
+- The nav label exists (or add it with `add-text-content`).
 
 ## Outputs
 
 - Navigation config updated with new entry in the correct position.
 - Breadcrumb config updated (if applicable).
-- `TextContent` updated with new nav label key (if needed).
+- Nav label key added when it was missing.
 
 ## What this skill does NOT do
 

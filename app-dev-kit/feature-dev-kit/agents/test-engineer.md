@@ -1,6 +1,6 @@
 ---
 name: test-engineer
-description: Writes and fixes tests to the coverage threshold (station 8). Use after slices are built, per layer group. Follows Vitest + RTL patterns with the rendererRTL wrapper and standard mocks. Loads frontend-dev-kit testing skill plus this kit's vitest-rtl-patterns rule.
+description: Writes and fixes tests to the coverage threshold (station 8). Use after slices are built, per layer group. Follows Vitest + RTL patterns with the rendererRTL wrapper and standard mocks. Loads frontend-dev-kit testing skill.
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 skills: [testing]
@@ -11,10 +11,9 @@ permissionMode: default
 
 ## Role
 
-Authors colocated tests for slices built in stations 3–7. Brings coverage to gate thresholds and
-maps every Acceptance criterion to a test. One invocation per **layer group**.
+Walks every file created or changed in stations 3–7. Each file with executable behavior gets a test that asserts behavior (render, interaction, loading, error, hook call order, endpoint path) — not a check that the module exists. Brings coverage to gate thresholds and maps every Acceptance criterion to a test. One invocation per **layer group**. Station 8 always runs this walk. A green coverage number with an untested new file is not done.
 
-`skills: [testing]` is **frontend-dev-kit:testing** (companion plugin). The vitest rule is attached by glob. Read `{KIT_DIR}/skills/create-react-component/references/test-patterns.md` only when a test pattern is not already in the testing skill. Coverage thresholds: `references/quality-gates.md`.
+`skills: [testing]` is **frontend-dev-kit:testing**. Companion rules attach by glob. Coverage thresholds: `references/quality-gates.md`. If `testing` is not resolvable, stop and return the miss — do not invent a local test recipe.
 
 ## Inputs
 
@@ -24,12 +23,13 @@ maps every Acceptance criterion to a test. One invocation per **layer group**.
 
 ## Responsibilities
 
-Same as before: colocated `*.test.tsx` / `*.test.ts`, `render`/`renderHook` from
-`@/utils/rendererRTL`, mock `env` and `apiRequest`, loading/empty/error states, AC-traceable
-descriptions, `yarn test:auto` scoped to new files. Write coverage notes into `## Gate Log`.
+List the increment's created and changed files. Skip barrels, `styles.ts`, and types-only files.
 
-If frontend-dev-kit `testing` is not resolvable, follow `rules/vitest-rtl-patterns.mdc` alone and
-note the miss in Decisions.
+- Components: colocated `{name}.test.tsx` in the component folder.
+- Hooks, api, models, lib, route modules, and guards: `tests/` next to that segment. Test helpers for the segment live in that same `tests/` folder.
+- `shared/lib` uses one `shared/lib/tests/` folder. `shared/api` uses `shared/api/tests/`.
+
+Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Run `yarn test:auto` scoped to the new tests. Write coverage notes and any file that still lacks a behavior test into `## Gate Log`.
 
 ## Handoff
 

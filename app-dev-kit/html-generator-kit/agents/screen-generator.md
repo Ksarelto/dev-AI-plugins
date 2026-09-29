@@ -53,6 +53,12 @@ Then read `ux_directives`: apply the `## All pages` rules plus the section match
 and respect its `## Do not` list. Where `ux_directives` and the generic patterns in this file
 disagree, `ux_directives` wins — it is product-specific and rule-sourced.
 
+If `design_ref` starts with `## Provided reference (binding)`, the user supplied that structure.
+It outranks everything else — `Design direction`, `ux_directives`, the page-type heuristic in
+Step 2, and `page-shell.md` defaults. Emit the nav items in the given order, the header/brand-bar
+contents as described, and the given composition, using kit classes. Rules marked `(provided)` in
+`ux_directives` carry the same weight. Never "improve" a provided structure.
+
 The prototype is **CDN-free**: no Tailwind. Use ONLY the class vocabulary from `design_ref`
 (semantic component classes + the modern layer + the safe-named utility layer). Never emit Tailwind
 utility classes (`p-6`, `w-64`, `flex`, `text-sm`, `bg-card`, `grid-cols-3`, `hover:*`, `md:*`,

@@ -18,8 +18,8 @@ count, new package, new route). Do not read the upstream app spec to classify.
 
 | Tier | When | What runs |
 |------|------|-----------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree), then `run-gates.sh --until fsd`. Skip Stations 1, 1.5, 1a, 8, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
-| **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. Skip Station 1.5. Layer gates are `--until fsd`. Build and coverage once at Station 9. `test-engineer` only if coverage fails. Station 9.5 is `DIFF_SCOPE`. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree), then Station 8 (walk new executable files), then `run-gates.sh --until fsd`. Skip Stations 1, 1.5, 1a, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
+| **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. Skip Station 1.5. Layer gates are `--until fsd`. Station 8 always walks files created or changed in the increment. Build and coverage once at Station 9. Station 9.5 is `DIFF_SCOPE`. |
 | **full** | Six or more slices, or a new route plus a new entity | Same as standard, plus Station 1.5 scoped to `## FSD Impact` paths (not all of `src/`). Slices in one layer run one after another on the feature branch. One slice in a layer uses `slice-engineer`. |
 
 ---
@@ -59,7 +59,7 @@ Station 6    widgets/ + pages/ (composition-engineer)   ← one after another ·
       ↓
 Station 7    app/         (app-engineer)                ← GATE: layer-green
       ↓
-Station 8    Tests (test-engineer × layer group)        ← only if Station 9 coverage fails
+Station 8    Tests (test-engineer × layer group)        ← always: every new executable file
       ↓
 Station 9    Full gate sweep (quality-gate-runner)      ← GATE: all-green (build + coverage once)
       ↓
@@ -73,6 +73,11 @@ Station 11   Fix loop (owning engineer)                 ← max 3 iterations per
 ──────────────────────────────────────────────────────────────────
 
 ── feature-dev skill (main loop) ──────────────────────────────────
+Browser check   Chrome DevTools (`frontend-dev-kit:browser-debug`) before Station 12
+  • When UI changed, including patch. Dev server down → STOP and ask; do not skip
+  • Snapshot + screenshot, main actions, console, one adjacent route
+  • Write `.spec/features/<slug>.context/browser-check.md`
+  • Failures → `MODE: revise`, not the human packet
 Station 12   🧑 HUMAN REVIEW GATE (max 3 cycles)
   • Approve         → status: done (human-only transition); tell the human to run /create-pr
   • Request changes → re-spawn orchestrator MODE: revise → new packet → repeat
@@ -100,7 +105,8 @@ Each packet is small JSON plus a file path. The body lives in `.spec/features/<s
 | `dep-approved` | 1b→2 | Every package in `## Dependencies` marked human-approved | HARD STOP — `DEP_PACKET` |
 | `build-plan` | 2→3 | Build plan written, every affected slice assigned | STOP — re-run Station 1 |
 | `layer-green` | 3–7 | `run-gates.sh --until fsd` (types, lint, fsd) | Fix loop — never build the next layer on a red gate |
-| `coverage` | 9 | Thresholds in `quality-gates.md`; every AC has a test | Spawn `test-engineer` for the failing layer group (Station 8), then re-run coverage |
+| `behavior-tests` | 8 | Every new executable file has a behavior test in the right folder | `test-engineer` fills the gaps, then continue |
+| `coverage` | 9 | Thresholds in `quality-gates.md`; every AC has a test | Spawn `test-engineer` again for the failing layer group, then re-run coverage |
 | `all-green` | 9→9.5 | Full sweep, including build and coverage, once | Fix loop |
 | `architecture-clean` | 9.5→10 | `architecture-auditor` REPORT_ONLY + `DIFF_SCOPE`: zero hard violations on changed paths | Fix loop. Missing agent or companion skill → `ESCALATION_PACKET` |
 | `review-clean` | 10→11 | No `[CRITICAL]`; no unresolved `[IMPORTANT]` | Owning engineer |
@@ -123,7 +129,7 @@ Re-run `coverage` only if the fix touched tests. Do not rebuild after a type err
 |------|----------|-----------|----------------|-----------|
 | Clarification | Station 0 | 3 rounds | Acceptance criteria unambiguous and testable | Unknowns → `## Decisions & Open Questions` |
 | Fix loop (per gate) | Station 11 | 3 attempts | The failing gate passes | `ESCALATION_PACKET` |
-| Coverage loop | Station 8 | 2 attempts | Thresholds met | Escalate — never game coverage |
+| Coverage loop | Station 8 | 2 attempts | Every new executable file has a behavior test, and thresholds met | Escalate — never game coverage |
 | Auto-review loop | Station 10 | 2 attempts | No CRITICAL / unresolved IMPORTANT | Escalate with the finding list |
 | Human review | Station 12 (skill) | 3 cycles | Human approves | Ask: accept-as-is, keep iterating, or abort |
 

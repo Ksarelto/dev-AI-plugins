@@ -5,8 +5,14 @@ The design direction for ONE prototype, written by `design-strategist` to
 fills every token/font/layout/signature slot from this file, and `screen-generator` reads the tone
 notes and layout patterns to keep copy, emphasis, and composition on-brand.
 
-Commit to ONE direction (the user chose auto-pick). Do not hedge with alternatives. Every value
-below must be concrete enough to drop straight into CSS.
+Commit to ONE direction. Do not hedge with alternatives. Every value below must be concrete enough
+to drop straight into CSS.
+
+**Precedence:** a user-provided design reference (`design-inputs.json` with `binding: true`) is
+binding. Every value it states goes into `## Binding reference` and wins over `ui-ux-pro-max`, the
+domain-differentiation guidance, and every default below. `ui-ux-pro-max` and your own judgment fill
+**only the slots the reference leaves open**. Without a reference, omit the `## Binding reference`
+section and choose everything yourself.
 
 Values should come from a `ui-ux-pro-max` query wherever the § Provenance block says they do — see
 `references/ui-ux-pro-max.md` for the query recipes and the hex→OKLCH mapping table.
@@ -17,9 +23,33 @@ Values should come from a `ui-ux-pro-max` query wherever the § Provenance block
 # Design Brief — {App title}
 
 ## Provenance
-- Design authority: {ui-ux-pro-max ✅ | first-principles ⚠️ (ui-ux-pro-max unavailable)}
+- Design authority: {provided reference (binding) + ui-ux-pro-max for open slots |
+  provided reference (binding) + first-principles for open slots | ui-ux-pro-max ✅ |
+  first-principles ⚠️ (ui-ux-pro-max unavailable)}
 - Queries run: {list the exact search.py queries, or "none — dependency unavailable"}
 - Dials used: variance {N} · motion {N} · density {N}
+
+## Binding reference (ONLY when design-inputs.json has binding: true — else omit this section)
+- Sources read: {every path from design-inputs.json, with origin — images included}
+- Locked values (one row per stated value; `Applied as` is the exact CSS or kit choice):
+
+| Attribute | Provided | Source | Applied as |
+|-----------|----------|--------|------------|
+| Primary colour | `#0A3D62` | `.spec/design/brand.md:2` | `--primary: #0A3D62` |
+| Body font | Inter | `.spec/design/brand.md:3` | `--font-sans: 'Inter'` |
+| Layout | left sidebar nav | `.spec/processed/…/req.md:2` | layout `sidebar` |
+| Nav order | Dashboard, Orders, Settings | `mock.png` | structure: nav items in this order |
+
+  Token rows use the exact form `--token: value` so QA can grep `css/tokens.css` for them. Copy
+  colour values **verbatim** (hex / rgb / hsl / oklch are all valid CSS); never round or "improve"
+  them. Structure rows (layout, nav order, header contents, page composition, dark-by-default) use
+  plain words.
+- Open slots (not stated by the reference — filled below by ui-ux-pro-max / judgment): {list}
+- Deviations: {`none`, or one line per provided value NOT applied exactly: attribute · provided ·
+  what was done instead · reason (`not expressible in kit` | `font not on Google Fonts` |
+  `a11y-risk`)}. Silently dropping a provided value is never allowed.
+- If the sources contain no concrete design statement after reading them, write
+  `Locked values: none — sources contained no concrete design statement` and continue normally.
 
 ## Read of the product
 - Domain: {e.g. financial reconciliation / creative content / healthcare intake / developer tooling}
@@ -69,8 +99,10 @@ Values should come from a `ui-ux-pro-max` query wherever the § Provenance block
 
 ## Signature layer (the contemporary look — pick 1–3, no more)
 Named blocks from `templates/modern-signature-css.md`. `design-system-author` emits ONLY these.
+With a binding reference, pick only blocks that do not contradict it (no `gradient` on a flat
+brand, no `glass` when the reference shows opaque chrome). `none` is allowed only then.
 - Selected: {1–3 of: `bento` · `glass` · `gradient` · `edge-accent` · `soft-depth` · `editorial` ·
-  `underline-nav`}
+  `underline-nav` — or `none` when a binding reference rules every block out}
 - Why these fit the mood: {one line per pick}
 - Explicitly rejected: {name at least one you deliberately did NOT pick, and why — this is what
   keeps the design a point of view instead of a pile of effects}
@@ -98,6 +130,9 @@ Only describe the page types this app actually has.
 ```
 
 ## Guidance for choosing values
+
+Everything in this section applies to **open slots only**. It never overrides a
+`## Binding reference` value — if the user's brand is indigo + Inter + sidebar, that is the design.
 
 - **Vary meaningfully across products.** A fintech tool and a content app must not both land on
   indigo + Inter + sidebar. Let the domain/mood pick the hue family:

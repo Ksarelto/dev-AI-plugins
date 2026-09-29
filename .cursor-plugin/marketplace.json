@@ -47,28 +47,28 @@
     {
       "name": "spec-dev-kit",
       "source": "./app-dev-kit/spec-dev-kit",
-      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec for html-generator-kit and feature-dev-kit.",
+      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec for html-generator-kit, feature-dev-kit, backend-dev-kit, and agent-dev-kit.",
       "category": "productivity",
       "tags": ["spec", "requirements", "yaml", "orchestration", "app-dev-kit"]
     },
     {
       "name": "html-generator-kit",
       "source": "./app-dev-kit/html-generator-kit",
-      "description": "Turns a validated spec-dev-kit spec into a clickable, CDN-free, Alpine.js multi-page HTML prototype with a modern design direction sourced from ui-ux-pro-max, headless-browser verified before the skill-owned review gate.",
+      "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling). A provided theme, brand, mockup, or layout is binding; ui-ux-pro-max supplies the design only when none is provided. Headless-browser verified before the skill-owned review gate.",
       "category": "productivity",
       "tags": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "app-dev-kit"]
     },
     {
       "name": "feature-dev-kit",
       "source": "./app-dev-kit/feature-dev-kit",
-      "description": "Hub-and-spoke factory that builds one React FSD screen-task from a spec-dev-kit spec (and optional html prototype), with architecture-audit, quality gates, and a skill-owned human review. Never opens a PR.",
+      "description": "Hub-and-spoke factory that builds one React FSD feature per run (nested screen-tasks share the branch and commit) from a spec-dev-kit spec (and optional html prototype), with architecture-audit, quality gates, and a skill-owned human review. Never opens a PR.",
       "category": "productivity",
       "tags": ["react", "fsd", "feature-sliced-design", "orchestration", "shadcn", "mcp", "app-dev-kit"]
     },
     {
       "name": "frontend-orchestrator-kit",
       "source": "./app-dev-kit/frontend-orchestrator-kit",
-      "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit to build every UI screen-task against a persisted checklist. Use /orchestrate-app for the full-stack dispatcher.",
+      "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit once per feature (nested screen-tasks share that call) against a persisted checklist. Use /orchestrate-app for the full-stack dispatcher.",
       "category": "productivity",
       "tags": ["orchestration", "pipeline", "spec", "prototype", "feature-dev", "checklist", "frontend", "app-dev-kit"]
     },

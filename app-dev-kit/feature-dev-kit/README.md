@@ -7,7 +7,7 @@ Builds **one feature** (its nested screen-tasks share one branch and one commit)
 (frontend-orchestrator-kit groups an app spec) to a reviewed, gate-green branch — and **stops
 there**. Shipping is a separate, human-typed command.
 
-Required companion: **frontend-dev-kit** (`architecture-audit`, `code-review`, `testing`).
+Required companion: **frontend-dev-kit** (conventions, `architecture-audit`, `testing`). Station 10 reads that kit's review references; it does not run the `code-review` skill.
 Host app must already be an FSD tree under `src/` — this kit does not clone a starter.
 
 The running pipeline's source of truth is
@@ -77,7 +77,7 @@ src/entities/<entity>/            # api + model + ui segments, public index.ts
 src/features/<slug>/              # the interaction slice
 src/widgets/… · src/pages/…       # composition
 src/app/…                         # routes, navigation, providers
-*.test.tsx                        # colocated, coverage at threshold
+*.test.tsx                        # component tests colocated; other executable code in tests/
 feature/<TICKET>-<slug>           # branch, committed, never pushed
 ```
 
@@ -105,7 +105,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
     features-engineer.md                     ← sonnet | interaction slices
     composition-engineer.md                  ← sonnet | widgets + pages
     app-engineer.md                          ← sonnet | routes, navigation, providers
-    test-engineer.md                         ← sonnet | colocated tests; frontend-dev-kit:testing
+    test-engineer.md                         ← sonnet | behavior tests for every new executable file; frontend-dev-kit:testing
     quality-gate-runner.md                   ← haiku | runs gates, Gate log Write, returns only failures
     code-reviewer.md                         ← sonnet | conventions + AC coverage; FSD audit is station 9.5
   skills/
@@ -143,10 +143,8 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
     create-shared-ui/  create-react-component/  add-route/  wire-navigation/
     add-text-content/  generate-feature-spec/  investigate-dependency/
     run-quality-gates/  create-pr/           ← create-pr is human-only (disable-model-invocation: true)
-  rules/                                     ← coding conventions; Cursor auto-attaches via globs
-    typescript-patterns.mdc  react-patterns.mdc  tanstack-query-v5.mdc  vitest-rtl-patterns.mdc
-    form-patterns.mdc  shadcn-ui-conventions.mdc  styling-conventions.mdc
-    accessibility.mdc  ui-quality.mdc  git-workflow.mdc
+  rules/                                     ← this kit only: ui-quality.mdc, git-workflow.mdc
+                                                 React, TS, styling, forms, query, a11y, tests: frontend-dev-kit
 ```
 
 **Path convention.** Inside agents and skills, `references/…` and `templates/…` resolve to
@@ -160,13 +158,14 @@ root** (this directory when installed). Never hardcode `.spec/feature-dev-kit/`.
 
 | | `skills/feature-dev/references/` | `rules/` |
 |---|---|---|
-| Contains | How the **pipeline** runs: stations, gates, budgets, protocols | How the **code** is written: React, TS, queries, forms, styling, a11y |
+| Contains | How the **pipeline** runs: stations, gates, budgets, protocols | Feature-dev-only constraints: four UI states (`ui-quality`), git ship rules (`git-workflow`). React, TS, styling, forms, query, a11y, and tests are **frontend-dev-kit** |
 | Read by | The orchestrator and the station that needs it | Whichever engineer is authoring a file |
 | Loaded | On demand, when a station card names the file | Auto-attached by glob. `APPLY` names one skill, not these files |
 | Ships to | plugin `skills/feature-dev/references/` | plugin `rules/*.mdc` |
 
 A protocol that changes how agents coordinate goes in `references/`. A convention that changes what
-the emitted `.tsx` looks like goes in `rules/`.
+the emitted `.tsx` looks like lives in **frontend-dev-kit** (rules attach by glob once that plugin
+is installed; procedures are its skills). This kit keeps only `ui-quality` and `git-workflow`.
 
 ---
 
@@ -180,7 +179,7 @@ feature-dev skill
   Station 0.5  🧑 GATE: spec approval (validate-feature-spec.mjs, then human)
       │
   Classify TIER
-      patch     → slice-engineer, then run-gates.sh --until fsd, then Station 12
+      patch     → slice-engineer, Station 8 file walk, run-gates.sh --until fsd, then Station 12
       standard  → feature-orchestrator (skip Station 1.5)
       full      → feature-orchestrator
       Station 1    discovery — code-explorer            → FSD impact + reuse map
@@ -189,7 +188,7 @@ feature-dev skill
       Station 1b   ⇢ DEP_PACKET                          ← 🧑 GATE: dependency approval
       Station 2    planning                              ↓ GATE: build-plan
       Station 3–7  layers                                ↓ GATE: --until fsd
-      Station 8    test-engineer                          ← only if coverage fails
+      Station 8    test-engineer                          ← every new executable file
       Station 9    full sweep — build + coverage once    ↓ GATE: all-green
       Station 9.5  architecture-auditor DIFF_SCOPE        ↓ GATE: architecture-clean
       Station 10   auto-review — code-reviewer           ↓ GATE: review-clean
@@ -197,6 +196,7 @@ feature-dev skill
       ⇢ RETURN REVIEW_PACKET (review_path only)
       │
 feature-dev skill
+  Browser check  Chrome DevTools — layout, actions, one adjacent route (when UI changed)
   Station 12   🧑 GATE: human review (max 3 cycles)
       │
       ▼
@@ -231,7 +231,7 @@ Thresholds are defined once in `references/quality-gates.md` and referenced ever
 2. **No package is installed without human sign-off.** Adding a dependency is hard to reverse.
 3. **Bottom-up, gated per layer.** Nothing is built on a red gate.
 4. **Handoffs are file paths.** Spokes return `HANDOFF` + one `CONTAINS` line. The detail lives in `.spec/features/<slug>.context/`. Chat output is not state.
-5. **One screen-task per run.** Orchestrator-kit splits the app spec.
+5. **One feature per run.** Nested screen-tasks share this branch and this commit. Orchestrator-kit calls `/feature-dev` once per feature.
 6. **No agent ships.** No push, no merge, no PR — `/create-pr` is human-typed only.
 
 ---
@@ -251,7 +251,7 @@ frontend-orchestrator-kit (or the human) provides one. It never dumps every app 
 
 ## Adoption
 
-1. Install this plugin **and** `frontend-dev-kit` (required for architecture-audit / code-review / testing).
+1. Install this plugin **and** `frontend-dev-kit` (conventions, architecture-audit, testing).
 2. Merge `mcp.json` into the consumer repo root `.mcp.json`; set `CONTEXT7_API_KEY`; verify both servers per `references/mcp-servers.md`.
 3. Add the FSD boundary linter (Steiger) and wire `yarn lint:fsd` into the gate sequence.
 4. Confirm the gate commands in `references/quality-gates.md` match the project's `package.json`.

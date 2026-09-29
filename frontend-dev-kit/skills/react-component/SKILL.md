@@ -35,9 +35,10 @@ Every component lives in its own kebab-case folder. This is the required layout 
 ├── {name}.tsx                — JSX implementation (button.tsx, custom-button.tsx)
 ├── styles.ts                 — ALL Tailwind classes; never inline in JSX
 ├── types.ts                  — {Name}Props interface (optional but common)
-├── {name}.test.tsx           — colocated RTL test (recommended)
-└── {name}.stories.tsx        — Storybook story (recommended)
+└── {name}.test.tsx           — colocated behavior test
 ```
+
+Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.stories.tsx` in that folder. A feature gets one story at `features/<slice>/<slice>.stories.tsx` for the public entry. Entity and widget folders do not get stories.
 
 ## Instructions
 
@@ -97,7 +98,7 @@ export type { {Name}Props } from './types';
 When wrapping a shadcn primitive, spread props and merge `className` last via `cn()`. No `forwardRef` — React 19 passes `ref` as a plain prop:
 
 ```tsx
-import { Button as ShadcnButton, type ButtonProps } from '@/components/ui/button';
+import { Button as ShadcnButton, type ButtonProps } from '@/shared/ui/button';
 import * as styles from './styles';
 
 interface PrimaryButtonProps extends ButtonProps {
@@ -113,7 +114,7 @@ export const PrimaryButton = ({ className, ref, ...props }: PrimaryButtonProps) 
 );
 ```
 
-That wrapper lives at `shared/ui/primary-button/primary-button.tsx`.
+That wrapper lives at `shared/ui/primary-button/primary-button.tsx` and imports the base from `@/shared/ui/button`. If `shared/ui/<name>` does not exist yet, stop and add the registry primitive first (`shadcn-usage`). Do not author a second dialog, button, or drawer.
 
 ## Four required data states for list-driven components
 

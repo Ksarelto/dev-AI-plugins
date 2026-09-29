@@ -82,9 +82,7 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
       templates/
         spec-frontmatter.yaml
         spec-body.md
-      scripts/
-        validate-spec.mjs
-        continue-spec.mjs
+      scripts/                         ← see `scripts/`
 ```
 
 `KIT_DIR` is the plugin root (this directory when installed). Scripts are

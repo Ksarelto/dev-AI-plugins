@@ -55,7 +55,7 @@ The feature stays in the tree. Routes and chrome stop reaching it when the flag 
    } as const;
    ```
 
-3. **Route.** Wrap the route with `RequireFlag` in `app/router/routes.tsx`:
+3. **Route.** Wrap the route with `RequireFlag` in `app/router/root/routes.tsx`:
 
    ```tsx
    import { isEnabled } from '@/shared/config/flags';
@@ -134,7 +134,7 @@ For each row, grep, then delete or update.
 | `src/features/{name}/` | Delete the slice |
 | `src/pages/` that import it | Delete the page folder, or remove the composition if the page hosts others |
 | `src/widgets/` that import it | Remove the feature from the widget, or delete the widget if it exists only to compose this feature |
-| `src/app/router/routes.tsx`, layouts, guards | Remove the route, `lazyFeature` import, and `RequireFlag` if it existed only for this feature |
+| `src/app/router/root/routes.tsx` (or `auth/`), layouts, guards | Remove the route, `lazyFeature` import, and `RequireFlag` if it existed only for this feature |
 | `src/shared/api/query-keys/{domain}.ts` | Delete the file, or remove this feature's keys if the domain is shared. **Easy to miss:** leftover factories still type-check |
 | `src/features/{name}/locales/` and i18n registration | Already gone with the slice; drop the namespace from i18n config if it was registered centrally |
 | `shared/config/flags.ts` and `shared/config/env.ts` | Remove this feature's flag entry and env var |

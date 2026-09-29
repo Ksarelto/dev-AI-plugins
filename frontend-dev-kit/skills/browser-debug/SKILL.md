@@ -15,6 +15,7 @@ Use the **chrome-devtools** MCP server to connect to a running Chrome browser an
 
 ## When to use
 
+- The feature-dev pipeline runs this check before human review whenever UI changed. It is required there, not optional
 - Verify a component renders correctly after implementation
 - Debug layout, styling, or shadcn/Tailwind component behavior in the browser
 - Inspect console errors, network requests, or failed API calls

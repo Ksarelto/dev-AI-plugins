@@ -1,6 +1,6 @@
 ---
 name: generate-html
-description: Transforms a validated spec from .spec/app/current.json into a clickable multi-page HTML prototype at .spec/prototype/{TIMECODE}_{SLUG}/. When a prototype already exists, copies that directory and adds only the new screens so the previous pages stay. Design direction is sourced from the ui-ux-pro-max design-intelligence skill (installed on demand) so each prototype gets a current, product-appropriate look rather than a generic template. Output is split (one HTML per screen, dedicated css/*.css and js/*.js), fully CDN-free for styling (self-contained shadcn OKLCH tokens + component classes; no Tailwind runtime), verified with a headless-browser render check, and passes a mandatory human review gate before finalizing.
+description: Transforms a validated spec from .spec/app/current.json into a clickable multi-page HTML prototype at .spec/prototype/{TIMECODE}_{SLUG}/. When a prototype already exists, copies that directory and adds only the new screens so the previous pages stay. A provided theme, brand colours, fonts, style guide, mockup, or layout (in .spec/design/, the spec's context files, or paths named in the request) is binding and reproduced exactly; only when none is provided is the design direction sourced from the ui-ux-pro-max design-intelligence skill (installed on demand). Output is split (one HTML per screen, dedicated css/*.css and js/*.js), fully CDN-free for styling (self-contained shadcn OKLCH tokens + component classes; no Tailwind runtime), verified with a headless-browser render check, and passes a mandatory human review gate before finalizing.
 argument-hint: "[spec-slug or spec.md path]"
 allowed-tools: [Read, Glob, Grep, Write, Bash, Agent, AskUserQuestion, TaskCreate, TaskUpdate, TaskList, TaskGet]
 ---
@@ -55,6 +55,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `templates/navigation-js.md` | `assembly-wiring` (Station 5) | active-page highlight + breadcrumb helpers |
 | `templates/page-shell.md` | `screen-generator` (Station 4) | standalone page HTML structure |
 | `templates/index-shell.md` | `assembly-wiring` (Station 5) | landing app-map structure |
+| `scripts/collect-design-inputs.mjs` | this skill (Step 2.6, Bash) | finds provided theme/brand/layout sources → `design-inputs.json` |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
 | `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
@@ -63,6 +64,10 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 ## Prerequisites
 
 - A validated spec must exist in `.spec/app/`. Run `/generate-spec` first if none exists.
+- **Optional design reference** — to make the prototype follow an existing theme, drop brand
+  guides, `tokens.css`, colour/font notes, or screenshots/mockups into `.spec/design/`, or name
+  their paths when invoking. Theme statements in the spec's context files are picked up too.
+  Anything found is binding (Step 2.6).
 - **`ui-ux-pro-max`** — the third-party design-intelligence skill this kit uses as its design
   authority. Strongly recommended; Step 2.5 detects it and offers to install it. Without it the
   pipeline still runs, but the design is invented from model priors rather than sourced from a rule
@@ -93,6 +98,7 @@ If `current.json` is missing, Glob `.spec/spec/spec-*/spec.md` and then `.spec/a
 Read the selected `spec.md` **only to extract identity** (do not pass the full file to the orchestrator or back to `orchestrate-frontend` / `orchestrate-app`):
 - `metadata.slug` (or derive from folder name: part after `_`)
 - `metadata.title` (or fallback: slug with hyphens → spaces)
+- `status` from the front matter. If it is not `approved`, STOP: `"Spec is not approved (status: {status}). Finish /generate-spec first."` Write the aborted envelope — `SPEC_FILE` is known.
 
 Keep `SPEC_FILE` as the path. On a full build, `spec-interpreter` reads the file itself. Append mode does not call it.
 
@@ -191,6 +197,44 @@ the npm package alone will not help — continue with `UIUX_DIR: none` or abort.
 
 Never fabricate a `UIUX_DIR`, and never claim the design was rule-sourced when it was not.
 
+### Step 2.6 — Resolve the provided design reference (binding when present)
+
+A theme, brand, style guide, mockup, or layout the user provided is **mandatory**. The pipeline
+only designs its own look when none is found. Discovery is a script, not a judgment call, so it
+does not depend on an agent noticing a context file:
+
+1. Collect **explicit** references from this invocation:
+   - file or directory paths the user named (brand guide, `tokens.css`, screenshots, a design
+     folder), and any `DESIGN_REFS` paths from a calling orchestrator;
+   - inline design instructions in the request (hex codes, font names, "use our brand colours",
+     "top navigation like our portal") — write them verbatim to `{OUTPUT_DIR}/design-request.md`
+     and treat that file as an explicit path;
+   - a URL (e.g. Figma) — subagents cannot open it. If this session has a tool that exports it
+     (Figma MCP `get_screenshot` / `get_variable_defs`), save the export under
+     `{OUTPUT_DIR}/design-request/` and use that path; otherwise say so and ask for an export.
+2. Run:
+
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/collect-design-inputs.mjs \
+  --spec "{SPEC_FILE}" \
+  --out "{OUTPUT_DIR}/design-inputs.json" \
+  [--extra "{explicit path}" ...]
+```
+
+It scans, in priority order: explicit paths → `.spec/design/**` (any file, always binding) → the
+spec itself → `.spec/context/*` → `.spec/processed/*/` (spec-dev-kit archives context there after
+approval, so a brand note given to `/generate-spec` is still found). Spec/context files count only
+when they contain a concrete value (hex / rgb / oklch, CSS variables, `font-family:`) or an explicit
+theme/brand/layout statement; images in those folders always count.
+
+3. `BINDING:` output → tell the user in one line which sources will be followed, then continue (no
+   question). `NONE:` → continue; the design is auto-picked as before.
+4. **Append mode** with `BINDING:` — grep the copied `{OUTPUT_DIR}/design-brief.md` for
+   `## Binding reference`. If it is missing, or does not list every source path the script printed,
+   AskUserQuestion: "A design reference was provided that the previous prototype doesn't follow.
+   Apply it?" — **Apply it (re-runs design and regenerates every page)** → set `BUILD_MODE=build`;
+   **Keep the current look** → stay in append mode.
+
 ### Step 3 — Drive the orchestrator until review or escalation
 
 Spawn `html-orchestrator`. It **never** asks the user. Loop on packets:
@@ -205,6 +249,7 @@ OUTPUT_DIR: .spec/prototype/{TIMECODE}_{SLUG}/
 DELTA_PAGES: {path or omit on a full build}
 KIT_DIR:    {resolved plugin root}
 UIUX_DIR:   {resolved path from Step 2.5, or `none`}
+DESIGN_INPUTS: {OUTPUT_DIR}/design-inputs.json   # binding: true → provided reference is mandatory
 
 Read {KIT_DIR}/skills/generate-html/references/pipeline-flow.md before any station.
 Do NOT call AskUserQuestion. Do NOT write prototype files. Return one packet and STOP.
@@ -235,7 +280,7 @@ Do not inline the spec file into the spawn prompt.
    MODE:           revise
    CHANGE_REQUEST: {user's change text}
    PAGES:          {current pages[] list from the last packet}
-   TIMECODE / SLUG / TITLE / OUTPUT_DIR / KIT_DIR / UIUX_DIR / SPEC_FILE: (same as build)
+   TIMECODE / SLUG / TITLE / OUTPUT_DIR / KIT_DIR / UIUX_DIR / SPEC_FILE / DESIGN_INPUTS: (same as build)
    ```
    After 3 change cycles without approval: ask (AskUserQuestion) finalize-as-is or abort.
 4. On **ESCALATION_PACKET**: ask with the listed options. If the user chooses proceed-to-review,
@@ -263,7 +308,8 @@ Open http://localhost:3000
 ## Design System
 
 Direction: {archetype} · primary {hue} · {fonts} · {layout} · signature: {emitted blocks}
-Design authority: {ui-ux-pro-max | first-principles}
+Design authority: {provided reference + ui-ux-pro-max | provided reference + first-principles | ui-ux-pro-max | first-principles}
+Provided reference: {source paths from design-inputs.json | none} · deviations: {none | list}
 
 - `design-brief.md` — the chosen direction and why
 - `ux-directives.md` — per-page-type UX rules the screens were built against
@@ -324,3 +370,4 @@ Serve:   npx serve .spec/prototype/{TIMECODE}_{SLUG}
 | Scripts not found | Re-resolve `KIT_DIR` (plugin root, not `.spec/html-generator-kit/` unless that copy exists) |
 | Render check SKIPPED | Playwright is optional. This skill may install it if the user asks; the orchestrator must not `npm i` |
 | Design authority first-principles | `UIUX_DIR` is `none` — install ui-ux-pro-max (Step 2.5) and re-run if a sourced look is required |
+| Prototype ignored my theme / brand | Check `{OUTPUT_DIR}/design-inputs.json`. `binding: false` means no source was found — put the brand guide, tokens, or screenshots in `.spec/design/` (always picked up) or name the path when invoking. `binding: true` but not followed → see `## Binding reference` → Deviations in `design-brief.md` |

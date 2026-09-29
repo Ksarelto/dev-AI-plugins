@@ -16,7 +16,7 @@ src/shared/ui/confirm-button/
 ```ts
 // types.ts
 import type { ComponentProps } from 'react';
-import type { Button } from '@/components/ui/button';
+import type { Button } from '@/shared/ui/button';
 
 export interface ConfirmButtonProps extends ComponentProps<typeof Button> {
   className?: string;
@@ -27,7 +27,7 @@ export interface ConfirmButtonProps extends ComponentProps<typeof Button> {
 ```tsx
 // confirm-button.tsx
 import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 import { cn } from '@/lib/utils';
 import type { ConfirmButtonProps } from './types';
 
@@ -86,7 +86,7 @@ export interface OrderStatusBadgeProps {
 
 ```tsx
 // order-status-badge.tsx
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/shared/ui/badge';
 import { cn } from '@/lib/utils';
 import type { OrderStatusBadgeProps } from './types';
 

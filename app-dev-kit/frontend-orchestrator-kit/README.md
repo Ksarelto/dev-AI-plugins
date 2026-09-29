@@ -5,11 +5,11 @@
 Runs the **frontend** track of the `app-dev-kit` family:
 
 ```
-spec-dev-kit        →   html-generator-kit   →   feature-dev-kit (once per UI screen)
+spec-dev-kit        →   html-generator-kit   →   feature-dev-kit (once per feature)
 /generate-spec           /generate-html            /feature-dev
    │                        │                         │
    ▼                        ▼                         ▼
-.spec/app/spec.md    .spec/prototype/…          .spec/features/<slug>.md
+.spec/spec/…/spec.md  .spec/prototype/…         .spec/features/<slug>.md
 ```
 
 It does not replace any of those kits' inner pipelines or human gates. It does **not** build

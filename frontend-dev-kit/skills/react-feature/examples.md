@@ -74,9 +74,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+} from '@/shared/ui/table';
+import { Button } from '@/shared/ui/button';
+import { Skeleton } from '@/shared/ui/skeleton';
 
 export const UserList = (): JSX.Element => {
   const filters = useUserFilters();
@@ -177,8 +177,8 @@ export type ProfileFormValues = z.infer<typeof profileSchema>;
 // ui/ProfileForm/index.tsx
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
 import {
   Form,
   FormControl,
@@ -186,8 +186,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
-import { Skeleton } from '@/components/ui/skeleton';
+} from '@/shared/ui/form';
+import { Skeleton } from '@/shared/ui/skeleton';
 import { profileSchema, type ProfileFormValues } from './types';
 
 export const ProfileForm = (): JSX.Element => {

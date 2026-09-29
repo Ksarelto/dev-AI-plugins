@@ -20,7 +20,7 @@ Segment tests live in a `tests/` folder next to the code. Component tests are th
 
 **Judgment**
 
-- Widget tests as RTL or Storybook — either is fine.
+- Widget behavior tests are RTL in the component folder. A widget story is not required.
 - A uniqueness test that every `query-keys/` factory root is unique.
 
 ## How

@@ -1,7 +1,7 @@
 {
   "name": "spec-dev-kit",
   "displayName": "Spec Dev Kit",
-  "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec, read by html-generator-kit and feature-dev-kit.",
+  "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec, read by html-generator-kit, feature-dev-kit, backend-dev-kit, and agent-dev-kit.",
   "version": "0.1.0",
   "author": {
     "name": "Artsiom Murashko"

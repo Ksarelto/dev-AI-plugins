@@ -19,6 +19,7 @@ All design decisions follow the design-system-ref passed by the orchestrator.
 | `pages[]` | `{ id, title, domain, description }` — no entity details needed |
 | `nav_structure` | `{ domain: [page_id, ...] }` groups |
 | `title` | App/feature title |
+| `design_ref` | Content of `design-system-ref.md`. If it starts with `## Provided reference (binding)`, index.html and the nav follow that layout, nav order, and header contents over the defaults below |
 | `KIT_DIR` | plugin root (contains `agents/` and `skills/`; never assume `.spec/html-generator-kit/`) |
 | `OUTPUT_DIR` | Prototype output directory |
 
@@ -83,6 +84,7 @@ Write to `{OUTPUT_DIR}/index.html`.
 - [ ] `index.html` contains an `<a href="pages/{id}.html">` for every page in `pages[]`
 - [ ] `navigation.js` PAGES_ARRAY contains all page IDs
 - [ ] All `href` values are relative (no absolute paths)
-- [ ] Nav groups reflect `nav_structure` (same grouping as screen pages)
+- [ ] Nav groups reflect `nav_structure` (same grouping as screen pages), in the provided nav order
+  when `design_ref` has a `## Provided reference` block
 
 Report: `{ files: ["index.html", "js/navigation.js"], pages_wired: {count}, status: "wired" }`

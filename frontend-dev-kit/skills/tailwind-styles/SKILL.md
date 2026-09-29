@@ -132,6 +132,12 @@ Reference tokens defined in `shared/ui/theme/globals.css`. Common ones:
 
 Never hardcode: `text-gray-700`, `#1a1a1a`, `text-slate-900`.
 
+## Motion
+
+Dialog, drawer, sheet, popover, dropdown, and tooltip bases keep the registry’s open/close classes (`animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-*`, and `data-[state=open|closed]:…`). Those strings live in `styles.ts`. Stripping them leaves the element static.
+
+The classes do nothing unless global CSS imports the animation stylesheet the installed shadcn version expects. Read `package.json`, `components.json`, and the global CSS. Do not add a second animation library from memory. If that package is missing, it is a dependency to approve, not a class to delete.
+
 ## `shared/ui/theme/` layout
 
 | File | Purpose |
@@ -148,5 +154,6 @@ Never hardcode: `text-gray-700`, `#1a1a1a`, `text-slate-900`.
 - [ ] `cn()` merges caller `className` last so the caller can override
 - [ ] No `dark:` variants, no `.dark` class, no `ThemeProvider`
 - [ ] No `style={{}}`, no CSS Modules, no `!important`
+- [ ] Overlay primitives keep their `data-[state=*]` / `animate-*` classes, and global CSS loads the matching animation stylesheet
 
 See [examples.md](examples.md) for few-shot templates.

@@ -22,12 +22,23 @@ Do not load `frontend-dev-kit:code-review` and do not spawn a second pair of rev
 
 ## Checklist
 
-1. Named exports (except page defaults), no `any`, no hardcoded UI strings, tests colocated, queries by role.
-2. Reuse vs duplication against `## Reuse Map`.
-3. Every acceptance criterion maps to code and a test.
-4. Tag `[CRITICAL]` / `[IMPORTANT]` / `[MINOR]`. Pass = no CRITICAL and no unresolved IMPORTANT.
+Read the companion references that match the diff. Resolve the directory from the installed plugin: `~/.cursor/plugins/local/frontend-dev-kit/skills/code-review/references/` or `$KIT_DIR/../../frontend-dev-kit/skills/code-review/references/`.
 
-FSD import direction, public `index.ts`, query keys, and segment rules are out of scope.
+- `accessibility.md`
+- `styling-and-shadcn.md`
+- `testing.md`
+- `data-fetching.md`
+- `i18n.md`
+
+Missing directory → stop. Do not invent a local checklist.
+
+1. Apply those references. Reuse vs duplication against `## Reuse Map`.
+2. Every acceptance criterion maps to code and a test.
+3. Comments: a comment that restates the code is `[IMPORTANT]`. One line for non-obvious logic is fine.
+4. `index.ts`: a re-export that no file outside that folder imports is `[IMPORTANT]`. A component-folder `index.ts` may export the component and its props type.
+5. Tag `[CRITICAL]` / `[IMPORTANT]` / `[MINOR]`. Pass = no CRITICAL and no unresolved IMPORTANT.
+
+FSD import direction, query keys, and segment rules are out of scope. Predicted re-exports are in scope (item 4).
 
 ## Handoff
 

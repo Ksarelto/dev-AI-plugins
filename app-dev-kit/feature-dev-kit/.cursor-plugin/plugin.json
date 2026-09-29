@@ -1,7 +1,7 @@
 {
   "name": "feature-dev-kit",
   "displayName": "Feature Dev Kit",
-  "description": "Hub-and-spoke factory that builds one React Feature-Sliced Design screen-task from a spec-dev-kit spec and optional html prototype, through architecture-audit, quality gates, and a skill-owned human review. Never opens a pull request.",
+  "description": "Hub-and-spoke factory that builds one React Feature-Sliced Design feature per run (nested screen-tasks share the branch and commit) from a spec-dev-kit spec and optional html prototype, through architecture-audit, quality gates, and a skill-owned human review. Never opens a pull request.",
   "version": "0.1.0",
   "author": {
     "name": "Artsiom Murashko"

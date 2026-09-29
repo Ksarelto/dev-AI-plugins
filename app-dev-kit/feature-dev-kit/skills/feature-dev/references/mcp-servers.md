@@ -23,26 +23,33 @@ The shadcn MCP server connects the factory directly to the shadcn component regi
 
 | Agent | Usage |
 |-------|-------|
+| `feature-dev` skill | Before Station 0: one search/list call. No component result → STOP |
 | `code-explorer` | Browse-only: checks which shadcn components cover the feature's UI surface during context discovery |
-| `shared-engineer` | Browse + add: pulls primitives and blocks into `shared/ui` via the `create-shared-ui` skill |
-| `composition-engineer` | Browse + add: assembles shadcn blocks into widgets and pages via the `create-widget` / `create-page` skills |
+| `shared-engineer` | Browse + add: pulls primitives into `shared/ui/<name>/` via `create-shared-ui` |
+| `entities-engineer`, `features-engineer`, `slice-engineer` | Browse: if the primitive is missing from `shared/ui/<name>`, hand it to `shared-engineer` |
+| `composition-engineer` | Browse: blocks for widgets, primitives from `shared/ui/<name>` |
 
 ### Registry-first workflow
 
-1. Agent browses registry via MCP for the required component.
-2. If a match exists: agent calls the MCP "add" command (equivalent to `npx shadcn add <component>`).
-3. Agent adapts the generated file to project conventions (named export, `cn()`, tokens, `index.ts`).
-4. Agent re-homes the file into `shared/ui/<component>/`.
+1. Agent browses the registry via MCP for the required component.
+2. If a match exists: agent calls the MCP add command (equivalent to `npx shadcn add <component>`).
+3. Agent re-homes the file into `shared/ui/<name>/` with named export, `types.ts`, `styles.ts` (animation classes kept), and `index.ts`. No `shared/ui` mega-barrel. No second copy under `@/components/ui`.
+4. If the search has no fit, hand-author and record the miss. Do not skip the search.
 
-See `rules/shadcn-ui-conventions.mdc` for the full adaptation checklist.
+Adaptation checklist: `frontend-dev-kit:shadcn-usage`.
 
 ### Verification
 
-Run this to confirm the server is reachable:
-```bash
-npx shadcn@latest mcp --help
-```
-Expected: the MCP tool manifest listing available tools (e.g. `list-components`, `get-component`, `add-component`).
+Before Station 0, call the shadcn MCP search or list tool and require a real component in the result.
+
+- Cursor: `search_items_in_registries` with `query` `"button"` (registries optional; the server reads `components.json`).
+- Claude Code: the same call under the `mcp__shadcn__search_items_in_registries` tool name.
+
+Pass: the payload names a component (for example `button` or `dialog`).
+
+Fail: the tool is absent, the call errors, or the payload has no items. STOP. Do not start Station 0. Do not hand-write primitives instead.
+
+`npx shadcn@latest mcp --help` only proves the CLI is installed. It is not this check.
 
 ---
 
@@ -86,7 +93,6 @@ Confirm `CONTEXT7_API_KEY` is set, then check that the plugin-declared `context7
 
 - [ ] Merge `{KIT_DIR}/mcp.json` into root `.mcp.json`.
 - [ ] Set `CONTEXT7_API_KEY` in the environment.
-- [ ] Run `npx shadcn@latest mcp --help` — confirm server responds.
-- [ ] Confirm the context7 MCP shows `resolve-library-id` and `query-docs`.
-- [ ] Add both servers to the `tools` array of agents that use them (Claude Code: `mcp__shadcn__…` / `mcp__context7__…` names in YAML). Cursor uses the merged servers under its own tool names.
-- [ ] Confirm both servers respond before Phase 2 build stations start.
+- [ ] Call `search_items_in_registries` (query `button`) and get a real component back. `--help` is not enough. No result → do not start the pipeline.
+- [ ] Confirm the context7 MCP shows `resolve-library-id` and `query-docs`. Missing context7 warns only; Station 1a may fall back to web search.
+- [ ] Add shadcn browse tools to the UI agents (Claude Code: `mcp__shadcn__search_items_in_registries` and `mcp__shadcn__view_items_in_registries`). Cursor uses the merged server under its own tool names.

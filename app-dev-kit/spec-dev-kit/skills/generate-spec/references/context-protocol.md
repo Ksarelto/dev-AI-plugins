@@ -1,6 +1,6 @@
 # Context Protocol — Reading `.spec/context/` Files
 
-**Used by**: orchestrator inline intake step, Station 1 (primary); `spec-orchestrator` context discovery, Station 0
+**Used by**: `generate-spec` skill, Station 1 (intake) and Station 0 (context discovery)
 
 ---
 
@@ -14,7 +14,7 @@ Defines how the pipeline discovers, reads, normalizes, and traces requirements f
 
 1. Glob `.spec/context/*.md` (flat — no subdirectory recursion on first pass).
 2. Sort files by modification time descending (newest first = highest signal).
-3. If zero files found: `spec-orchestrator` stops the pipeline and prompts user.
+3. If zero files found: the `generate-spec` skill stops and tells the user to drop requirement files in `.spec/context/`.
 4. If a file is empty (0 bytes): skip with warning, do not fail.
 5. If a file is binary or unreadable: skip with warning, do not fail.
 
@@ -35,9 +35,9 @@ Any `.md` file is valid input. The pipeline is designed to handle:
 
 ---
 
-## Normalization by `spec-intake`
+## Normalization at Station 1
 
-For each file, `spec-intake` extracts:
+For each file, the `generate-spec` skill extracts:
 
 ```json
 {
@@ -63,7 +63,7 @@ For each file, `spec-intake` extracts:
 
 ## Intake Report Structure
 
-After processing all files, `spec-intake` produces a single `intake_report`:
+After processing all files, the skill writes `artifacts/intake.json`:
 
 ```json
 {
@@ -99,7 +99,7 @@ After processing all files, `spec-intake` produces a single `intake_report`:
 
 ## Conflict Detection During Intake
 
-`spec-intake` flags obvious surface-level conflicts (same assertion stated differently):
+The skill flags obvious surface-level conflicts (same assertion stated differently):
 
 ```json
 {

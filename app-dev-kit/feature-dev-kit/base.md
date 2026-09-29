@@ -325,10 +325,7 @@ This deliberately decouples "produce a reviewable feature" (automated) from "pub
 | `quality-gates.md` | Exact gate commands, order, thresholds, per-failure remediation. |
 | `human-review-protocol.md` | What the human is shown at station 12 (diff summary, spec, gate log), the decision options (approve / request changes → back to fix loop), and that **only** approval unlocks `/create-pr`. |
 | `git-workflow.md` | Branch naming, commit convention (`[TICKET] message`), PR template, protected-branch rules — consumed by `/create-pr`. |
-| `form-patterns.md` | React Hook Form conventions — used when features contain forms (shadcn `Form` + RHF resolver). |
-| `shadcn-ui-conventions.md` | How the factory uses the **shadcn MCP**: registry-first (browse → add → adapt), Tailwind + CVA variant conventions, token/theme setup, when to compose vs. author, and how a shadcn component is re-homed into `shared/ui` with our colocation + public-API rules. |
-| `styling-conventions.md` | Tailwind + CVA rules replacing the styled-components/rem guide: design tokens, `cn()` merge helper, variant patterns, dark-mode, and the legacy styled-components interop boundary. |
-| `accessibility.md` | a11y baseline (Radix primitives give a head start) so autonomous UI meets a bar before human review. |
+| (moved) | Form, shadcn, styling, and accessibility conventions live in frontend-dev-kit skills, not rules in this kit. |
 
 ---
 
@@ -409,7 +406,7 @@ RETURN:     summary + files changed; update your spec section
 
 **Phase 0 — FSD + UI groundwork**
 - Write `fsd-architecture.md` + `fsd-import-boundaries.md`; add the FSD-boundary linter (Steiger) and wire it into `yarn lint`.
-- Stand up the **shadcn + Tailwind** foundation: install Tailwind + CVA + `cn()`, run `npx shadcn@latest init`, and confirm the **shadcn MCP** (`.mcp.json`) responds. Write `shadcn-ui-conventions.md` + `styling-conventions.md`.
+- Stand up the **shadcn + Tailwind** foundation: install Tailwind + CVA + `cn()`, run `npx shadcn@latest init`, and confirm the **shadcn MCP** (`.mcp.json`) responds. Conventions live in frontend-dev-kit.
 - Decide migration strategy (see §14 Q1) and the styled-components→Tailwind boundary (§0.1).
 
 **Phase 1 — Foundations (no autonomy)**

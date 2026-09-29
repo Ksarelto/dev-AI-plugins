@@ -20,7 +20,9 @@ Output directory layout, file ownership, naming, and lifecycle.
 │   ├── app.js              # Alpine.init + global stores (notification, modal, theme)
 │   ├── data.js             # Alpine.data blocks — entity mock data pools
 │   └── navigation.js       # Active-page detection, breadcrumbs
-├── design-brief.md         # Chosen visual direction: palette, type, signature layer, motion
+├── design-inputs.json      # Provided theme/brand/layout sources (Step 2.6; binding: true|false)
+├── design-request.md       # Inline design instructions from the invocation (only when given)
+├── design-brief.md         # Binding reference (if any) + chosen direction: palette, type, signature, motion
 ├── ux-directives.md        # Per-page-type UX rules (read by screen-generator)
 ├── design-system-ref.md    # Compact token + component/class reference (read by screen-generator)
 ├── component-manifest.md   # Alpine data API + dev-panel spec (read by screen-generator)
@@ -54,6 +56,7 @@ Page IDs must be:
 
 | File | Created by | Modified by | Never modified by |
 |------|------------|------------|------------------|
+| `design-inputs.json`, `design-request.md` | `generate-html` skill (Step 2.6) | `generate-html` skill | all agents (read-only) |
 | `design-brief.md` | `design-strategist` | `design-strategist` (only on a look-and-feel change request) | all other agents |
 | `ux-directives.md` | `design-strategist` | `design-strategist` | all other agents |
 | `css/tokens.css` | `design-system-author` | `design-system-author` (only on full redesign) | all other agents |

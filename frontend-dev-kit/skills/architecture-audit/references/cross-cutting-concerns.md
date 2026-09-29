@@ -10,7 +10,7 @@ Each concern has one home. Mechanism in `shared/`; content (permission ids, copy
 - Permissions: ids in `features/*/config/`; mechanism in `shared/lib/permissions/`. No raw role string literals in JSX.
 - Flags: values in `shared/config/flags` seeded from `shared/config/env`. Flag **names** never in feature `config/`. Gate at `RequireFlag` or page `isEnabled()` — not in feature `models/`/`ui/`.
 - Env: only `shared/config/env` (and `shared/api/config.ts` for the API base) reads `import.meta.env`.
-- i18n strings: feature `locales/` + `shared/locales/common/`; mechanism `shared/lib/i18n/`.
+- i18n strings: feature `locales/` + `shared/lib/i18n/locales/common/`; mechanism `shared/lib/i18n/`. No `shared/locales/` sibling of `lib/`.
 - `models/` must not return user-facing translated strings — typed reasons only.
 - Time/ids: `shared/lib/clock.ts`, `ids.ts`. `models/` receives them as parameters — no `Date.now()` / `crypto.randomUUID()` inline.
 - Money: `entities/money/model/` once earned; formatting via i18n formatters. No ad-hoc `toFixed(2)` on currency.

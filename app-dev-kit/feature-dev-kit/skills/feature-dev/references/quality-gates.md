@@ -16,7 +16,7 @@ Between layers (Stations 3–7) and on a **patch** run, run only `run-gates.sh -
 | 4 | Build | `yarn build` | Vite build succeeds, exit 0 | Enter fix loop |
 | 5 | Coverage | `yarn test:auto` | branches ≥73%, functions ≥78%, lines ≥87%, statements ≥86% | Enter fix loop |
 | 6 | Architecture audit | `architecture-auditor` (REPORT_ONLY, changed paths + importers) | Zero **hard** violations | Enter fix loop. Missing agent/companion skill → ESCALATION_PACKET |
-| 7 | Auto-review | `frontend-dev-kit:code-review` skill | No findings tagged `[CRITICAL]`; no unresolved `[IMPORTANT]` findings | Enter fix loop |
+| 7 | Auto-review | `code-reviewer` (companion `code-review/references/`, not the `code-review` skill) | No findings tagged `[CRITICAL]`; no unresolved `[IMPORTANT]` findings | Enter fix loop |
 
 Human gates (not automated commands):
 
@@ -36,10 +36,10 @@ Human gates (not automated commands):
 | Types | Interface property mismatch with API response | Update the type in the `entities/<domain>/model/` types file |
 | Lint | `console.log` present | Replace with `console.warn` or `console.error` |
 | Lint | Missing exhaustive deps on `useCallback`/`useMemo` | Add all referenced variables to the dependency array |
-| Lint | Hardcoded UI string | Move to `shared/config/textContent.ts` and reference via `TextContent.KEY` |
+| Lint | Hardcoded UI string | Add an i18n key via `add-text-content` (`frontend-dev-kit:i18n`) |
 | FSD boundaries | Deep import into slice internals | Add the symbol to the slice's `index.ts`; update the import path |
 | FSD boundaries | Upward import | Move the shared code into `shared/`; remove the upward reference |
-| FSD boundaries | Missing `index.ts` | Create `index.ts` with named re-exports for all public symbols |
+| FSD boundaries | Missing `index.ts` | Create `index.ts` with named re-exports only for symbols a file outside the folder already imports |
 | Build | OOM during build | `yarn build` already sets `--max-old-space-size=4096`; check for circular deps |
 | Build | Missing module | Verify the slice's `index.ts` exports the symbol; check path alias `@/` usage |
 | Coverage | Branch coverage below threshold | Add tests for uncovered conditional branches; check `if`/ternary paths |

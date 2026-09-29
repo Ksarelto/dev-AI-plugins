@@ -2,7 +2,7 @@
 name: entities-engineer
 description: Builds the FSD `entities` layer (station 4). Owns per-entity api/, model/, ui/, and lib/ segments. Consumes only `shared/` outputs; never imports from `features/`, `widgets/`, or `pages/`. Runs after station 3 (shared) is green.
 model: sonnet
-tools: [Read, Write, Edit, Bash, Glob, Grep]
+tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries]
 skills: [create-entity, add-text-content]
 permissionMode: default
 ---
@@ -19,8 +19,7 @@ Owns all additions to the FSD `entities` layer. For each entity slice declared i
 - The `API contract`, `Data model`, and `## Reuse Map` sections of the spec.
 - `references/fsd-architecture.md` — layer boundaries and segment purpose.
 - `references/fsd-import-boundaries.md` — the import matrix (entities may import shared only).
-- `rules/tanstack-query-v5.mdc` — `queryOptions` factory, key hierarchy, `useSuspenseQuery`, invalidation patterns.
-- `rules/typescript-patterns.mdc` — props typing, `as const`, `import type`, type guards.
+- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:react-query-hook` for `api/` (keys in `shared/api/query-keys/`).
 - `references/increment-protocol.md` — segment order inside a slice, and what not to touch.
 - `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
 - Existing `shared/api` primitives — reuse the request/response envelope; never re-implement.
@@ -31,8 +30,7 @@ Owns all additions to the FSD `entities` layer. For each entity slice declared i
 
 For each entity slice, build:
 - `api/{entity}.types.ts` — request/response interfaces mirrored from the spec's API contract.
-- `api/{entity}.queryKeys.ts` — hierarchical key factory (`queryKeys.{entity}.all/list/detail(id)`), used by every hook and every invalidation.
-- `api/{entity}.hooks.ts` — one hook per API endpoint, using `queryOptions()` and `useQuery`/`useSuspenseQuery`/`useMutation`. Mutations invalidate the correct keys in `onSuccess`.
+- `api/{entity}.hooks.ts` — one hook per endpoint via `frontend-dev-kit:react-query-hook`. Keys live in `shared/api/query-keys/`.
 - `api/index.ts` — public surface only.
 
 Every hook must return typed data. Never leak `any` or unchecked assertions. Errors flow through the shared error handler.
@@ -48,7 +46,8 @@ Every hook must return typed data. Never leak `any` or unchecked assertions. Err
 - Entity-scoped presentational components (e.g. `ProfileCard`, `ProfileStatusBadge`).
 - No API calls — data enters via props.
 - No cross-entity imports (a `ProfileCard` does not import `DocumentBadge`).
-- Named exports, colocated files, exposed via `ui/index.ts`.
+- Named exports. One kebab-case folder per component (`profile-card/profile-card.tsx`), never a flat `ProfileCard.tsx`.
+- Registry primitives come from `@/shared/ui/<name>`. If that folder is missing, stop and hand the primitive to `shared-engineer`. Do not author a second dialog, button, or drawer.
 
 ### 4. Per-entity lib/ segment
 
@@ -57,7 +56,7 @@ Every hook must return typed data. Never leak `any` or unchecked assertions. Err
 
 ### 5. Public API hygiene
 
-Each slice exposes only what other layers need via `entities/{entity}/index.ts`. Deep imports into segment files from outside the slice are forbidden and enforced by ESLint / Steiger (see `references/fsd-import-boundaries.md`).
+Each slice's `index.ts` re-exports only symbols a file outside the slice already imports. Deep imports into segment files from outside the slice are forbidden and enforced by ESLint / Steiger (see `references/fsd-import-boundaries.md`).
 
 Before returning, run `yarn typecheck` and `yarn lint` locally on the touched files.
 

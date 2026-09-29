@@ -40,6 +40,8 @@ Always:
 - `OUTPUT_DIR` — `.spec/prototype/{TIMECODE}_{SLUG}/`
 - `KIT_DIR` — plugin root (see skill for resolution)
 - `UIUX_DIR` — resolved path to `ui-ux-pro-max`, or the literal `none`
+- `DESIGN_INPUTS` — path to `{OUTPUT_DIR}/design-inputs.json` (the skill's Step 2.6). `binding: true`
+  means the user supplied a theme/brand/layout reference and it is **mandatory**, not advisory.
 
 Do **not** accept `SPEC_CONTENT`. If the skill sent it, ignore it. `spec-interpreter` reads `SPEC_FILE`.
 
@@ -125,16 +127,18 @@ Delegate to `design-strategist` with ONLY:
 - `KIT_DIR`
 - `OUTPUT_DIR`
 - `UIUX_DIR`
+- `DESIGN_INPUTS` (path only — the strategist reads the sources itself)
 
 Wait for completion. Verify `{OUTPUT_DIR}/design-brief.md` and `{OUTPUT_DIR}/ux-directives.md` exist
 and are non-empty.
 
-**GATE (design-brief)**: If either is missing → return `ESCALATION_PACKET` and STOP. No CSS is
-authored before a brief exists — this is what prevents every prototype defaulting to the same
-indigo/sidebar look.
+**GATE (design-brief)**: Either file missing, or `DESIGN_INPUTS` has `binding: true` and the brief
+has no `## Binding reference` section → re-run `design-strategist` once, naming the missing file or
+section. Still failing → return `ESCALATION_PACKET` and STOP. No CSS is authored before a brief
+exists — this is what prevents every prototype defaulting to the same indigo/sidebar look.
 
 Read both files. Store as `DESIGN_BRIEF` and `UX_DIRECTIVES`. Store the agent's reported
-`design_authority` for the review packet.
+`design_authority`, `locked`, and `deviations` for the review packet.
 Mark task 1.5 complete.
 
 ### Station 2 — Design System (GATE: design-system-contract)
@@ -155,7 +159,9 @@ Wait for completion. Verify these 4 files exist:
 - `{OUTPUT_DIR}/design-system-ref.md`
 
 **GATE**: If any file is missing → return `ESCALATION_PACKET` and STOP. The design-system-contract
-gate is hard. No screen generation begins before this gate passes.
+gate is hard. No screen generation begins before this gate passes. A non-empty `locked_missing`
+in the agent's report fails this gate the same way: re-run `design-system-author` once naming the
+missing tokens, then `ESCALATION_PACKET`.
 
 Read `{OUTPUT_DIR}/design-system-ref.md` (compact ~95 lines). Store as `DESIGN_REF`.
 Note the agent's `signature_emitted` / `signature_skipped` report — if it skipped a block because the
@@ -210,6 +216,7 @@ Delegate to `assembly-wiring` with ONLY:
 - `pages[]` as `{ id, title, domain, description }` (no entity details)
 - `nav_structure` from spec-interpreter
 - `TITLE`
+- `design_ref`: `DESIGN_REF` content (carries any provided layout / nav order)
 - `KIT_DIR`
 - `OUTPUT_DIR`
 
@@ -227,7 +234,7 @@ Wait for result `{ passed, critical_issues[], warnings[] }`.
 
 If NOT passed:
 1. Log critical issues.
-2. For each critical issue, spawn the appropriate corrective agent (screen-generator for missing/broken pages; assembly-wiring for index/nav issues).
+2. For each critical issue, spawn the appropriate corrective agent (screen-generator for missing/broken pages or a provided layout not followed; assembly-wiring for index/nav issues; design-system-author for a provided token/font not applied or a missing provided-reference block).
 3. Re-run qa-validator once (max 1 retry).
 4. If still failing: return `ESCALATION_PACKET` with `errors: critical_issues`,
    `options: ["proceed-to-review", "abort"]`, and STOP.
@@ -255,6 +262,9 @@ Read `{OUTPUT_DIR}/_verify/report.json` when it exists. Store screenshot paths f
   screen-generator; tokens/base/components → design-system-author; index/nav → assembly-wiring),
   re-run that station, then re-run this verification (max 1 auto-fix cycle). If still failing,
   return `ESCALATION_PACKET` with the report path + `options: ["proceed-to-review", "abort"]`.
+- An axe contrast failure on a colour locked by the brief's `## Binding reference` is **not**
+  auto-fixed by changing that colour. Fix the pairing (foreground/text token) if possible;
+  otherwise list it under the review packet's reference deviations for the human to decide.
 
 Mark verification complete.
 
@@ -289,8 +299,8 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
 
 ## Revise flow (MODE == revise)
 
-Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FILE` (and
-`DESIGN_BRIEF` / `UX_DIRECTIVES` already on disk — re-read them rather than asking for them again).
+Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FILE`,
+`DESIGN_INPUTS` (and `DESIGN_BRIEF` / `UX_DIRECTIVES` already on disk — re-read them rather than asking for them again).
 
 1. Delegate to `modification-router` with: `CHANGE_REQUEST`, `PAGES` (`{id,title,domain}`).
 2. Execute the returned `MODIFICATION_TASKS`, re-entering only the affected stations
@@ -304,6 +314,9 @@ Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FI
      "too plain", "different vibe", "change the palette/fonts" → re-run `design-strategist` (it
      re-queries `ui-ux-pro-max` and may pick different signature blocks), then cascade through
      Station 2 → 3 → 4 as a design-system change.
+   - Every strategist re-run receives `DESIGN_INPUTS` again, so provided values stay locked.
+     Pass `OVERRIDE: {CHANGE_REQUEST}` only when the request explicitly changes a provided value
+     ("use green instead of our brand blue"); the strategist unlocks only the attributes it names.
    - **Re-run Station 6.5 only** (skill-requested after Playwright install): skip routing; run 6.5.
 3. Re-run Station 6 (QA) then Station 6.5 (render/functionality verification), unless the change
    was 6.5-only.
@@ -325,6 +338,8 @@ Serve:   npx serve .spec/prototype/{TIMECODE}_{SLUG}
 
 Design authority: {ui-ux-pro-max | first-principles — install with:
                    npm i -g ui-ux-pro-max-cli && uipro init --ai <claude|cursor> --global}
+Design reference: {binding — {locked} values locked from {source paths} | none provided (auto-picked)}
+Reference deviations: {none | one line per brief Deviation — attribute · reason}
 Design direction: {archetype} · primary {hue} · {font pairing} · {layout archetype}
                   signature: {emitted blocks} · motion: {feel}
 

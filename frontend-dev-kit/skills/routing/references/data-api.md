@@ -17,7 +17,7 @@ export const userQueryOptions = (id: string) =>
     staleTime: DETAIL_STALE_TIME_MS,
   });
 
-// src/routes.tsx
+// app/router/root/routes.tsx
 import { userQueryOptions } from './features/users/api/userQueryOptions';
 
 {
@@ -70,8 +70,8 @@ export const createUserAction = async ({ request }: ActionFunctionArgs) => {
 
 // CreateUserPage.tsx
 import { Form, useActionData, useNavigation } from 'react-router';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/shared/ui/input';
+import { Button } from '@/shared/ui/button';
 
 const CreateUserPage = (): JSX.Element => {
   const actionData = useActionData() as { error?: string };
@@ -106,7 +106,7 @@ Catches loader errors, action errors, and thrown responses.
 ```typescript
 // src/components/RouteErrorBoundary.tsx
 import { useRouteError, isRouteErrorResponse, Link } from 'react-router';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/shared/ui/button';
 
 const INTERNAL_SERVER_ERROR_STATUS = 500;
 const NOT_FOUND_STATUS = 404;
@@ -132,7 +132,7 @@ export const RouteErrorBoundary = (): JSX.Element => {
   );
 };
 
-// Attach to routes in routes.tsx
+// Attach to the route in app/router/root/routes.tsx
 {
   path: 'users/:id',
   loader: userLoader,

@@ -1,7 +1,7 @@
 {
   "name": "frontend-orchestrator-kit",
   "displayName": "Frontend Orchestrator Kit",
-  "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit to build every UI screen-task against a persisted, resumable checklist. Use app-orchestrator-kit /orchestrate-app for the full-stack dispatcher.",
+  "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit once per feature (nested screen-tasks share that call) against a persisted, resumable checklist. Use app-orchestrator-kit /orchestrate-app for the full-stack dispatcher.",
   "version": "0.2.0",
   "author": {
     "name": "Artsiom Murashko"

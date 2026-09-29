@@ -16,6 +16,14 @@
       "expect": "design-strategist"
     },
     {
+      "prompt": "Lock the provided brand palette, fonts and mockup layout into the design brief before any CSS",
+      "expect": "design-strategist"
+    },
+    {
+      "prompt": "Check the generated prototype actually applied the provided theme tokens, fonts and layout",
+      "expect": "qa-validator"
+    },
+    {
       "prompt": "Fill tokens.css base.css and components.css from the brief via design-system-author",
       "expect": "design-system-author"
     },

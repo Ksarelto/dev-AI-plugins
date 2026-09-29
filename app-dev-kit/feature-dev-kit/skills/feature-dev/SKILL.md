@@ -62,9 +62,11 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 | `scripts/run-gates.sh` | `quality-gate-runner` (Bash) | runs the gate sequence, emits JSON |
 | `scripts/write-kit-result.mjs` | this skill (Station 12 approve or abort) | `.spec/features/{slug}.kit-result.json` path-only envelope |
 
-The kit's `{KIT_DIR}/rules/` directory holds coding conventions workers apply while writing code.
-Name them in each delegation `APPLY`. Companion **frontend-dev-kit** supplies `architecture-audit`
-(preloaded by `architecture-auditor`), `code-review`, and `testing` — never copy their files here.
+`{KIT_DIR}/rules/` holds only `ui-quality` and `git-workflow`. Do not name rule files in `APPLY`.
+Companion **frontend-dev-kit** is the convention source: its rules attach by glob, and workers load
+`react-component`, `tailwind-styles`, `accessibility`, `testing`, `rhf-form`, `react-query-hook`,
+`shadcn-usage`, `routing`, and `i18n`. `architecture-audit` is preloaded by `architecture-auditor`.
+Never copy those files here.
 
 ---
 
@@ -74,14 +76,31 @@ Name them in each delegation `APPLY`. Companion **frontend-dev-kit** supplies `a
 |-------------|-------|-----------|
 | Git repo on a non-protected branch | `git rev-parse --abbrev-ref HEAD` | `scripts/new-feature.sh` creates the feature branch |
 | FSD host app | `src/app`, `src/pages`, `src/features`, `src/entities`, `src/shared` exist | STOP — this kit does not clone a starter; open the consumer app repo |
-| frontend-dev-kit installed | skill `architecture-audit` (or `frontend-dev-kit:architecture-audit`) is resolvable | STOP — required companion; do not skip the audit gate |
-| shadcn MCP responding | see `references/mcp-servers.md` | STOP — the kit sources UI from the registry |
+| frontend-dev-kit installed | `frontend-dev-kit:architecture-audit` resolves, or `~/.cursor/plugins/local/frontend-dev-kit` exists | Run **Companion install** below. Do not skip the audit gate |
+| shadcn registry lookup returns a component | see `references/mcp-servers.md` — call search/list before Station 0 | STOP — do not start intake, and do not hand-write primitives |
 | context7 MCP responding | see `references/mcp-servers.md` | Warn; Station 1a falls back to web search |
 | Working tree clean | `git status --porcelain` | Ask the human to commit or stash first |
 
 A spec from `/generate-spec` at the `spec_path` in `.spec/app/current.json` (`.spec/spec/spec-*/spec.md`) is **optional but preferred**. When
 frontend-orchestrator-kit (or the human) also passes `FEATURE_ID` / `SCREEN_REFS`, Station 0 imports
 **only that feature's nested screens**. Never ingest a whole `type: app` spec into one feature run.
+
+### Companion install
+
+Run before Station 0 when the prerequisite check fails.
+
+1. Installed when `frontend-dev-kit:architecture-audit` resolves, or `~/.cursor/plugins/local/frontend-dev-kit/.cursor-plugin/plugin.json` exists. Then continue.
+2. Host: `$CURSOR_PROJECT_DIR` or a `.cursor/` directory, and `$CLAUDE_PLUGIN_ROOT` unset → Cursor. `$CLAUDE_PLUGIN_ROOT` set and no Cursor signal → Claude. Both or neither → ask the user, Cursor or Claude, then do that step.
+3. Cursor — symlink one plugin (not `npm run install:cursor-local`). Marketplace root is two levels above `KIT_DIR`:
+
+```bash
+mkdir -p "$HOME/.cursor/plugins/local"
+ln -sfn "$(cd "$KIT_DIR/../.." && pwd)/frontend-dev-kit" "$HOME/.cursor/plugins/local/frontend-dev-kit"
+```
+
+Tell the user to reload the window. If `architecture-audit` still does not resolve, STOP.
+
+4. Claude — this skill cannot run the slash command from bash. Ask the user to run `/plugin install frontend-dev-kit@dev-AI-plugins`, then re-check. Still missing → STOP.
 
 ---
 
@@ -110,6 +129,7 @@ Do not read `pipeline-flow.md` into this conversation. The tier table below is t
 
 ### Step 1 — Resolve the feature
 
+0. **Shadcn gate, before Station 0.** Call the session's shadcn search or list tool (`search_items_in_registries` with `query: "button"`, or the host's equivalent). Require a payload that names a real component. `npx shadcn@latest mcp --help` does not count. If the tool is missing or the call fails, STOP. Tell the human to merge `{KIT_DIR}/mcp.json` and reload. Do not start intake. Do not fall through to hand-written UI.
 1. `Glob(".spec/features/*.md")`. If the argument matches an existing slug, read **frontmatter `status` only**. If `.spec/features/{slug}.context/session.md` exists, that path is the resume context — do not read the whole blackboard. Report: `"Resuming {slug} at Station {N}."`
 2. Otherwise derive a slug per `references/artifact-naming.md`. **Do not** reuse the app spec's
    `metadata.slug` as the feature slug — derive from `SLUG_HINT` (the feature's kebab title),
@@ -200,7 +220,7 @@ Classify from the approved blackboard only (slice count, new package, new route)
 
 | Tier | When | What this skill does |
 |------|------|----------------------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) with `LAYER`, `SLICE`, and one `create-*` skill. Then `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd`. Go to Step 5. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) with `LAYER`, `SLICE`, and one `create-*` skill. Then Station 8 (walk new executable files) and `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd`. If UI changed, run the browser check below. Then Step 5. |
 | **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. |
 | **full** | Six or more slices, or a new route plus a new entity | Spawn `feature-orchestrator` with `TIER: full`. |
 
@@ -229,8 +249,20 @@ Loop on `type`:
 | Packet | This skill |
 |--------|------------|
 | `DEP_PACKET` | Present each package; Approve / Reject — find an alternative / Abort. Record verdicts in `## Dependencies`, re-spawn `MODE: build` from Station 2. |
-| `REVIEW_PACKET` | Go to Step 5. |
+| `REVIEW_PACKET` | If UI changed, run the browser check below. Failures go back as `MODE: revise`, not to the human. Pass → Step 5. |
 | `ESCALATION_PACKET` | `AskUserQuestion` with `errors[]` and `options[]`. Apply the choice or STOP. |
+
+### Browser check — before Station 12
+
+This skill owns it. The orchestrator has no browser tools. Load **frontend-dev-kit:browser-debug** and use the Chrome DevTools MCP. Run it when the increment changed UI, including a patch. Skip it only when the diff has no rendered UI.
+
+1. If the dev server is not running, STOP and ask the human to start it. Do not skip the check.
+2. Open the new route. Take a snapshot and a screenshot. Confirm the layout is the feature, not a broken or unstyled shell.
+3. Exercise the main actions (click, type, submit). Read console messages. A console error or a control that does not do what the acceptance criteria say is a failure.
+4. Open one adjacent route that shares the layout, navigation, or data this feature changed. Confirm that route still works.
+5. Write `.spec/features/<slug>.context/browser-check.md` with the route, what was exercised, the adjacent route, and pass or fail.
+
+On fail, re-spawn `MODE: revise` with the browser-check path as `CHANGE_REQUEST`. Do not present Station 12.
 
 ### Step 5 — Human review gate (Station 12 — THIS skill owns it, max 3 cycles)
 
@@ -329,7 +361,7 @@ be typed by a human.
 | Issue | Resolution |
 |-------|-----------|
 | "No shadcn MCP" | Merge `{KIT_DIR}/mcp.json` into root `.mcp.json`; see `references/mcp-servers.md` |
-| "architecture-audit not found" | Install `frontend-dev-kit` from this marketplace |
+| "architecture-audit not found" | Companion install below. Cursor: symlink then reload. Claude: `/plugin install frontend-dev-kit@dev-AI-plugins` |
 | Pipeline seems stuck | Check for a pending `AskUserQuestion` — answer it to continue |
 | Same gate fails 3× | Expected escalation. Read the gate log in the spec; the plan or spec is usually wrong |
 | Orchestrator returned no packet | It hit a hard stop — read the spec's `Gate log` and `status` |

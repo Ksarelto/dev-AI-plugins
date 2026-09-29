@@ -16,6 +16,7 @@ skill resolves it. Scripts and references are `{KIT_DIR}/skills/generate-html/�
 ── generate-html skill (main loop) ────────────────────────────────
 Resolve KIT_DIR
 Step 2.5     Resolve ui-ux-pro-max → UIUX_DIR (offer install if missing)
+Step 2.6     collect-design-inputs.mjs → design-inputs.json (binding: true = provided reference is mandatory)
 ──────────────────────────────────────────────────────────────────
 
 ── orchestrator subagent (MODE: build) ──────────────────────────
@@ -24,7 +25,7 @@ Station 0    Setup
       ↓
 Station 1    Receive spec-interpreter output
       ↓
-Station 1.5  Design Direction (design-strategist, queries ui-ux-pro-max)
+Station 1.5  Design Direction (design-strategist, reads design-inputs.json; ui-ux-pro-max only for open slots or when nothing is binding)
              → design-brief.md + ux-directives.md   ← GATE: design-brief
       ↓
 Station 2    Design System  ← GATE: design-system-contract
@@ -66,8 +67,8 @@ question.
 
 | Gate | Station | Condition | On failure |
 |------|---------|-----------|-----------|
-| `design-brief` | 1.5→2 | `design-brief.md` **and** `ux-directives.md` exist and non-empty; brief names 1–3 valid signature blocks | `ESCALATION_PACKET` |
-| `design-system-contract` | 2→3 | `css/tokens.css`, `css/base.css`, `css/components.css`, `design-system-ref.md` all exist and non-empty; motion tokens + reduced-motion guard present | `ESCALATION_PACKET` |
+| `design-brief` | 1.5→2 | `design-brief.md` **and** `ux-directives.md` exist and non-empty; brief names 1–3 valid signature blocks (`none` allowed only with a binding reference); `binding: true` → brief has `## Binding reference` | re-run strategist once, then `ESCALATION_PACKET` |
+| `design-system-contract` | 2→3 | `css/tokens.css`, `css/base.css`, `css/components.css`, `design-system-ref.md` all exist and non-empty; motion tokens + reduced-motion guard present; no `locked_missing` tokens | `ESCALATION_PACKET` |
 | `component-ready` | 3→4 | `js/app.js`, `js/data.js`, `component-manifest.md` all exist and non-empty | `ESCALATION_PACKET` |
 | `qa-pass` | 6→6.5 | `critical_issues` list is empty from `qa-validator` | Auto-fix attempt (max 1 retry), then `ESCALATION_PACKET` |
 | `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 (`passed: true`) | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. Playwright missing → `SKIPPED` warning on `REVIEW_PACKET`, not a hard fail |
@@ -136,11 +137,11 @@ orchestrator or to downstream agents. `spec-interpreter` **Reads** `SPEC_FILE`.
 |-------|----------|
 | `spec-interpreter` | `SPEC_FILE` path (it Reads the file) |
 | `html-orchestrator` | `SPEC_FILE` path, identity fields, `KIT_DIR`, `OUTPUT_DIR`, `UIUX_DIR` — **not** spec body |
-| `design-strategist` | TITLE + domain(s) + entity names + distinct page types + 1–3 sentence purpose/audience + KIT_DIR + OUTPUT_DIR + UIUX_DIR |
+| `design-strategist` | TITLE + domain(s) + entity names + distinct page types + 1–3 sentence purpose/audience + KIT_DIR + OUTPUT_DIR + UIUX_DIR + DESIGN_INPUTS path (it reads the sources itself) |
 | `design-system-author` | design-brief.md content + entity names (strings) + KIT_DIR + OUTPUT_DIR + UIUX_DIR |
 | `component-library-author` | design-system-ref.md content + entity definitions + KIT_DIR + OUTPUT_DIR |
 | `screen-generator` | One page object + one entity definition + design_ref + ux_directives (all-pages + this type only) + component_manifest + `rules_dir`=`{KIT_DIR}/skills/generate-html/references/` + output_path |
-| `assembly-wiring` | pages[] IDs/titles/domains (no entity details) + nav_structure + KIT_DIR + OUTPUT_DIR |
+| `assembly-wiring` | pages[] IDs/titles/domains (no entity details) + nav_structure + design_ref + KIT_DIR + OUTPUT_DIR |
 | `qa-validator` | page IDs list only + OUTPUT_DIR + UIUX_DIR |
 | `modification-router` | User change text + pages[] IDs/titles/domains only |
 
@@ -154,7 +155,7 @@ When `modification-router` returns tasks, the orchestrator re-enters the pipelin
 
 | Task type | Re-entry | Cascade effect |
 |-----------|----------|---------------|
-| Look-and-feel change ("more modern", "feels dated", new palette/fonts) | Station 1.5 | Re-queries ui-ux-pro-max; must re-run stations 2 + 3 + 4 (all pages) |
+| Look-and-feel change ("more modern", "feels dated", new palette/fonts) | Station 1.5 | Re-reads design-inputs.json; ui-ux-pro-max only for open slots or when nothing is binding; must re-run stations 2 + 3 + 4 (all pages) |
 | Design system change | Station 2 | Must re-run stations 3 + 4 (all pages) |
 | Component/data change | Station 3 | May require station 4 re-run |
 | Single page change | Station 4 (target page only) | No cascade |
@@ -184,3 +185,5 @@ After any re-run (except verify-only), always re-run QA (Station 6) then Render 
 | Emitting every signature block "to be safe" | Restraint is the design; max 3, only what the brief named |
 | Using a signature class in a page whose block wasn't emitted | Renders as nothing — silent visual breakage |
 | Hardcoding `.spec/html-generator-kit/` | Plugin root is `KIT_DIR`; `.spec/` is artifacts |
+| Overriding a provided colour/font/layout with a database pick or "differentiation" | A provided reference is mandatory; the kit designs only what it leaves open |
+| Changing a locked colour to fix contrast | Fix the pairing or disclose an `a11y-risk` deviation; the human decides |

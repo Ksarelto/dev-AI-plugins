@@ -1,6 +1,6 @@
 ---
 name: routing
-description: Implement React Router v7 patterns for the FSD app/router/ structure — route config in routes.tsx, lazyFeature() code splitting, RequireAuth/RequirePermission/RequireFlag wrapper guards, and sessionKey-derived session scoping. Use when adding new pages, setting up the router, or implementing auth-gated navigation.
+description: Implement React Router v7 patterns for the FSD app/router/ structure — route config in routes.ts, lazyFeature() code splitting, RequireAuth/RequirePermission/RequireFlag wrapper guards, and sessionKey-derived session scoping. Use when adding new pages, setting up the router, or implementing auth-gated navigation.
 ---
 
 # Routing
@@ -16,7 +16,9 @@ description: Implement React Router v7 patterns for the FSD app/router/ structur
 ## Architecture rules
 
 - The router lives in `app/router/` — not `src/routes.tsx`
-- All URLs are defined in one file: `app/router/routes.tsx`
+- `routes.ts` only composes three branches. New pages go in `auth/routes.tsx` or `root/routes.tsx`, not in `routes.ts`
+- There is no `AuthLayout`. Login and signup are route elements in `auth/`
+- Authenticated chrome is `AppLayout` inside `root/`
 - Guards are **wrapper routes** (`RequireAuth`, `RequirePermission`, `RequireFlag`) — never `if` statements inside pages
 - All routes are code-split using `lazyFeature()` — not bare `React.lazy()`
 - `RequireAuth` reads `useSession()` from `shared/lib/auth/` — it never reads from a Zustand auth store
@@ -24,72 +26,120 @@ description: Implement React Router v7 patterns for the FSD app/router/ structur
 
 ## Router structure
 
+Each of `auth/`, `error/`, and `root/` has the same two files: `routes.tsx` (the `RouteObject[]`) and `index.ts` (that array only).
+
 ```
 app/
 └── router/
-    ├── routes.tsx          — the only file that lists every URL
+    ├── routes.ts           — createBrowserRouter; spreads the three branches
+    ├── auth/
+    │   ├── routes.tsx      — login/signup, no layout wrapper
+    │   └── index.ts
+    ├── error/
+    │   ├── routes.tsx      — not-found, route errorElement, feature load error
+    │   └── index.ts
+    ├── root/
+    │   ├── routes.tsx      — AppLayout + RequireAuth and the app's pages
+    │   └── index.ts
     ├── layouts/
-    │   ├── AppLayout.tsx   — chrome for authenticated pages
-    │   └── AuthLayout.tsx  — chrome for login/signup screens
+    │   └── AppLayout.tsx   — chrome for authenticated pages
     └── guards/
         ├── RequireAuth.tsx
         ├── RequirePermission.tsx
         └── RequireFlag.tsx
 ```
 
-## `app/router/routes.tsx` — full route table
+## `app/router/routes.ts` — composition only
 
 ```typescript
-// app/router/routes.tsx
 import { createBrowserRouter } from 'react-router';
-import { AppLayout }  from './layouts/AppLayout';
-import { AuthLayout } from './layouts/AuthLayout';
-import { RequireAuth }       from './guards/RequireAuth';
-import { RequirePermission } from './guards/RequirePermission';
-import { RequireFlag }       from './guards/RequireFlag';
-import { lazyFeature }       from '@/shared/lib/lazyFeature';
-
-const DocumentUploadPage = lazyFeature('document-upload', () => import('@/pages/document-upload'));
-const DocumentsPage      = lazyFeature('documents',       () => import('@/pages/documents'));
-const AdminPage          = lazyFeature('admin',           () => import('@/pages/admin'));
-const ReportsPage        = lazyFeature('reports',         () => import('@/pages/reports'));
-const LoginPage          = lazyFeature('login',           () => import('@/pages/auth/login'));
+import { authRoutes } from './auth';
+import { errorRoutes } from './error';
+import { rootRoutes } from './root';
 
 export const router = createBrowserRouter([
-  {
-    element: <AuthLayout />,
-    children: [
-      { path: '/login',          element: <LoginPage /> },
-      { path: '/signup',         element: lazyFeature('signup', () => import('@/pages/auth/signup')) },
-    ],
-  },
+  ...authRoutes,
+  ...rootRoutes,
+  ...errorRoutes,
+]);
+```
+
+## `app/router/auth/routes.tsx`
+
+```tsx
+import { lazyFeature } from '@/shared/lib/lazyFeature';
+import type { RouteObject } from 'react-router';
+
+const LoginPage = lazyFeature('login', () => import('@/pages/auth/login'));
+const SignupPage = lazyFeature('signup', () => import('@/pages/auth/signup'));
+
+export const authRoutes: RouteObject[] = [
+  { path: '/login', element: <LoginPage /> },
+  { path: '/signup', element: <SignupPage /> },
+];
+```
+
+```ts
+export { authRoutes } from './routes';
+```
+
+## `app/router/root/routes.tsx`
+
+```tsx
+import { AppLayout } from '../layouts/AppLayout';
+import { RequireAuth } from '../guards/RequireAuth';
+import { RequirePermission } from '../guards/RequirePermission';
+import { RequireFlag } from '../guards/RequireFlag';
+import { lazyFeature } from '@/shared/lib/lazyFeature';
+import type { RouteObject } from 'react-router';
+
+const DocumentsPage = lazyFeature('documents', () => import('@/pages/documents'));
+const DocumentUploadPage = lazyFeature('document-upload', () => import('@/pages/document-upload'));
+const AdminPage = lazyFeature('admin', () => import('@/pages/admin'));
+const ReportsPage = lazyFeature('reports', () => import('@/pages/reports'));
+const ReportDetailPage = lazyFeature('report-detail', () => import('@/pages/reports/detail'));
+
+export const rootRoutes: RouteObject[] = [
   {
     element: <AppLayout />,
     children: [
       {
         element: <RequireAuth />,
         children: [
-          { path: '/documents',        element: <DocumentsPage /> },
-          { path: '/document-upload',  element: <DocumentUploadPage /> },
+          { path: '/documents', element: <DocumentsPage /> },
+          { path: '/document-upload', element: <DocumentUploadPage /> },
           {
             element: <RequirePermission permission="admin:read" />,
-            children: [
-              { path: '/admin', element: <AdminPage /> },
-            ],
+            children: [{ path: '/admin', element: <AdminPage /> }],
           },
           {
             element: <RequireFlag name="reports" />,
             children: [
               { path: '/reports', element: <ReportsPage /> },
-              { path: '/reports/:id', element: lazyFeature('report-detail', () => import('@/pages/reports/detail')) },
+              { path: '/reports/:id', element: <ReportDetailPage /> },
             ],
           },
         ],
       },
     ],
   },
-]);
+];
 ```
+
+## `app/router/error/routes.tsx`
+
+Not-found, the route `errorElement`, and the feature-load error live here. `routes.ts` does not define them inline.
+
+```tsx
+import { FeatureLoadError } from '@/app/boundaries';
+import type { RouteObject } from 'react-router';
+
+export const errorRoutes: RouteObject[] = [
+  { path: '*', element: <FeatureLoadError /> },
+];
+```
+
+Attach `errorElement` on the `root` route object when a crash boundary is required. The element component stays in `error/`.
 
 ## Guard implementations
 
@@ -220,7 +270,8 @@ onCancel: () => navigate(-1),
 
 ## Checklist
 
-- [ ] Router config in `app/router/routes.tsx` — one file for all URLs
+- [ ] `routes.ts` only spreads `auth`, `error`, and `root` — new pages land in `auth/routes.tsx` or `root/routes.tsx`
+- [ ] No `AuthLayout` — login and signup are plain route elements
 - [ ] All page imports use `lazyFeature()` — not bare `React.lazy()`
 - [ ] Auth gate uses `RequireAuth` (reads `useSession()`) — not a custom component reading a Zustand store
 - [ ] Permission gates use `RequirePermission` wrapper route

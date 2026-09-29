@@ -26,7 +26,7 @@ Owns the `app` FSD layer (station 7). Wires new pages into the application's rou
 
 ### 1. Route registration
 
-Use the `add-route` skill to register each new page as a route in the application's routing table. Wrap the page import in `React.lazy()` with a `Suspense` boundary (falling back to a page-level loading skeleton) to keep the initial bundle lean. Follow the existing route object shape exactly — do not introduce a new routing pattern. Add the route to the correct section of the routing tree (authenticated routes, public routes, nested under a layout route) as specified in the spec or determined by reading the existing routing structure.
+Use the `add-route` skill. Authenticated pages go in `app/router/root/routes.tsx`. Login and signup go in `app/router/auth/routes.tsx`. Error and not-found routes go in `app/router/error/routes.tsx`. `routes.ts` only spreads those three branches. Import pages with `lazyFeature()` — not bare `React.lazy()`. There is no `AuthLayout`. Authenticated chrome stays `AppLayout`. Guards stay wrapper routes.
 
 ### 2. Navigation and breadcrumb wiring
 

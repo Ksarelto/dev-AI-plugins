@@ -12,8 +12,9 @@ Distilled from the `tailwind-styles` and `shadcn-usage` skills.
 
 ## shadcn/ui
 
-- A shadcn component hand-written instead of installed via `npx shadcn@latest add` and imported from `@/components/ui/`.
-- An edit inside `components/ui/*` with no comment explaining it — the CLI will silently overwrite it on the next re-run.
+- A shadcn component hand-written when the registry has a match, or imported from `@/components/ui/` instead of the `shared/ui/<name>/` base.
+- A second dialog, button, drawer, or other registry primitive authored beside `shared/ui/<name>/`.
+- Open/close `animate-*` or `data-[state=*]` classes stripped from a dialog, drawer, sheet, popover, dropdown, or tooltip, or global CSS missing the animation stylesheet those classes need.
 - A wrapper component created to preset a single prop or `className` default (wrap only a *repeated* arrangement of primitives).
 - A primitive nested inside another element where `asChild` composition would keep one DOM node (accessible name/semantics loss otherwise).
 - A wrapper that doesn't spread props or merge `className` last via `cn()` (caller's utility should win the merge conflict).

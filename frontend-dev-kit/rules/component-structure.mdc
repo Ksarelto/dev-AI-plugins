@@ -9,7 +9,7 @@ alwaysApply: false
 - One folder per component under `ui/`. Folder and implementation file are kebab-case of the
   export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`.
   Never `Button.tsx`, `CustomButton.tsx`, or `itemCard.tsx`.
-- Same stem for colocated test and stories: `custom-button.test.tsx`, `custom-button.stories.tsx`.
+- Same stem for the colocated test: `custom-button.test.tsx`. A story file is not required in every component folder — `shared/ui/<name>/<name>.stories.tsx` for a shared primitive, and one `features/<slice>/<slice>.stories.tsx` for the feature. No stories for inner feature parts, entities, or widgets.
 - `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names.
 - The named export is PascalCase (`export const CustomButton`). Import the folder through
   `index.ts`, never the `.tsx` file.

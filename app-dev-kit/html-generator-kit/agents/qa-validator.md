@@ -1,6 +1,6 @@
 ---
 name: qa-validator
-description: Validates the generated prototype against spec coverage, HTML structure quality, design-currency (motion tokens, focus ring, signature-layer restraint), and accessibility baselines. Read-only — no file modifications. Returns a structured pass/fail report with critical issues and warnings.
+description: Validates the generated prototype against spec coverage, HTML structure quality, adherence to a user-provided theme reference (locked tokens, fonts, layout), design-currency (motion tokens, focus ring, signature-layer restraint), and accessibility baselines. Read-only — no file modifications. Returns a structured pass/fail report with critical issues and warnings.
 model: haiku
 tools: [Read, Glob, Grep]
 ---
@@ -88,6 +88,21 @@ Warnings (non-blocking) in the same sweep:
 | Reveal misuse | `reveal` appearing inside an `x-for` template | `"{id}.html: .reveal inside x-for — animation replays on every filter keystroke"` |
 | Undefined class | a `bento`/`surface-glass`/`text-gradient`/`card-accent`/`lede`/`tab-row` class used in a page but **not** defined in `css/components.css` | `"{id}.html: uses .{class} but its signature block was not emitted — renders as nothing"` |
 | Chart library | `chart.js`, `d3`, `apexcharts`, `echarts` in any page | `"{id}.html: references a chart library — kit has none; use .meter/.sparkbars"` |
+
+### Provided-reference adherence (CRITICAL — skip when the brief has no `## Binding reference`)
+
+Grep `{OUTPUT_DIR}/design-brief.md` for `## Binding reference`. If present, read that section's
+table and check mechanically:
+
+| Check | How | Critical issue if failing |
+|-------|-----|---------------------------|
+| Locked token applied | for each `Applied as` cell of the form `` `--token: value` ``, grep `css/tokens.css` for that token followed by that exact value (ignore whitespace, case-insensitive hex) | `"tokens.css: provided {token} {value} not applied (source {Source})"` |
+| Locked font applied | for each font row, the family name appears in `--font-sans` or `--font-display` in `css/tokens.css` | `"tokens.css: provided font {name} not applied"` |
+| Locked layout applied | layout row `top-nav` → every page contains `app-topnav`; `sidebar` → every page contains `class="sidebar"` | `"{id}.html: provided layout {layout} not followed"` |
+| Provided block reached screens | `design-system-ref.md` starts with `## Provided reference` | `"design-system-ref.md: provided reference block missing — screens never saw it"` |
+
+Rows listed under `Deviations` in the brief are exempt — they are already disclosed for review.
+Copy the brief's `Deviations` lines into `warnings[]` prefixed `reference deviation:`.
 
 ### Pro-rules pass (WARNING only — skip entirely when `UIUX_DIR == none`)
 
