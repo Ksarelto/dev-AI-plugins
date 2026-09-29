@@ -6,8 +6,8 @@ The route table lives in `app/router/`. Pages are lazy. Guards wrap routes — t
 
 **Hard**
 
-- Structure: `app/router/routes.tsx`, `layouts/` (chrome only), `guards/` (`RequireAuth`, `RequirePermission`, `RequireFlag`). Guards compose as wrappers — they do not nest logic.
-- Pages lazy per route: `lazy(() => import('@/pages/users'))` or `lazyFeature('name', () => import('@/pages/checkout'))`.
+- Structure: `app/router/routes.ts` spreads `auth/`, `error/`, and `root/`. Each group is `routes.tsx` plus `index.ts`. `layouts/AppLayout.tsx` is the authenticated chrome. No `AuthLayout`. `guards/` (`RequireAuth`, `RequirePermission`, `RequireFlag`) compose as wrappers — they do not nest logic. A new URL in `routes.ts` itself is hard.
+- Pages lazy per route via `lazyFeature('name', () => import('@/pages/checkout'))`. Bare `React.lazy` on a page route is hard.
 - `lazyFeature` classifies module-load failures as `FeatureLoadError`. Route boundary: chunk-load cause → reload; other init failure → crash screen. Do not rely on a feature `Shell` as the only boundary on a lazy route.
 - No auth `if (!user) return <Login/>` inside pages — use guard wrappers. Do not fetch the session in a React Router **loader** (`getToken()` there reintroduces the singleton).
 - Feature flags: names/values in `shared/config/flags`. Features do not reference their own flag. Gate with `RequireFlag` at the route (or `isEnabled()` in chrome).
@@ -36,4 +36,4 @@ rg -n "isEnabled\(|flags\." src/features
 rg -n "getToken\(" src/**/loader.ts src/pages
 ```
 
-Read `routes.tsx`: every data route should be lazy and, where siblings are guarded, this one too. Sample list UIs for the four states. Flag names inside `features/*/config` or `models/` are hard.
+Read `auth/routes.tsx`, `root/routes.tsx`, and `error/routes.tsx`: every data route should be lazy and, where siblings are guarded, this one too. `routes.ts` only spreads the three arrays. `AuthLayout` is hard. Sample list UIs for the four states. Flag names inside `features/*/config` or `models/` are hard.

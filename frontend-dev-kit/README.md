@@ -28,10 +28,10 @@ The others attach only when a matching file is in context.
 | `typescript` | `**/*.{ts,tsx}` | Interfaces vs types, strictness, narrowing, utility types, explicit public signatures |
 | `react` | `**/*.tsx` | Purity, hooks, state ownership, effects, keys, memoization under the Compiler, refs, boundaries |
 | `component-structure` | `**/features/**/ui/**`, `**/widgets/**/ui/**`, `**/entities/**/ui/**`, `**/shared/ui/**` (`*.ts`, `*.tsx`) | Kebab-case component folders and files (`button.tsx`, `custom-button.tsx`); PascalCase export |
-| `styling` | `**/*.styles.{ts,tsx}` | What belongs in a component's `*.styles.ts(x)` file versus the component file |
+| `styling` | `**/styles.ts` | Every component folder has `styles.ts`; all Tailwind classes live there, none inline in JSX |
 
 A typical `.tsx` edit under `features|widgets|entities/**/ui/` or `shared/ui/` loads `honesty`,
-`general-coding-principles`, `typescript`, `react`, and `component-structure`. A `*.styles.ts`
+`general-coding-principles`, `typescript`, `react`, and `component-structure`. A `styles.ts`
 edit loads `honesty`, `general-coding-principles`, `typescript`, and `styling`. A plain `.ts`
 module loads `honesty`, `general-coding-principles`, and `typescript`.
 
@@ -55,7 +55,7 @@ Workflow guides with few-shot templates in each skill's `examples.md`.
 | `error-handling` | `AppError`, error boundaries, and notification feedback |
 | `i18n` | Adding translated copy, plurals, or locale-aware date/number/currency formatting |
 | `testing` | Writing or fixing tests for specified files, or recently changed files |
-| `storybook` | Component stories colocated with the component |
+| `storybook` | One story file per `shared/ui` primitive, plus one story for a feature's public entry |
 | `browser-debug` | UI verification and debugging via Chrome |
 | `code-review` | Reviewing a diff against the applicable rules and the originating spec |
 | `manage-feature` | Flagging a feature, turning a flag on or off, or removing a feature and its leftovers |

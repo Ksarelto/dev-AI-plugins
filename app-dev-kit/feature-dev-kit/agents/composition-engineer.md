@@ -2,7 +2,7 @@
 name: composition-engineer
 description: Builds the FSD `widgets` and `pages` layers (station 6). Composes entities + features into complete widgets and route-level pages. Consumes only `shared/`, `entities/`, and `features/`; never imports from `app/`. Runs after station 5 (features) is green.
 model: sonnet
-tools: [Read, Write, Edit, Bash, Glob, Grep]
+tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries]
 skills: [create-widget, create-page, create-react-component]
 permissionMode: default
 ---
@@ -21,9 +21,8 @@ Owns the composition layers. Assembles feature slices and entity slices into wid
 - The `## Reuse Map` — which entities and features must be composed.
 - `references/fsd-architecture.md` — widget and page layer purpose.
 - `references/fsd-import-boundaries.md` — pages may import from all lower layers; widgets from features + entities + shared only.
-- `rules/react-patterns.mdc` — composition patterns, loading/empty/error states, custom hooks.
-- `rules/ui-quality.mdc` — loading/empty/error/populated coverage, responsive breakpoints, composition limits.
-- `rules/accessibility.mdc` — landmarks, labelled controls, live regions, focus management.
+- Companion **frontend-dev-kit** rules attach by glob (`react`). Load `frontend-dev-kit:accessibility` and `react-component`.
+- `rules/ui-quality.mdc` — loading/empty/error/populated coverage.
 - `references/increment-protocol.md` — thin increments; do not refactor adjacent screens.
 - Existing widgets and pages in the codebase — match nearby conventions rather than inventing new ones.
 
@@ -32,7 +31,7 @@ Owns the composition layers. Assembles feature slices and entity slices into wid
 ### 1. Widget slices
 
 For each widget declared in the Build plan, build under `widgets/{widget}/`:
-- `ui/` — the widget's React components. Composes `features/*` and `entities/*` components. Never contains standalone API calls.
+- `ui/` — the widget's React components, one kebab-case folder each. Composes `features/*` and `entities/*` components. Registry primitives come from `@/shared/ui/<name>`. If that folder is missing, stop and hand the primitive to `shared-engineer`. Do not author a second dialog. Never contains standalone API calls.
 - `model/` — widget-local state hooks if the widget owns some UI-only state (e.g. selected row).
 - `lib/` — widget-scoped helpers.
 - `index.ts` — public surface: the widget's root component + any prop types consumers must know about.
@@ -42,7 +41,7 @@ Widgets never own domain state; they orchestrate it. When a widget needs data, i
 ### 2. Page slices
 
 For each page declared in the Build plan, build under `pages/{page}/`:
-- `ui/{PageName}.tsx` — the page component. Thin: composes widgets and features, adds page-level layout (header, breadcrumb) via `shared/ui`.
+- `ui/<page-name>/<page-name>.tsx` — the page component. Thin: composes widgets and features, adds page-level layout (header, breadcrumb) via `@/shared/ui/<name>`.
 - `model/` — page-local state (e.g. modal open flags) only if unavoidable. Prefer lifting into a feature.
 - `index.ts` — default export of the page component (pages are the ONE FSD layer where default exports are allowed, matching the existing project convention).
 
@@ -54,7 +53,7 @@ Every widget and page that renders data owns a suspense boundary or an explicit 
 
 ### 4. Accessibility
 
-Landmarks (`<main>`, `<nav>`, `<aside>`) at the page level. Labels on every input. Focus management on modals. Apply `rules/accessibility.mdc` in full — Radix gives the head start; do not undo it. Where the feature was prototyped by `/generate-html`, the visual design contract carries over even though the implementation swaps to React + shadcn.
+Landmarks (`<main>`, `<nav>`, `<aside>`) at the page level. Load `frontend-dev-kit:accessibility`. Where the feature was prototyped by `/generate-html`, the visual design contract carries over even though the implementation swaps to React + shadcn.
 
 ### 5. Public API hygiene
 

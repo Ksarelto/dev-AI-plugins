@@ -13,5 +13,3 @@ alwaysApply: false
 - Layout is mobile-first (`sm:` / `md:` / `lg:`). Do not design a desktop-only screen.
 - Skeletons match the populated layout. A centered spinner on a list is the loading state only when the layout is unknown.
 - No decorative gradients, generic card grids, or placeholder copy that was not in the spec.
-
-Recipes: `skills/create-react-component/references/ui-quality.md`.

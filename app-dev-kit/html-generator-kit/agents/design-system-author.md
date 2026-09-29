@@ -70,11 +70,21 @@ Keep every token **name** unchanged. Set `--primary-foreground` per the brief's 
 vs dark text). You may pre-compute the `calc()` lightness values into literal OKLCH if you prefer.
 Leave NO `⟨…⟩` placeholder behind. Write to `{OUTPUT_DIR}/css/tokens.css`.
 
+**Locked values (brief has a `## Binding reference`)** — every `Applied as` row of the form
+`--token: value` is written into `:root` **exactly as given**, replacing the template's expression
+for that token (e.g. `--primary: #0A3D62;` instead of `oklch(⟨PRIMARY_L⟩ …)`). Tokens derived from
+it (`--primary-hover`, `--ring`, the `.dark` variants) use the brief's approximate OKLCH, or relative
+colour syntax such as `oklch(from #0A3D62 calc(l - 0.06) c h)`. A dark-by-default reference puts
+its provided surface/text colours in `:root`, not only in `.dark`. Never round, re-convert, or
+"fix" a locked value — contrast and harmony were already settled in the brief. If a locked row
+cannot be applied, stop and report it; do not substitute.
+
 ### 4. Write css/base.css — fill the font import
 
 From `base-css.md`, replace `⟨FONT_IMPORT⟩` with the brief's Google Fonts `@import url(...)` line
 (only the weights used). If the brief chose system-only fonts, remove the `⟨FONT_IMPORT⟩` line
-entirely. Everything else is copied as-is.
+entirely. A provided font that is not on Google Fonts keeps its name first in the `--font-*` stack
+with no `@import` for it (the brief logs that as a Deviation). Everything else is copied as-is.
 
 CRITICAL: do NOT add `html { font-size: 62.5% }` or any root font-size override. The root stays at
 the browser default 16px. Font families are referenced via `var(--font-sans)` / `var(--font-display)`
@@ -105,7 +115,8 @@ of `{OUTPUT_DIR}/css/components.css`:
    `.avatar*`, `.kbd`, `.divider`). The shimmer `.skeleton` rule intentionally overrides the base one
    — keep it after, not before.
 2. **Only the SWITCHED blocks named in the brief's `## Signature layer`** (1–3 of `bento`, `glass`,
-   `gradient`, `edge-accent`, `soft-depth`, `editorial`, `underline-nav`). Emit them verbatim.
+   `gradient`, `edge-accent`, `soft-depth`, `editorial`, `underline-nav`, or none when the brief
+   says `none`). Emit them verbatim.
 
 Hard rules:
 - **Never emit a switched block the brief did not name**, and never emit more than 3. The brief's
@@ -116,15 +127,27 @@ Hard rules:
 
 ### 6. Write design-system-ref.md
 
-A COMPACT reference (max 95 lines) — the only design-system document screen-generator agents read.
+A COMPACT reference (max 95 lines, plus up to 12 for the binding block) — the only design-system
+document screen-generator agents read.
 Do NOT include the full CSS content here — only names, semantics, and usage rules.
 **CDN-free**: no Tailwind. Use ONLY these class names.
 
 Begin the ref with a **Design direction** header summarizing the brief so screen-generator matches
 the tone (archetype, primary hue, font pairing, density, layout archetype, signature detail, voice).
+When the brief has a `## Binding reference`, put a `## Provided reference (binding)` block first,
+listing every **structure** row (layout, nav items + order, header/brand-bar contents, page
+composition, component styling) — screen-generators never see the brief, so this block is how
+user-provided structure reaches the pages. Omit the block when there is no binding reference.
 
 ```markdown
 # Design System Reference (CDN-free — no Tailwind)
+
+## Provided reference (binding — outranks everything below; omit when none)
+- Layout: {sidebar | top-nav} (provided)
+- Nav: {items in the provided order}
+- Header / brand bar: {provided contents, e.g. "logo left, app name, user menu right"}
+- Composition: {provided per-page structure, e.g. "dashboard: KPI strip then table"}
+- Components: {provided styling, e.g. "pill buttons (.btn radius = 9999px)"}
 
 ## Design direction (from design-brief.md)
 - Archetype: {archetype} · Mood: {one-line intent}
@@ -238,7 +261,10 @@ After writing, confirm:
 - components.css contains **exactly** the switched blocks the brief named — no extras;
 - no `!important` outside the reduced-motion guard;
 - design-system-ref.md lists every signature class that was actually emitted, and none that wasn't
-  (screen-generator may only use classes documented there).
+  (screen-generator may only use classes documented there);
+- with a binding reference: every `--token: value` row from the brief's `## Binding reference`
+  appears verbatim in tokens.css, each provided font family appears in `--font-sans` /
+  `--font-display`, and design-system-ref.md starts with the `## Provided reference` block.
 
 Report:
-`{ status: "design-system-contract-ready", signature_emitted: ["{block}", …], signature_skipped: ["{name not in template}", …], files: ["css/tokens.css", "css/base.css", "css/components.css", "design-system-ref.md"] }`
+`{ status: "design-system-contract-ready", locked_applied: {count}, locked_missing: ["{token}", …], signature_emitted: ["{block}", …], signature_skipped: ["{name not in template}", …], files: ["css/tokens.css", "css/base.css", "css/components.css", "design-system-ref.md"] }`

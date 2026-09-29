@@ -49,7 +49,7 @@ prototype-ref: .spec/prototype/{tc}_{slug}/        # or none
 | `## Acceptance Criteria` | spec-analyst (post-clarify) | Testable, numbered list of done conditions | Numbered list |
 | `## FSD Impact` | code-explorer | New/modified slices and segments | Table: slice, layer, segments, change type |
 | `## API Contract / Data Model` | spec-analyst (stub) then code-explorer | Endpoint shapes, types, query keys — this task only | TypeScript interface blocks or table |
-| `## UI Surface` | spec-analyst (stub) then code-explorer | **One** screen: id, title, route, states, prototype-page | Bullet list |
+| `## UI Surface` | spec-analyst (stub) then code-explorer | One or more nested screens: id, title, route, states, prototype-page | Bullet list |
 | `## Architecture Baseline` | Station 1.5 architecture-auditor | REPORT_ONLY findings on existing `src/` | Hard / judgment / skipped |
 | `## Reuse Map` | code-explorer | Existing slices/components that can be reused | Table: item → source location |
 | `## Tech Investigation` | research-analyst | Findings from context7/web research | Free prose + links |

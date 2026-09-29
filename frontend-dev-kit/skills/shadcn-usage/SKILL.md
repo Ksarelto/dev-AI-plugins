@@ -18,24 +18,27 @@ This skill covers composition patterns and portal/theming reasoning. For form-sp
 
 ## Instructions
 
-1. **Install, don't hand-write**: `npx shadcn@latest add <component>`. Import from `@/components/ui/` — no barrel re-exports over it.
-2. **Treat `components/ui/*` as generated.** Any deliberate edit there needs a comment explaining what changed and why, or belongs in a wrapper instead — re-running the CLI overwrites unmarked edits.
-3. **Decide wrapper vs. inline composition**: wrap only a *repeated* arrangement of primitives (`ConfirmButton`, `DataTable`). Do not wrap a primitive just to preset one prop — a `className` or prop default does not earn a new component.
-4. **Every wrapper component gets a `styles.ts`** — even if it is one line. No Tailwind classes inline in JSX.
-5. **Compose with `asChild`** instead of nesting: `<Button asChild><Link to="/x">Go</Link></Button>` keeps one DOM element carrying the button's styling, semantics, and accessible name.
-6. **Wrapper components spread props and merge `className` last** via `cn()` so the caller's utility wins the Tailwind-merge conflict. React 19 passes `ref` as a plain prop — no `forwardRef`.
-7. **Respect portal boundaries.** `Dialog`, `Popover`, `Select`, `Tooltip`, and `Dropdown` render their content in a portal, outside the trigger's DOM ancestry:
-   - Never target portalled content with descendant CSS from a parent (`.card :where(...)` won't reach it) — style the content component directly via its own `className`.
-   - Never rely on event delegation or `stopPropagation` from a parent listener; the portal breaks the DOM event path assumption. Use the primitive's own callbacks (`onOpenChange`, `onSelect`) instead.
-8. **Dialogs are controlled**: own `open` + `onOpenChange` in the parent. Don't let the primitive manage open state internally when the parent also needs to react to it.
-9. **A controlled `<Select>` speaks strings only.** Convert ids/enums at the boundary going in and coming out. Pick controlled or uncontrolled (`value` vs. `defaultValue`) once — switching between them mid-life breaks the component.
-10. **Theme through CSS custom properties** in `shared/ui/theme/globals.css` only — semantic token names (`--background`, `--foreground`, `--primary`, etc.). No `dark:` variants, no `ThemeProvider`, no per-feature color constants. This project has one light palette.
+1. **Registry first.** Search the shadcn registry before writing UI. Use the registry component when it covers the need. Hand-write only after a recorded miss (`## Tech Investigation`: `"<Name> hand-authored: no registry match because <reason>"`).
+2. **One base per primitive, in `shared/ui/<name>/`.** `npx shadcn@latest add <component>` (or the shadcn MCP add command), then re-home the files into a kebab-case folder. That folder is the only copy. App code imports `@/shared/ui/dialog` (and the same for button, drawer, and the rest). Do not import `@/components/ui/*`. Do not add a `shared/ui/index.ts` mega-barrel.
+3. **Keep the registry structure.** Named export, Radix props, and prop types in `types.ts`. Move Tailwind — including every `animate-*` and `data-[state=*]` class — into `styles.ts`. Do not delete those classes while adapting. Do not reimplement the primitive in a feature, entity, or widget.
+4. **Animation must stay active.** A dialog, drawer, sheet, popover, dropdown, or tooltip base is incomplete if its open/close animation classes were stripped, or if global CSS does not load the animation stylesheet the installed shadcn version expects. Read the host `package.json`, `components.json`, and global CSS for that stylesheet. Do not add a second animation library from memory. A missing package is a dependency approval, not a silent skip.
+5. **If `shared/ui/<name>` is missing, stop.** Do not author a second dialog, button, or drawer. Hand the primitive to the shared-UI step (`create-shared-ui` / `shared-engineer`) and compose the result.
+6. **Decide wrapper vs. inline composition**: wrap only a *repeated* arrangement of primitives (`ConfirmButton`, `DataTable`). Do not wrap a primitive just to preset one prop — a `className` or prop default does not earn a new component. The wrapper is its own kebab-case folder and imports the base.
+7. **Every wrapper component gets a `styles.ts`** — even if it is one line. No Tailwind classes inline in JSX.
+8. **Compose with `asChild`** instead of nesting: `<Button asChild><Link to="/x">Go</Link></Button>` keeps one DOM element carrying the button's styling, semantics, and accessible name.
+9. **Wrapper components spread props and merge `className` last** via `cn()` so the caller's utility wins the Tailwind-merge conflict. React 19 passes `ref` as a plain prop — no `forwardRef`.
+10. **Respect portal boundaries.** `Dialog`, `Popover`, `Select`, `Tooltip`, and `Dropdown` render their content in a portal, outside the trigger's DOM ancestry:
+    - Never target portalled content with descendant CSS from a parent (`.card :where(...)` won't reach it) — style the content component directly via its own `className`.
+    - Never rely on event delegation or `stopPropagation` from a parent listener; the portal breaks the DOM event path assumption. Use the primitive's own callbacks (`onOpenChange`, `onSelect`) instead.
+11. **Dialogs are controlled**: own `open` + `onOpenChange` in the parent. Don't let the primitive manage open state internally when the parent also needs to react to it.
+12. **A controlled `<Select>` speaks strings only.** Convert ids/enums at the boundary going in and coming out. Pick controlled or uncontrolled (`value` vs. `defaultValue`) once — switching between them mid-life breaks the component.
+13. **Theme through CSS custom properties** in `shared/ui/theme/globals.css` only — semantic token names (`--background`, `--foreground`, `--primary`, etc.). No `dark:` variants, no `ThemeProvider`, no per-feature color constants. This project has one light palette. Comments only for non-obvious logic — the base in `shared/ui/<name>/` is owned source, not a file that needs a comment on every edit.
 
 ## Wrapper component pattern
 
 ```tsx
-// features/orders/ui/ConfirmDeleteButton/ConfirmDeleteButton.tsx
-import { Button } from '@/components/ui/button';
+// features/orders/ui/confirm-delete-button/confirm-delete-button.tsx
+import { Button } from '@/shared/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +49,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
+} from '@/shared/ui/alert-dialog';
 import { cn } from '@/shared/lib/utils';
 import * as styles from './styles';
 import type { ConfirmDeleteButtonProps } from './types';
@@ -84,7 +87,7 @@ export const ConfirmDeleteButton = ({
 ```
 
 ```ts
-// features/orders/ui/ConfirmDeleteButton/styles.ts
+// features/orders/ui/confirm-delete-button/styles.ts
 export const trigger = 'h-9 px-3';
 ```
 
@@ -135,8 +138,10 @@ const [open, setOpen] = useState(false);
 
 ## Checklist
 
-- [ ] Component installed via CLI, imported from `@/components/ui/`
-- [ ] Any edit inside `components/ui/*` has a comment, or moved to a wrapper
+- [ ] Registry searched first; hand-write only after a recorded miss
+- [ ] Base lives in `shared/ui/<name>/` and is imported from `@/shared/ui/<name>` — no `@/components/ui`, no `shared/ui` mega-barrel
+- [ ] Radix structure, prop types, and `data-[state=*]` / `animate-*` classes kept; open/close motion still runs
+- [ ] Global CSS loads the animation stylesheet the installed shadcn version expects
 - [ ] Wrapper only exists for a repeated composition, not a single preset prop
 - [ ] Wrapper component has its own `styles.ts` — no Tailwind inline in JSX
 - [ ] `asChild` used instead of a nested wrapper element where applicable

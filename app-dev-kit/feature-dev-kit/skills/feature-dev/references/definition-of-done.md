@@ -24,14 +24,14 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 
 ## FSD integrity
 
-- [ ] Every new slice has an `index.ts` exporting only what consumers need
+- [ ] Every new slice has an `index.ts` that re-exports only symbols a file outside that folder already imports — no predicted re-exports, no `export *`, no `shared/ui` mega-barrel
 - [ ] No upward imports and no deep imports into another slice's internals
 - [ ] Code sits in the lowest layer that can host it — shared logic is not duplicated per slice
 - [ ] Entity types are imported from the entity, never re-declared in a feature
 
 ## Quality
 
-- [ ] Naming reveals intent; no comment is needed to explain *what* the code does
+- [ ] No comments in new code, except one line where the logic is non-obvious. Naming carries the rest
 - [ ] No duplicated business logic across slices
 - [ ] No dead code, `console.log`, `TODO`, or commented-out blocks left behind
 - [ ] Changes are scoped to the feature — no opportunistic refactors of adjacent files
@@ -44,11 +44,12 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 - [ ] Contrast ≥ 4.5:1 for text; state is never conveyed by colour alone
 - [ ] Renders correctly at 320 / 768 / 1024 / 1440 px
 - [ ] Uses design tokens and the spacing scale — no arbitrary pixel values
-- [ ] Every user-facing string comes from `TextContent`, never a literal
+- [ ] Every user-facing string comes from i18n keys (`add-text-content`), never a literal
 
 ## Integration
 
 - [ ] Works inside the running app, not only in isolation or in tests
+- [ ] When UI changed, `.spec/features/<slug>.context/browser-check.md` records the real route, the main actions, and one adjacent route that still works
 - [ ] Query invalidation covers every cache the mutation affects
 - [ ] Route, navigation entry, and permissions are wired where the feature needs them
 - [ ] Public interface changes to a shared slice are backward compatible or all call sites updated

@@ -67,7 +67,7 @@ export const StatusBadge = ({ status, children, className }: StatusBadgeProps): 
 
 ```tsx
 // shared/ui/PrimaryButton/index.tsx
-import { Button, type ButtonProps } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/shared/ui/button';
 import { cn } from '@/lib/utils';
 
 export const PrimaryButton = ({ className, ...props }: ButtonProps): JSX.Element => {

@@ -31,11 +31,16 @@ Skip these even if they changed:
 | `*.test.ts`, `*.test.tsx` | Already test files |
 | `*.spec.ts`, `*.spec.tsx` | Already spec files |
 | `*.d.ts` | Declaration files |
+| `styles.ts` | Class strings only |
+| `*.stories.tsx` | Story files |
 
 ## Step 3: For every remaining file
 
-- If a `.test.ts` / `.test.tsx` exists next to it → **update** that file
-- If no test file exists → **create** one alongside the source file
+Executable behavior (a component, hook, fetcher, model function, route module, or guard) needs a behavior test. Skip a file that only re-exports or only declares types.
+
+- Component under a `ui/` folder: `{name}.test.tsx` in that folder. Update it if it exists.
+- Every other executable file: a `*.test.ts` in the segment `tests/` folder (`api/tests/`, `model/tests/`, `hooks/tests/`, `lib/tests/`, `app/router/<group>/tests/`). One `shared/lib/tests/` for all of `shared/lib`. Test helpers for that segment live in the same `tests/` folder.
+- Do not create `fetchers.test.ts` next to `api/fetchers.ts`.
 
 ## What to test per file type
 

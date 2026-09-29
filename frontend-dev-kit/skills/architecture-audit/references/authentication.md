@@ -13,7 +13,7 @@ Session is a shared mechanism, not a feature. `useSession()` is the React contra
 - `getToken()` / `setToken()`: writes from the provider; reads from `shared/api/base.ts` and the SSE header builder. Features/pages/widgets/entities do not import `token.ts`. `token.ts` imports nothing. Never put the token in an EventSource URL (native `EventSource` cannot set headers — do not fall back to it).
 - `oidc-client-ts`, `react-oidc-context`, `@azure/msal-*` imported only under `shared/lib/auth/`.
 - Provider order: `AuthProvider` and `I18nProvider` **outside** the keyed subtree; `QueryClientProvider` and SSE **inside** `SessionScope` keyed by `sessionKey`.
-- `RequireAuth`: handle `loading` without redirect; uses `useSession()`, not `getToken()`. Auth screens (`pages/auth/*`) under `AuthLayout` — no feature mounts; they sit **outside** `RequireAuth`.
+- `RequireAuth`: handle `loading` without redirect; uses `useSession()`, not `getToken()`. Auth screens (`pages/auth/*`) are route elements in `app/router/auth/` — no `AuthLayout`, no feature mounts; they sit **outside** `RequireAuth`.
 - Do not guard in a React Router loader via `getToken()`. Post-login return target belongs in the URL.
 - `AUTH_*` parsed in `shared/config/env.ts` with zod — not scattered `import.meta.env`. `NoAuthProvider` must refuse a production build.
 - User profile data lives in `entities/user/`, fetched with `useSession().userId` — not stuffed onto the session object.

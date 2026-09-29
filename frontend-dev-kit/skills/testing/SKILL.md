@@ -18,11 +18,13 @@ This skill assumes it rather than repeating it.
 
 | Segment | Test location |
 |---------|--------------|
-| `features/{f}/api/` | `features/{f}/api/tests/` |
-| `features/{f}/models/` | `features/{f}/models/tests/` |
-| `features/{f}/hooks/` | `features/{f}/hooks/tests/` |
-| `features/{f}/ui/{Component}/` | colocated `{Component}.test.tsx` (the only exception to `tests/`) |
-| `shared/lib/` | `shared/lib/{module}/tests/` |
+| `features/{f}/api/`, `models/`, `hooks/`, `lib/` | `…/tests/` next to that segment |
+| `entities/{e}/api/`, `model/` | `…/tests/` |
+| `widgets/{w}/hooks/`, `model/` | `…/tests/` |
+| `app/router/{auth,error,root,guards}/` executable modules | `…/tests/` |
+| Component folders under `ui/` | colocated `{name}.test.tsx` (the only colocated exception) |
+| `shared/lib/*` | one `shared/lib/tests/` for every unit |
+| `shared/api/` | `shared/api/tests/` |
 
 Rules:
 - No `__fixtures__/` directories — mock objects are declared inline in the test file.
@@ -32,8 +34,8 @@ Rules:
 ## Steps
 
 1. **Determine which files need tests** — see [File Selection](references/file-selection.md)
-2. **Check for existing test files** alongside each source file (`.test.tsx` / `.test.ts`)
-3. **Create or update tests** following the references below
+2. **Check for an existing test** in the location from the table above — component tests sit in the component folder; everything else sits in that segment's `tests/`
+3. **Create or update tests** that assert behavior. A test that only imports the module and expects it to be defined does not count
 4. **Run and fix** until tests pass and coverage thresholds hold
 
 ## Test Execution Commands

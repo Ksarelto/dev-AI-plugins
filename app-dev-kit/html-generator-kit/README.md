@@ -3,11 +3,25 @@
 **Entry point**: `/generate-html [spec-slug]` → `skills/generate-html/SKILL.md`
 
 Transforms a validated YAML spec from `.spec/app/` into a **clickable multi-page HTML prototype**
-in `.spec/prototype/{TIMECODE}_{SLUG}/`. Fully CDN-free, Alpine.js-interactive, headless-browser verified.
+in `.spec/prototype/{TIMECODE}_{SLUG}/`. Styling is CDN-free (no Tailwind); Alpine.js and Google Fonts load from a CDN. Headless-browser verified.
 
-Design direction comes from **[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)**,
+If you provide a theme — brand colours, fonts, a style guide, `tokens.css`, screenshots/mockups, or
+a layout — the prototype **must** follow it: every stated value is locked verbatim and QA fails the
+build if one is missing. Only what the reference leaves open (or everything, when there is no
+reference) comes from **[ui-ux-pro-max](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill)**,
 an open-source design-intelligence skill, so each prototype gets a product-appropriate, current look
 instead of the same indigo/sidebar template.
+
+Where a design reference is picked up (`scripts/collect-design-inputs.mjs`, highest priority first):
+
+1. Paths or inline instructions given when invoking `/generate-html`
+2. `.spec/design/**` — any file (markdown, CSS, JSON tokens, images); always binding
+3. The spec itself, `.spec/context/*`, and `.spec/processed/*/` (where spec-dev-kit archives
+   context) — only files with concrete values (hex/rgb/oklch, CSS variables, `font-family:`) or an
+   explicit theme/brand/layout statement; images always count
+
+What was followed, and any deviation (e.g. a font not on Google Fonts), is listed in
+`design-brief.md` → `## Binding reference` and in the review packet.
 
 Human gates (`AskUserQuestion`) are owned by the **skill**. The orchestrator is a subagent and
 returns packets (`REVIEW_PACKET`, `ESCALATION_PACKET`). It never writes prototype files.
@@ -60,9 +74,10 @@ Or add the marketplace in Agent chat:
    `/generate-html` also detects it and offers to install it at Step 2.5 (using `--ai cursor` when
    `.cursor/` is present, otherwise `--ai claude`), so you can skip this.
 2. Run `/generate-spec` to produce a spec in `.spec/app/`.
-3. Run `/generate-html` (or `/generate-html my-feature-slug`).
-4. Approve at the review gate (skill-owned).
-5. `npx serve .spec/prototype/{TIMECODE}_{SLUG}` → open `http://localhost:3000`.
+3. Optional: put your theme / brand / mockups in `.spec/design/`.
+4. Run `/generate-html` (or `/generate-html my-feature-slug`).
+5. Approve at the review gate (skill-owned).
+6. `npx serve .spec/prototype/{TIMECODE}_{SLUG}` → open `http://localhost:3000`.
 
 ---
 
@@ -96,7 +111,8 @@ When it is unavailable, the pipeline still completes and the review packet says
 │   ├── app.js                  # Alpine stores: notification, modal, theme
 │   ├── data.js                 # Entity mock-data pools
 │   └── navigation.js           # Active-page + breadcrumb helpers
-├── design-brief.md             # Chosen direction: archetype, palette, fonts, signature layer, motion
+├── design-inputs.json          # Provided design sources found (binding: true|false)
+├── design-brief.md             # Binding reference (if any) + chosen direction for open slots
 ├── ux-directives.md            # Per-page-type UX rules the screens were built against
 ├── design-system-ref.md        # Compact token + class reference
 ├── component-manifest.md       # Alpine data API reference
@@ -115,7 +131,7 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
   agents/
     html-orchestrator.md                     ← opus | returns packets; no AskUserQuestion; no Write
     spec-interpreter.md                      ← haiku | Reads SPEC_FILE; compact summary
-    design-strategist.md                     ← sonnet | queries ui-ux-pro-max → design-brief.md + ux-directives.md
+    design-strategist.md                     ← sonnet | binding design-inputs.json, else ui-ux-pro-max → design-brief.md + ux-directives.md
     design-system-author.md                  ← sonnet | fills brief into css/ + design-system-ref
     component-library-author.md              ← sonnet | Alpine stores, mock data, component-manifest
     screen-generator.md                      ← sonnet | one page HTML (N parallel instances)
@@ -141,8 +157,7 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
         tokens-css.md  base-css.md  components-css.md
         app-js.md  mock-data-js.md  navigation-js.md
         page-shell.md  index-shell.md
-      scripts/
-        verify-prototype.mjs                 ← headless-browser render + axe + screenshot
+      scripts/                               ← collect-design-inputs.mjs (Step 2.6) and the rest under `scripts/`
 ```
 
 `KIT_DIR` is the plugin root (this directory when installed). Scripts are
@@ -158,7 +173,8 @@ Current specs live under `.spec/spec/`. Runs that still keep `spec.md` under `.s
 ```
 .spec/spec/spec-*/spec.md
       │
-generate-html skill: resolve KIT_DIR, Step 2.5 ui-ux-pro-max → UIUX_DIR
+generate-html skill: resolve KIT_DIR, Step 2.5 ui-ux-pro-max → UIUX_DIR,
+                     Step 2.6 collect-design-inputs.mjs → design-inputs.json
       │
 generate-html skill → spawn html-orchestrator (MODE: build, SPEC_FILE path only)
   Station 0: setup — spec-interpreter (bg, Reads SPEC_FILE) + read pipeline-flow.md

@@ -89,6 +89,10 @@ function readFrontmatter(path) {
 }
 
 const { fm: spec } = readFrontmatter(specPath)
+if (spec.status !== 'approved') {
+  console.error(`ERROR [SPEC_NOT_APPROVED] ${specPath} status is "${spec.status ?? ''}" — publish the spec (status: approved) before /feature-dev`)
+  process.exit(1)
+}
 const screens = spec['ui-surface']?.screens ?? []
 const interactions = spec['ui-surface']?.interactions ?? []
 const stories = spec['user-stories'] ?? []

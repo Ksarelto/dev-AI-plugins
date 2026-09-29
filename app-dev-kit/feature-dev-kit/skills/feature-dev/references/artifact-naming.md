@@ -63,14 +63,14 @@ that segment rather than inventing a placeholder. Branch and commit conventions 
 
 | Thing | Convention | Example |
 |-------|-----------|---------|
-| Component file | `PascalCase.tsx`, colocated in its own folder | `ui/DeclineProfileModal/DeclineProfileModal.tsx` |
-| Test file | sibling `.test.tsx` | `ui/DeclineProfileModal/DeclineProfileModal.test.tsx` |
+| Component file | kebab-case folder and file; PascalCase export | `ui/decline-profile-modal/decline-profile-modal.tsx` |
+| Test file | same stem, `.test.tsx` | `ui/decline-profile-modal/decline-profile-modal.test.tsx` |
 | Hook | `use<Thing>.ts`, camelCase | `model/useDeclineProfileForm.ts` |
 | Query/mutation hooks file | `<slice>.hooks.ts` | `api/profile.hooks.ts` |
-| Query keys | `<slice>.queryKeys.ts` | `api/profile.queryKeys.ts` |
+| Query keys | central registry | `shared/api/query-keys/` (`frontend-dev-kit:react-query-hook`) |
 | Types | `<slice>.model.ts` or `types.ts` | `model/profile.model.ts` |
 | Public API | always `index.ts` | `features/decline-profile/index.ts` |
-| Text keys | `SCREAMING_SNAKE` in `shared/config/textContent.ts` | `TextContent.DECLINE_PROFILE_TITLE` |
+| Copy | i18n keys | `frontend-dev-kit:i18n` via `add-text-content` |
 
 Entity slices are **singular** (`entities/profile`, not `entities/profiles`) — the slice names the
 concept, not the collection.

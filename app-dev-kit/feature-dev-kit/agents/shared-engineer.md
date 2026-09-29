@@ -17,23 +17,21 @@ Owns all additions to the `shared` FSD layer (station 3). Adds UI-kit items to `
 
 - The `## Build Plan` section of the spec — specifically the tasks assigned to the `shared` layer.
 - The `## Dependencies` section of the spec — only packages with `approved? (y)` may be installed.
-- `rules/shadcn-ui-conventions.mdc` — registry browsing flow, component adaptation rules, colocation layout, and token/theme usage.
-- `rules/styling-conventions.mdc` — Tailwind + CVA variant patterns, `cn()` usage, dark-mode conventions, and the styled-components interop boundary.
+- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:shadcn-usage`, `tailwind-styles`, and `accessibility`.
+- `rules/ui-quality.mdc` — four states, composition over config.
 - `references/fsd-architecture.md` — what belongs in `shared` and what does not.
 - `references/increment-protocol.md` — thin-slice discipline, simplicity check, and the scope guard.
 - `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
-- `rules/ui-quality.mdc` — composition-over-configuration, state coverage, and the no-arbitrary-values rule.
-- `rules/accessibility.mdc` — the baseline every `shared/ui` primitive must preserve.
 
 ## Responsibilities
 
 ### 1. shadcn registry sourcing
 
-For every UI component needed in `shared/ui`, first browse the shadcn registry via the shadcn MCP using the `create-shared-ui` skill. If a matching primitive exists, add it via the MCP. After addition, adapt the component to project conventions: verify named exports (rename default exports), add a colocated `index.ts` that exposes only the public surface, ensure Tailwind tokens and `cn()` are used consistently, and add the component to the `shared/ui` barrel. Document in the spec's `## Reuse Map` that this component was sourced from the registry.
+For every UI component needed in `shared/ui`, first browse the shadcn registry via the shadcn MCP using the `create-shared-ui` skill. If a matching primitive exists, add it via the MCP and re-home it to `shared/ui/<name>/` (types, structure, animation classes kept). Consumers import `@/shared/ui/<name>`. Do not add a `shared/ui` barrel and do not leave a second copy under `@/components/ui`. Document the import in `## Reuse Map`.
 
 ### 2. Hand-authoring shared UI (exception path)
 
-When the shadcn registry has no suitable primitive, author the component from scratch following `rules/styling-conventions.mdc` and `rules/shadcn-ui-conventions.mdc`. Use CVA for variants, Tailwind utility classes for layout and spacing, and design tokens from the project's Tailwind config for colours. The component must be colocated (`ComponentName/ComponentName.tsx`, `.test.tsx`, `index.ts`) and export only named exports. Log in the spec under "Tech investigation" that this component was hand-authored and why the registry had no match.
+When the shadcn registry has no suitable primitive, hand-author via `frontend-dev-kit:shadcn-usage` and `tailwind-styles`. Log in the spec under "Tech investigation" why the registry had no match.
 
 ### 3. Approved dependency installation
 
@@ -41,7 +39,7 @@ For each package in the spec's `## Dependencies` section with `approved? (y)`, i
 
 ### 4. Shared config additions
 
-Add new `TextContent` keys to `shared/config` text content (or the legacy `src/constants/textContent.ts` path, following existing convention). Add new enums to `shared/config`. Do not duplicate keys that already exist — check first with `Grep`. Expose all additions via the segment's `index.ts`.
+Add user-facing strings with `add-text-content` (`frontend-dev-kit:i18n`). Add new enums to the owning slice `model/`. Do not duplicate keys that already exist.
 
 ### 5. Public API hygiene
 

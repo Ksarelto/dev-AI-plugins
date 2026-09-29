@@ -40,7 +40,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from '@/shared/ui/form';
 import { cn } from '@/lib/utils';
 import type { FormFieldProps, FormProps } from './types';
 
@@ -134,9 +134,15 @@ export type CreateUserFormValues = z.infer<typeof createUserSchema>;
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select';
 import { Form } from '@/shared/ui/Form';
 import { createUserSchema, type CreateUserFormValues } from './types';
 import { useCreateUser } from '../../api/useCreateUser';
@@ -248,10 +254,10 @@ import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/shared/ui/button';
+import { Input } from '@/shared/ui/input';
 import { Form } from '@/shared/ui/Form';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/shared/ui/skeleton';
 import { profileSchema, type ProfileFormValues } from './types';
 import { useProfile } from '../../api/useProfile';
 import { useUpdateProfile } from '../../api/useUpdateProfile';

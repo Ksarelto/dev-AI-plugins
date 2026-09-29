@@ -5,6 +5,7 @@
   "cases": [
     { "prompt": "Turn this validated spec into a clickable multi-page HTML prototype", "expect": "generate-html" },
     { "prompt": "Generate a CDN-free Alpine.js prototype with a modern design direction", "expect": "generate-html" },
-    { "prompt": "Copy the previous HTML prototype and add only the new screens", "expect": "generate-html" }
+    { "prompt": "Copy the previous HTML prototype and add only the new screens", "expect": "generate-html" },
+    { "prompt": "Build the prototype with our brand colours, fonts and style guide from .spec/design", "expect": "generate-html" }
   ]
 }

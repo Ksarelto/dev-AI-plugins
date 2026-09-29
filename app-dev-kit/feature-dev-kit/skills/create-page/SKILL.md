@@ -16,7 +16,7 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
 
 1. **Scaffold the slice** using `create-slice` for `pages/<slice>/` with segment `ui/`.
 
-2. **Build the page component** at `pages/<slice>/ui/<PageName>.tsx`:
+2. **Build the page component** at `pages/<slice>/ui/<page-name>/<page-name>.tsx` (kebab-case folder). If the page needs a registry primitive and `shared/ui/<name>` is missing, stop and hand it to `shared-engineer`. Do not author a second dialog.
    - Pages are thin composition — they import widgets, features, and entities via their `index.ts` and arrange them on the screen.
    - No business logic, no direct API calls, no form handling — delegate those to feature and entity slices.
    - Local layout state (e.g. selected tab from URL params) is acceptable with `useState` or `useSearchParams`.
@@ -26,7 +26,7 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
 
 3. **Default export allowed**: the page component may use a default export (the single exception to the named-exports rule):
    ```tsx
-   // pages/profiles-page/ui/ProfilesPage.tsx
+   // pages/profiles-page/ui/profiles-page/profiles-page.tsx
    const ProfilesPage = (): JSX.Element => (
      <main>
        <ProfilesWidget />
@@ -37,13 +37,13 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
 
 4. **Re-export for lazy import** in `pages/<slice>/index.ts`:
    ```ts
-   export { default as ProfilesPage } from './ui/ProfilesPage'
+   export { default as ProfilesPage } from './ui/profiles-page'
    // OR simply:
-   export { default } from './ui/ProfilesPage'
+   export { default } from './ui/profiles-page'
    ```
-   The `app` layer uses this for `React.lazy(() => import('@/pages/profiles-page'))`.
+   The `app` layer uses this with `lazyFeature('profiles-page', () => import('@/pages/profiles-page'))`.
 
-5. **Co-locate tests** at `pages/<slice>/ui/<PageName>.test.tsx`. Test that the page renders its key widgets without crashing, and that loading/error states are handled.
+5. **Co-locate the page test** at `pages/<slice>/ui/<page-name>/<page-name>.test.tsx`. Test that the page renders its key widgets without crashing, and that loading/error states are handled.
 
 6. **Run `yarn typecheck`**: fix all TypeScript errors.
 
@@ -58,8 +58,8 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
 
 ## Outputs
 
-- `pages/<slice>/ui/<PageName>.tsx` — the route screen component (default export).
-- `pages/<slice>/ui/<PageName>.test.tsx` — co-located tests.
+- `pages/<slice>/ui/<page-name>/<page-name>.tsx` — the route screen component (default export).
+- `pages/<slice>/ui/<page-name>/<page-name>.test.tsx` — colocated behavior test.
 - `pages/<slice>/index.ts` — public API (re-exports the default for lazy import).
 
 ## What this skill does NOT do

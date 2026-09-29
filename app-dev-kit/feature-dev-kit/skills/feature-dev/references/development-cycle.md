@@ -16,7 +16,7 @@ Outer (hub — feature-orchestrator)
 
 Inner (each build spoke, one slice)
   model → api → lib → ui → index.ts
-  implement the slice → typecheck once → colocated test
+  implement the slice → typecheck once → behavior test
 ```
 
 The inner loop is specified in `increment-protocol.md`. Name that file only if the station card says so.
@@ -34,7 +34,7 @@ The inner loop is specified in `increment-protocol.md`. Name that file only if t
 | 5. Investigate | 1a–1b | `research-analyst` (conditional) + skill (human deps) | No unapproved packages |
 | 6. Plan | 2 | orchestrator | Build plan + AC coverage table |
 | 7. Layer cycle | 3–7 | layer engineers, or `slice-engineer` when the layer has one slice | `--until fsd` green before the next layer |
-| 8. Tests | 8 | `test-engineer`, only if Station 9 coverage fails | Coverage thresholds + every AC has a test |
+| 8. Tests | 8 | `test-engineer` — always, every new executable file | Every new executable file has a behavior test |
 | 9. Gate sweep | 9 | `quality-gate-runner` | All mechanical gates green |
 | 10. Architecture audit | 9.5 | `architecture-auditor` (REPORT_ONLY) | Zero hard violations on changed paths |
 | 11. Auto-review | 10 | `code-reviewer` | No `[CRITICAL]`, no unresolved `[IMPORTANT]` |
@@ -56,7 +56,7 @@ Inside one assigned slice, follow `increment-protocol.md`:
 5. `ui/` loading, empty, error — each state has a test
 6. `index.ts` public API — export only what consumers need
 
-When the assigned slice is complete: `yarn typecheck` once, then the colocated test. Do not
+When the assigned slice is complete: `yarn typecheck` once, then the behavior test (colocated `{name}.test.tsx` for a component; `tests/` for hooks, api, models, lib, route modules, and guards). Do not
 typecheck between segments.
 
 ---

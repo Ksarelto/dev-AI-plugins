@@ -12,9 +12,9 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 | [agent-dev-kit](app-dev-kit/agent-dev-kit/) | Rules + Skills + Agents + MCP | TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter; `/agent-dev` factory from a spec |
 | [backend-dev-kit](app-dev-kit/backend-dev-kit/) | Rules + Skills + Agents + MCP | Node.js APIs: Express 5, TypeScript, Drizzle, Zod, Vitest; `/backend-dev` factory from a spec |
 | [spec-dev-kit](app-dev-kit/spec-dev-kit/) | Skills + Agents | Raw `.spec/context/` requirements → approved hybrid YAML+Markdown spec |
-| [html-generator-kit](app-dev-kit/html-generator-kit/) | Skills + Agents | Validated spec → CDN-free Alpine.js multi-page HTML prototype |
-| [feature-dev-kit](app-dev-kit/feature-dev-kit/) | Skills + Agents + Rules + MCP | One React FSD screen-task from a spec + optional prototype; hub-and-spoke; architecture-audit; never a PR |
-| [frontend-orchestrator-kit](app-dev-kit/frontend-orchestrator-kit/) | Skills | Spec → prototype → one `/feature-dev` per UI screen-task, tracked on a persisted checklist |
+| [html-generator-kit](app-dev-kit/html-generator-kit/) | Skills + Agents | Validated spec → CDN-free Alpine.js multi-page HTML prototype; a provided theme, brand, mockup, or layout is binding |
+| [feature-dev-kit](app-dev-kit/feature-dev-kit/) | Skills + Agents + Rules + MCP | One React FSD feature per run (nested screen-tasks share the branch and commit) from a spec + optional prototype; hub-and-spoke; architecture-audit; never a PR |
+| [frontend-orchestrator-kit](app-dev-kit/frontend-orchestrator-kit/) | Skills | Spec → prototype → `/feature-dev` once per feature (nested screen-tasks share that call), tracked on a persisted checklist |
 | [app-orchestrator-kit](app-dev-kit/app-orchestrator-kit/) | Skills | Analyze spec + prototype, then dispatch backend / agent / frontend tracks against a work-plan |
 
 The last seven are separate marketplace plugins under [`app-dev-kit/`](app-dev-kit/). See that README for the pipeline map. Discoverability evals live in `evals/cases/<plugin-name>.json` (plus `<plugin-name>-agents.json` when the kit ships agents).

@@ -23,7 +23,7 @@ Companion schema: `result-envelope.md` (canonical copy lives in
    `import-upstream.mjs` already writes stories/ACs onto the blackboard from `UPSTREAM_SPEC`.
 5. `build-checklist.mjs` reads `spec.md` from disk. This skill does not parse YAML stories
    into chat in order to derive tasks.
-6. Station 2a presents checklist **id / title / priority** from the YAML `tasks[]` — not the
+6. Station 2a presents checklist **id / title / priority** from the YAML `features[]` — not the
    spec body.
 7. Station 4 report is paths + checklist counts + branch names from the checklist file.
 

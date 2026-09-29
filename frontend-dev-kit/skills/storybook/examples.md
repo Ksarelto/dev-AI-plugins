@@ -1,5 +1,7 @@
 # Storybook Examples
 
+Story files go in two places: `shared/ui/<name>/<name>.stories.tsx` for a primitive, and `features/<slice>/<slice>.stories.tsx` for the feature's public entry. The samples below show CSF3 shape, states, and `play` functions. Do not copy a sample path onto an inner feature part, an entity, or a widget.
+
 ## Example 1 — Simple presentational component
 
 ```typescript

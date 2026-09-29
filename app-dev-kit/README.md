@@ -12,7 +12,7 @@ individually. Together they run:
                (one resource)     (one agent)           │
                                                         ▼
                                                  /feature-dev
-                                              (one UI screen-task)
+                                           (one feature per run)
 ```
 
 | Plugin | Path | Entry | What it ships |

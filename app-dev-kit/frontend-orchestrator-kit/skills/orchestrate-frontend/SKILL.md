@@ -47,7 +47,6 @@ All script and reference paths are `{KIT_DIR}/skills/orchestrate-frontend/…`. 
 | `references/result-envelope.md` | this skill | after every delegated Skill returns |
 | `references/task-decomposition.md` | this skill, `build-checklist.mjs` | Station 2a |
 | `references/checklist-format.md` | this skill | reading/writing `task-checklist.md` |
-| `templates/checklist.md` | `build-checklist.mjs` (first generation only) | scaffold shape |
 | `scripts/build-checklist.mjs` | this skill (Bash) | deterministic UI-task derivation / re-derivation |
 | `scripts/write-kit-result.mjs` | this skill (Station 4 or abort) | run-level envelope for `orchestrate-app` |
 

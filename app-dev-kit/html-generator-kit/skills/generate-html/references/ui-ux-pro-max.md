@@ -125,7 +125,11 @@ foreground it implies, adjust lightness until it passes and record the adjustmen
 
 The database ranks rule categories 1–10. This kit resolves conflicts in this order:
 
-1. **Accessibility / touch targets** (its priority 1–2) — always wins, including over a style pick.
+0. **A user-provided design reference** (`design-inputs.json` → the brief's `## Binding reference`)
+   — its stated values are not database choices and are never replaced by one. Database output
+   fills only open slots. A provided colour is not altered for accessibility either: fix the
+   pairing, or disclose an `a11y-risk` deviation for the human reviewer.
+1. **Accessibility / touch targets** (its priority 1–2) — always wins over a style pick.
 2. **This kit's hard invariants** — CDN-free CSS, the `design-system-ref.md` class vocabulary, the
    four view states, the testable interaction hooks. A recommendation that needs Tailwind, GSAP, or
    an external asset is out of scope; express the *intent* in plain CSS or drop it.
@@ -152,7 +156,7 @@ When `UIUX_DIR == none`, or `python3` is missing, or a query exits non-zero:
 - Record `design_authority: first-principles (ui-ux-pro-max unavailable)` in the brief's provenance
   block so the reviewer knows the design was not rule-sourced.
 - The orchestrator surfaces this in the REVIEW_PACKET as
-  `Design authority: ui-ux-pro-max ✅ | first-principles ⚠️ (run: npm i -g ui-ux-pro-max-cli && uipro init --ai claude)`.
+  `Design authority: ui-ux-pro-max ✅ | first-principles ⚠️ (run: npm i -g ui-ux-pro-max-cli && uipro init --ai {HOST_AI} --global)`.
 
 Never invent database output. If a query returned nothing usable, say so rather than fabricating a
 rule row.

@@ -148,13 +148,17 @@ Features use `httpClient` directly — no per-feature `ky.create()`.
 ### `features/orders/api/endpoints.ts` — backend path map
 
 ```typescript
-// features/orders/api/endpoints.ts
+const base = 'orders'
+
 export const ORDERS_ENDPOINTS = {
-  list:   'orders',
-  detail: (id: string) => `orders/${id}`,
-  place:  'orders',
-} as const;
+  base,
+  list: base,
+  detail: (id: string) => `${base}/${id}`,
+  place: base,
+} as const
 ```
+
+`base` is the path relative to `API_BASE.v1`. Every other key reuses it. Do not repeat the path string and do not put an absolute URL in this file.
 
 ### `features/orders/api/dto.ts` — wire shape and mapper
 
@@ -237,7 +241,7 @@ onError: (err) => {
 - [ ] `AppError` constructor is `(kind, message, status?, cause?)` — not `(kind, status, data)`
 - [ ] `toAppError` helper exists in `errors.ts` and handles `HTTPError`, `TimeoutError`, and network errors
 - [ ] All feature API calls go through `features/{name}/api/fetchers.ts`
-- [ ] `endpoints.ts` holds all backend paths relative to `API_BASE.v1` — no full URLs in hooks
+- [ ] `endpoints.ts` has a `base` path relative to `API_BASE.v1`, and every other key reuses it — no full URLs in hooks
 - [ ] `dto.ts` holds wire shapes (DTOs) and domain types + mapper functions
 - [ ] Query keys come from `shared/api/query-keys/{domain}.ts` — no inline array literals
 - [ ] `getToken()` called from `shared/lib/auth/token.ts` in `httpClient`'s `beforeRequest` hook

@@ -12,7 +12,7 @@ One HTTP client, one key registry. Slice `api/` owns hooks, DTOs, mappers, and `
 - `ky` client: `retry: 0` (Query owns retry); pass `signal` from the query into the request; no `.json()` on 204.
 - Versioned API: `httpClient.extend({ prefix: API_BASE.v2 })` — not a second `ky.create`.
 - Query keys: factories from `@/shared/api/query-keys/{domain}`. No inline `queryKey: [...]` outside `query-keys/`. One file per **business domain**, with an owner named at the top of the file.
-- Every feature/entity `api/` has `endpoints.ts`. Hooks do not hand-type path strings. A feature map lists only paths **that feature** calls — no copy of another slice's map.
+- Every feature/entity `api/` has `endpoints.ts` with a `base` property (the path relative to `API_BASE.v1`). Other keys reuse `base`. A repeated path string or an absolute URL in that file is hard. Hooks do not hand-type path strings. A feature map lists only paths **that feature** calls — no copy of another slice's map.
 - Cross-feature refresh: mutation imports the shared key factory only — not `@/features/other`.
 - Invalidate only keys the mutation's business action legitimately affects. No blanket `invalidateQueries()` with no key.
 - `createQueryClient()` factory — instance is **replaced** on logout/tenant switch, not merely `clear()`. Query retry is network-kind `AppError` only; mutations `retry: false`.

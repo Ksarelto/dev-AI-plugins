@@ -1,6 +1,6 @@
 # Artifact Naming — Timecode + Slug Conventions
 
-**Used by**: `spec-orchestrator` (timecode + slug derivation, Station 0); inline publish step, Station 10
+**Used by**: `generate-spec` skill (timecode + slug derivation, Station 0); inline publish step, Station 10
 
 ---
 
@@ -53,7 +53,7 @@ Which folder is current lives in `.spec/app/current.json` (`app-state.md`), not 
 
 ## Slug Derivation
 
-The slug identifies the feature/app being specced. It is derived by `spec-orchestrator` at Station 0 using this priority order:
+The slug identifies the feature/app being specced. The `generate-spec` skill derives it at Station 0 using this priority order:
 
 ### Priority 1: Explicit filename match
 If `.spec/context/` contains a file like:
