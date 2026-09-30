@@ -95,7 +95,7 @@ export const row = (isSelected: boolean) =>
 ```
 
 ```tsx
-// features/orders/ui/OrderRow/OrderRow.tsx
+// features/orders/ui/order-row/order-row.tsx
 import { row } from './styles';
 
 export const OrderRow = ({ order, isSelected }: OrderRowProps) => (

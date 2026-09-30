@@ -9,7 +9,7 @@ const DISPLAY_NAME_STALE_TIME_MS = 60_000;
 
 export const useUserDisplayName = (id: string): UseQueryResult<string> => {
   return useQuery({
-    queryKey: queryKeys.users.detail(id),
+    queryKey: userKeys.detail(id),
     queryFn: () => fetchUser(id),
     select: (user) => `${user.firstName} ${user.lastName}`,
     staleTime: DISPLAY_NAME_STALE_TIME_MS,
@@ -32,7 +32,7 @@ const UserRow = ({ user }: { user: User }): JSX.Element => {
 
   const handleMouseEnter = () => {
     queryClient.prefetchQuery({
-      queryKey: queryKeys.users.detail(user.id),
+      queryKey: userKeys.detail(user.id),
       queryFn: () => fetchUser(user.id),
       staleTime: PREFETCH_STALE_TIME_MS,
     });
@@ -58,7 +58,7 @@ const DETAIL_STALE_TIME_MS = 60_000;
 
 export const userQueryOptions = (id: string) =>
   queryOptions({
-    queryKey: queryKeys.users.detail(id),
+    queryKey: userKeys.detail(id),
     queryFn: () => fetchUser(id),
     staleTime: DETAIL_STALE_TIME_MS,
   });
@@ -94,7 +94,7 @@ const BATCH_STALE_TIME_MS = 60_000;
 export const useUserBatch = (ids: string[]) => {
   return useQueries({
     queries: ids.map((id) => ({
-      queryKey: queryKeys.users.detail(id),
+      queryKey: userKeys.detail(id),
       queryFn: () => fetchUser(id),
       staleTime: BATCH_STALE_TIME_MS,
     })),
@@ -109,23 +109,18 @@ export const useUserBatch = (ids: string[]) => {
 
 ## Mutation error typing
 
-Type the error generically so per-field validation errors from the server can be wired directly to the form.
+`AppError` from `@/shared/api/errors`. Validation field errors are `err.data`. Other kinds are toasted by `createQueryClient()`.
 
 ```ts
-import type { ApiError } from '@/api/types';
+import { isAppError } from '@/shared/api/errors';
 
-export const useCreateUser = (): UseMutationResult<User, ApiError, CreateUserInput> => {
-  return useMutation<User, ApiError, CreateUserInput>({
-    mutationFn: createUser,
-    onError: (error) => {
-      if (error.fields) {
-        Object.entries(error.fields).forEach(([field, messages]) => {
-          form.setError(field, { message: messages[0] });
-        });
-      } else {
-        message.error(error.message ?? 'Failed to create user');
-      }
-    },
-  });
-};
+onError: (err) => {
+  if (!isAppError(err) || err.kind !== 'validation') return;
+  const data = err.data as Record<string, string[]>;
+  for (const [field, messages] of Object.entries(data)) {
+    form.setError(field as never, { message: messages[0] });
+  }
+},
 ```
+
+Keys in this file come from `@/shared/api/query-keys/users` (`userKeys`). Hooks live in `features/{name}/hooks/`.

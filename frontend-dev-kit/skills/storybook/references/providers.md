@@ -51,43 +51,9 @@ export const WithRoute: Story = {
 };
 ```
 
-## Resetting Zustand between stories
+## Session in stories
 
-Use Storybook's `beforeEach` export (v8.2+) to reset stores globally before each story renders:
-
-```typescript
-// .storybook/preview.tsx
-import { useAuthStore } from '@/stores/authStore';
-
-export const beforeEach = () => {
-  useAuthStore.setState({
-    token: null,
-    user: null,
-    isAuthenticated: false,
-  });
-};
-```
-
-For per-story store setup, use a story-level decorator:
-
-```typescript
-export const AsAdmin: Story = {
-  decorators: [
-    (Story) => {
-      useAuthStore.setState({
-        user: {
-          id: '1',
-          name: 'Alice',
-          role: 'admin',
-        },
-        isAuthenticated: true,
-      });
-
-      return <Story />;
-    },
-  ],
-};
-```
+Session is a fake `Session` value from `shared/lib/auth`, not a Zustand auth store and not `src/stores/`. A feature draft store, if the story needs one, comes from `createDraftStore(sessionKey)` inside the story decorator.
 
 ## Decorator order
 
@@ -96,7 +62,6 @@ Decorators wrap the component in array order — last entry is outermost. Match 
 ```typescript
 export const decorators = [
   withI18n,        // innermost — closest to Story
-  withTheme,
   withQueryClient,
   withRouter,      // outermost
 ];

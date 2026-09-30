@@ -24,50 +24,24 @@ Three kinds of failure — each has a different handling path:
 
 ## `AppError` — the normalized HTTP error type
 
-All HTTP errors are normalized to `AppError` in `shared/api/base.ts`. Feature code never sees raw `HTTPError` or native `Error` from ky.
+All HTTP errors are normalized to `AppError` in `shared/api/base.ts` via `toAppError`. Import `isAppError` from `@/shared/api/errors`. Do not declare a second class or an `AppErrorKind` enum.
 
-```typescript
-// shared/api/errors.ts
-export enum AppErrorKind {
-  Unauthorized = 'unauthorized',
-  Forbidden    = 'forbidden',
-  NotFound     = 'not_found',
-  Validation   = 'validation',
-  Server       = 'server',
-  Network      = 'network',
-  Unknown      = 'unknown',
-}
-
-export class AppError extends Error {
-  constructor(
-    public readonly kind: AppErrorKind,
-    public readonly status: number,
-    public readonly data: unknown,
-  ) {
-    super(`API error ${status} (${kind})`);
-    this.name = 'AppError';
-  }
-}
-
-export const isAppError = (err: unknown): err is AppError => err instanceof AppError;
-```
+`kind` is the string union from `api-client`: `'network' | 'validation' | 'unauthorized' | 'forbidden' | 'not-found' | 'server' | 'unknown'`. Field errors for `'validation'` are `err.data`.
 
 ## Error narrowing in mutation `onError`
 
 ```typescript
-import { isAppError, AppErrorKind } from '@/shared/api/errors';
-import { notify } from '@/shared/lib/notify';
+import { isAppError } from '@/shared/api/errors';
 
 onError: (err) => {
   if (!isAppError(err)) return;
 
-  if (err.kind === AppErrorKind.Unauthorized) {
+  if (err.kind === 'unauthorized') {
     // Session handling is owned by shared/lib/auth — the hook just signals
-    // The auth provider's onExpired callback handles redirect
     return;
   }
 
-  if (err.kind === AppErrorKind.Validation) {
+  if (err.kind === 'validation') {
     // Map server field errors to form — see rhf-form skill
     mapServerErrorsToForm(err.data, form.setError);
     return;
@@ -80,30 +54,7 @@ onError: (err) => {
 
 ## Global QueryClient error handler
 
-Set once in `app/providers/`. Generic errors fire a toast; validation (422) errors are intentionally excluded because per-mutation `onError` handles them at the form level.
-
-```typescript
-// app/providers/QueryProvider.tsx
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { isAppError, AppErrorKind } from '@/shared/api/errors';
-import { notify } from '@/shared/lib/notify';
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    mutations: {
-      onError: (err) => {
-        if (!isAppError(err)) return;
-        if (err.kind === AppErrorKind.Validation) return; // handled per-mutation
-        notify.error('Something went wrong. Please try again.');
-      },
-    },
-  },
-});
-
-export const QueryProvider = ({ children }: { children: ReactNode }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-);
-```
+`createQueryClient()` in `shared/api/query-client.ts` (see `api-client`) already toasts non-validation mutation errors and retries only network-kind `AppError`. The provider calls that factory and **replaces** the client when `sessionKey` changes. Do not construct a module-level `QueryClient` or call `clear()` on logout.
 
 ## Error boundary placement
 
@@ -112,13 +63,13 @@ Three levels — each catches a different scope:
 ```
 app/boundaries/AppErrorBoundary     — root, catches everything, always present
 route/page level                    — one broken page doesn't blank the app
-feature root (ui/{Feature}Shell)    — feature's own loading/error/empty/stale states
+feature root (ui/{feature}-shell)  — feature's own loading/error/empty/stale states
 ```
 
 ### Route-level boundary with `FeatureLoadError` handling
 
 ```tsx
-// pages/orders/OrdersPage.tsx  (the route component wraps the shell)
+// app/router — per-route boundary around the lazy page (classes from that boundary's styles.ts)
 import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import { FeatureLoadError } from '@/shared/lib/lazyFeature';
 
@@ -219,7 +170,7 @@ export const validateOrderDraft = (draft: OrderDraft): OrderError | null => {
 ```
 
 ```tsx
-// features/orders/ui/OrderForm/OrderForm.tsx
+// features/orders/ui/order-form/order-form.tsx
 const validationError = validateOrderDraft(draft);
 if (validationError?.type === 'insufficient_stock') {
   return <p className={styles.errorText}>Only {validationError.available} units available.</p>;
@@ -229,7 +180,7 @@ if (validationError?.type === 'insufficient_stock') {
 ## Checklist
 
 - [ ] `AppError` (from `shared/api/errors.ts`) used for all HTTP error narrowing — not `ApiError`
-- [ ] `isAppError(err)` guards all `onError` callbacks before type-narrowing `err.kind`
+- [ ] `isAppError(err)` guards all `onError` callbacks before comparing `err.kind` to a string (`'validation'`, `'unauthorized'`) — not an enum
 - [ ] Root error boundary in `app/boundaries/`
 - [ ] Route-level error boundary handles `FeatureLoadError` (reload vs. crash screen)
 - [ ] Global `QueryClient` `onError` handles generic errors; per-mutation `onError` handles Validation

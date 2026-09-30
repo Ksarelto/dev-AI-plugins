@@ -11,8 +11,7 @@ Write or fix tests for the files specified (or for recently changed files if non
 
 ## Tech Stack
 
-The test stack and its versions are in the `stack` rule (Vitest — not Jest; `vi`, never `jest`).
-This skill assumes it rather than repeating it.
+Vitest, not Jest: `vi`, never `jest`.
 
 ## Test location conventions
 
@@ -82,7 +81,7 @@ yarn test:ci                                 # CI mode
 - [ ] File list scoped from staged/changed/branch files; constants, types, and index barrels excluded
 - [ ] Every remaining touched source file has new or updated tests
 - [ ] Using `vi` for mocks (NOT `jest`)
-- [ ] `render` from `@/utils/rendererRTL`
+- [ ] `render` from `@/shared/lib/rendererRTL`
 - [ ] `userEvent` for interactions (NOT `fireEvent`)
 - [ ] All user interactions are `await`ed
 - [ ] Query results stored in constants before `expect`

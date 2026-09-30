@@ -5,7 +5,7 @@ component, hook, or utility (constants, types, and index barrels are exempt).
 
 - A touched source file has no new or updated test covering the change.
 - A test still uses `jest` (mocks, globals) instead of `vi` (Vitest is the stack).
-- A component test renders with raw RTL `render` instead of the project's `render` from `@/utils/rendererRTL`.
+- A component test renders with raw RTL `render` instead of the project's `render` from `@/shared/lib/rendererRTL`.
 - An interaction uses `fireEvent` instead of `userEvent`, or a `userEvent` call isn't `await`ed.
 - A query result is used directly in an assertion instead of stored in a constant first.
 - `vi.clearAllMocks()` missing from `beforeEach` where mocks are used.

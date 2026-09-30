@@ -3,19 +3,19 @@
 ## API Hooks (TanStack Query)
 
 ```ts
-import { useGetProfiles } from '@/api/profiles/profiles.hooks'
+import { useProfiles } from '@/features/profiles/hooks/useProfiles'
 
-vi.mock('@/api/profiles/profiles.hooks')
+vi.mock('@/features/profiles/hooks/useProfiles')
 
-const mockUseGetProfiles = vi.mocked(useGetProfiles)
+const mockUseProfiles = vi.mocked(useProfiles)
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockUseGetProfiles.mockReturnValue({
+  mockUseProfiles.mockReturnValue({
     data: mockProfiles,
     isPending: false,
     refetch: vi.fn(),
-  } as ReturnType<typeof useGetProfiles>)
+  } as ReturnType<typeof useProfiles>)
 })
 ```
 
@@ -32,19 +32,11 @@ mockUseCreateProfile.mockReturnValue({
 
 ## Child Components
 
-Use `mockComponent` helper from `@/mocks` — preferred:
+Mock the child in the test file. Do not add a shared `@/mocks` helper.
 
 ```ts
-import { mockComponent } from '@/mocks'
-
-vi.mock('./ChildComponent', () => ({ ChildComponent: mockComponent('child-component') }))
-```
-
-Or inline when you need to assert props:
-
-```ts
-vi.mock('./ChildComponent', () => ({
-  ChildComponent: ({ title }: { title: string }) => <div data-testid="child-component">{title}</div>,
+vi.mock('./child-card', () => ({
+  ChildCard: ({ title }: { title: string }) => <div>{title}</div>,
 }))
 ```
 
@@ -133,35 +125,23 @@ vi.mock('react-hook-form', async () => {
 ## Environment
 
 ```ts
-vi.mock('@/utils/env')
-
-vi.mocked(ENV).mockReturnValue({ API_URL: 'http://test.api' })
+vi.mock('@/shared/config/env', () => ({
+  env: { reportsEnabled: false },
+}))
 ```
 
-## Icon / IconButton Components
+## Icon-only buttons
 
-When a component contains icon-only buttons (no accessible text), mock them with a `data-testid` so they can be found and clicked in tests:
+An icon-only button has an `aria-label`. Query it by role and name. Do not add `@/components/Icons` or a `data-testid` to reach it.
 
 ```ts
-const mockIconBtn = 'edit-icon-btn'
-
-vi.mock('@/components/Icons', () => ({
-  EditIcon: () => <span data-testid={mockIconBtn} />,
-}))
-
-// In test
-const editButton = screen.getByTestId(mockIconBtn)
+const editButton = screen.getByRole('button', { name: 'Edit' })
 await userEvent.click(editButton)
 expect(mockOnEdit).toHaveBeenCalled()
 ```
 
-Rules:
-- Use consistent naming: `mock${Name}Icon` / `mock${Name}Btn`
-- Preserve `onClick` handler so interactions can be tested
-- Use `mockShallowComponent` from `@/mocks` for simple icon-only cases
-
 ## General Mocking Rules
 
 - **Never add extra test-only providers** to satisfy third-party libraries — mock the library instead
-- **Keep `render` from `@/utils/rendererRTL`** as the entry point; it already wraps necessary providers
+- **Keep `render` from `@/shared/lib/rendererRTL`** as the entry point; it already wraps necessary providers
 - Full integration with the real library belongs in E2E tests, not component tests

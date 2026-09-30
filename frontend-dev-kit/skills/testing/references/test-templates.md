@@ -4,16 +4,16 @@
 
 ```tsx
 // vi.mock() calls first — hoisted by Vitest
-vi.mock('@/api/profiles/profiles.hooks')
-vi.mock('./ChildComponent', () => ({ ChildComponent: mockComponent('child-component') }))
+vi.mock('@/features/profiles/hooks/useProfiles')
+vi.mock('./child-card', () => ({
+  ChildCard: () => <div>child</div>,
+}))
 
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { mockComponent } from '@/mocks'
-import { render } from '@/utils/rendererRTL'
-import { TextContent } from '@/constants/textContent'
-import { MyComponent } from './MyComponent'
-import type { MyComponentProps } from './MyComponent'
+import { render } from '@/shared/lib/rendererRTL'
+import { MyComponent } from './my-component'
+import type { MyComponentProps } from './types'
 
 const mockOnSubmit = vi.fn()
 
@@ -30,7 +30,7 @@ describe('MyComponent', () => {
   it('renders title', () => {
     render(<MyComponent {...defaultProps} />)
 
-    const title = screen.getByText(TextContent.myComponent.title)
+    const title = screen.getByText('Title')
 
     expect(title).toBeInTheDocument()
   })
@@ -38,7 +38,7 @@ describe('MyComponent', () => {
   it('calls onSubmit when form is submitted', async () => {
     render(<MyComponent {...defaultProps} />)
 
-    const submitButton = screen.getByRole('button', { name: TextContent.common.submit })
+    const submitButton = screen.getByRole('button', { name: 'Submit' })
     await userEvent.click(submitButton)
 
     expect(mockOnSubmit).toHaveBeenCalledOnce()
@@ -48,7 +48,7 @@ describe('MyComponent', () => {
     const props = { ...defaultProps, isLoading: true }
     render(<MyComponent {...props} />)
 
-    const submitButton = screen.getByRole('button', { name: TextContent.common.submit })
+    const submitButton = screen.getByRole('button', { name: 'Submit' })
 
     expect(submitButton).toBeDisabled()
   })
@@ -57,7 +57,7 @@ describe('MyComponent', () => {
     render(<MyComponent {...defaultProps} />)
 
     await waitFor(() => {
-      const errorMessage = screen.getByText(TextContent.myComponent.errorMessage)
+      const errorMessage = screen.getByText('Error Message')
       expect(errorMessage).toBeInTheDocument()
     })
   })
@@ -68,7 +68,7 @@ describe('MyComponent', () => {
 
 ```tsx
 import { act } from '@testing-library/react'
-import { renderHook } from '@/utils/rendererRTL'
+import { renderHook } from '@/shared/lib/rendererRTL'
 import { useMyHook } from './useMyHook'
 
 describe('useMyHook', () => {

@@ -81,7 +81,7 @@ Load-bearing invariants (must appear as hard if broken):
 - Import direction: `app → pages → widgets → features → entities → shared`; no cycles
 - One public `index.ts` per slice; no deep imports from outside
 - No feature↔feature, widget↔widget, or feature→widget
-- `ui/` → `hooks/` → `models/`; `hooks/` ↘ `api/` → `models/`; `models/` never imports any `api/`; `ui/` never imports `api/`
+- `ui/` → `hooks/` → `models/`; `ui/` → `models/` for pure functions only; `hooks/` → `api/` → `models/`; `models/` never imports any `api/`; `ui/` never imports `api/`
 - Widgets: no `models/` (plural) and no `api/`
 - HTTP only via `@/shared/api/base`; query keys only from `@/shared/api/query-keys/`
 
