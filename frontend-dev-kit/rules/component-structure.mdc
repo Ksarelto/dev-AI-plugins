@@ -1,6 +1,6 @@
 ---
-description: Component folders and files are kebab-case (button.tsx, custom-button.tsx); the export stays PascalCase.
-globs: ["**/features/**/ui/**/*.{ts,tsx}", "**/widgets/**/ui/**/*.{ts,tsx}", "**/entities/**/ui/**/*.{ts,tsx}", "**/shared/ui/**/*.{ts,tsx}"]
+description: Component folders and files are kebab-case (button.tsx, custom-button.tsx); the export stays PascalCase. index.ts exports only what an outside file imports.
+globs: ["**/features/**/ui/**/*.{ts,tsx}", "**/widgets/**/ui/**/*.{ts,tsx}", "**/entities/**/ui/**/*.{ts,tsx}", "**/pages/**/ui/**/*.{ts,tsx}", "**/shared/ui/**/*.{ts,tsx}"]
 alwaysApply: false
 ---
 
@@ -9,10 +9,12 @@ alwaysApply: false
 - One folder per component under `ui/`. Folder and implementation file are kebab-case of the
   export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`.
   Never `Button.tsx`, `CustomButton.tsx`, or `itemCard.tsx`.
-- Same stem for the colocated test: `custom-button.test.tsx`. A story file is not required in every component folder — `shared/ui/<name>/<name>.stories.tsx` for a shared primitive, and one `features/<slice>/<slice>.stories.tsx` for the feature. No stories for inner feature parts, entities, or widgets.
-- `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names.
+- Same stem for the colocated test: `custom-button.test.tsx`. Every component folder ships its test in the same change. A story file is not required in every component folder — `shared/ui/<name>/<name>.stories.tsx` for a shared primitive, and one `features/<slice>/<slice>.stories.tsx` for the feature. No stories for inner feature parts, entities, or widgets.
+- `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names. `constants.ts` holds the closed-set values a caller passes as props (`ButtonVariant`, `ButtonType`).
 - The named export is PascalCase (`export const CustomButton`). Import the folder through
   `index.ts`, never the `.tsx` file.
+- A component folder's `index.ts` exports the component. It exports the props type or a constant
+  only when a file outside the folder imports it. Nothing else is exported "for later".
 - Nested `ui/` children follow the same rule.
 
 For scaffolding the folder, load the `react-component` skill.

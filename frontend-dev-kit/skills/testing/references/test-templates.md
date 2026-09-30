@@ -1,121 +1,139 @@
 # Test Templates
 
+Templates carry no comments — the generated test file must not either (`rules/general-coding-principles.mdc`). Mock only the boundary (`mock-patterns.md`).
+
 ## Component Test
 
 ```tsx
-// vi.mock() calls first — hoisted by Vitest
-vi.mock('@/features/profiles/hooks/useProfiles')
-vi.mock('./child-card', () => ({
-  ChildCard: () => <div>child</div>,
+vi.mock('../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+  submitReview: vi.fn(),
 }))
 
-import { screen, waitFor } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { render } from '@/shared/lib/rendererRTL'
-import { MyComponent } from './my-component'
-import type { MyComponentProps } from './types'
+import { submitReview } from '../../api/fetchers'
+import { ReviewForm } from './review-form'
+import type { ReviewFormProps } from './types'
 
-const mockOnSubmit = vi.fn()
+const mockSubmitReview = vi.mocked(submitReview)
+const mockOnDone = vi.fn()
 
-const defaultProps: MyComponentProps = {
-  title: 'Test Title',
-  onSubmit: mockOnSubmit,
+const defaultProps: ReviewFormProps = {
+  listingId: 'listing-1',
+  onDone: mockOnDone,
 }
 
-describe('MyComponent', () => {
+describe('ReviewForm', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockSubmitReview.mockResolvedValue(undefined)
   })
 
-  it('renders title', () => {
-    render(<MyComponent {...defaultProps} />)
+  it('shows the heading from the locale file', () => {
+    render(<ReviewForm {...defaultProps} />)
 
-    const title = screen.getByText('Title')
+    const heading = screen.getByRole('heading', { name: 'Leave a review' })
 
-    expect(title).toBeInTheDocument()
+    expect(heading).toBeInTheDocument()
   })
 
-  it('calls onSubmit when form is submitted', async () => {
-    render(<MyComponent {...defaultProps} />)
+  it('submits the review and calls onDone when the form is valid', async () => {
+    render(<ReviewForm {...defaultProps} />)
 
-    const submitButton = screen.getByRole('button', { name: 'Submit' })
-    await userEvent.click(submitButton)
+    await userEvent.type(screen.getByLabelText('Comment'), 'Great drill')
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
-    expect(mockOnSubmit).toHaveBeenCalledOnce()
+    expect(mockSubmitReview).toHaveBeenCalledWith('listing-1', { comment: 'Great drill' })
+    expect(mockOnDone).toHaveBeenCalledOnce()
   })
 
-  it('disables submit button while loading', () => {
-    const props = { ...defaultProps, isLoading: true }
-    render(<MyComponent {...props} />)
+  it('shows the validation message when comment is empty', async () => {
+    render(<ReviewForm {...defaultProps} />)
 
-    const submitButton = screen.getByRole('button', { name: 'Submit' })
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
-    expect(submitButton).toBeDisabled()
+    const message = await screen.findByText('Comment is required')
+
+    expect(message).toBeInTheDocument()
+    expect(mockSubmitReview).not.toHaveBeenCalled()
   })
 
-  it('shows error message when submission fails', async () => {
-    render(<MyComponent {...defaultProps} />)
+  it('keeps the form open when the request fails', async () => {
+    mockSubmitReview.mockRejectedValueOnce(new Error('boom'))
+    render(<ReviewForm {...defaultProps} />)
 
-    await waitFor(() => {
-      const errorMessage = screen.getByText('Error Message')
-      expect(errorMessage).toBeInTheDocument()
-    })
+    await userEvent.type(screen.getByLabelText('Comment'), 'Great drill')
+    await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+    const submitButton = await screen.findByRole('button', { name: 'Submit' })
+
+    expect(submitButton).toBeEnabled()
+    expect(mockOnDone).not.toHaveBeenCalled()
   })
 })
 ```
+
+The real form, `zod`, shared `Form`, `Button`, `Input`, i18n, and query client run. Only the fetcher is mocked. Children of `ReviewForm` render for real.
 
 ## Hook Test
 
 ```tsx
-import { act } from '@testing-library/react'
-import { renderHook } from '@/shared/lib/rendererRTL'
-import { useMyHook } from './useMyHook'
+vi.mock('../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/fetchers')>()),
+  fetchReviews: vi.fn(),
+}))
 
-describe('useMyHook', () => {
+import { waitFor } from '@testing-library/react'
+import { renderHook } from '@/shared/lib/rendererRTL'
+import { fetchReviews } from '../api/fetchers'
+import { useReviews } from '../hooks/use-reviews'
+
+const mockFetchReviews = vi.mocked(fetchReviews)
+
+describe('useReviews', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('returns initial state', () => {
-    const { result } = renderHook(() => useMyHook())
+  it('returns the reviews for a listing', async () => {
+    mockFetchReviews.mockResolvedValue([mockReview])
 
-    expect(result.current.value).toBe(null)
-    expect(result.current.isLoading).toBe(false)
-  })
+    const { result } = renderHook(() => useReviews('listing-1'))
 
-  it('updates state on action', async () => {
-    const { result } = renderHook(() => useMyHook())
-
-    await act(async () => {
-      result.current.doSomething('input')
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true)
     })
-
-    expect(result.current.value).toBe('expected')
+    expect(result.current.data).toEqual([mockReview])
+    expect(mockFetchReviews).toHaveBeenCalledWith('listing-1')
   })
 })
 ```
 
-## Utility Test
+`mockReview` is typed as the wire type once at the top of the file.
+
+## Utility / model Test
 
 ```ts
-import { myUtil } from './utils'
+import { canDecline } from '../models/can-decline'
 
-describe('myUtil', () => {
-  it('transforms data correctly', () => {
-    const input = { id: '1', name: 'Test' }
+describe('canDecline', () => {
+  it('returns true when the profile is new', () => {
+    const result = canDecline({ status: ProfileStatus.New })
 
-    const result = myUtil(input)
-
-    expect(result).toEqual({ formattedName: 'Test', id: '1' })
+    expect(result).toBe(true)
   })
 
-  it('returns null for missing input', () => {
-    const result = myUtil(null)
+  it('returns false when the profile is already declined', () => {
+    const result = canDecline({ status: ProfileStatus.Declined })
 
-    expect(result).toBeNull()
+    expect(result).toBe(false)
   })
 })
 ```
+
+Pure functions need no mocks at all.
 
 ## What NOT to Test
 

@@ -186,7 +186,15 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
 ```
 
 Pass `--changes` only when that file exists. `--require-scoped` is mandatory when the upstream spec `type` is `app` or has more than one
-screen. Standalone requests omit it. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement.
+screen. Standalone requests omit it.
+
+When the board has a `prototype-page:` line, build the parity contract (it prints `SKIP` otherwise):
+
+```bash
+node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --spec {SPEC_PATH}
+```
+
+It writes `.spec/features/{slug}.context/prototype-inventory.md` — every string, control, field, state, and dialog on the prototype page. Station 6 fills its React target / Status columns. See `references/upstream-contract.md` § Prototype inventory. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement.
 
 Then spawn `upstream-interpreter` with **paths and ids only** (it may re-run the same script).
 Pass its `HANDOFF` path to `spec-analyst` together with `SPEC_PATH`. Do not paste the slice.
@@ -220,7 +228,7 @@ Classify from the approved blackboard only (slice count, new package, new route)
 
 | Tier | When | What this skill does |
 |------|------|----------------------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) with `LAYER`, `SLICE`, and one `create-*` skill. Then Station 8 (walk new executable files) and `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd`. If UI changed, run the browser check below. Then Step 5. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) with `LAYER`, `SLICE`, and one `create-*` skill. Then Station 8 (walk new executable files and spawn `test-engineer` for any without a test) and `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions`. If UI changed, run the browser check below. Then Step 5. |
 | **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. |
 | **full** | Six or more slices, or a new route plus a new entity | Spawn `feature-orchestrator` with `TIER: full`. |
 
@@ -232,6 +240,7 @@ TIER:        standard | full
 SLUG:        {slug}
 SPEC_PATH:   .spec/features/{slug}.md
 BRANCH:      {branch}
+PARENT:      {PARENT}
 KIT_DIR:     {resolved plugin root}
 SESSION:     .spec/features/{slug}.context/session.md   (omit if it does not exist)
 
@@ -259,8 +268,9 @@ This skill owns it. The orchestrator has no browser tools. Load **frontend-dev-k
 1. If the dev server is not running, STOP and ask the human to start it. Do not skip the check.
 2. Open the new route. Take a snapshot and a screenshot. Confirm the layout is the feature, not a broken or unstyled shell.
 3. Exercise the main actions (click, type, submit). Read console messages. A console error or a control that does not do what the acceptance criteria say is a failure.
-4. Open one adjacent route that shares the layout, navigation, or data this feature changed. Confirm that route still works.
-5. Write `.spec/features/<slug>.context/browser-check.md` with the route, what was exercised, the adjacent route, and pass or fail.
+4. When `prototype-inventory.md` exists: run `node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check .spec/features/<slug>.context/prototype-inventory.md` (exit 1 is a failure). Then open the prototype page (`{prototype-ref}/{prototype-page}`) beside the React route and compare **each prototype state** — use the prototype's dev-panel to switch loading / empty / error / success, and put the React page in the same state (mock the fetcher or throttle the network). Screenshot both per state. Missing copy, a different control, a missing field or column, a different button variant, a dialog that does not open, or a state the React page cannot show is a failure.
+5. Open one adjacent route that shares the layout, navigation, or data this feature changed. Confirm that route still works.
+6. Write `.spec/features/<slug>.context/browser-check.md` with the route, what was exercised, the per-state prototype comparison, the adjacent route, and pass or fail.
 
 On fail, re-spawn `MODE: revise` with the browser-check path as `CHANGE_REQUEST`. Do not present Station 12.
 
@@ -350,7 +360,7 @@ be typed by a human.
 | Phase | Typical |
 |-------|---------|
 | Intake + clarification | user response time |
-| **patch** (one slice, `--until fsd`, no orchestrator) | one worker plus a short gate |
+| **patch** (one slice, `--until conventions`, no orchestrator) | one worker plus a short gate |
 | **standard** (one screen, ≤5 slices) | discovery, layer gates without build, one full sweep, diff audit, review |
 | **full** (6+ slices) | standard, plus a scoped baseline audit and parallel slice workers |
 

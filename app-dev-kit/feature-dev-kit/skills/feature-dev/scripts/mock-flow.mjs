@@ -23,6 +23,7 @@ const protoFixture = join(here, 'fixtures/prototype')
 const checklistScript = join(repoRoot, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/build-checklist.mjs')
 const importScript = join(here, 'import-upstream.mjs')
 const validateScript = join(here, 'validate-feature-spec.mjs')
+const inventoryScript = join(here, 'extract-prototype-inventory.mjs')
 
 const EXTERNAL_SKILLS = new Set(['testing', 'code-review', 'architecture-audit'])
 const HUMAN_ONLY = new Set(['create-pr'])
@@ -47,6 +48,51 @@ function parseFrontmatter(filePath) {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
   if (!match) return { raw, fm: null }
   return { raw, fm: parseYaml(match[1]) }
+}
+
+function checkPrototypeInventory(boardPath) {
+  const invPath = join(dirname(boardPath), 'sign-in.context/prototype-inventory.md')
+  const wrote = node(inventoryScript, ['--spec', boardPath])
+  if (wrote.status !== 0 || !existsSync(invPath)) {
+    fail(`extract-prototype-inventory --spec failed: ${wrote.stderr || wrote.stdout}`)
+    return
+  }
+  const inv = readFileSync(invPath, 'utf8')
+  const needles = [
+    'States in prototype: loading, empty, error, success',
+    '| heading | Sign in |',
+    '| field | How you are known | input text, name displayName, required, placeholder "e.g. Marta 4B" |',
+    '| validation | Enter the name the manager wrote down. |',
+    '| button | Retry | variant secondary |',
+    '| badge | Not signed in yet | variant default |',
+  ]
+  const missing = needles.filter((n) => !inv.includes(n))
+  if (missing.length) fail(`prototype inventory missing rows: ${missing.join(' ; ')}`)
+  else pass('prototype inventory extracts states, copy, fields, validation, and variants')
+  if (/Preview (loading|empty) state/.test(inv)) fail('prototype inventory leaked the dev-panel')
+
+  const blank = node(inventoryScript, ['--check', invPath])
+  if (blank.status !== 1) fail(`--check should fail an unfilled inventory (exit ${blank.status})`)
+  else pass('--check fails an unfilled inventory')
+
+  const filled = inv.split('\n').map((line) => {
+    if (!/^\| \d+ \|/.test(line)) return line
+    return line.replace(/\|\s*\|\s*\|$/, /\| icon \|/.test(line) ? '|  | n/a: lucide icon replaces the emoji |' : '| src/pages/sign-in/ui/sign-in-page.tsx | done |')
+  }).join('\n')
+  writeFileSync(invPath, filled)
+  const ok = node(inventoryScript, ['--check', invPath])
+  if (ok.status !== 0) fail(`--check should pass a filled inventory: ${ok.stdout}`)
+  else pass('--check passes a filled inventory')
+
+  const rewrote = node(inventoryScript, ['--spec', boardPath])
+  const kept = node(inventoryScript, ['--check', invPath])
+  if (rewrote.status !== 0 || kept.status !== 0) fail('re-extract dropped filled React target / Status columns')
+  else pass('re-extract keeps filled React target / Status')
+
+  writeFileSync(invPath, readFileSync(invPath, 'utf8').split('\n').map((line) => (/^\| \d+ \| error /.test(line) ? line.replace(/\| done \|$/, '| missing |') : line)).join('\n'))
+  const gap = node(inventoryScript, ['--check', invPath])
+  if (gap.status !== 1 || !/state "error" has no done row/.test(gap.stdout)) fail('--check should fail when a prototype state is not built')
+  else pass('--check fails a missing prototype state')
 }
 
 function toolsList(fm) {
@@ -200,6 +246,34 @@ if (!/do \*\*not\*\* spawn `feature-orchestrator`/i.test(featureSkillBody)) {
 const gatesScript = readFileSync(join(skillDir, 'scripts/run-gates.sh'), 'utf8')
 if (!gatesScript.includes('--until')) fail('run-gates.sh missing --until')
 else pass('run-gates.sh supports --until')
+if (!/GATES=\(types lint fsd conventions build coverage\)/.test(gatesScript)) fail('run-gates.sh gate order must be types lint fsd conventions build coverage')
+else pass('run-gates.sh runs the conventions gate after fsd')
+
+// --- 2b. Conventions gate against fixtures ---
+const conventionsScript = join(here, 'check-conventions.mjs')
+const conventionsFixtures = join(here, 'fixtures/conventions')
+const runConventions = (dir) => node(conventionsScript, ['--root', join(conventionsFixtures, dir), '--all', '--json'])
+const goodRun = runConventions('good')
+if (goodRun.status === 2) {
+  pass(`check-conventions skipped — ${goodRun.stderr.trim()}`)
+} else {
+  const good = JSON.parse(goodRun.stdout || '{}')
+  if (goodRun.status !== 0 || !good.passed) {
+    fail(`check-conventions flagged the good fixture: ${(good.findings ?? []).map((f) => `${f.file}:${f.line} ${f.rule}`).join('; ')}`)
+  } else pass(`check-conventions passes the good fixture (${good.checked} files)`)
+
+  const badRun = runConventions('bad')
+  const bad = JSON.parse(badRun.stdout || '{}')
+  const rules = new Set((bad.findings ?? []).map((f) => f.rule))
+  const expected = [
+    'comment', 'inline-class', 'nested-ternary', 'jsx-ternary', 'inline-handler', 'hardcoded-copy', 'magic-prop',
+    'missing-test', 'unused-export', 'export-star', 'motion-utility', 'string-map', 'motion-css',
+  ]
+  const missing = expected.filter((r) => !rules.has(r))
+  if (badRun.status !== 1) fail(`check-conventions must exit 1 on the bad fixture (got ${badRun.status})`)
+  else if (missing.length) fail(`check-conventions missed rules on the bad fixture: ${missing.join(', ')}`)
+  else pass(`check-conventions catches all ${expected.length} rules on the bad fixture`)
+}
 
 const budget = readFileSync(join(skillDir, 'references/context-budget.md'), 'utf8')
 if (!budget.includes('HANDOFF:')) fail('context-budget.md missing HANDOFF return')
@@ -267,6 +341,7 @@ if (!existsSync(specFixture)) {
           if (!/prototype-page: pages\/sign-in\.html/.test(board)) {
             fail('prototype-page not bound to pages/sign-in.html')
           } else pass('prototype page bound')
+          checkPrototypeInventory(outBoard)
           const validated = node(validateScript, [outBoard, '--require-scoped'])
           if (validated.status !== 0) fail(`validate-feature-spec.mjs: ${validated.stderr || validated.stdout}`)
           else pass('validate-feature-spec --require-scoped')

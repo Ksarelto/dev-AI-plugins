@@ -3,7 +3,7 @@
   "owner": {
     "name": "Artsiom Murashko"
   },
-  "description": "Reusable skills, rules and agents for Claude Code and Cursor.",
+  "description": "Reusable skills, rules, commands, and agents for Claude Code and Cursor.",
   "version": "0.1.0",
   "metadata": {
     "pluginRoot": "."
@@ -19,9 +19,9 @@
     {
       "name": "frontend-dev-kit",
       "source": "./frontend-dev-kit",
-      "description": "Rules, skills, and MCP servers for React + TypeScript + shadcn/ui + Tailwind CSS + react-query.",
+      "description": "Rules, skills, and MCP servers for React 19 Feature-Sliced Design apps: TypeScript, shadcn/ui, Tailwind, react-query, react-hook-form + zod, react-i18next, and Vitest.",
       "category": "productivity",
-      "tags": ["react", "typescript", "shadcn", "tailwind", "react-query", "mcp"]
+      "tags": ["react", "typescript", "fsd", "shadcn", "tailwind", "react-query", "i18n", "vitest", "mcp"]
     },
     {
       "name": "pptx-dev-kit",
@@ -33,49 +33,49 @@
     {
       "name": "agent-dev-kit",
       "source": "./app-dev-kit/agent-dev-kit",
-      "description": "TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter, @openai/agents or LangGraph.js, hybrid retrieval, Vitest eval.",
+      "description": "Rules, skills, and agents for building production TypeScript/Node AI agents with the OpenAI SDK via OpenRouter, @openai/agents or LangGraph.js, and RAG pipelines with hybrid search and reranking.",
       "category": "productivity",
       "tags": ["ai-agents", "typescript", "nodejs", "openrouter", "openai-sdk", "langgraph-js", "rag", "qdrant"]
     },
     {
       "name": "backend-dev-kit",
       "source": "./app-dev-kit/backend-dev-kit",
-      "description": "Rules, skills, and agents for Node.js backends with Express 5, TypeScript, Drizzle ORM, Zod, and Vitest.",
+      "description": "Rules, skills, and agents for building production Node.js backends with Express 5, TypeScript, Drizzle ORM, Zod, and Vitest.",
       "category": "productivity",
       "tags": ["nodejs", "typescript", "express", "drizzle", "zod", "vitest", "rest-api", "mcp", "auth", "observability"]
     },
     {
       "name": "spec-dev-kit",
       "source": "./app-dev-kit/spec-dev-kit",
-      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec for html-generator-kit, feature-dev-kit, backend-dev-kit, and agent-dev-kit.",
+      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec, read by html-generator-kit, feature-dev-kit, backend-dev-kit, and agent-dev-kit.",
       "category": "productivity",
       "tags": ["spec", "requirements", "yaml", "orchestration", "app-dev-kit"]
     },
     {
       "name": "html-generator-kit",
       "source": "./app-dev-kit/html-generator-kit",
-      "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling). A provided theme, brand, mockup, or layout is binding; ui-ux-pro-max supplies the design only when none is provided. Headless-browser verified before the skill-owned review gate.",
+      "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling; Alpine and Google Fonts load from a CDN). A provided theme, brand, style guide, mockup, or layout is binding; ui-ux-pro-max supplies the design direction only when none is provided. Headless-browser verified before the skill-owned review gate.",
       "category": "productivity",
       "tags": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "app-dev-kit"]
     },
     {
       "name": "feature-dev-kit",
       "source": "./app-dev-kit/feature-dev-kit",
-      "description": "Hub-and-spoke factory that builds one React FSD feature per run (nested screen-tasks share the branch and commit) from a spec-dev-kit spec (and optional html prototype), with architecture-audit, quality gates, and a skill-owned human review. Never opens a PR.",
+      "description": "Hub-and-spoke factory that builds one React Feature-Sliced Design feature per run (nested screen-tasks share the branch and commit) from a spec-dev-kit spec and optional html prototype, through architecture-audit, quality gates, and a skill-owned human review. Never opens a pull request.",
       "category": "productivity",
       "tags": ["react", "fsd", "feature-sliced-design", "orchestration", "shadcn", "mcp", "app-dev-kit"]
     },
     {
       "name": "frontend-orchestrator-kit",
       "source": "./app-dev-kit/frontend-orchestrator-kit",
-      "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit once per feature (nested screen-tasks share that call) against a persisted checklist. Use /orchestrate-app for the full-stack dispatcher.",
+      "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit once per feature (nested screen-tasks share that call) against a persisted, resumable checklist. Use app-orchestrator-kit /orchestrate-app for the full-stack dispatcher.",
       "category": "productivity",
       "tags": ["orchestration", "pipeline", "spec", "prototype", "feature-dev", "checklist", "frontend", "app-dev-kit"]
     },
     {
       "name": "app-orchestrator-kit",
       "source": "./app-dev-kit/app-orchestrator-kit",
-      "description": "Full-stack app dispatcher: analyzes an approved spec and optional HTML prototype, then runs backend-dev-kit, agent-dev-kit, and frontend-orchestrator-kit only when needed, against a persisted work-plan.",
+      "description": "Full-stack app dispatcher: analyzes an approved spec-dev-kit spec and optional html-generator-kit prototype, then runs backend-dev-kit, agent-dev-kit, and frontend-orchestrator-kit only when needed, against a persisted work-plan.",
       "category": "productivity",
       "tags": ["orchestration", "pipeline", "spec", "prototype", "backend", "agent", "frontend", "work-plan", "app-dev-kit"]
     }

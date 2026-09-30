@@ -28,7 +28,7 @@ individually. Together they run:
 Each kit has matching `.claude-plugin/plugin.json` and `.cursor-plugin/plugin.json`. Both
 marketplaces register them with `source: ./app-dev-kit/<name>`.
 
-`frontend-dev-kit` stays at the repo root and is a dependency of `feature-dev-kit`.
+`frontend-dev-kit` stays at the repo root (rules + skills + MCP, no agents) and is a dependency of `feature-dev-kit`.
 
 ## Install
 

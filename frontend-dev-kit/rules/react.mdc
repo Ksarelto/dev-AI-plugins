@@ -90,9 +90,11 @@ Do not bulk-remove existing memoization either — removal can break Effect depe
 - A ref callback may return a cleanup function; returning anything else is an error.
 - A hook that requires a context throws when used outside its Provider. Do not return `undefined`
   and let the caller crash further away from the cause.
-- Error boundaries wrap route and feature subtrees. They do not catch async or event-handler
-  errors — handle those with `try/catch` plus `toast.error()`. Give a boundary a reset key so
-  navigating away clears the error.
+- Every route element and every feature's public entry component renders inside an error boundary
+  (`ErrorBoundary` from `@/shared/ui/error-boundary`, `error-handling` skill), so one crash never
+  blanks the app. Hooks live in the child the boundary wraps, never above it. Boundaries do not
+  catch async or event-handler errors — handle those with `try/catch` plus `notify.error()`. Give a
+  boundary `resetKeys` so navigating away clears the error.
 - A Suspense boundary reveals its whole subtree at once. Placed too high, one slow query blanks the
   page — put it at the smallest subtree that can wait.
 
@@ -106,12 +108,12 @@ Do not bulk-remove existing memoization either — removal can break Effect depe
 
 ```tsx
 // ❌ Avoid
-<Input value={search} onChange={(e) => setSearchParams({ q: e.target.value })} />
+<Input value={search} onChange={handleSearchChange} />
 
 // ✅ Prefer
 <Input
   value={search}
-  onChange={(e) => setSearchParams({ q: e.target.value })}
+  onChange={handleSearchChange}
 />
 ```
 
@@ -119,12 +121,100 @@ Do not bulk-remove existing memoization either — removal can break Effect depe
 
 ```tsx
 // ❌ Avoid
-<SelectItem value="admin">Admin</SelectItem>
+<SelectItem value={UserRole.Admin}>{t(usersKeys.roles.admin)}</SelectItem>
 
 // ✅ Prefer
-<SelectItem value="admin">
-  Admin
+<SelectItem value={UserRole.Admin}>
+  {t(usersKeys.roles.admin)}
 </SelectItem>
+```
+
+## Handlers
+
+- JSX references handlers; it never defines them. Every `on*` prop receives a named function
+  declared in the component body before `return` (`handleOpenChange`, `handleCancel`). No arrow or
+  function expression inside an `on*` prop — not even a one-liner.
+- A render prop (`render={({ field }) => …}`, `children` as a function) returns JSX and is not a
+  handler. It may stay inline.
+
+```tsx
+// ❌ Avoid
+<Dialog
+  open={open}
+  onOpenChange={(nextOpen) => {
+    if (!nextOpen) {
+      setDraft(localeBadge)
+    }
+
+    onOpenChange(nextOpen)
+  }}
+>
+
+// ✅ Prefer
+const handleOpenChange = (nextOpen: boolean): void => {
+  if (!nextOpen) {
+    setDraft(localeBadge)
+  }
+
+  onOpenChange(nextOpen)
+}
+
+<Dialog
+  open={open}
+  onOpenChange={handleOpenChange}
+>
+```
+
+## Conditionals in JSX
+
+- A nested ternary is forbidden, in JSX and in the values it renders.
+- Avoid a ternary inside JSX. Compute the value before `return`, early-return a whole-branch swap,
+  use `&&` with a boolean for show/hide, or a lookup map keyed by a union for an N-way choice.
+- The left side of `&&` is a boolean (`users.length > 0 &&`), never a number that can render `0`.
+
+```tsx
+// ❌ Avoid
+<Button disabled={isPending}>
+  {isPending ? t(usersKeys.form.saving) : t(usersKeys.form.save)}
+</Button>
+{isLoading ? <UsersSkeleton /> : isError ? <UsersError /> : <UsersTable users={users} />}
+
+// ✅ Prefer — value computed before return
+const submitLabel = isPending ? t(usersKeys.form.saving) : t(usersKeys.form.save)
+
+<Button disabled={isPending}>
+  {submitLabel}
+</Button>
+
+// ✅ Prefer — branch swap as early returns
+if (isLoading) {
+  return <UsersSkeleton />
+}
+
+if (isError) {
+  return <UsersError />
+}
+
+return <UsersTable users={users} />
+```
+
+## Closed-set props
+
+- A prop with a closed set of values (`variant`, `size`, `type`, `side`, `align`, `orientation`)
+  takes the constant the primitive exports from its `constants.ts` (`ButtonVariant.Outline`,
+  `ButtonType.Submit`) — never a string literal. Reuse that constant across the app.
+- Omit a prop that equals the primitive's default. `Button` defaults `type` to `ButtonType.Button`
+  and `variant` to `ButtonVariant.Default`, so a plain button writes neither.
+
+```tsx
+// ❌ Avoid
+<Button type="button" variant="outline" onClick={handleCancel}>
+
+// ✅ Prefer
+<Button
+  variant={ButtonVariant.Outline}
+  onClick={handleCancel}
+>
 ```
 
 ## Habits

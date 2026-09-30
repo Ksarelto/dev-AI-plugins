@@ -1,6 +1,6 @@
 ---
 name: run-quality-gates
-description: Wrap typecheck → lint → FSD-boundary → build → coverage into one structured pass/fail gate, returning only failures with remediation hints. Use between build stations to block progression.
+description: Wrap typecheck → lint → FSD-boundary → conventions (missing tests, comments, hardcoded strings, unused exports, inline classes/handlers, JSX ternaries, magic props) → build → coverage into one structured pass/fail gate, returning only failures with remediation hints. Use between build stations to block progression.
 argument-hint: "[--stage <layer>]"
 disable-model-invocation: false
 allowed-tools: [Bash, Read, Grep]
@@ -10,16 +10,17 @@ allowed-tools: [Bash, Read, Grep]
 
 ## When to use
 
-Station 9 runs the full sweep. After each layer, and on a patch run, stop at FSD (`--until fsd`). A fix re-runs the failed gate plus types. Used by `quality-gate-runner`. This skill reports only — it never fixes. Write the result to the handoff file. Do not paste the transcript.
+Station 9 runs the full sweep. After each layer, stop at FSD (`--until fsd`). A patch run stops at conventions (`--until conventions`) after its Station 8 walk. A fix re-runs the failed gate plus types. Used by `quality-gate-runner`. This skill reports only — it never fixes. Write the result to the handoff file. Do not paste the transcript.
 
 ## Fast path
 
 When the kit is installed, run the whole sequence in one call instead of stepping through it:
 
 ```bash
-bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh                 # Station 9 full sweep
-bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd       # layer gate and patch
-bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --only types       # fix loop
+bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --base <integration-ref>   # Station 9 full sweep
+bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd                # layer gate
+bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions        # patch
+bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --only conventions         # fix loop
 bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --from lint
 ```
 
@@ -49,19 +50,25 @@ script — Stations 1.5 / 9.5 spawn `architecture-auditor`.
    ```
    Pass condition: Steiger exits 0, no boundary violations reported. On failure: extract each violation as "source file → imported path (violation type)". Stop here and report if failed. If `yarn lint:fsd` is not yet configured, check for `eslint-plugin-boundaries` warnings in `yarn eslint` output instead.
 
-4. **Run build**:
+4. **Run the conventions check** (kit script, not a package script):
+   ```bash
+   node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --base <integration-ref>
+   ```
+   Pass condition: exit 0 (warnings allowed). Exit 1: list every `file:line rule message` line — do not summarize to a count. Exit 2: the TypeScript compiler API is not resolvable — report the setup failure; never treat it as a pass. Rules and remediation: `references/quality-gates.md` § Conventions.
+
+5. **Run build**:
    ```bash
    yarn build
    ```
    Pass condition: Vite build exits 0. On failure: extract the Vite error (missing module, circular dep, etc.). Stop here and report if failed.
 
-5. **Run tests with coverage**:
+6. **Run tests with coverage**:
    ```bash
    yarn test:auto
    ```
    Pass condition: all tests pass AND coverage report shows branches ≥73%, functions ≥78%, lines ≥87%, statements ≥86%. On failure: if tests fail, extract failing test names + assertion diff. If only coverage fails, extract the specific metric(s) below threshold and the files with the lowest coverage.
 
-6. **Format the report** — include ONLY failures. If all gates pass, the report is one line:
+7. **Format the report** — include ONLY failures. If all gates pass, the report is one line:
    ```
    ALL GATES PASSED
    ```
@@ -74,10 +81,10 @@ script — Stations 1.5 / 9.5 spawn `architecture-auditor`.
    Remediation: <hint from references/quality-gates.md>
    ```
 
-7. **Append to spec gate log** at `## Gate Log`:
+8. **Append to spec gate log** at `## Gate Log`:
    ```
    [2026-07-09T14:32:00Z] Station 9 — PASSED|FAILED: <gate name>
-     Gates run: typecheck, lint, fsd-boundary, build, test:auto
+     Gates run: typecheck, lint, fsd-boundary, conventions, build, test:auto
      Result: PASS|FAIL
      Failures: none | <list>
    ```

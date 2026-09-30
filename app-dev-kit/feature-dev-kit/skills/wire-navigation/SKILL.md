@@ -18,17 +18,16 @@ Station 7. Invoke with or after `add-route` to make the new page discoverable in
 
 2. **Add the nav label** via `add-text-content` (`frontend-dev-kit:i18n`) if it is not already a key.
 
-3. **Add the menu/sidebar entry**: locate the correct position in the navigation hierarchy. Match the existing entry object shape exactly:
+3. **Add the menu/sidebar entry**: locate the correct position in the navigation hierarchy. Match the existing entry object shape exactly. When navigation is a config array, the entry stores the **key**, and the menu component renders `t(item.labelKey)`:
    ```ts
-   // If navigation is a config array:
    {
-     key: 'profile-detail',
-     label: t('nav.profileDetail'),
+     id: NavItemId.ProfileDetail,
+     labelKey: commonKeys.nav.profileDetail,
      path: navigationMap.profileDetail(profileId),
-     icon: <ProfileIcon />,  // if icons are used
+     icon: UserRound,
    }
    ```
-   Place the entry in the correct section/group (e.g. same section as the parent profile route).
+   Keep `icon` only when adjacent entries have one. Place the entry in the correct section/group (e.g. same section as the parent profile route). A config holding English labels (`label: 'Profile'`) is a string map — convert the entry you touch to a key.
 
 4. **Add a breadcrumb entry** if the application uses breadcrumbs:
    - Find the breadcrumb config or generation logic.

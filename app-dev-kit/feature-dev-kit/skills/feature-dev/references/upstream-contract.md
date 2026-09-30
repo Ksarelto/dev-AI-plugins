@@ -79,6 +79,32 @@ Stamp blackboard front matter `prototype-ref:`.
 Missing prototype (or unmatched page) is not an error — leave `prototype-page` off the UI Surface
 row; `prototype-ref` may still be the directory.
 
+### Prototype inventory (parity contract)
+
+Right after import, when any `prototype-page:` is bound:
+
+```bash
+node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --spec {SPEC_PATH}
+```
+
+It writes `.spec/features/<slug>.context/prototype-inventory.md`: one row per heading, text,
+button (with the shadcn variant its `btn-*` class maps to), link, breadcrumb, field (label, type,
+placeholder, required), select option, validation message, toast, badge, alert, dialog, table
+column, enum → label map, `x-text` binding, and skeleton — each tagged with the view state it
+lives in (`loading`, `empty`, `error`, `success`, `dialog:<id>`, `when <condition>`). The
+dev-panel and `aria-hidden` nodes are skipped.
+
+| Column | Owner |
+|--------|-------|
+| `#`, Region/state, Kind, Prototype text, Hint | The script. Never hand-edit; re-run it |
+| React target | The engineer that renders the row (Station 6, or the slice owner) |
+| Status | Same engineer: `done`, `missing`, or `n/a: <reason>` (sample server data, emoji → lucide icon, prototype-only chrome) |
+
+Re-running keeps React target / Status for unchanged rows. `--check` exits 1 on a blank or
+`missing` Status, `done` without a target, `n/a` without a reason, or a prototype state with no
+`done` row. Prototype text is the English locale value for copy rows — it is translated with `t()`,
+never pasted as a literal. The inventory is a context file, not a blackboard section; pass its path.
+
 ---
 
 ## Blackboard front matter (this kit's output)

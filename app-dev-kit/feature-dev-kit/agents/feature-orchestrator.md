@@ -21,7 +21,7 @@ This agent is spawned as a subagent. Never call `AskUserQuestion`. Never run `/c
 
 - `MODE` — `build` | `revise` (default `build`)
 - `TIER` — `standard` | `full` (patch does not spawn this agent)
-- `SLUG`, `SPEC_PATH`, `BRANCH`, `KIT_DIR`
+- `SLUG`, `SPEC_PATH`, `BRANCH`, `PARENT` (the branch this one was cut from — the conventions `--base`), `KIT_DIR`
 - `revise` also gets `CHANGE_REQUEST` and, when it exists, `session.md`
 
 Do not accept an inlined upstream spec body or a worker report. Workers return a handoff path.
@@ -89,13 +89,15 @@ Confirm `status` is `approved` (or continuing after dep approval). Write `## Bui
 
 Spawn workers with `templates/delegation-message.md`. `APPLY` is one skill. Slices in one layer run one after another on the feature branch. Do not spawn them in parallel and do not use a git worktree. After each layer, spawn `quality-gate-runner` with `PROFILE: layer` (`run-gates.sh --until fsd`). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
 
+Station 6 parity: when `.spec/features/<slug>.context/prototype-inventory.md` exists, pass its path to `composition-engineer` (and to any slice owner that renders a row). After Station 6, run `node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check <that path>`. Exit 1 → re-delegate the listed rows to the owning engineer before Station 7. Do not mark rows `n/a` yourself.
+
 ### Station 8 — Tests
 
-Do not spawn `test-engineer` up front. Spawn it only when Station 9 coverage fails, for the failing layer group.
+Always spawn `test-engineer`, once per layer group that has new or changed executable files (`shared`, `entities`, `features`, `widgets+pages`, `app`). Pass `SLICE_PATHS` for that group and the acceptance-criteria section path. It writes a behavior test for every executable file that lacks one and mocks only the boundaries (fetcher, router, browser APIs). Station 9 `conventions` fails any file still missing a test (`missing-test`); coverage failure re-spawns it for the failing group.
 
 ### Station 9 — Full gate sweep
 
-Spawn `quality-gate-runner` with `PROFILE: full`. It appends `## Gate Log` and writes a handoff. The transcript stays in `.spec/.gate-log`.
+Spawn `quality-gate-runner` with `PROFILE: full` and `BASE: {PARENT}` (it passes `--base`, so every file changed on the branch is checked by `conventions`). It appends `## Gate Log` and writes a handoff. The transcript stays in `.spec/.gate-log`. A red `conventions` gate lists each finding; route findings by path to the owning engineer (`missing-test` → `test-engineer`).
 
 ### Station 9.5 — Architecture-audit on the diff (REPORT_ONLY)
 
@@ -115,11 +117,11 @@ Missing agent or companion skill → `ESCALATION_PACKET`. Hard violations → St
 
 ### Station 10 — Auto-review
 
-Spawn `code-reviewer` with the **file list**, not the raw diff. It does not re-run FSD architecture-audit. `[CRITICAL]` / unresolved `[IMPORTANT]` → Station 11.
+Spawn `code-reviewer` with the **file list**, not the raw diff, plus the `prototype-inventory.md` path when it exists. It does not re-run FSD architecture-audit. `[CRITICAL]` / unresolved `[IMPORTANT]` → Station 11.
 
 ### Station 11 — Fix loop
 
-Max 3 attempts per gate. Re-run the failed gate plus `types`. Re-run `fsd` only if the fix touched imports. Re-run `coverage` only if the fix touched tests. On exceed: `status: awaiting-human`, `ESCALATION_PACKET`.
+Max 3 attempts per gate. Re-run the failed gate plus `types`. Re-run `fsd` only if the fix touched imports. Re-run `conventions` after any source edit. Re-run `coverage` only if the fix touched tests. On exceed: `status: awaiting-human`, `ESCALATION_PACKET`.
 
 ### End — REVIEW_PACKET
 

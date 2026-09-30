@@ -127,6 +127,8 @@ export const httpClient: KyInstance = ky.create({
 ```typescript
 // shared/api/query-client.ts
 import { QueryClient } from '@tanstack/react-query';
+import i18next from 'i18next';
+import { commonKeys } from '@/shared/lib/i18n/locales/common/keys';
 import { notify } from '@/shared/lib/notify';
 import { isAppError } from './errors';
 
@@ -140,8 +142,11 @@ export const createQueryClient = () =>
       mutations: {
         retry: false,
         onError: (err) => {
-          if (!isAppError(err) || err.kind === 'validation') return;
-          notify.error('Something went wrong. Please try again.');
+          if (!isAppError(err) || err.kind === 'validation') {
+            return;
+          }
+
+          notify.error(i18next.t(commonKeys.errors.generic));
         },
       },
     },
@@ -259,17 +264,18 @@ export const placeOrder = async (payload: PlaceOrderInput): Promise<Order> => {
 
 ```typescript
 import { isAppError } from '@/shared/api/errors';
-import type { AppErrorKind } from '@/shared/api/errors';
+import { mapServerErrorsToForm } from '@/shared/lib/form';
 
 onError: (err) => {
-  if (!isAppError(err)) return;
-  if (err.kind === 'validation') {
-    mapServerErrorsToForm(err.data, form.setError);
+  if (!isAppError(err) || err.kind !== 'validation') {
     return;
   }
-  // Generic errors handled by the global QueryClient onError — no duplication
+
+  mapServerErrorsToForm(err.data, form.setError, form.getValues);
 },
 ```
+
+Every other kind is handled by the global `QueryClient` handler — do not duplicate it here.
 
 ## Checklist
 

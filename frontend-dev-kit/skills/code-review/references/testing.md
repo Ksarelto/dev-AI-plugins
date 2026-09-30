@@ -1,22 +1,33 @@
 # Testing — review checklist
 
-Distilled from the `testing` skill. Applies whenever the diff adds or changes a non-trivial
-component, hook, or utility (constants, types, and index barrels are exempt).
+Distilled from the `testing` skill and `rules/testing.mdc`. Applies to every executable file in the diff — component, hook, fetcher, model/lib function, store, route module, guard. Exempt: `types.ts`, `constants.ts`, `styles.ts`, `index.ts`, stories, `locales/`, `main.tsx`.
 
-- A touched source file has no new or updated test covering the change.
-- A test still uses `jest` (mocks, globals) instead of `vi` (Vitest is the stack).
-- A component test renders with raw RTL `render` instead of the project's `render` from `@/shared/lib/rendererRTL`.
-- An interaction uses `fireEvent` instead of `userEvent`, or a `userEvent` call isn't `await`ed.
-- A query result is used directly in an assertion instead of stored in a constant first.
-- `vi.clearAllMocks()` missing from `beforeEach` where mocks are used.
-- A mock function isn't prefixed `mock` (breaks Vitest hoisting expectations elsewhere in the suite).
-- Default props defined inline per test case instead of once outside the test cases.
-- A test name doesn't read as `'[action] when [condition]'`, or is otherwise not descriptive of the behavior under test.
-- A critical path (render, interaction, loading, error) for the changed code has no covering test at all.
+## Coverage
+
+- An executable file in the diff has no test (colocated `{name}.test.tsx` for a component, the segment's `tests/` otherwise). List each one — do not summarize as "some files lack tests".
+- A page or widget test standing in for its child components' own tests.
+- A test that only asserts "renders" / "is defined", or has no `expect`.
+- A critical path (loading, error, empty, main interaction) of the changed code with no covering test.
+
+## Mocking
+
+- A mock of something the test can run: the component's own children (`vi.mock('./child-card')`), `@/shared/ui/*`, `react-hook-form` / a stubbed `useForm`, `zod`, `react-i18next`, `cn`, the component's own `model/` functions or store.
+- A query/mutation hook mocked where mocking its fetcher would let the real hook run.
+- A whole-module mock that replaces exports the test does not stub — should be an `importOriginal` partial mock.
+- A mocked hook/module/context returning fields the code under test never reads.
+- `as ReturnType<typeof useX>`, `as unknown as`, or `as any` forcing a mock's type.
+- A test-only Provider re-implementing a real provider instead of using `rendererRTL`.
+
+## Mechanics
+
+- `jest` instead of `vi`.
+- Raw RTL `render` instead of `render` from `@/shared/lib/rendererRTL`.
+- `fireEvent` instead of `userEvent`, or an un-`await`ed `userEvent` call.
+- Assertions on translation keys instead of the English copy from `en.json`.
+- Comments in the test file (`// Arrange`, section labels).
+- `vi.clearAllMocks()` missing from `beforeEach` where mocks are used; mock names without the `mock` prefix; default props redefined per test.
+- A test name that isn't `'[action] when [condition]'` or otherwise descriptive.
 
 ## Severity
 
-Missing coverage for a changed non-trivial file, or a critical path (loading/error) with zero
-test, is **Should fix** and should be called out explicitly rather than silently skipped. `jest`
-usage, `fireEvent` instead of `userEvent`, and un-awaited interactions are **Must fix** — they
-produce flaky or silently-wrong tests, not just style drift.
+A missing test for an executable file in the diff is **Must fix** — list the file. Over-mocking (children, shared/ui, react-hook-form, own hooks) and cast-forced mocks are **Must fix**: the test passes while the real composition is broken. `jest`, `fireEvent`, and un-awaited interactions are **Must fix**. The rest is **Should fix**.

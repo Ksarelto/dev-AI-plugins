@@ -58,13 +58,19 @@ Before writing new plain code for a recurring problem, reuse the slice that alre
 ### Exports
 
 - **Named exports only** — everywhere except pages (default exports allowed for pages).
-- `index.ts` in each folder exports only the public API.
+- **Export only what another file imports.** A helper, constant, type, or props interface used only
+  inside its own file is not exported. Tests do not justify an export — test through the public
+  component or function.
+- `index.ts` re-exports only symbols a file **outside that folder** already imports. No predicted
+  re-exports ("a consumer might need the props type"), no `export *`. A `shared/ui` registry base
+  keeps the parts the registry exports.
 
 ---
 
 ## Magic Numbers and Strings
 
 - No unexplained literals in logic — extract to a named constant that states what the value means (`REQUEST_TIMEOUT`, `ProfileStatus.Declined`) instead of inlining `30000` or `'declined'`.
+- JSX props with a closed value set (`variant`, `size`, `type`, `side`, `align`, `orientation`) use the constant the primitive exports (`ButtonVariant.Outline`, `ButtonType.Submit`), not `"outline"` / `"submit"`. Omit the prop when it equals the default (`rules/react.mdc` § Closed-set props).
 - Reuse an existing constant in the owning slice (`config/` or `models/`) before adding a new one.
 - A literal used exactly once in an obviously self-describing spot (e.g. `array.length - 1`) doesn't need extraction — use judgment, don't over-extract trivial values.
 
@@ -99,7 +105,7 @@ Before writing new plain code for a recurring problem, reuse the slice that alre
 - **Blank line before `return`** when the block has preceding statements — separates the setup from the result. Skip it when `return` is the only line in the block.
 - **Objects and arrays with more than 2 properties/items**: one per line, trailing comma. Two or fewer can stay on one line.
 - **Named imports with more than 2 specifiers**: one specifier per line, trailing comma. Two or fewer may stay on one line. Same for `import type`.
--**No nested conditions** is there are nested conditions make the solution flat or move part of the nested code to the separate method
+- **No nested conditions** — flatten with early returns, or move the inner branch into its own named function. No nested ternaries anywhere.
 
 ```ts
 // ❌ Avoid
@@ -118,9 +124,10 @@ const userFixture = {
 
 ## No Comments
 
-- Do not write comments in application code.
-- Use descriptive naming, clear structure, and meaningful file organization instead.
-- Exception: non-obvious complex logic (e.g. a subtle algorithm or a known browser quirk) may have a single-line explanation.
+- Do not write comments in application or test code — no `//`, `/* */`, JSDoc, or `{/* */}` in JSX. That includes section labels (`// handlers`), restated code (`// fetch users`), `// Arrange/Act/Assert`, TODOs, and commented-out code.
+- Use descriptive naming, clear structure, and meaningful file organization instead. If a block needs a comment to be understood, extract it into a function whose name says it.
+- Skill examples open with a `// path/to/file.ts` label and mark pairs with `// Bad` / `// Good`. Those labels tell you where the file goes; they are not file content. Never write them, or any other example comment, into the file.
+- The only allowed comment is a tool directive the build requires (`/// <reference types="vite/client" />`). The feature-dev conventions gate fails on any other comment in a changed file.
 
 ---
 
@@ -162,7 +169,7 @@ Parse env once in `shared/config/env.ts` with zod. The API origin is the excepti
 - **No `console.log`** — only `console.warn` and `console.error` are permitted.
 - No credentials, tokens, or secrets in source files.
 - User-controlled data must never be passed to `dangerouslySetInnerHTML`.
-- No hardcoded UI strings in components — `t(usersKeys....)` or `commonKeys` (`i18n` skill). No `src/constants/textContent.ts`.
+- No hardcoded UI strings — `t(usersKeys....)` or `commonKeys` (`rules/i18n.mdc`, `i18n` skill). No `TextContent` module, no `LABELS`/`MESSAGES` object of English strings, no `src/constants/textContent.ts`. Server-provided values render as-is.
 
 ```ts
 console.warn('Non-critical issue:', detail)
@@ -211,3 +218,7 @@ Always commit `yarn.lock`. Check `resolutions` in `package.json` for forced vers
 | `any` | `unknown` + type guard | Type safety at boundaries |
 | `undefined` for an intentionally empty value | `null` | Explicit "no value" vs. an unset/missing one |
 | Objects/arrays of 3+ props on one line | One property per line | Readable diffs, easy to scan |
+| Any comment in app or test code | A better name or an extracted function | Comments drift; names are checked |
+| `export` on a file-local helper or type | No `export` | Unused exports widen the public surface |
+| `<Button type="button" variant="outline">` | `<Button variant={ButtonVariant.Outline}>` | One source for closed sets; defaults stay implicit |
+| `const LABELS = { save: 'Save' }` | `t(formKeys.save)` from `locales/` | All copy is translatable |

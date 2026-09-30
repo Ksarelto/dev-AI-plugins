@@ -23,13 +23,15 @@ Walks every file created or changed in stations 3–7. Each file with executable
 
 ## Responsibilities
 
-List the increment's created and changed files. Skip barrels, `styles.ts`, and types-only files.
+List the increment's created and changed files. Skip only `index.ts`, `styles.ts`, `types.ts`, `constants.ts`, locale files, and stories. Every other file with a function, a class, or a top-level call gets a test — including small helpers, route modules, and providers.
 
 - Components: colocated `{name}.test.tsx` in the component folder.
 - Hooks, api, models, lib, route modules, and guards: `tests/` next to that segment. Test helpers for the segment live in that same `tests/` folder.
 - `shared/lib` uses one `shared/lib/tests/` folder. `shared/api` uses `shared/api/tests/`.
 
-Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Run `yarn test:auto` scoped to the new tests. Write coverage notes and any file that still lacks a behavior test into `## Gate Log`.
+Mock only the boundaries (`frontend-dev-kit:testing` → `references/mock-patterns.md`): the fetcher module via `importOriginal` overriding one export, the router, env, and browser APIs. Keep entity hooks, the query client, i18n, and child components real. A mocked module returns only the fields the code reads. Never mock the component under test, `@/shared/ui/*`, or `react-i18next`.
+
+Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Assert translated text through the locale value, not the key. Tests have no comments. Run `yarn test:auto` scoped to the new tests, then `node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <SLICE_PATHS files>` — no `missing-test` may remain. Write coverage notes and any file that still lacks a behavior test into `## Gate Log`.
 
 ## Handoff
 

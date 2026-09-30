@@ -1,6 +1,6 @@
 ---
 name: error-handling
-description: Implement AppError taxonomy, error boundaries (three kinds — FeatureLoadError, render crash, and expected business outcomes), and global/per-mutation error feedback using shared/lib/notify. Use when adding error handling to a new feature, setting up global error notification, or wrapping route sections with error boundaries.
+description: Implement AppError taxonomy, error boundaries (three kinds — FeatureLoadError, render crash, and expected business outcomes), and global/per-mutation error feedback using shared/lib/notify. Use when adding error handling to a new feature, setting up global error notification, or wrapping every route/page and every feature with an error boundary so one crash never takes down the app.
 ---
 
 # Error Handling
@@ -9,7 +9,7 @@ description: Implement AppError taxonomy, error boundaries (three kinds — Feat
 
 - Setting up the error layer from scratch
 - Adding error feedback to a mutation (form validation errors vs. toast notifications)
-- Wrapping a route with an error boundary
+- Wrapping a new route/page or a new feature's entry component with the shared error boundary
 - Handling 401 / 403 / 422 from the API
 
 ## Error taxonomy
@@ -32,25 +32,18 @@ All HTTP errors are normalized to `AppError` in `shared/api/base.ts` via `toAppE
 
 ```typescript
 import { isAppError } from '@/shared/api/errors';
+import { mapServerErrorsToForm } from '@/shared/lib/form';
 
 onError: (err) => {
-  if (!isAppError(err)) return;
-
-  if (err.kind === 'unauthorized') {
-    // Session handling is owned by shared/lib/auth — the hook just signals
+  if (!isAppError(err) || err.kind !== 'validation') {
     return;
   }
 
-  if (err.kind === 'validation') {
-    // Map server field errors to form — see rhf-form skill
-    mapServerErrorsToForm(err.data, form.setError);
-    return;
-  }
-
-  // Generic errors: all other kinds bubble to the global handler
-  // Only add per-mutation notify here if the message must be specific
+  mapServerErrorsToForm(err.data, form.setError, form.getValues);
 },
 ```
+
+`'unauthorized'` is owned by `shared/lib/auth`; every other kind goes to the global handler. Add a per-mutation `notify` only when the message must be specific, and pass it a key (`notify.error(t(ordersKeys.errors.stockGone))`).
 
 ## Global QueryClient error handler
 
@@ -58,75 +51,164 @@ onError: (err) => {
 
 ## Error boundary placement
 
-Three levels — each catches a different scope:
+A render crash must never take down more than the surface that crashed. Four levels, all required:
 
 ```
-app/boundaries/AppErrorBoundary     — root, catches everything, always present
-route/page level                    — one broken page doesn't blank the app
-feature root (ui/{feature}-shell)  — feature's own loading/error/empty/stale states
+app/boundaries/app-error-boundary     — root, catches everything, always present
+app/router  <RouteBoundary>           — EVERY route element: one broken page never blanks the app
+features/<f> public entry component   — EVERY feature: one broken interaction never blanks the page
+entity/feature UI shell               — its own loading / error / empty states (not a boundary)
 ```
 
-### Route-level boundary with `FeatureLoadError` handling
+A widget that composes several features relies on each feature's own boundary. A page does not add a second boundary inside itself — the route boundary already wraps it.
+
+### One shared boundary: `shared/ui/error-boundary/`
+
+Build it once. Every route and feature uses it; nobody imports `react-error-boundary` directly.
+
+```
+shared/ui/error-boundary/
+  error-boundary.tsx      — ErrorBoundary (library boundary + shared fallback + logging)
+  error-fallback.tsx      — ErrorFallback (shadcn Alert + retry Button, translated)
+  styles.ts
+  types.ts
+  error-boundary.test.tsx
+  index.ts                — exports ErrorBoundary, and ErrorFallback for the route fallback
+```
 
 ```tsx
-// app/router — per-route boundary around the lazy page (classes from that boundary's styles.ts)
-import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
-import { FeatureLoadError } from '@/shared/lib/lazyFeature';
+// shared/ui/error-boundary/error-fallback.tsx
+import { useTranslation } from 'react-i18next';
+import type { FallbackProps } from 'react-error-boundary';
+import { commonKeys } from '@/shared/lib/i18n/locales/common/keys';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+  AlertVariant,
+} from '@/shared/ui/alert';
+import { Button, ButtonVariant } from '@/shared/ui/button';
+import * as styles from './styles';
 
-const RouteFallback = ({ error, resetErrorBoundary }: FallbackProps) => {
-  // Stale chunk after deploy — offer reload
-  if (error instanceof FeatureLoadError && isChunkLoadError(error.cause)) {
-    return (
-      <div className={styles.container}>
-        <p className={styles.message}>The page was updated. Please reload.</p>
-        <button onClick={() => window.location.reload()}>Reload</button>
-      </div>
-    );
-  }
+export const ErrorFallback = ({ resetErrorBoundary }: FallbackProps): JSX.Element => {
+  const { t } = useTranslation();
 
-  // Broken module init or render crash
+  const handleRetry = (): void => {
+    resetErrorBoundary();
+  };
+
   return (
-    <div className={styles.container}>
-      <p className={styles.message}>Something went wrong.</p>
-      <button onClick={resetErrorBoundary}>Try again</button>
-    </div>
+    <Alert
+      variant={AlertVariant.Destructive}
+      className={styles.root}
+    >
+      <AlertTitle>
+        {t(commonKeys.errorBoundary.title)}
+      </AlertTitle>
+      <AlertDescription>
+        {t(commonKeys.errorBoundary.description)}
+      </AlertDescription>
+      <Button
+        variant={ButtonVariant.Outline}
+        className={styles.retry}
+        onClick={handleRetry}
+      >
+        {t(commonKeys.actions.retry)}
+      </Button>
+    </Alert>
   );
 };
+```
 
-export const OrdersPageBoundary = () => (
-  <ErrorBoundary FallbackComponent={RouteFallback}>
-    <Suspense fallback={<OrdersPageSkeleton />}>
-      <OrdersPage />
-    </Suspense>
+```tsx
+// shared/ui/error-boundary/error-boundary.tsx
+import type { ErrorInfo } from 'react';
+import { ErrorBoundary as LibraryErrorBoundary } from 'react-error-boundary';
+import { ErrorFallback } from './error-fallback';
+import type { ErrorBoundaryProps } from './types';
+
+const logRenderError = (error: unknown, info: ErrorInfo): void => {
+  console.error(error, info.componentStack);
+};
+
+export const ErrorBoundary = ({ children, resetKeys }: ErrorBoundaryProps): JSX.Element => (
+  <LibraryErrorBoundary
+    FallbackComponent={ErrorFallback}
+    resetKeys={resetKeys}
+    onError={logRenderError}
+  >
+    {children}
+  </LibraryErrorBoundary>
+);
+```
+
+The fallback never renders `error.message` — it is developer text, untranslated, and may leak internals. In `react-error-boundary` v6 `FallbackProps.error` is `unknown`; do not cast it to read `.message`.
+
+### Every feature: the public entry is the boundary
+
+The component `features/<f>/index.ts` exports wraps the feature's content. Hooks and state live in the content component, below the boundary — a hook that throws above the boundary is not caught.
+
+```tsx
+// features/decline-profile/ui/decline-profile/decline-profile.tsx
+import { ErrorBoundary } from '@/shared/ui/error-boundary';
+import { DeclineProfileDialog } from '../decline-profile-dialog';
+import type { DeclineProfileProps } from './types';
+
+export const DeclineProfile = (props: DeclineProfileProps): JSX.Element => (
+  <ErrorBoundary resetKeys={[props.profileId]}>
+    <DeclineProfileDialog {...props} />
   </ErrorBoundary>
 );
 ```
 
-### Root boundary in `app/`
+### Every route: `RouteBoundary` with `FeatureLoadError` handling
+
+`add-route` wraps each lazy page element. The route fallback distinguishes a stale chunk (offer reload) from a crash (shared fallback), and resets when the path changes.
 
 ```tsx
-// app/boundaries/AppErrorBoundary.tsx
-import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
-import * as styles from './styles';
+// app/router/route-boundary/route-boundary.tsx
+import { Suspense } from 'react';
+import { useLocation } from 'react-router';
+import { ErrorBoundary } from '@/shared/ui/error-boundary';
+import type { RouteBoundaryProps } from './types';
 
-const RootFallback = ({ error, resetErrorBoundary }: FallbackProps) => (
-  <div className={styles.root}>
-    <h1 className={styles.title}>Unexpected error</h1>
-    <p className={styles.detail}>{error.message}</p>
-    <button onClick={resetErrorBoundary}>Try again</button>
-  </div>
-);
+export const RouteBoundary = ({ children, fallback }: RouteBoundaryProps): JSX.Element => {
+  const location = useLocation();
 
-export const AppErrorBoundary = ({ children }: { children: ReactNode }) => (
-  <ErrorBoundary FallbackComponent={RootFallback}>{children}</ErrorBoundary>
-);
+  return (
+    <ErrorBoundary resetKeys={[location.pathname]}>
+      <Suspense fallback={fallback}>
+        {children}
+      </Suspense>
+    </ErrorBoundary>
+  );
+};
 ```
+
+```tsx
+// app/router/root/routes.tsx
+{
+  path: routes.orders,
+  element: (
+    <RouteBoundary fallback={<PageSkeleton />}>
+      <OrdersPage />
+    </RouteBoundary>
+  ),
+}
+```
+
+A stale-chunk `FeatureLoadError` (after a deploy) renders a reload prompt instead of the generic fallback: give `ErrorBoundary` an optional `fallbackComponent` prop, and have `RouteBoundary` pass a `RouteFallback` that checks `error instanceof FeatureLoadError && isChunkLoadError(error.cause)` and offers `t(commonKeys.errorBoundary.reload)`. Its reload handler is a named function (`handleReload`), and every string is a key.
+
+### Root boundary in `app/`
+
+`app/boundaries/app-error-boundary/` renders the same `ErrorBoundary` around the provider tree's children, so a crash in layout or providers still shows the translated fallback.
 
 ## `notify` — toast notifications
 
+A thin wrapper over sonner (or whichever toast library is in use). Callers always pass translated text: `notify.success(t(ordersKeys.create.success))`, never a literal.
+
 ```typescript
 // shared/lib/notify/index.ts
-// Thin wrapper over sonner (or whichever toast library is in use)
 export const notify = {
   success: (message: string) => toast.success(message),
   error:   (message: string) => toast.error(message),
@@ -136,21 +218,7 @@ export const notify = {
 
 ## Form field errors (422 Validation)
 
-```typescript
-// features/orders/api/mapServerErrors.ts
-import type { UseFormSetError } from 'react-hook-form';
-
-export const mapServerErrorsToForm = (
-  data: unknown,
-  setError: UseFormSetError<Record<string, unknown>>,
-): void => {
-  if (!data || typeof data !== 'object') return;
-  const errors = data as Record<string, string[]>;
-  for (const [field, messages] of Object.entries(errors)) {
-    setError(field as never, { type: 'server', message: messages[0] });
-  }
-};
-```
+`mapServerErrorsToForm` lives once in `shared/lib/form/map-server-errors.ts`. It narrows the server's field names to the form's `Path` with type guards, with no `as` cast. The implementation is in `rhf-form` examples § Example 4. Server field messages are human text and render unchanged. Not toasted.
 
 ## Expected business outcomes (NOT exceptions)
 
@@ -172,8 +240,13 @@ export const validateOrderDraft = (draft: OrderDraft): OrderError | null => {
 ```tsx
 // features/orders/ui/order-form/order-form.tsx
 const validationError = validateOrderDraft(draft);
+
 if (validationError?.type === 'insufficient_stock') {
-  return <p className={styles.errorText}>Only {validationError.available} units available.</p>;
+  return (
+    <p className={styles.errorText}>
+      {t(ordersKeys.errors.insufficientStock, { count: validationError.available })}
+    </p>
+  );
 }
 ```
 
@@ -181,8 +254,11 @@ if (validationError?.type === 'insufficient_stock') {
 
 - [ ] `AppError` (from `shared/api/errors.ts`) used for all HTTP error narrowing — not `ApiError`
 - [ ] `isAppError(err)` guards all `onError` callbacks before comparing `err.kind` to a string (`'validation'`, `'unauthorized'`) — not an enum
+- [ ] One shared `ErrorBoundary` in `shared/ui/error-boundary/`; no direct `react-error-boundary` import elsewhere
 - [ ] Root error boundary in `app/boundaries/`
-- [ ] Route-level error boundary handles `FeatureLoadError` (reload vs. crash screen)
+- [ ] Every route element wrapped in `RouteBoundary` (ErrorBoundary + Suspense, `resetKeys` on the path); stale-chunk `FeatureLoadError` offers reload
+- [ ] Every feature's public entry component renders `<ErrorBoundary>` around its content; hooks live below the boundary
+- [ ] Fallbacks use shadcn `Alert` + `Button`, translated keys, a named retry handler — never `error.message`, never a raw `<button>`
 - [ ] Global `QueryClient` `onError` handles generic errors; per-mutation `onError` handles Validation
 - [ ] Validation errors (422) mapped to form fields via `setError`, not toasted
 - [ ] Auth expiry (401) signalled to auth provider — not a manual redirect in mutation `onError`

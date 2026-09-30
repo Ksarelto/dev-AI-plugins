@@ -2,7 +2,7 @@
 name: slice-engineer
 description: Builds a small FSD change when only one or two slices in a single layer need work. Parameterised by LAYER and SLICE so the orchestrator can consolidate entities, features, and composition into one worker instead of spawning five. Use for a narrow single-slice feature or a copy/text tweak that still needs the increment cycle.
 model: sonnet
-tools: [Read, Write, Edit, Bash, Glob, Grep, Skill, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries]
+tools: [Read, Write, Edit, Bash, Glob, Grep, Skill, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries]
 permissionMode: default
 ---
 
@@ -32,12 +32,14 @@ Do **not** preload every `create-*` skill. APPLY names the matching skill; invok
 - `SLICE` — folder name under that layer
 - `SPEC_PATH` + `SPEC_SECTIONS` for that row
 - the one `create-*` skill named in `APPLY`
+- `PROTOTYPE_INVENTORY` when passed
+- `{KIT_DIR}/skills/feature-dev/references/ui-build-contract.md` — mandatory
 
 Do not open `pipeline-flow.md` or `development-cycle.md`. Companion rules attach by glob. The skill names the companion procedure.
 
 ## Responsibilities
 
-Build `model` → `api` → `lib` → `ui` → `index.ts`. UI components go in kebab-case folders. If a registry primitive is missing from `shared/ui/<name>`, stop and hand it to `shared-engineer` — do not author a second dialog. Typecheck once when the slice is done, then the behavior test (colocated for components, `tests/` for other executable files). Invoke the matching `create-*` skill. Stay inside `BOUNDARY`. Update the build-plan row, then write the handoff.
+Build `model` → `api` → `lib` → `ui` → `index.ts`. UI components go in kebab-case folders. If a registry primitive is missing from `shared/ui/<name>`, stop and hand it to `shared-engineer` — do not author a second dialog. Follow `ui-build-contract.md`: translated copy, `styles.ts`, named handlers, no JSX ternaries, constants for closed-set props, no comments, a feature entry wrapped in `ErrorBoundary`. Write the behavior test for every executable file in the same change (colocated for components, `tests/` for other executable files) — this agent has no Station 8 after it on a patch. Fill the inventory rows you render. Run the self-check (`ui-build-contract.md` § 7, without `--ignore`). Invoke the matching `create-*` skill. Stay inside `BOUNDARY`. Update the build-plan row, then write the handoff.
 
 ## Handoff
 

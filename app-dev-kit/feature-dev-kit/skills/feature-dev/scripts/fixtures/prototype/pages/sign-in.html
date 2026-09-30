@@ -1,1 +1,190 @@
-<!doctype html><title>fixture</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in — The Building Cupboard</title>
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <script src="../js/app.js" defer></script>
+  <script src="../js/data.js" defer></script>
+  <script src="../js/navigation.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+</head>
+<body x-data x-cloak>
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <a href="../index.html" class="sidebar-brand link">The Building Cupboard</a>
+        <span class="badge badge-primary">prototype</span>
+      </div>
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <div class="nav-group">
+          <p class="nav-group-label">Access</p>
+          <a href="./sign-in.html" class="nav-item nav-item-active" data-nav-id="sign-in" aria-current="page">🔐 Sign in</a>
+          <a href="./private-register.html" class="nav-item" data-nav-id="private-register">🔐 Private building register</a>
+          <a href="./access-ended.html" class="nav-item" data-nav-id="access-ended">🔐 Access ended</a>
+        </div>
+        <div class="nav-group">
+          <p class="nav-group-label">Listings</p>
+          <a href="./building-catalogue.html" class="nav-item" data-nav-id="building-catalogue">📦 Building catalogue</a>
+          <a href="./listing-detail.html" class="nav-item" data-nav-id="listing-detail">📦 Listing</a>
+          <a href="./list-an-item.html" class="nav-item" data-nav-id="list-an-item">📦 List an item</a>
+          <a href="./my-listings.html" class="nav-item" data-nav-id="my-listings">📦 My listings</a>
+          <a href="./manage-listing.html" class="nav-item" data-nav-id="manage-listing">📦 Manage listing</a>
+        </div>
+        <div class="nav-group">
+          <p class="nav-group-label">Borrows</p>
+          <a href="./request-to-borrow.html" class="nav-item" data-nav-id="request-to-borrow">🗓 Request to borrow</a>
+          <a href="./incoming-request.html" class="nav-item" data-nav-id="incoming-request">🗓 Incoming request</a>
+          <a href="./on-loan-and-promised.html" class="nav-item" data-nav-id="on-loan-and-promised">🗓 On loan and promised</a>
+          <a href="./collect-or-return.html" class="nav-item" data-nav-id="collect-or-return">🗓 Collect or return</a>
+          <a href="./condition-note.html" class="nav-item" data-nav-id="condition-note">🗓 Condition note</a>
+          <a href="./change-agreed-times.html" class="nav-item" data-nav-id="change-agreed-times">🗓 Change agreed times</a>
+        </div>
+        <div class="nav-group">
+          <p class="nav-group-label">Notices</p>
+          <a href="./your-notices.html" class="nav-item" data-nav-id="your-notices">🔔 Your notices</a>
+        </div>
+        <p class="divider">Manager</p>
+        <div class="nav-group">
+          <p class="nav-group-label">Manager</p>
+          <a href="./who-has-access.html" class="nav-item" data-nav-id="who-has-access">🛡 Who has access</a>
+          <a href="./admit-an-adult.html" class="nav-item" data-nav-id="admit-an-adult">🛡 Admit an adult</a>
+          <a href="./manage-access.html" class="nav-item" data-nav-id="manage-access">🛡 Manage access</a>
+          <a href="./manager-oversight.html" class="nav-item" data-nav-id="manager-oversight">🛡 Manager oversight</a>
+          <a href="./twelve-month-activity.html" class="nav-item" data-nav-id="twelve-month-activity">🛡 Twelve-month activity</a>
+          <a href="./something-looks-wrong.html" class="nav-item" data-nav-id="something-looks-wrong">🛡 Something looks wrong</a>
+          <a href="./dispute.html" class="nav-item" data-nav-id="dispute">🛡 Dispute</a>
+          <a href="./items-still-out.html" class="nav-item" data-nav-id="items-still-out">🛡 Items still out</a>
+          <a href="./building-wide-notice.html" class="nav-item" data-nav-id="building-wide-notice">🛡 Building-wide notice</a>
+          <a href="./committee-page.html" class="nav-item" data-nav-id="committee-page">🛡 Committee page</a>
+        </div>
+      </nav>
+    </aside>
+
+    <main class="main" x-data="ResidentAccessData()" x-init="init()">
+      <div class="content">
+
+        <div class="page-header-sticky">
+          <div class="page-header">
+            <div>
+              <nav class="breadcrumb" aria-label="Breadcrumb">
+                <a href="../index.html">Home</a>
+                <span class="sep">/</span>
+                <span>Sign in</span>
+              </nav>
+              <h1 class="page-title">Sign in</h1>
+              <p class="page-subtitle">Start a session with the phrase or code the manager gave you in person.</p>
+            </div>
+            <div class="page-actions">
+              <button type="button" class="btn-primary" @click="!loading && !error && items.length > 0 && $refs.signInForm.requestSubmit()">Sign in</button>
+            </div>
+          </div>
+        </div>
+
+        <div x-show="loading" role="status" aria-label="Loading Sign in">
+          <div class="skeleton mb-2"></div>
+          <div class="skeleton mb-2"></div>
+          <div class="skeleton mb-2"></div>
+          <div class="skeleton w-75 mb-2"></div>
+          <div class="skeleton w-90"></div>
+        </div>
+
+        <div x-show="!loading && error" class="alert alert-destructive" role="alert">
+          <p x-text="error || 'Could not open sign-in. Please try again.'"></p>
+          <button class="btn-secondary mt-2" @click="reload()">Retry</button>
+        </div>
+
+        <div x-show="!loading && !error && items.length === 0" class="empty-state">
+          <div class="empty-state-icon">🔐</div>
+          <p class="empty-state-title">Nobody has been admitted yet</p>
+          <p class="empty-state-desc">Ask the building manager in the lodge to admit you in person and give you a phrase. There is no public sign-up.</p>
+          <a href="./private-register.html" class="btn-primary mt-4">Speak to the manager</a>
+        </div>
+
+        <div x-show="!loading && !error && items.length > 0">
+          <p class="lede reveal">Use the private phrase or code from the lodge — not an email, not a text. After you sign in, this phone keeps your name and unit on screen so a partner does not act as you.</p>
+
+          <div class="card hover-lift reveal-2 mt-4">
+            <div class="card-header">
+              <h2 class="text-xl font-semibold">Manager-issued phrase</h2>
+            </div>
+            <div class="card-content">
+              <form id="sign-in-form" class="w-full" x-ref="signInForm" @submit.prevent="submit($el)" novalidate>
+                <p class="divider">Identity</p>
+                <div class="form-field">
+                  <label class="form-label" for="displayName">How you are known</label>
+                  <input id="displayName" name="displayName" class="form-input" type="text" x-model="draft.displayName" required autocomplete="off" spellcheck="false" placeholder="e.g. Marta 4B" aria-describedby="displayName-err displayName-hint" :aria-invalid="!!errors.displayName" @blur="errors.displayName = $el.value ? '' : 'Enter the name the manager wrote down.'">
+                  <p class="form-error" id="displayName-err" role="alert" x-show="errors.displayName" x-text="errors.displayName"></p>
+                  <p id="displayName-hint" class="text-sm text-muted">The name written down when you were admitted — not an email address.</p>
+                </div>
+
+                <p class="divider">Phrase</p>
+                <div class="form-field">
+                  <label class="form-label" for="phraseOrCode">Phrase or code</label>
+                  <input id="phraseOrCode" name="phraseOrCode" class="form-input" type="password" x-model="draft.phraseOrCode" required autocomplete="off" spellcheck="false" aria-describedby="phraseOrCode-err phraseOrCode-hint" :aria-invalid="!!errors.phraseOrCode" @blur="errors.phraseOrCode = $el.value ? '' : 'Enter the phrase or code the manager gave you in person.'">
+                  <p class="form-error" id="phraseOrCode-err" role="alert" x-show="errors.phraseOrCode" x-text="errors.phraseOrCode"></p>
+                  <p id="phraseOrCode-hint" class="text-sm text-muted">Given in person. It is never shown in the catalogue. A wrong phrase gets a short explanation — never whether a name is on the register.</p>
+                </div>
+
+                <div class="page-actions mt-4">
+                  <button type="button" class="btn-ghost" @click="reset($el.form)">Cancel</button>
+                  <button type="submit" class="btn-primary">Sign in</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div class="card hover-lift reveal-3 mt-4">
+            <div class="card-header">
+              <h2 class="text-xl font-semibold">On this phone</h2>
+              <span class="badge badge-default">Not signed in yet</span>
+            </div>
+            <div class="card-content">
+              <div class="flex items-center gap-2">
+                <span class="avatar" x-text="(draft.displayName || '?').charAt(0).toUpperCase()"></span>
+                <div>
+                  <p class="font-semibold" x-text="draft.displayName || 'Your display name will show here'"></p>
+                  <p class="text-sm text-muted">Unit stays visible while signed in. Switching adult is sign out, then sign in with their own manager-issued phrase.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card hover-lift reveal-4 mt-4">
+            <div class="card-header">
+              <h2 class="text-xl font-semibold">Need a new phrase?</h2>
+            </div>
+            <div class="card-content">
+              <p class="text-sm text-muted">There is no text message, email, or recover-access page. Ask the manager in the lodge for a new phrase, given in person.</p>
+              <p class="mt-2"><a href="./private-register.html" class="link">How joining this building’s Cupboard works</a></p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="dev-panel" aria-hidden="true">
+        <span class="dev-panel-label">States:</span>
+        <button class="btn-ghost btn-sm" @click="loading=true;error=null" title="Loading state" aria-label="Preview loading state">⏳</button>
+        <button class="btn-ghost btn-sm" @click="items=[];loading=false;error=null" title="Empty state" aria-label="Preview empty state">📭</button>
+        <button class="btn-ghost btn-sm" @click="error='Failed to load';loading=false" title="Error state" aria-label="Preview error state">❌</button>
+        <button class="btn-ghost btn-sm" @click="loading=false;error=null;items=[...defaultItems]" title="Success state" aria-label="Preview success state">✅</button>
+      </div>
+
+    </main>
+  </div>
+
+  <div class="toast-container" aria-live="polite">
+    <template x-for="n in $store.notification.items" :key="n.id">
+      <div class="alert" :class="n.type === 'error' ? 'alert-destructive' : (n.type === 'success' ? 'alert-success' : '')"
+           x-text="n.message" role="status"></div>
+    </template>
+  </div>
+
+</body>
+</html>

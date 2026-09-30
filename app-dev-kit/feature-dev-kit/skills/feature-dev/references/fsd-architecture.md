@@ -10,10 +10,10 @@ Layers run top-to-bottom. A layer may only import from layers **strictly below**
 
 | Layer | Description | Segments used | May import from | Must NOT contain |
 |-------|-------------|---------------|-----------------|------------------|
-| `app` | Providers, router, global styles, app bootstrap | `providers/`, `router/`, `styles/` | All layers | Business logic, API calls |
+| `app` | Providers, router (every route in `RouteBoundary`), global styles, app bootstrap | `providers/`, `router/`, `styles/` | All layers | Business logic, API calls |
 | `pages` | Route screens — thin composition of widgets/features | `ui/`, `index.ts` | `widgets`, `features`, `entities`, `shared` | State logic, direct API calls |
 | `widgets` | Large self-contained UI blocks reused across pages | `ui/`, `model/`, `api/`, `lib/`, `index.ts` | `features`, `entities`, `shared` | Page-level routing, app providers |
-| `features` | Single user interaction / action per slice | `ui/`, `model/`, `api/`, `lib/`, `index.ts` | `entities`, `shared` | Multi-action business flows, widget composition |
+| `features` | Single user interaction / action per slice; the exported entry wraps itself in an error boundary | `ui/`, `model/`, `api/`, `lib/`, `locales/`, `index.ts` | `entities`, `shared` | Multi-action business flows, widget composition |
 | `entities` | Business objects: their data, API hooks, and display UI | `ui/`, `model/`, `api/`, `lib/`, `config/`, `index.ts` | `shared` | Feature logic, user-interaction handlers |
 | `shared` | Primitives, utilities, design system; domain-agnostic | `ui/`, `api/`, `lib/`, `config/`, `hooks/` | Nothing above it | Business domain concepts |
 
@@ -31,7 +31,8 @@ A **segment** partitions a slice by technical purpose:
 | `model/` | State, derived selectors, TypeScript types for this slice |
 | `api/` | TanStack Query hooks, mutation hooks, query keys |
 | `lib/` | Pure utilities, validators, formatters — no side effects |
-| `config/` | Constants, enums, text content scoped to this slice |
+| `config/` | Non-text constants scoped to this slice (limits, ids, enum → locale-key maps) |
+| `locales/` | `en.json` + `keys.ts` — every user-visible string this slice renders (`frontend-dev-kit:i18n`) |
 | `index.ts` | **Public API** — the only legal import surface |
 
 ---
@@ -42,16 +43,16 @@ Every slice MUST have `index.ts`. It is the only file external code may import f
 
 ```ts
 // entities/profile/index.ts
-export type { IProfile, ProfileStatus } from './model/profile.types'
-export { ProfileCard } from './ui/ProfileCard'
-export { useGetProfile, useGetProfiles } from './api/profile.hooks'
-export { profileQueryKeys } from './api/profile.queryKeys'
+export type { Profile } from './model/types'
+export { ProfileCard } from './ui/profile-card'
+export { useProfile, useProfiles } from './api/use-profiles'
 ```
 
 Rules:
-- No wildcard re-exports (`export * from './ui/ProfileCard'` is forbidden).
+- No wildcard re-exports (`export * from './ui/profile-card'` is forbidden).
 - No deep imports into internals from outside the slice.
 - If something is not in `index.ts`, it is private to the slice.
+- A line is in `index.ts` only when a file outside the slice imports that name. Query keys live in `shared/api/query-keys/`, not in the slice's public API. The conventions gate reports an unused re-export as `unused-export`.
 
 ---
 
@@ -68,7 +69,7 @@ Rules:
 | `src/utils/navigationMap.ts` | `shared/config/navigationMap.ts` |
 | `src/utils/routes.ts` | `shared/config/routes.ts` |
 | `src/enums/` | `shared/config/enums/` |
-| `src/constants/textContent.ts` | `shared/config/textContent.ts` |
+| `src/constants/textContent.ts` | `shared/lib/i18n/locales/common/en.json` (app-wide) or `<slice>/locales/en.json` — never a TS string map |
 | `src/constants/testId.ts` | `shared/config/testId.ts` |
 | `src/theme/` | `shared/ui/theme/` |
 | `src/components/` (presentational) | `shared/ui/` (shadcn wrappers) |
@@ -124,8 +125,9 @@ Is it a global provider, router, or app bootstrap concern?
 | `model/` | Entity types, interaction state types, factory functions | own `types`, pure TS stdlib | React, hooks, Axios, side effects |
 | `ui/` | Feature/entity display and interaction components | `shared/ui`, own `model/`, own `api/` (via state/) | Direct Axios calls, other slices' internals |
 | `lib/` | Pure formatters, validators, mappers | own `model/`, own types | React, network calls, side effects |
-| `config/` | Constants, enums, text content | nothing | Runtime code |
-| `index.ts` | Re-exports the slice's public surface | — | Wildcard `export *` of internals |
+| `config/` | Non-text constants, enum → locale-key maps | own `locales/keys` | Runtime code, English copy |
+| `locales/` | `en.json`, `keys.ts` | nothing | Code, anything shown only by another slice |
+| `index.ts` | Re-exports only the names other slices import | — | Wildcard `export *`, unused re-exports |
 
 ---
 

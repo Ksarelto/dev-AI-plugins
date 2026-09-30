@@ -29,7 +29,9 @@ Export through the slice `index.ts` only what a file outside the folder already 
 
 One kebab-case folder per component (`profile-card/profile-card.tsx`, `styles.ts`, `types.ts` when there are props, `index.ts`, `profile-card.test.tsx`). Never a flat `ProfileCard.tsx`.
 
-If the piece is a shadcn/Radix primitive (button, dialog, drawer, and the rest) and `shared/ui/<name>` is missing, stop and hand it to `shared-engineer`. Do not author a second copy. Compose `@/shared/ui/<name>`.
+If the piece is a shadcn/Radix primitive (button, dialog, drawer, and the rest) and `shared/ui/<name>` is missing, stop and hand it to `shared-engineer`. Do not author a second copy. Compose `@/shared/ui/<name>` in the part order of its registry demo.
+
+Every component follows `{KIT_DIR}/skills/feature-dev/references/ui-build-contract.md` §§ 1–3: `t()` for every visible string, classes in `styles.ts`, named handlers, no JSX ternaries, closed-set constants, no comments, a colocated test.
 
 ## What this skill does NOT do
 

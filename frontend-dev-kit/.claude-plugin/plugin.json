@@ -1,13 +1,13 @@
 {
   "name": "frontend-dev-kit",
   "displayName": "React Dev Kit",
-  "description": "Rules, skills, and MCP servers for React + TypeScript + shadcn/ui + Tailwind CSS + react-query.",
+  "description": "Rules, skills, and MCP servers for React 19 Feature-Sliced Design apps: TypeScript, shadcn/ui, Tailwind, react-query, react-hook-form + zod, react-i18next, and Vitest.",
   "version": "0.1.0",
   "author": {
     "name": "Artsiom Murashko"
   },
   "license": "MIT",
-  "keywords": ["react", "typescript", "shadcn", "tailwind", "react-query", "react-hook-form", "zod", "mcp", "context7", "browser", "eslint", "i18n"],
+  "keywords": ["react", "typescript", "fsd", "shadcn", "tailwind", "react-query", "react-hook-form", "zod", "i18n", "vitest", "mcp", "context7", "browser"],
   "category": "productivity",
   "rules": "./rules/",
   "skills": "./skills/",

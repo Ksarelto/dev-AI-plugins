@@ -73,7 +73,6 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
    import { useMutation, useQueryClient } from '@tanstack/react-query';
    import { useNavigate } from 'react-router';
    import { orderKeys } from '@/shared/api/query-keys/orders';
-   import { isAppError } from '@/shared/api/errors';
    import { placeOrder } from '../api/fetchers';
    import type { PlaceOrderInput } from '../api/dto';
 
@@ -83,20 +82,15 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 
      return useMutation({
        mutationKey: orderKeys.mutations.place(),
-       // Domain failures are return values from models/, checked in ui/ before mutate — not thrown here.
        mutationFn: (input: PlaceOrderInput) => placeOrder(input),
        onSuccess: (order) => {
          queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
          navigate(`/orders/${order.id}`);
        },
-       onError: (err) => {
-         if (!isAppError(err)) return;
-         // Validation errors are mapped to form fields by the ui/ component
-         // Generic errors are handled by the global QueryClient handler
-       },
      });
    };
    ```
+   Domain failures are return values from `models/`, checked in `ui/` before `mutate` — not thrown here. The hook has no `onError`: the `ui/` component maps validation errors to fields, and the global `QueryClient` handler toasts the rest.
 
 ## Cross-feature cache invalidation
 
@@ -122,12 +116,13 @@ export const useOrderEvents = () => {
   useSseConsumer('orders', {
     [SseEvent.OrderStatusChanged]: (data) => {
       const { orderId } = JSON.parse(data);
-      // Default: invalidateQueries. Only use setQueryData when payload has ordering field.
       queryClient.invalidateQueries({ queryKey: orderKeys.detail(orderId) });
     },
   });
 };
 ```
+
+Default to `invalidateQueries`. Use `setQueryData` only when the payload has an ordering field.
 
 ## Query hook checklist
 

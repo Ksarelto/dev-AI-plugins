@@ -25,7 +25,11 @@ Vitest, not Jest: `vi`, never `jest`.
 | `shared/lib/*` | one `shared/lib/tests/` for every unit |
 | `shared/api/` | `shared/api/tests/` |
 
-Rules:
+Rules (constraints: `rules/testing.mdc`):
+- Every executable file in the change gets a test — see [File Selection](references/file-selection.md) for the only exemptions.
+- Mock only the boundary: the fetcher (or `@/shared/api/base`), `useNavigate`, missing browser APIs, time, env flags. Partial mocks use `importOriginal`. Never mock children, `@/shared/ui/*`, `react-hook-form`, `zod`, i18n, or the component's own hooks/models/store — see [Mock Patterns](references/mock-patterns.md).
+- Assert the English copy from `en.json`, never a translation key.
+- No comments in test files (no `// Arrange`, no section labels).
 - No `__fixtures__/` directories — mock objects are declared inline in the test file.
 - No cross-slice tests — a test in `features/orders/` must never import from `features/documents/`.
 - No MSW in unit or RTL tests — mock the module boundary with `vi.mock('@/shared/api/base')` or `vi.mock('../api/fetchers')`. MSW is for e2e only.
@@ -78,8 +82,11 @@ yarn test:ci                                 # CI mode
 - [ ] No `__fixtures__/` directories — mocks declared inline in test files
 - [ ] No cross-slice imports in tests
 - [ ] No MSW — module boundary mocked with `vi.mock`
-- [ ] File list scoped from staged/changed/branch files; constants, types, and index barrels excluded
-- [ ] Every remaining touched source file has new or updated tests
+- [ ] File list scoped from staged/changed/branch files; only the exemptions in file-selection.md excluded
+- [ ] Every remaining touched source file has new or updated tests — listed file → test path
+- [ ] Only the boundary is mocked; no child, shared/ui, react-hook-form, zod, i18n, or own-hook mocks
+- [ ] Partial mocks use `importOriginal`; no `as ReturnType<…>` / `as unknown as` on mocks
+- [ ] Assertions use the English copy; no comments in test files
 - [ ] Using `vi` for mocks (NOT `jest`)
 - [ ] `render` from `@/shared/lib/rendererRTL`
 - [ ] `userEvent` for interactions (NOT `fireEvent`)

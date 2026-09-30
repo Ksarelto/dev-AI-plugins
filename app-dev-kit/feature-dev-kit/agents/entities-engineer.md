@@ -20,6 +20,7 @@ Owns all additions to the FSD `entities` layer. For each entity slice declared i
 - `references/fsd-architecture.md` — layer boundaries and segment purpose.
 - `references/fsd-import-boundaries.md` — the import matrix (entities may import shared only).
 - Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:react-query-hook` for `api/` (keys in `shared/api/query-keys/`).
+- `references/ui-build-contract.md` — shadcn fidelity, copy, components, tests, self-check. Mandatory for `ui/`.
 - `references/increment-protocol.md` — segment order inside a slice, and what not to touch.
 - `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
 - Existing `shared/api` primitives — reuse the request/response envelope; never re-implement.
@@ -39,6 +40,7 @@ Every hook must return typed data. Never leak `any` or unchecked assertions. Err
 
 - Pure domain types and mapped types (`type Status = typeof STATUS[keyof typeof STATUS]`).
 - Pure transforms: parsing, formatting, deriving read models from raw API responses.
+- An enum shown to users gets an enum → locale-key map (`LISTING_STATUS_KEY`) and slice locale keys — never an enum → English string map.
 - Zero side effects. No React, no Axios, no ENV.
 
 ### 3. Per-entity ui/ segment
@@ -58,7 +60,7 @@ Every hook must return typed data. Never leak `any` or unchecked assertions. Err
 
 Each slice's `index.ts` re-exports only symbols a file outside the slice already imports. Deep imports into segment files from outside the slice are forbidden and enforced by ESLint / Steiger (see `references/fsd-import-boundaries.md`).
 
-Before returning, run `yarn typecheck` and `yarn lint` locally on the touched files.
+Before returning, run the self-check in `ui-build-contract.md` § 7 on the touched files.
 
 ## Outputs
 

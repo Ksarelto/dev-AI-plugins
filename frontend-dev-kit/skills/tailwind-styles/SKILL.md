@@ -26,84 +26,97 @@ description: "Style React components using styles.ts (mandatory for every compon
 ### 1. Static classes
 
 ```ts
-// features/orders/ui/OrderCard/styles.ts
-export const root    = 'flex items-center gap-3 rounded-lg border border-border bg-card p-4';
-export const title   = 'text-sm font-medium text-foreground';
+// features/orders/ui/order-summary/styles.ts
+export const root = 'flex items-center gap-3';
+export const title = 'text-sm font-medium text-foreground';
 export const subtitle = 'text-xs text-muted-foreground';
-export const amount  = 'ml-auto text-sm font-semibold text-foreground';
+export const amount = 'ms-auto text-sm font-semibold text-foreground';
 ```
 
 ```tsx
-// features/orders/ui/OrderCard/OrderCard.tsx
+// features/orders/ui/order-summary/order-summary.tsx
+import { cn } from '@/shared/lib/utils';
 import * as styles from './styles';
 
-export const OrderCard = ({ order, className }: OrderCardProps) => (
+export const OrderSummary = ({ order, className }: OrderSummaryProps): JSX.Element => (
   <div className={cn(styles.root, className)}>
-    <p className={styles.title}>{order.id}</p>
-    <span className={styles.amount}>{order.totalAmount}</span>
+    <p className={styles.title}>
+      {order.reference}
+    </p>
+    <span className={styles.amount}>
+      {order.formattedTotal}
+    </span>
   </div>
 );
 ```
 
 ### 2. Variants with `cva()`
 
+Variants on a registry primitive (`Badge`, `Button`) extend the base's own `cva` table in `shared/ui/<name>/styles.ts` and get a matching entry in its `constants.ts`. A feature component with its own states gets its own `cva`:
+
 ```ts
-// shared/ui/Badge/styles.ts
+// shared/ui/badge/styles.ts — adding success/warning to the registry table
 import { cva, type VariantProps } from 'class-variance-authority';
 
-export const badge = cva(
-  'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+export const badgeVariants = cva(
+  '…the registry base string, unchanged…',
   {
     variants: {
-      intent: {
-        default: 'bg-secondary text-secondary-foreground',
-        success: 'bg-success/10 text-success',
-        warning: 'bg-warning/10 text-warning',
-        error:   'bg-destructive/10 text-destructive',
+      variant: {
+        default: '…registry…',
+        secondary: '…registry…',
+        destructive: '…registry…',
+        outline: '…registry…',
+        success: 'border-transparent bg-success/10 text-success',
+        warning: 'border-transparent bg-warning/10 text-warning',
       },
     },
-    defaultVariants: { intent: 'default' },
+    defaultVariants: { variant: 'default' },
   },
 );
 
-export type BadgeVariants = VariantProps<typeof badge>;
+export type BadgeVariants = VariantProps<typeof badgeVariants>;
 ```
 
-```tsx
-// shared/ui/Badge/Badge.tsx
-import { badge, type BadgeVariants } from './styles';
-
-interface BadgeProps extends BadgeVariants {
-  children: ReactNode;
-  className?: string;
-}
-
-export const Badge = ({ intent, children, className }: BadgeProps) => (
-  <span className={cn(badge({ intent }), className)}>{children}</span>
-);
+```ts
+// shared/ui/badge/constants.ts
+export const BadgeVariant = {
+  Default: 'default',
+  Secondary: 'secondary',
+  Destructive: 'destructive',
+  Outline: 'outline',
+  Success: 'success',
+  Warning: 'warning',
+} as const satisfies Record<string, NonNullable<BadgeVariants['variant']>>;
 ```
+
+The registry's own variant keys and classes stay as generated; only new keys are appended. Callers pass `variant={BadgeVariant.Success}` from `constants.ts`, never `variant="success"`.
 
 ### 3. Conditional classes (function export)
 
 ```ts
-// features/orders/ui/OrderRow/styles.ts
+// features/orders/ui/order-row/styles.ts
+import { cn } from '@/shared/lib/utils';
+
 export const row = (isSelected: boolean) =>
   cn(
-    'flex items-center gap-3 border-b border-border px-4 py-3 transition-colors',
+    'flex items-center gap-3 border-b border-border px-4 py-3',
     isSelected && 'bg-accent',
   );
 ```
 
 ```tsx
 // features/orders/ui/order-row/order-row.tsx
-import { row } from './styles';
+import * as styles from './styles';
 
-export const OrderRow = ({ order, isSelected }: OrderRowProps) => (
-  <div className={row(isSelected)}>
-    {/* ... */}
+export const OrderRow = ({ order, isSelected }: OrderRowProps): JSX.Element => (
+  <div className={styles.row(isSelected)}>
+    <OrderSummary order={order} />
   </div>
 );
 ```
+
+The condition lives in `styles.ts`, so JSX never holds `isSelected ? 'bg-accent' : ''`.
 
 ## `cn()` helper
 
@@ -134,9 +147,16 @@ Never hardcode: `text-gray-700`, `#1a1a1a`, `text-slate-900`.
 
 ## Motion
 
-Dialog, drawer, sheet, popover, dropdown, and tooltip bases keep the registry’s open/close classes (`animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-*`, and `data-[state=open|closed]:…`). Those strings live in `styles.ts`. Stripping them leaves the element static.
+Motion has exactly one source: the shadcn bases.
 
-The classes do nothing unless global CSS imports the animation stylesheet the installed shadcn version expects. Read `package.json`, `components.json`, and the global CSS. Do not add a second animation library from memory. If that package is missing, it is a dependency to approve, not a class to delete.
+- Dialog, drawer, sheet, popover, dropdown, tooltip, accordion, and the rest keep the registry’s open/close classes (`animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-*`, `duration-*`, `data-[state=open|closed]:…`) verbatim in `shared/ui/<name>/styles.ts`. Stripping them leaves the element static.
+- Those classes come from the animation stylesheet the CLI configured — `@import "tw-animate-css"` in global CSS on Tailwind v4. Read `package.json`, `components.json`, and the global CSS; do not add a second animation library or custom `@keyframes`. A missing package is a dependency to approve, not a class to delete.
+- A `styles.ts` outside `shared/ui/` contains **no** motion utility: no `animate-*`, `transition-*`, `duration-*`, `delay-*`, `ease-*`, `fade-*`, `slide-*`, `zoom-*`. Added at a call site, these utilities override the primitive's `data-state` animation — the "strange" enter/exit and hover effects that differ from the shadcn docs.
+- Prototype effects (`reveal`, `reveal-2`, `hover-lift`, staggered entrances) are not recreated.
+
+## Call-site `className` on a primitive
+
+A `className` passed to `@/shared/ui/<name>` is layout only — margin, width/height, grid or flex placement, gap. Color, radius, border, shadow, padding, typography, and motion belong to the base. When a screen needs a different look, add a variant to the base (`shared/ui/<name>/styles.ts` + `constants.ts`) through the shared-UI step.
 
 ## `shared/ui/theme/` layout
 
@@ -155,5 +175,8 @@ The classes do nothing unless global CSS imports the animation stylesheet the in
 - [ ] No `dark:` variants, no `.dark` class, no `ThemeProvider`
 - [ ] No `style={{}}`, no CSS Modules, no `!important`
 - [ ] Overlay primitives keep their `data-[state=*]` / `animate-*` classes, and global CSS loads the matching animation stylesheet
+- [ ] No motion utility in any `styles.ts` outside `shared/ui/`
+- [ ] `className` on a `shared/ui` primitive is layout only — no color, radius, shadow, padding, or typography override
+- [ ] No ternary in a `className` prop — conditional classes are `styles.ts` functions or `cva` variants
 
 See [examples.md](examples.md) for few-shot templates.

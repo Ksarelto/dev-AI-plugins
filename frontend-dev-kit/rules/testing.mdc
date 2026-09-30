@@ -1,0 +1,21 @@
+---
+description: Every executable file ships with a behavior test in the same change. Mock only the boundary a test cannot run — never the whole module graph.
+globs: ["**/*.test.{ts,tsx}", "**/tests/**/*.{ts,tsx}", "**/src/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# Tests
+
+- Every executable file — component, hook, fetcher, model or lib function, store, route module, guard — has a behavior test in the same change. Components: colocated `{name}.test.tsx`. Everything else: the segment's `tests/` folder. Exempt: `types.ts`, `constants.ts`, `styles.ts`, `index.ts`, stories, `locales/`.
+- A test asserts behavior (what the user sees, what was called, what was returned). "Renders without crashing" or "is defined" is not a test.
+
+## Mock the boundary, not the graph
+
+- Mock only what the test cannot run in jsdom: the HTTP layer (the slice's `api/` fetchers or `@/shared/api/base`), navigation (`useNavigate`), browser APIs jsdom lacks, and time.
+- Partial mocks keep the rest real: `vi.mock(path, async (importOriginal) => ({ ...(await importOriginal()), fetchUsers: vi.fn() }))`.
+- Never mock: `@/shared/ui/*` primitives, `react-hook-form`, `zod`, i18n (the render wrapper loads `en`), `cn`, the component's own children, its own `model/` functions, or the store it owns. Render them for real.
+- Mock the fetcher and let the real query hook run through `rendererRTL`'s `QueryClient`, even when the query belongs to another slice. Mocking a query hook forces a cast or a full `UseQueryResult` stub.
+- A mocked module, hook, or context returns only the fields the code under test reads. Wire data given to a typed fetcher mock is typed once at the top of the file, never cast.
+- Assert on the English copy from `en.json` (what the user sees), not on translation keys.
+
+Procedure: `testing` skill.

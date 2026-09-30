@@ -59,7 +59,6 @@ export const createWizardStore = (sessionKey: string) =>
           reset:    ()      => set(initialState, false, 'reset'),
         }),
         {
-          // Scope the persist name to the session key — clears on logout/tenant switch
           name: `wizard-draft-${sessionKey}`,
           partialize: (s) => ({ step: s.step, draft: s.draft }),
         },
@@ -68,7 +67,6 @@ export const createWizardStore = (sessionKey: string) =>
     ),
   );
 
-// Module re-export of the type only — consumers get the store via context/hook
 export type WizardStore = ReturnType<typeof createWizardStore>;
 ```
 

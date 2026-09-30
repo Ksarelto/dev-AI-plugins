@@ -38,7 +38,6 @@ Content in portals is rendered outside `canvasElement`. Query from `document.bod
 play: async ({ canvasElement }) => {
   await userEvent.click(within(canvasElement).getByRole('button', { name: 'Open' }));
 
-  // Dialog is in a portal — not inside canvasElement
   const dialog = await within(document.body).findByRole('dialog');
   await expect(within(dialog).getByText('Confirm?')).toBeInTheDocument();
 },
@@ -50,11 +49,9 @@ play: async ({ canvasElement }) => {
 play: async ({ canvasElement }) => {
   const canvas = within(canvasElement);
 
-  // Tab to next focusable element
   await userEvent.tab();
   await expect(canvas.getByRole('button', { name: 'Cancel' })).toHaveFocus();
 
-  // Escape closes modal / dropdown
   await userEvent.keyboard('{Escape}');
   await expect(within(document.body).queryByRole('dialog')).not.toBeInTheDocument();
 },

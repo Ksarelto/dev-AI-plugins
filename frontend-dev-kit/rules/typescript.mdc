@@ -107,13 +107,17 @@ Derive types instead of duplicating them.
 | `satisfies` | Validate a literal against a type without widening it |
 
 ```ts
-const STATUS_LABELS = {
-  new: 'New',
-  active: 'Active',
-  declined: 'Declined',
+const PROFILE_STATUS_KEY = {
+  new: profileKeys.status.new,
+  active: profileKeys.status.active,
+  declined: profileKeys.status.declined,
 } satisfies Record<ProfileStatus, string>
-// STATUS_LABELS.new is typed as 'New', not string — satisfies keeps literal inference
+
+t(PROFILE_STATUS_KEY[profile.status])
 ```
+
+`satisfies` fails the build when a status is added without a key, and keeps each value's literal
+key type from `keys.ts`. The map holds translation keys, never English copy (`rules/i18n.mdc`).
 
 Derive unions from runtime constants instead of maintaining both by hand:
 

@@ -122,6 +122,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
         fsd-import-boundaries.md             ← the import matrix + Steiger config
         investigation-protocol.md            ← context7 flow + dependency-proposal policy
         quality-gates.md                     ← gate commands, thresholds, remediation hints
+        ui-build-contract.md                 ← what every src/ worker is held to (shadcn, copy, JSX, boundaries, tests, parity)
         definition-of-done.md                ← the standing bar, independent of acceptance criteria
         increment-protocol.md                ← thin-slice discipline inside one slice
         human-review-protocol.md             ← what the human sees at station 12
@@ -138,6 +139,8 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
         import-upstream.mjs                  ← scoped YAML + prototype → blackboard
         validate-feature-spec.mjs            ← deterministic blackboard gate (station 0.5)
         run-gates.sh                         ← gate sequence → JSON; failures to a log, not to context
+        check-conventions.mjs                ← `conventions` gate: missing tests, comments, copy, exports, JSX, motion
+        extract-prototype-inventory.mjs      ← prototype page → parity table; --check fails unbuilt rows/states
         mock-flow.mjs                        ← contract tests (no LLM)
     create-slice/  create-entity/  create-feature/  create-widget/  create-page/
     create-shared-ui/  create-react-component/  add-route/  wire-navigation/
@@ -176,10 +179,11 @@ request (or frontend-orchestrator-kit feature + .spec/spec/spec-*/spec.md)
       │
 feature-dev skill
   Station 0    intake — upstream-interpreter + spec-analyst → .spec/features/<slug>.md
+               + prototype-inventory.md when a prototype page is bound
   Station 0.5  🧑 GATE: spec approval (validate-feature-spec.mjs, then human)
       │
   Classify TIER
-      patch     → slice-engineer, Station 8 file walk, run-gates.sh --until fsd, then Station 12
+      patch     → slice-engineer, Station 8 file walk, run-gates.sh --until conventions, then Station 12
       standard  → feature-orchestrator (skip Station 1.5)
       full      → feature-orchestrator
       Station 1    discovery — code-explorer            → FSD impact + reuse map
@@ -188,15 +192,16 @@ feature-dev skill
       Station 1b   ⇢ DEP_PACKET                          ← 🧑 GATE: dependency approval
       Station 2    planning                              ↓ GATE: build-plan
       Station 3–7  layers                                ↓ GATE: --until fsd
-      Station 8    test-engineer                          ← every new executable file
-      Station 9    full sweep — build + coverage once    ↓ GATE: all-green
+                   Station 6 fills prototype-inventory   ↓ GATE: parity (--check)
+      Station 8    test-engineer (always)                 ← every new executable file
+      Station 9    full sweep — conventions + build + coverage once  ↓ GATE: all-green
       Station 9.5  architecture-auditor DIFF_SCOPE        ↓ GATE: architecture-clean
       Station 10   auto-review — code-reviewer           ↓ GATE: review-clean
       Station 11   fix loop (failed gate + types, max 3)
       ⇢ RETURN REVIEW_PACKET (review_path only)
       │
 feature-dev skill
-  Browser check  Chrome DevTools — layout, actions, one adjacent route (when UI changed)
+  Browser check  Chrome DevTools — layout, actions, prototype vs React per state, one adjacent route (when UI changed)
   Station 12   🧑 GATE: human review (max 3 cycles)
       │
       ▼
@@ -215,6 +220,8 @@ For per-station contracts, revise re-entry points, and parallelism rules see
 | Spec approval | skill (human) | Criteria testable; validator exits 0 | 3 clarification rounds → unknowns become open questions |
 | Dependency approval | skill (human) | Every proposed package signed off | Rejected → plan returns for an alternative |
 | Layer green | orchestrator | `run-gates.sh --until fsd` (types, lint, FSD) | 3 fix attempts → escalate; transcript stays in `.spec/.gate-log` |
+| Prototype parity | orchestrator | `extract-prototype-inventory.mjs --check` — every row built or `n/a: <reason>`, every prototype state rendered | Re-delegate the rows; never `n/a` to pass |
+| Conventions | orchestrator | `check-conventions.mjs` zero errors on every file changed on the branch (tests, comments, copy, exports, JSX, motion) | 3 fix attempts → escalate. Needs the host app's TypeScript 5/6 compiler API (`typescript-api@npm:typescript@^6` on TS 7) |
 | Coverage | orchestrator | branches ≥73 · functions ≥78 · lines ≥87 · statements ≥86 | 2 attempts → escalate; never game coverage |
 | Auto-review | orchestrator | No `[CRITICAL]`, no unresolved `[IMPORTANT]` | 2 attempts → escalate with findings |
 | Architecture audit | architecture-auditor | REPORT_ONLY: zero hard violations on changed paths | Fix loop; missing companion skill → escalate |
@@ -254,7 +261,7 @@ frontend-orchestrator-kit (or the human) provides one. It never dumps every app 
 1. Install this plugin **and** `frontend-dev-kit` (conventions, architecture-audit, testing).
 2. Merge `mcp.json` into the consumer repo root `.mcp.json`; set `CONTEXT7_API_KEY`; verify both servers per `references/mcp-servers.md`.
 3. Add the FSD boundary linter (Steiger) and wire `yarn lint:fsd` into the gate sequence.
-4. Confirm the gate commands in `references/quality-gates.md` match the project's `package.json`.
+4. Confirm the gate commands in `references/quality-gates.md` match the project's `package.json`. The `conventions` gate loads the app's own `typescript` (5.x/6.x). On TypeScript 7, add the classic API alongside it: `npm i -D typescript-api@npm:typescript@^6`.
 5. Start narrow: one entity slice + one feature + one page, with every gate human-supervised.
 
 Layer engineers run one slice after another on the feature branch. TaskCreate/TaskUpdate on the hub are

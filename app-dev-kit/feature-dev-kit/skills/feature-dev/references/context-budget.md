@@ -118,6 +118,13 @@ diff-size guard still applies per path; do not invent a second triage agent.
 
 Each worker receives only its own slice's `SPEC_SECTIONS`. Do not inline every slice's sections into one worker.
 
+## Prototype inventory
+
+`.spec/features/<slug>.context/prototype-inventory.md` is passed by **path** to UI workers and to
+`code-reviewer`. Never paste its rows into a prompt or onto the blackboard. Workers read the rows
+for their page/state and edit only the React target / Status cells. The prototype HTML itself is
+read only by `composition-engineer` (and the browser check), never by the orchestrator.
+
 ## Size guards
 
 | Payload | Soft limit | Action on breach |

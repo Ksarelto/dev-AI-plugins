@@ -69,13 +69,14 @@ export const router = createBrowserRouter([
 ```tsx
 import { lazyFeature } from '@/shared/lib/lazyFeature';
 import type { RouteObject } from 'react-router';
+import { withRouteBoundary } from '../route-boundary';
 
 const LoginPage = lazyFeature('login', () => import('@/pages/auth/login'));
 const SignupPage = lazyFeature('signup', () => import('@/pages/auth/signup'));
 
 export const authRoutes: RouteObject[] = [
-  { path: '/login', element: <LoginPage /> },
-  { path: '/signup', element: <SignupPage /> },
+  { path: '/login', element: withRouteBoundary(<LoginPage />) },
+  { path: '/signup', element: withRouteBoundary(<SignupPage />) },
 ];
 ```
 
@@ -92,6 +93,7 @@ import { RequirePermission } from '../guards/RequirePermission';
 import { RequireFlag } from '../guards/RequireFlag';
 import { lazyFeature } from '@/shared/lib/lazyFeature';
 import type { RouteObject } from 'react-router';
+import { withRouteBoundary } from '../route-boundary';
 
 const DocumentsPage = lazyFeature('documents', () => import('@/pages/documents'));
 const DocumentUploadPage = lazyFeature('document-upload', () => import('@/pages/document-upload'));
@@ -106,17 +108,17 @@ export const rootRoutes: RouteObject[] = [
       {
         element: <RequireAuth />,
         children: [
-          { path: '/documents', element: <DocumentsPage /> },
-          { path: '/document-upload', element: <DocumentUploadPage /> },
+          { path: '/documents', element: withRouteBoundary(<DocumentsPage />) },
+          { path: '/document-upload', element: withRouteBoundary(<DocumentUploadPage />) },
           {
             element: <RequirePermission permission="admin:read" />,
-            children: [{ path: '/admin', element: <AdminPage /> }],
+            children: [{ path: '/admin', element: withRouteBoundary(<AdminPage />) }],
           },
           {
             element: <RequireFlag name="reports" />,
             children: [
-              { path: '/reports', element: <ReportsPage /> },
-              { path: '/reports/:id', element: <ReportDetailPage /> },
+              { path: '/reports', element: withRouteBoundary(<ReportsPage />) },
+              { path: '/reports/:id', element: withRouteBoundary(<ReportDetailPage />) },
             ],
           },
         ],
@@ -124,6 +126,21 @@ export const rootRoutes: RouteObject[] = [
     ],
   },
 ];
+```
+
+Every page element goes through the route boundary (`error-handling` skill § Every route), so a crash or a failed chunk on one page leaves the layout, navigation, and other routes working:
+
+```tsx
+// app/router/route-boundary/with-route-boundary.tsx
+import type { ReactNode } from 'react';
+import { PageSkeleton } from '@/shared/ui/page-skeleton';
+import { RouteBoundary } from './route-boundary';
+
+export const withRouteBoundary = (page: ReactNode): JSX.Element => (
+  <RouteBoundary fallback={<PageSkeleton />}>
+    {page}
+  </RouteBoundary>
+);
 ```
 
 ## `app/router/error/routes.tsx`
@@ -153,8 +170,14 @@ import { useSession } from '@/shared/lib/auth';
 export const RequireAuth = (): JSX.Element => {
   const session = useSession();
 
-  if (session.status === 'loading') return <div />; // or a spinner
-  if (session.status !== 'authenticated') return <Navigate to="/login" replace />;
+  if (session.status === 'loading') {
+    return <Spinner />;
+  }
+
+  if (session.status !== 'authenticated') {
+    return <Navigate to="/login" replace />;
+  }
+
   return <Outlet />;
 };
 ```
@@ -219,14 +242,20 @@ export const lazyFeature = (name: string, factory: () => Promise<{ default: Reac
 
 Route-level error boundary branches on error type:
 
+A stale client after a deploy offers a reload; a broken module init falls through to the shared crash fallback:
+
 ```tsx
-// At the route boundary
+// app/router/route-boundary/route-fallback.tsx
 if (error instanceof FeatureLoadError && isChunkLoadError(error.cause)) {
-  // Stale client after deploy — offer reload
   return <ReloadPrompt />;
 }
-// Broken module init — full crash screen
-return <CrashScreen error={error} />;
+
+return (
+  <ErrorFallback
+    error={error}
+    resetErrorBoundary={resetErrorBoundary}
+  />
+);
 ```
 
 ## URL as state

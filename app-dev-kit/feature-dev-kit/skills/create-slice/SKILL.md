@@ -21,25 +21,18 @@ Any station that introduces a new FSD slice. This is the base scaffold that the 
 
 2. **Create the slice directory**: `src/<layer>/<slice>/`. Do not create the directory without at least one file in it.
 
-3. **Create `index.ts` first** (before any segment files):
-   ```ts
-   // src/<layer>/<slice>/index.ts
-   // Public API — export only what external code needs
-   // Add exports here as segments are built
-   export {}
-   ```
-   The `export {}` placeholder prevents TypeScript errors until real exports are added.
+3. **Create each required segment** with its real first file, per the higher-level skill. No placeholder files, no empty `export {}` modules.
 
-4. **Create each required segment directory** with a placeholder file to track intent, then fill them per the higher-level skill instructions.
-
-5. **Enforce downward-only imports**: add a comment at the top of each segment file listing what it may import from:
+4. **Enforce downward-only imports** — by where you import from, not by writing it down (no header comments in segment files):
    - Entity slice: may import from `shared/*`
    - Feature slice: may import from `entities/*/index.ts`, `shared/*`
    - Widget/Page slice: may import from `features/*/index.ts`, `entities/*/index.ts`, `shared/*`
 
+5. **Write `index.ts` last**, once the segments exist. It re-exports only the symbols a file outside the slice imports today — usually the one entry component (a feature's error-boundary-wrapped entry, a widget, a page) and, for an entity, its public hooks/types. No `export *`, no "may be useful later" exports, nothing only a test uses.
+
 6. **Run FSD boundary lint** after creating the slice: `yarn lint:fsd`. Fix any violations before returning.
 
-7. **Update `index.ts`** to export only the public symbols needed by external code. Remove the `export {}` placeholder when real exports exist.
+7. **Every executable file in the slice has a test** in the same change (`rules/testing.mdc`). The `conventions` gate fails on `missing-test`, `comment`, and `unused-export`.
 
 ## Pre-conditions
 

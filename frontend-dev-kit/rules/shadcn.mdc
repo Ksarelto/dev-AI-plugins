@@ -1,0 +1,26 @@
+---
+description: shadcn/ui bases in shared/ui keep the registry source verbatim — one style, Radix structure, data-slot attributes, and the registry's own open/close motion. Closed-set props are exported constants.
+globs: ["**/shared/ui/**/*.{ts,tsx}", "**/components.json", "**/globals.css"]
+alwaysApply: false
+---
+
+## Principles
+- Use existing components first. Use npx shadcn@latest search to check registries before writing custom UI. Check community registries too.
+- Compose, don't reinvent. Settings page = Tabs + Card + form controls. Dashboard = Sidebar + Card + Chart + Table.
+- Use built-in variants before custom styles: `variant={ButtonVariant.Outline}`, `size={ButtonSize.Small}`, etc.
+- Use semantic colors. bg-primary, text-muted-foreground — never raw values like bg-blue-500.
+
+# shadcn/ui bases
+
+- The `style` in `components.json` is the app's only style. Add every primitive with `shadcn add` (CLI or MCP) against that config. Never paste a component from another style, another registry, a blog post, or the HTML prototype.
+- The CLI output is the source of truth. Re-homing into `shared/ui/<name>/` moves code; it does not rewrite it:
+  - Keep every exported part, prop, `data-slot` attribute, and Radix import exactly as generated (`radix-ui` or `@radix-ui/react-*` — whichever the CLI wrote).
+  - Move class strings into `styles.ts` verbatim and in the same order, including every `data-[state=*]:`, `animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-in-from-*`, and `duration-*` class.
+  - Allowed edits only: deleting the registry's comments, kebab-case file names, props types to `types.ts`, closed-set constants in `constants.ts`, user-facing literals (the `sr-only` "Close") to `t(commonKeys…)`, `FormMessage` passing the error through `translateMessage`, and `Button`'s default `type`.
+- Global CSS imports the animation stylesheet the CLI configured (`@import "tw-animate-css"` on Tailwind v4) exactly once. No extra `@keyframes`, `--animate-*` tokens, or a second animation library.
+- Motion utilities exist only in these bases. Feature, entity, widget, and page code never adds `animate-*`, `transition-*`, `duration-*`, `fade-*`, `slide-*`, or `zoom-*` to a primitive — it overrides the base's `data-state` animation.
+- A caller composes parts in the order of the registry demo (`get_item_examples_from_registries`, e.g. `dialog-demo`): `DialogContent` → `DialogHeader` (`DialogTitle`, `DialogDescription`) → body → `DialogFooter` (`DialogClose asChild`).
+- A new look is a new `cva` variant in the base's `styles.ts`, added by the shared-UI step — never a call-site `className` override of color, radius, border, shadow, padding, or typography.
+- Each closed-set prop gets a constant object in `constants.ts`, derived from the `cva` table: `ButtonVariant`, `ButtonSize`, `BadgeVariant`, `AlertVariant`; `Input` exports `InputType`. `Button` also exports `ButtonType` and defaults `type` to `ButtonType.Button`, so callers omit it except for `ButtonType.Submit`.
+
+Procedure: `shadcn-usage` skill.

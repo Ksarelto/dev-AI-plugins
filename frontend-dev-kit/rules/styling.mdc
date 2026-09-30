@@ -1,10 +1,10 @@
 ---
-description: Every component folder has styles.ts. All Tailwind classes live there — none inline in JSX.
-globs: ["**/styles.ts"]
+description: Every component folder has styles.ts. All Tailwind classes live there — none inline in JSX. Motion comes only from shadcn bases; the look comes from theme tokens, not call-site overrides.
+globs: ["**/styles.ts", "**/*.tsx", "**/*.css"]
 alwaysApply: false
 ---
 
-# Component styling files
+# Component styling
 
 Every component folder has a `styles.ts`. The component file owns structure and behavior;
 `styles.ts` owns every Tailwind class, `cva()` variant, and shadcn `className`.
@@ -13,52 +13,67 @@ Every component folder has a `styles.ts`. The component file owns structure and 
 
 - Every Tailwind class string, including one-liners (`flex`, `gap-2`, a single color).
 - `cva()` variant tables and their exported `VariantProps` type.
-- `cn()`-composed class strings and class-building helpers.
-- Style-only constants: variant maps and size/intent enums used only for class selection.
+- `cn()`-composed class strings and class-building helpers (`row(isSelected)`).
 
 ```ts
-// button/styles.ts
-import { cva, type VariantProps } from 'class-variance-authority';
+// features/orders/ui/order-card/styles.ts
+import { cn } from '@/shared/lib/utils';
 
-export const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors',
-  {
-    variants: {
-      intent: {
-        primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-        danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-      },
-      size: { sm: 'h-8 px-3', md: 'h-10 px-4' },
-    },
-    defaultVariants: { intent: 'primary', size: 'md' },
-  },
-);
-
-export type ButtonVariants = VariantProps<typeof buttonVariants>;
+export const root = (className?: string) => cn('flex items-center gap-3', className);
+export const title = 'text-sm font-medium text-foreground';
+export const amount = 'ms-auto text-sm font-semibold text-foreground';
 ```
 
 ```tsx
-// button/button.tsx
-import { cn } from '@/shared/lib/utils';
-import { buttonVariants, type ButtonVariants } from './styles';
+// features/orders/ui/order-card/order-card.tsx
+import { Card } from '@/shared/ui/card';
+import * as styles from './styles';
+import type { OrderCardProps } from './types';
 
-type ButtonProps = React.ComponentProps<'button'> & ButtonVariants;
-
-export const Button = ({ intent, size, className, ...props }: ButtonProps): JSX.Element => {
-  return <button className={cn(buttonVariants({ intent, size }), className)} {...props} />;
-};
+export const OrderCard = ({ order, className }: OrderCardProps): JSX.Element => (
+  <Card className={styles.root(className)}>
+    <p className={styles.title}>
+      {order.reference}
+    </p>
+    <span className={styles.amount}>
+      {order.formattedTotal}
+    </span>
+  </Card>
+);
 ```
 
-## What stays out of `styles.ts`
+## JSX never carries classes
 
-- Business logic, event handlers, hooks, and data fetching.
-- Structural JSX. Styling decides how a node looks, not what the tree contains.
-- Tailwind class strings in component JSX. There is no inline-class exception.
+- No string, template, or `cn('…')` literal in a `className` prop. `className={styles.x}` or
+  `className={styles.x(className)}` only.
+- No `style={{}}`, CSS Modules, styled-components, or `!important`.
+- A conditional class is a function in `styles.ts` (`styles.row(isSelected)`) or a `cva` variant —
+  never a ternary in the `className` prop.
+
+## Primitives keep their look
+
+- A `className` passed to a `@/shared/ui/<name>` primitive is layout only: margin, width/height,
+  grid or flex placement, gap. Never color, radius, border, shadow, typography, padding, or motion.
+- A new look is a new `cva` variant in `shared/ui/<name>/styles.ts` (shared-UI step), not an
+  override at the call site.
+- Match the prototype through theme tokens in `shared/ui/theme/globals.css` (`--primary`,
+  `--radius`, fonts) — not by restyling primitives per feature.
+
+## Motion
+
+- Open/close motion belongs to the shadcn base: the registry's `animate-in`, `animate-out`,
+  `fade-*`, `zoom-*`, `slide-*`, `duration-*`, and `data-[state=*]` classes, verbatim, in
+  `shared/ui/<name>/styles.ts`.
+- Outside `shared/ui/`, no `animate-*`, `transition-*`, `duration-*`, `delay-*`, `ease-*`, `fade-*`,
+  `slide-*`, `zoom-*` utility, and no new `@keyframes` or `--animate-*` in global CSS. These fight
+  the primitive's own `data-state` animation.
+- Prototype motion (`reveal`, `hover-lift`, staggered entrances) is not ported. A spinner is
+  `@/shared/ui/spinner`; a placeholder is `@/shared/ui/skeleton`.
 
 ## Contract
 
 - `styles.ts` exports plain values and, when variants exist, the derived `VariantProps` type.
-- The component passes an incoming `className` into that export so a caller can still override.
+- The component passes an incoming `className` into that export so a caller can still override layout.
 - Colors are semantic tokens (`bg-primary`, `text-muted-foreground`). No raw hex or palette-step classes.
 - One light palette. No `dark:` variants.
 

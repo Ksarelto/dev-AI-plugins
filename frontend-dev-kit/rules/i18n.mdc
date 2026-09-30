@@ -1,0 +1,21 @@
+---
+description: Every user-visible string comes from typed i18n keys — shared copy in shared/lib/i18n/locales/common, slice copy in that slice's locales/. No hardcoded strings and no string-map objects.
+globs: ["**/*.tsx", "**/locales/**/*.{json,ts}", "**/constants.ts", "**/config/**/*.ts", "**/model/**/*.ts", "**/models/**/*.ts"]
+alwaysApply: false
+---
+
+# User-visible copy
+
+- Every string a user can see or hear is `t(key)`: JSX text, `aria-label`, `alt`, `title`, `placeholder`, `label` / `description` props, `sr-only` text, `notify` toasts, zod validation messages, error-boundary fallbacks, loading / empty / error states.
+- Exempt: data the server returned for display (names, descriptions, a server message meant for the user) and non-copy tokens (`data-slot`, ids, URLs, route paths, class names, enum wire values).
+- Where copy lives:
+  - Used by more than one slice → `shared/lib/i18n/locales/common/{en.json,keys.ts}` (`commonKeys`).
+  - Owned by one slice → that slice's `locales/{en.json,keys.ts}` (`features/<f>/locales/`, and the same pair under an entity, widget, or page that owns copy).
+  - Nowhere else. No `src/locales/`, `shared/locales/`, `shared/config/textContent.ts`, or `constants.ts` copy.
+- No string maps. `const LABELS = { save: 'Save' }`, a `TextContent` object, or `satisfies Record<Status, string>` holding English is a hardcoded string. Map the union to a **key** instead and call `t()` at render.
+- Keys are typed (`keys.ts` → `as const satisfies NestedKeysOf<typeof en>`). Call `t(usersKeys.list.title)`, never a raw `'list.title'` literal, and never another feature's keys.
+- Zod messages are keys (`z.string().min(1, formKeys.errors.nameRequired)`). `FormMessage` translates them.
+- Copy taken from the HTML prototype goes into `en.json` verbatim unless the spec changes it.
+- `models/` never imports keys or calls `t()` — it returns a union; `ui/` maps it to a key.
+
+Procedure: `i18n` skill.
