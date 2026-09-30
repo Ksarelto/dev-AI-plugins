@@ -39,14 +39,14 @@ Skip these even if they changed:
 Executable behavior (a component, hook, fetcher, model function, route module, or guard) needs a behavior test. Skip a file that only re-exports or only declares types.
 
 - Component under a `ui/` folder: `{name}.test.tsx` in that folder. Update it if it exists.
-- Every other executable file: a `*.test.ts` in the segment `tests/` folder (`api/tests/`, `model/tests/`, `hooks/tests/`, `lib/tests/`, `app/router/<group>/tests/`). One `shared/lib/tests/` for all of `shared/lib`. Test helpers for that segment live in the same `tests/` folder.
+- Every other executable file: a `*.test.ts` in the segment `tests/` folder. Features use `models/tests/`; entities and widgets use `model/tests/`. Also `api/tests/`, `hooks/tests/`, `lib/tests/`, `app/router/<group>/tests/`. One `shared/lib/tests/` for all of `shared/lib`. Test helpers for that segment live in the same `tests/` folder.
 - Do not create `fetchers.test.ts` next to `api/fetchers.ts`.
 
 ## What to test per file type
 
 | File type | Test focus |
 |-----------|-----------|
-| `Component.tsx` | Renders, user interactions, loading state, error state |
+| `{name}.tsx` under `ui/` | Renders, user interactions, loading state, error state |
 | `useHook.ts` | Initial state, state updates, side effects |
 | `utils.ts` | Input/output transformations, edge cases, null handling |
 | `Context/Provider` | Context value exposed, state changes propagate |

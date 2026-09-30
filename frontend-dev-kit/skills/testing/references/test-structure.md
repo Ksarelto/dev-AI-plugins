@@ -62,7 +62,7 @@ it('disables submit while loading', () => {
   }
   render(<MyComponent {...props} />)
 
-  const submit = screen.getByRole('button', { name: TextContent.common.submit })
+  const submit = screen.getByRole('button', { name: 'Submit' })
   expect(submit).toBeDisabled()
 })
 
@@ -81,9 +81,9 @@ render(<MyComponent {...defaultProps} isLoading={true} extraProp="x" />)
 **Never repeat the same literal** across mocks, renders, and `expect` statements.
 
 1. **Use existing symbols first:**
-   - UI copy → `TextContent.section.key`
-   - Field keys / codes → import from `constants.ts` of the module under test
-   - Enum values → import from `@/enums/`
+   - UI copy → the English string from `en.json` (components call `t(keys)`, not a `TextContent` module)
+   - Field keys / codes → import from the module under test
+   - Closed sets → the const object in the owning slice (`config/` or `models/`). No `src/enums/`
 
 2. **If nothing exists**, define one named constant at the top of the test file:
 

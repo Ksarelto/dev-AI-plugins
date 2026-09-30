@@ -4,9 +4,9 @@ Organize imports in this exact order. All `vi.mock()` calls must come **before**
 
 ```ts
 // 1. vi.mock() calls — MUST be first (hoisted by Vitest)
-vi.mock('@/utils/env')
-vi.mock('@/api/profiles/profiles.hooks')
-vi.mock('./ChildComponent')
+vi.mock('@/shared/config/env')
+vi.mock('@/features/profiles/hooks/useProfiles')
+vi.mock('./child-card')
 vi.mock('react-router', async () => {
   const actual = await vi.importActual('react-router')
   return { ...actual, useNavigate: vi.fn() }
@@ -20,12 +20,11 @@ import userEvent from '@testing-library/user-event'
 import React from 'react'
 
 // 4. Custom render utility
-import { render, renderHook } from '@/utils/rendererRTL'
+import { render, renderHook } from '@/shared/lib/rendererRTL'
 
 // 5. Component-specific (constants, types, component under test)
-import { TextContent } from '@/constants/textContent'
-import { MyComponent } from './MyComponent'
-import type { MyComponentProps } from './MyComponent'
+import { MyComponent } from './my-component'
+import type { MyComponentProps } from './types'
 ```
 
 ## Rules

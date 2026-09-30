@@ -6,10 +6,7 @@ alwaysApply: false
 
 # General Coding Principles
 
-**Project**: iv-frontend
-**Language**: TypeScript 5.7+ | **Linter**: ESLint 8 | **Formatter**: ESLint (no Prettier)
-
-High-level clean code and convention defaults for iv-frontend. For React-specific rules (hooks, effects, state, JSX) see [react-coding-principles.md](react-coding-principles.md). For styling see the component/styling docs. For stack-specific conventions, follow the architecture, API, and testing guides.
+High-level clean code defaults. React behavior is `rules/react.mdc`. FSD placement is the `architecture-audit` skill. HTTP errors are the `error-handling` skill. Copy is the `i18n` skill.
 
 ---
 
@@ -31,7 +28,7 @@ Apply these based on the circumstances — they can pull in different directions
 
 ## Design Patterns First
 
-Before writing new plain code for a recurring problem, check whether an existing pattern in the codebase already solves it (see [architecture.md](architecture.md) for the patterns in use — Strategy, Singleton, Observer, Proxy, Facade, etc.) and reuse or extend it rather than inventing a parallel approach.
+Before writing new plain code for a recurring problem, reuse the slice that already owns it (`architecture-audit`). Do not add a second HTTP client, auth store, or event bus.
 
 - Search for a similar existing implementation before writing new logic — match its shape.
 - Prefer composition over inheritance: build behavior by combining small functions/modules, not by extending base classes or deep hierarchies.
@@ -68,7 +65,7 @@ Before writing new plain code for a recurring problem, check whether an existing
 ## Magic Numbers and Strings
 
 - No unexplained literals in logic — extract to a named constant that states what the value means (`REQUEST_TIMEOUT`, `ProfileStatus.Declined`) instead of inlining `30000` or `'declined'`.
-- Reuse existing enums/constants (`src/enums/`, `src/api/constants.ts`, `TextContent`) before adding a new one.
+- Reuse an existing constant in the owning slice (`config/` or `models/`) before adding a new one.
 - A literal used exactly once in an obviously self-describing spot (e.g. `array.length - 1`) doesn't need extraction — use judgment, don't over-extract trivial values.
 
 ---
@@ -149,47 +146,13 @@ const userFixture = {
 
 ## Error Handling
 
-```ts
-// Source: src/utils/errorHandler.ts:9
-export const errorHandler = (
-  error: IErrorResponse | null,
-  defaultMessage?: string,
-  notificationLevel?: NotificationLevelValue,
-): void => {
-  const errorMessage = error?.response?.data?.message ?? defaultMessage
-  MAP_NOTIFICATION_LEVEL_TO_NOTIFIER[notificationLevel](errorMessage)
-}
-```
-
-**Rule**: Always use `isErrorResponse` type guard before calling `errorHandler`:
-
-```ts
-import { isErrorResponse } from '@/utils/types/errorHandler.types'
-
-if (isErrorResponse(error)) {
-  errorHandler(error)
-}
-```
-
-**Notifications:**
-- `notifySuccess(message)` — green notification
-- `notifyWarning(message)` — orange notification (default in `errorHandler`)
-- Import from `@/utils/notification`
+HTTP failures are `AppError` from `@/shared/api/errors` (`isAppError`, string `kind`). Toasts go through `notify` from `@/shared/lib/notify`. Expected business outcomes are return values from `models/`, not thrown. Procedure: `error-handling` skill.
 
 ---
 
 ## Environment Variables
 
-```ts
-// Source: src/utils/env.ts:15
-const ENV = new Proxy<IEnvValues>({}, handler)
-
-// Usage — always this way:
-import { ENV } from '@/utils/env'
-const url = ENV.PROFILES_URL
-```
-
-Add new variables to `src/utils/types/env.types.ts` interface first. Never use `process.env.X` directly.
+Parse env once in `shared/config/env.ts` with zod. The API origin is the exception: only `shared/api/config.ts` reads `import.meta.env` for `VITE_API_BASE_URL`. Feature code does not read `import.meta.env` or `process.env`.
 
 ---
 
@@ -199,7 +162,7 @@ Add new variables to `src/utils/types/env.types.ts` interface first. Never use `
 - **No `console.log`** — only `console.warn` and `console.error` are permitted.
 - No credentials, tokens, or secrets in source files.
 - User-controlled data must never be passed to `dangerouslySetInnerHTML`.
-- No hardcoded UI strings in components — use `TextContent` from `src/constants/textContent.ts`.
+- No hardcoded UI strings in components — `t(usersKeys....)` or `commonKeys` (`i18n` skill). No `src/constants/textContent.ts`.
 
 ```ts
 console.warn('Non-critical issue:', detail)
@@ -243,7 +206,7 @@ Always commit `yarn.lock`. Check `resolutions` in `package.json` for forced vers
 | Default exports in modules/containers | Named exports | Consistent imports, tree-shaking |
 | `I` prefix on new interfaces | No prefix | Codebase convention (rename script was run) |
 | `console.log` | `console.warn` / `console.error` | ESLint `no-console` rule |
-| `process.env.X` | `ENV.X` | Runtime env support |
+| `process.env` / `import.meta.env` in a feature | `shared/config/env.ts` | One parser |
 | `jest.mock()` | `vi.mock()` | Vitest |
 | `any` | `unknown` + type guard | Type safety at boundaries |
 | `undefined` for an intentionally empty value | `null` | Explicit "no value" vs. an unset/missing one |

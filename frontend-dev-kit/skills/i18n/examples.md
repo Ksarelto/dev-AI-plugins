@@ -1,6 +1,6 @@
 # i18n Examples
 
-Bad/Good pairs for the constraints in the `i18n` rule.
+Bad/Good pairs for the `i18n` skill.
 
 ## Hardcoded copy
 
@@ -9,17 +9,19 @@ Bad/Good pairs for the constraints in the `i18n` rule.
 <Button aria-label="Delete item">Delete</Button>
 
 // Good
-const { t } = useTranslation('items');
+import { itemKeys } from '@/features/items/locales/keys';
 
-<Button aria-label={t('actions.deleteAriaLabel')}>
-  {t('actions.delete')}
+const { t } = useTranslation();
+
+<Button aria-label={t(itemKeys.actions.deleteAriaLabel)}>
+  {t(itemKeys.actions.delete)}
 </Button>
 ```
 
-## Key naming and namespace files
+## Key files
 
 ```json
-// src/locales/en/users.json
+// features/users/locales/en.json
 {
   "list": {
     "emptyState": "No users found",
@@ -28,19 +30,34 @@ const { t } = useTranslation('items');
 }
 ```
 
+```ts
+// features/users/locales/keys.ts
+import type { NestedKeysOf } from '@/shared/lib/i18n/keys';
+import en from './en.json';
+
+export const usersKeys = {
+  list: {
+    emptyState: 'list.emptyState',
+    title: 'list.title',
+  },
+} as const satisfies NestedKeysOf<typeof en>;
+```
+
 ```tsx
-// Bad — raw sentence as key, no namespace
+// Bad — raw sentence, or a raw key string, or src/locales/en/users.json
 t('No users found');
+t('list.emptyState');
 
 // Good
-const { t } = useTranslation('users');
-t('list.emptyState');
+t(usersKeys.list.emptyState);
 ```
+
+Shared copy that more than one feature needs goes in `shared/lib/i18n/locales/common/`, not in another feature's `locales/`.
 
 ## Pluralization
 
 ```json
-// en/orders.json
+// features/orders/locales/en.json
 {
   "itemCount_one": "{{count}} item",
   "itemCount_other": "{{count}} items"
@@ -52,7 +69,7 @@ t('list.emptyState');
 count === 1 ? `${count} item` : `${count} items`;
 
 // Good
-t('itemCount', { count });
+t(orderKeys.itemCount, { count });
 ```
 
 ## Embedded markup with Trans
@@ -67,7 +84,7 @@ t('itemCount', { count });
 
 // Good
 <Trans
-  i18nKey="termsNotice"
+  i18nKey={usersKeys.termsNotice}
   components={{ link: <a href="/terms" /> }}
 />
 ```
@@ -75,20 +92,13 @@ t('itemCount', { count });
 ## Formatters
 
 ```tsx
-// Bad — hand-built format, re-created every render
+// Bad — hand-built format, or Intl constructed in the component
 `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+new Intl.NumberFormat(locale, { style: 'currency', currency: order.currency }).format(order.total);
 
-// Good — built once per locale, memoized
-const dateFormatter = useMemo(
-  () => new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }),
-  [locale],
-);
-dateFormatter.format(date);
-```
-
-```tsx
-// Currency — code from data, formatting from locale
-new Intl.NumberFormat(locale, { style: 'currency', currency: order.currencyCode }).format(order.total);
+// Good — formatters from shared/lib/i18n/format.ts; currency code from the money value
+const formatCurrency = useCurrencyFormatter();
+formatCurrency(order.total, order.currency);
 ```
 
 ## RTL-safe layout

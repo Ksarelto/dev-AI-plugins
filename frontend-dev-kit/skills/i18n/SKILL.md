@@ -12,37 +12,29 @@ description: Internationalize React components with react-i18next — key naming
 - A string needs a plural form or embeds a link/bold text (`<Trans>`).
 - Building layout that must work in both LTR and RTL locales.
 
-The hard constraints live in the `i18n` rule and apply whether or not this skill is loaded. This
-skill is the procedure, the formatter patterns, and the `<Trans>` templates.
+Layout and key typing are in `architecture-audit` `references/i18n.md`. This skill is the procedure.
 
 ## Instructions
 
-1. **Locate or create the namespace file** — `src/locales/{lang}/{namespace}.json`, one per feature.
-   Add the key to the default locale first; that file is the source of truth for structure.
-2. **Name the key** hierarchically and specifically: `users.list.emptyState`, not `emptyState` or a
-   raw sentence. Stop nesting at three levels.
-3. **Call `t()` with a static literal**: `useTranslation('users')` then `t('list.emptyState')`. Never
-   assemble a key at runtime unless every variant is enumerated in a typed `as const` map.
-4. **Interpolate, don't concatenate**: `t('greeting', { name })`. For counts, use the `count` option
-   and `_one`/`_other` suffixes in the JSON, never a manual `count === 1 ? ... : ...` branch.
-5. **Copy with embedded markup or a link** becomes one key rendered with `<Trans>` — never split the
-   sentence into fragments concatenated around JSX.
-6. **Dates, numbers, currency** go through `Intl.DateTimeFormat` / `Intl.NumberFormat` /
-   `Intl.RelativeTimeFormat` / `Intl.ListFormat`, built from the active locale and memoized — never a
-   hand-built format or a formatter constructed per render.
-7. **Direction-safe styling**: logical Tailwind utilities (`ms-`/`me-`, `ps-`/`pe-`, `text-start`,
-   `start-`) instead of `ml-`/`mr-`/`left-`/`right-`. Leave room for translated copy to run ~3× longer.
-8. **Sync the default locale entry** in the same change as any new key — a key present only in a
-   translated locale is a bug, not a follow-up.
+1. **Copy files.** Feature strings: `features/{f}/locales/en.json` and `features/{f}/locales/keys.ts`. Shared strings: `shared/lib/i18n/locales/common/en.json` and `keys.ts`. Mechanism (`config.ts`, `format.ts`, `keys.ts`, `index.ts`) lives in `shared/lib/i18n/` and contains no translation strings. No `src/locales/` and no `shared/locales/`. Provider is `I18nProvider` in `app/providers/`.
+2. **Type the keys.** Each `locales/keys.ts` exports `as const satisfies NestedKeysOf<typeof en>` (`NestedKeysOf` is in `shared/lib/i18n/keys.ts`). `en` is the source of truth — a key only in another locale is a bug.
+3. **Call `t()` with the typed key**: `t(usersKeys.list.emptyState)` or `commonKeys`. Do not pass a raw `'list.emptyState'` literal. Do not import another feature's `locales/keys.ts`. `models/` never imports keys and never calls `t()`.
+4. **Interpolate, don't concatenate**: `t(key, { name })`. Plurals use `count` plus `_one`/`_other` in the JSON, never `count === 1 ? ... : ...`.
+5. **Copy with embedded markup or a link** is one key rendered with `<Trans i18nKey={usersKeys.termsNotice}>` — never split the sentence around JSX.
+6. **Dates, numbers, currency** use the formatters in `shared/lib/i18n/format.ts` (`useCurrencyFormatter` and the rest). Currency code comes from the money value, not the locale. Do not call `toFixed`, `toLocaleString`, or construct `Intl.*` inside a component.
+7. **Direction-safe styling**: logical Tailwind utilities (`ms-`/`me-`, `ps-`/`pe-`, `text-start`, `start-`) instead of `ml-`/`mr-`/`left-`/`right-`.
+8. **Register the namespace** on `CustomTypeOptions.resources` in `shared/lib/i18n/config.ts` in the same change as a new namespace.
 
 ## Checklist
 
 - [ ] No hardcoded user-facing string, including `aria-label`/`alt`/`title`/`placeholder`
-- [ ] Key is namespaced, hierarchical, and a static literal passed to `t()`
-- [ ] New key added to the default locale JSON in this change
+- [ ] Strings live in `features/{f}/locales/` or `shared/lib/i18n/locales/common/` — not `src/locales/`
+- [ ] UI calls `t(usersKeys....)` / `commonKeys`, not a raw key string
+- [ ] New key added to `en.json` and `keys.ts` in this change
 - [ ] Plurals use `count` + `_one`/`_other`, not a manual branch
 - [ ] Embedded markup/links use `<Trans>`, not concatenated fragments
-- [ ] Dates/numbers/currency use `Intl.*` formatters built from the active locale, memoized
+- [ ] Dates/numbers/currency use `shared/lib/i18n/format.ts`
+- [ ] `models/` does not import translation keys
 - [ ] Layout uses logical (`ms-`/`ps-`/`text-start`) utilities, not physical `ml-`/`left-`
 
 See [examples.md](examples.md) for Bad/Good pairs covering keys, `<Trans>`, pluralization, and

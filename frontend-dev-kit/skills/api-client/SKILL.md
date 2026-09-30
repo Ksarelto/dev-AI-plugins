@@ -48,12 +48,20 @@ export type AppErrorKind =
 export class AppError extends Error {
   readonly kind: AppErrorKind;
   readonly status?: number;
+  readonly data?: unknown;
 
-  constructor(kind: AppErrorKind, message: string, status?: number, cause?: unknown) {
+  constructor(
+    kind: AppErrorKind,
+    message: string,
+    status?: number,
+    cause?: unknown,
+    data?: unknown,
+  ) {
     super(message, { cause });
     this.name = 'AppError';
     this.kind = kind;
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -65,17 +73,20 @@ export const toAppError = async (error: unknown): Promise<AppError> => {
   if (error instanceof HTTPError) {
     const status = error.response.status;
     let message = error.message;
+    let data: unknown;
     try {
-      const body = await error.response.clone().json<{ message?: string }>();
-      if (body?.message) message = body.message;
+      data = await error.response.clone().json();
+      if (data && typeof data === 'object' && 'message' in data && typeof data.message === 'string') {
+        message = data.message;
+      }
     } catch { /* ignore parse failure */ }
 
-    if (status === 401) return new AppError('unauthorized', message, status, error);
-    if (status === 403) return new AppError('forbidden',     message, status, error);
-    if (status === 404) return new AppError('not-found',     message, status, error);
-    if (status === 422) return new AppError('validation',    message, status, error);
-    if (status >= 500)  return new AppError('server',        message, status, error);
-    return new AppError('unknown', message, status, error);
+    if (status === 401) return new AppError('unauthorized', message, status, error, data);
+    if (status === 403) return new AppError('forbidden',     message, status, error, data);
+    if (status === 404) return new AppError('not-found',     message, status, error, data);
+    if (status === 422) return new AppError('validation',    message, status, error, data);
+    if (status >= 500)  return new AppError('server',        message, status, error, data);
+    return new AppError('unknown', message, status, error, data);
   }
 
   if (error instanceof TimeoutError) return new AppError('network', 'Request timed out', undefined, error);
@@ -110,6 +121,34 @@ export const httpClient: KyInstance = ky.create({
   },
 });
 ```
+
+### `shared/api/query-client.ts` — one factory, replaced on session change
+
+```typescript
+// shared/api/query-client.ts
+import { QueryClient } from '@tanstack/react-query';
+import { notify } from '@/shared/lib/notify';
+import { isAppError } from './errors';
+
+export const createQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: (failureCount, err) =>
+          isAppError(err) && err.kind === 'network' && failureCount < 3,
+      },
+      mutations: {
+        retry: false,
+        onError: (err) => {
+          if (!isAppError(err) || err.kind === 'validation') return;
+          notify.error('Something went wrong. Please try again.');
+        },
+      },
+    },
+  });
+```
+
+Logout and tenant switch replace this instance. Do not call `queryClient.clear()` instead.
 
 ### `shared/lib/auth/token.ts` — module-level accessor for non-React callers
 
@@ -225,7 +264,7 @@ import type { AppErrorKind } from '@/shared/api/errors';
 onError: (err) => {
   if (!isAppError(err)) return;
   if (err.kind === 'validation') {
-    mapServerErrorsToForm(err.status, form);
+    mapServerErrorsToForm(err.data, form.setError);
     return;
   }
   // Generic errors handled by the global QueryClient onError — no duplication
@@ -238,7 +277,7 @@ onError: (err) => {
 - [ ] `shared/api/config.ts` defines `API_BASE` — features never read `import.meta.env` for the URL
 - [ ] `base.ts` uses `beforeError` hook (not `afterResponse`) to call `toAppError`
 - [ ] `AppErrorKind` is a string union type — not an `enum`
-- [ ] `AppError` constructor is `(kind, message, status?, cause?)` — not `(kind, status, data)`
+- [ ] `AppError` constructor is `(kind, message, status?, cause?, data?)` — not `(kind, status, data)` and not an enum `AppErrorKind`
 - [ ] `toAppError` helper exists in `errors.ts` and handles `HTTPError`, `TimeoutError`, and network errors
 - [ ] All feature API calls go through `features/{name}/api/fetchers.ts`
 - [ ] `endpoints.ts` has a `base` path relative to `API_BASE.v1`, and every other key reuses it — no full URLs in hooks

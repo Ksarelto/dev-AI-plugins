@@ -288,5 +288,5 @@ onCancel: () => navigate(-1),
 | Topic | File |
 |-------|------|
 | Few-shot implementation examples | [examples.md](examples.md) |
-| Error boundaries and FeatureLoadError handling | [references/boundaries.md](references/boundaries.md) |
+| Error boundaries and FeatureLoadError handling | `error-handling` skill (`app/boundaries/`, `lazyFeature`) |
 | Mocking navigation hooks in Vitest tests | [references/testing.md](references/testing.md) |

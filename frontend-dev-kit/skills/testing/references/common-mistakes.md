@@ -14,10 +14,10 @@
 
 | Wrong | Correct |
 |-------|---------|
-| `import { render } from '@testing-library/react'` | `import { render } from '@/utils/rendererRTL'` |
+| `import { render } from '@testing-library/react'` | `import { render } from '@/shared/lib/rendererRTL'` |
 | `fireEvent.click(button)` | `await userEvent.click(button)` |
 | `userEvent.click(button)` (not awaited) | `await userEvent.click(button)` |
-| `import { renderHook } from '@testing-library/react'` | `import { renderHook } from '@/utils/rendererRTL'` |
+| `import { renderHook } from '@testing-library/react'` | `import { renderHook } from '@/shared/lib/rendererRTL'` |
 
 ## Query & Assertion Patterns
 
@@ -34,7 +34,7 @@
 | Wrong | Correct |
 |-------|---------|
 | `<Component {...defaultProps} extraProp="x" />` | `const props = { ...defaultProps, extraProp: 'x' }; <Component {...props} />` |
-| Hardcoded UI strings in assertions: `'Upload Files'` | `TextContent.section.uploadFiles` |
+| A `TextContent` module or `src/constants/textContent.ts` | The English string from `en.json` that the component renders |
 | Same literal repeated in mock + render + expect | Define one named constant, reuse it |
 | Mock data defined inside test cases | Define outside tests for reusability |
 | Empty tests: `it('test', () => {})` | Always include at least one `expect` |

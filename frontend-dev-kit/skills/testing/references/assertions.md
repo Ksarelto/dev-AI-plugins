@@ -6,15 +6,15 @@
 
 ```ts
 // Good
-const title = screen.getByText(TextContent.myComponent.title)
+const title = screen.getByText('Title')
 expect(title).toBeInTheDocument()
 
-const submitButton = screen.getByRole('button', { name: TextContent.common.submit })
+const submitButton = screen.getByRole('button', { name: 'Submit' })
 expect(submitButton).toBeDisabled()
 
 // Bad
-expect(screen.getByText(TextContent.myComponent.title)).toBeInTheDocument()
-expect(screen.getByRole('button', { name: TextContent.common.submit })).toBeDisabled()
+expect(screen.getByText('Title')).toBeInTheDocument()
+expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
 ```
 
 Why: improves readability, easier debugging, clearer error messages, allows reusing the reference.
@@ -23,18 +23,18 @@ Why: improves readability, easier debugging, clearer error messages, allows reus
 
 1. **`getByRole`** — always prefer semantic selectors
 ```ts
-screen.getByRole('button', { name: TextContent.common.submit })
-screen.getByRole('dialog', { name: TextContent.modal.title })
+screen.getByRole('button', { name: 'Submit' })
+screen.getByRole('dialog', { name: 'Title' })
 ```
 
 2. **`getByLabelText`** — for form inputs
 ```ts
-screen.getByLabelText(TextContent.form.nameLabel)
+screen.getByLabelText('Name Label')
 ```
 
 3. **`getByText`** — for visible text
 ```ts
-screen.getByText(TextContent.section.heading)
+screen.getByText('Heading')
 ```
 
 4. **`getByTestId`** — last resort only; add `data-testid` only when no semantic selector works
@@ -46,7 +46,7 @@ screen.getByTestId('progress-bar')
 ```ts
 // Good
 screen.getByText(/Full Name/)
-screen.queryByText(TextContent.error.message)
+screen.queryByText('Message')
 
 // Bad — callback matcher
 screen.getByText((_, element) => element?.textContent?.includes('Full Name'))
@@ -62,15 +62,15 @@ screen.getByText((_, element) => element?.textContent?.includes('Full Name'))
 
 ```ts
 // Must exist now
-const button = screen.getByRole('button', { name: TextContent.common.submit })
+const button = screen.getByRole('button', { name: 'Submit' })
 expect(button).toBeInTheDocument()
 
 // Negative assertion
-const error = screen.queryByText(TextContent.error.notFound)
+const error = screen.queryByText('Not Found')
 expect(error).not.toBeInTheDocument()
 
 // Async appearance
-const result = await screen.findByText(TextContent.status.success)
+const result = await screen.findByText('Success')
 expect(result).toBeInTheDocument()
 ```
 
@@ -123,25 +123,25 @@ Rules:
 ```ts
 // Good — constant inside waitFor, one expect per call
 await waitFor(() => {
-  const successMessage = screen.getByText(TextContent.status.success)
+  const successMessage = screen.getByText('Success')
   expect(successMessage).toBeInTheDocument()
 })
 
 await waitFor(() => {
-  const submitButton = screen.getByRole('button', { name: TextContent.common.submit })
+  const submitButton = screen.getByRole('button', { name: 'Submit' })
   expect(submitButton).toBeEnabled()
 })
 
 // Bad — query directly in expect inside waitFor
 await waitFor(() => {
-  expect(screen.getByText(TextContent.status.success)).toBeInTheDocument()
+  expect(screen.getByText('Success')).toBeInTheDocument()
 })
 
 // Bad — multiple expects in one waitFor
 await waitFor(() => {
-  const msg = screen.getByText(TextContent.status.success)
+  const msg = screen.getByText('Success')
   expect(msg).toBeInTheDocument()
-  const btn = screen.getByRole('button', { name: TextContent.common.close })
+  const btn = screen.getByRole('button', { name: 'Close' })
   expect(btn).toBeEnabled()
 })
 ```
@@ -149,7 +149,7 @@ await waitFor(() => {
 With custom timeout when needed:
 ```ts
 await waitFor(() => {
-  const element = screen.getByText(TextContent.status.success)
+  const element = screen.getByText('Success')
   expect(element).toBeInTheDocument()
 }, { timeout: 3000 })
 ```

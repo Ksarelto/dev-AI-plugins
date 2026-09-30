@@ -12,7 +12,7 @@ Every component folder has a co-located `styles.ts`. Tailwind + `cva`. Tokens in
 - No CSS Modules, vanilla-extract, styled-components.
 - Colors are semantic tokens (`bg-background`, `text-muted-foreground`) — no hex/rgb/`slate-800` (or other palette-step classes) in `styles.ts` or `globals.css`. Use surface/content pairs together (`bg-primary` with `text-primary-foreground`).
 - No `ThemeProvider`, no `.dark`, no `dark:` variants.
-- Shared fragments move to `shared/ui/theme/styles.ts` after 2+ duplicate uses. `@layer components` in `globals.css` is only for CSS Tailwind cannot express as one utility.
+- Shared fragments move to `shared/ui/theme/styles.ts` after the third duplicate (rule of three). `@layer components` in `globals.css` is only for CSS Tailwind cannot express as one utility.
 - No `!important`. Do not fight a shadcn primitive with specificity — edit the primitive or wrap it.
 - `className` from callers is merged in `styles.ts` via `cn()`, `className` last. Do not use both `cn` and `cva` for the same prop.
 - Icon-only buttons: `aria-label`. Forms: `FormLabel` with `FormField`.

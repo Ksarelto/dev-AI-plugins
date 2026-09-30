@@ -2,12 +2,12 @@
 
 ## Example 0 — Shared `Form` compound component (scaffold once)
 
-Build this once at `src/shared/ui/Form/` (per the `react-component` skill's folder convention). It
+Build this once at `src/shared/ui/form/` (per the `react-component` skill's folder convention). It
 wraps shadcn's `Form` primitives so every feature form composes `<Form>` / `<Form.Field>` instead
 of repeating `FormField` + `FormItem` + `FormLabel` + `FormControl` + `FormMessage` at every field.
 
 ```ts
-// shared/ui/Form/types.ts
+// shared/ui/form/types.ts
 import type { ReactNode } from 'react';
 import type { ControllerRenderProps, FieldPath, FieldValues, UseFormReturn } from 'react-hook-form';
 
@@ -29,7 +29,7 @@ export interface FormFieldProps<TValues extends FieldValues, TName extends Field
 ```
 
 ```tsx
-// shared/ui/Form/index.tsx
+// shared/ui/form/form.tsx
 import type { FieldPath, FieldValues } from 'react-hook-form';
 import { useFormContext } from 'react-hook-form';
 import {
@@ -41,7 +41,7 @@ import {
   FormLabel,
   FormMessage,
 } from '@/shared/ui/form';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/lib/utils';
 import type { FormFieldProps, FormProps } from './types';
 
 const FormRoot = <TValues extends FieldValues>({
@@ -105,7 +105,7 @@ Notes:
 - `orientation="horizontal"` covers the checkbox/switch case (control before label); default
   `"vertical"` covers the standard label-above-control layout.
 - This is the only place shadcn's raw `Form`/`FormField`/`FormItem` primitives are imported —
-  feature code imports `Form` from `@/shared/ui/Form` and never touches the shadcn primitives
+  feature code imports `Form` from `@/shared/ui/form` and never touches the shadcn primitives
   directly, per the `shadcn-usage` rule's wrapper guidance.
 - No `forwardRef`, no `React.memo`/`useMemo`/`useCallback` added preemptively — same constraints
   as any other shared component (`react-component` skill checklist).
@@ -117,7 +117,7 @@ Notes:
 **Request:** "Add a form to create a new user"
 
 ```ts
-// features/users/ui/CreateUserForm/types.ts
+// features/users/ui/create-user-form/types.ts
 import { z } from 'zod';
 
 export const createUserSchema = z.object({
@@ -130,10 +130,10 @@ export type CreateUserFormValues = z.infer<typeof createUserSchema>;
 ```
 
 ```tsx
-// features/users/ui/CreateUserForm/index.tsx
+// features/users/ui/create-user-form/create-user-form.tsx
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
+import { notify } from '@/shared/lib/notify';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import {
@@ -143,12 +143,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/shared/ui/select';
-import { Form } from '@/shared/ui/Form';
+import { Form } from '@/shared/ui/form';
 import { createUserSchema, type CreateUserFormValues } from './types';
-import { useCreateUser } from '../../api/useCreateUser';
-import { ApiError } from '@/api/client';
-
-const UNPROCESSABLE_ENTITY_STATUS = 422;
+import { isAppError } from '@/shared/api/errors';
+import { notify } from '@/shared/lib/notify';
+import { useCreateUser } from '../../hooks/useCreateUser';
 
 export const CreateUserForm = ({ onSuccess }: { onSuccess: () => void }): JSX.Element => {
   const { mutate, isPending } = useCreateUser();
@@ -164,11 +163,11 @@ export const CreateUserForm = ({ onSuccess }: { onSuccess: () => void }): JSX.El
   const onSubmit = (values: CreateUserFormValues): void => {
     mutate(values, {
       onSuccess: () => {
-        toast.success('User created');
+        notify.success('User created');
         onSuccess();
       },
       onError: (err) => {
-        if (err instanceof ApiError && err.status === UNPROCESSABLE_ENTITY_STATUS) {
+        if (isAppError(err) && err.kind === 'validation' && err.data && typeof err.data === 'object') {
           const data = err.data as Record<string, string[]>;
           Object.entries(data).forEach(([field, messages]) => {
             form.setError(field as keyof CreateUserFormValues, { message: messages[0] });
@@ -237,7 +236,7 @@ Example 0) — `Form.Field` now carries that structure once, and every field cal
 **Request:** "Add a form to edit user profile"
 
 ```ts
-// features/settings/ui/ProfileForm/types.ts
+// features/settings/ui/profile-form/types.ts
 import { z } from 'zod';
 
 export const profileSchema = z.object({
@@ -249,18 +248,18 @@ export type ProfileFormValues = z.infer<typeof profileSchema>;
 ```
 
 ```tsx
-// features/settings/ui/ProfileForm/index.tsx
+// features/settings/ui/profile-form/profile-form.tsx
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from 'sonner';
+import { notify } from '@/shared/lib/notify';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
-import { Form } from '@/shared/ui/Form';
+import { Form } from '@/shared/ui/form';
 import { Skeleton } from '@/shared/ui/skeleton';
 import { profileSchema, type ProfileFormValues } from './types';
-import { useProfile } from '../../api/useProfile';
-import { useUpdateProfile } from '../../api/useUpdateProfile';
+import { useProfile } from '../../hooks/useProfile';
+import { useUpdateProfile } from '../../hooks/useUpdateProfile';
 
 export const ProfileForm = (): JSX.Element => {
   const { data: profile, isLoading } = useProfile();
@@ -280,7 +279,7 @@ export const ProfileForm = (): JSX.Element => {
   return (
     <Form
       form={form}
-      onSubmit={(values) => mutate(values, { onSuccess: () => toast.success('Profile saved') })}
+      onSubmit={(values) => mutate(values, { onSuccess: () => notify.success('Profile saved') })}
     >
       <Form.Field
         name="name"
@@ -343,10 +342,10 @@ inline checkbox layout — no need to hand-roll `FormItem`'s `className` per fie
 Map field-level server errors returned as `{ fieldName: string[] }`:
 
 ```tsx
-const UNPROCESSABLE_ENTITY_STATUS = 422;
+import { isAppError } from '@/shared/api/errors';
 
 onError: (err) => {
-  if (err instanceof ApiError && err.status === UNPROCESSABLE_ENTITY_STATUS) {
+  if (isAppError(err) && err.kind === 'validation' && err.data && typeof err.data === 'object') {
     const data = err.data as Record<string, string[]>;
     Object.entries(data).forEach(([field, messages]) => {
       form.setError(field as keyof FormValues, {

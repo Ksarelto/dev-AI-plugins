@@ -5,9 +5,9 @@
 Always mock the hook module, not the fetcher or `queryClient`. Mirror the full shape the component reads.
 
 ```ts
-import { useUsers } from '@/features/users/api/useUsers';
+import { useUsers } from '@/features/users/hooks/useUsers';
 
-vi.mock('@/features/users/api/useUsers')
+vi.mock('@/features/users/hooks/useUsers')
 
 const mockUseUsers = vi.mocked(useUsers)
 
@@ -25,9 +25,9 @@ beforeEach(() => {
 ## Mocking mutation hooks
 
 ```ts
-import { useCreateUser } from '@/features/users/api/useCreateUser';
+import { useCreateUser } from '@/features/users/hooks/useCreateUser';
 
-vi.mock('@/features/users/api/useCreateUser')
+vi.mock('@/features/users/hooks/useCreateUser')
 
 const mockMutate = vi.fn()
 
@@ -69,7 +69,7 @@ it('shows error message when fetch fails', () => {
 
   render(<UserList />)
 
-  const errorMsg = screen.getByText(TextContent.users.loadError)
+  const errorMsg = screen.getByRole('alert')
   expect(errorMsg).toBeInTheDocument()
 })
 ```
@@ -80,10 +80,10 @@ it('shows error message when fetch fails', () => {
 it('calls mutate with correct payload when form is submitted', async () => {
   render(<CreateUserForm />)
 
-  const nameInput = screen.getByLabelText(TextContent.form.nameLabel)
+  const nameInput = screen.getByLabelText('Name')
   await userEvent.type(nameInput, 'Alice')
 
-  const submitButton = screen.getByRole('button', { name: TextContent.common.submit })
+  const submitButton = screen.getByRole('button', { name: 'Submit' })
   await userEvent.click(submitButton)
 
   expect(mockMutate).toHaveBeenCalledWith(
@@ -106,7 +106,7 @@ it('disables submit while mutation is pending', () => {
 
   render(<CreateUserForm />)
 
-  const submitButton = screen.getByRole('button', { name: TextContent.common.submit })
+  const submitButton = screen.getByRole('button', { name: 'Submit' })
   expect(submitButton).toBeDisabled()
 })
 ```

@@ -19,7 +19,7 @@ description: Scaffold and implement a React feature slice following FSD with api
 - HTTP calls use `httpClient` from `shared/api/base.ts` — never raw `fetch` or `ky`/`axios` directly
 - Every component folder requires a `styles.ts` — no Tailwind classes inline in JSX, ever
 - `models/` = pure business logic + Zustand stores; `hooks/` = orchestration (sequences, await chains); `ui/` = React + JSX
-- `ui/` never calls `api/` or `models/` directly — everything goes through `hooks/`
+- `ui/` never imports `api/`. A form schema in `ui/` calls `models/` pure functions. Queries, mutations, and sequences go through `hooks/`
 - Start with `api/ + ui/ + index.ts`. Add `models/` when there is real client state or business logic. Add `hooks/` when there is real orchestration.
 
 ## Folder structure
@@ -36,7 +36,7 @@ features/{feature}/
 │       ├── {name}.tsx            — JSX implementation (custom-button.tsx)
 │       ├── styles.ts             — ALL Tailwind classes, never inline in JSX
 │       ├── types.ts              — local prop types (optional)
-│       └── {name}.test.tsx       — colocated RTL test (recommended)
+│       └── {name}.test.tsx       — colocated RTL test (required)
 ├── models/               — add only when real client state or business logic exists
 │   ├── store.ts          — Zustand v5 store (session-scoped, cleared on logout)
 │   ├── validation.ts     — business invariants as pure functions
@@ -77,7 +77,8 @@ ui/{name}/
 ├── index.ts               — export { ComponentName } from './{name}'
 ├── {name}.tsx             — JSX only, all classes via styles.ts (button.tsx, custom-button.tsx)
 ├── styles.ts              — ALL classes defined here
-└── types.ts               — {ComponentName}Props interface (optional)
+├── types.ts               — {ComponentName}Props interface (optional)
+└── {name}.test.tsx        — colocated RTL test
 ```
 
 **`styles.ts` patterns:**
@@ -130,7 +131,7 @@ export type { PlaceOrderPayload } from './api/dto';
 - [ ] `api/fetchers.ts` uses `httpClient` only — no `fetch()`, `ky`, or `axios`
 - [ ] Every component folder is kebab-case (`custom-button/custom-button.tsx`) with `styles.ts` — no Tailwind classes inline in JSX
 - [ ] `models/` and `hooks/` segments are earned, not scaffolded empty
-- [ ] `ui/` never calls `api/` directly — always via `hooks/`
+- [ ] `ui/` never imports `api/` — queries and mutations go through `hooks/`; a form schema may call `models/` pure functions
 - [ ] Forms use React Hook Form + zod; validation in three levels (wire shape / input constraints / business invariants)
 - [ ] Loading, error, empty, and partial/stale states all handled
 - [ ] `index.ts` exports only what consumers need — no stores, DTOs, fetchers
@@ -142,7 +143,7 @@ export type { PlaceOrderPayload } from './api/dto';
 |-------|--------------------|
 | List page | `api/` + `hooks/useOrderList` + `ui/order-list/` + `index.ts` |
 | CRUD | Add `useCreateOrder`, `useUpdateOrder`, `useDeleteOrder` hooks + form component |
-| Widget | Same as list with limited query params; no `models/` unless real client state |
+| Widget | Not this skill. A widget composes feature public APIs. It has no `api/` and no `models/` |
 
 Do not create route files unless explicitly requested. For a single standalone component, use the `react-component` skill.
 

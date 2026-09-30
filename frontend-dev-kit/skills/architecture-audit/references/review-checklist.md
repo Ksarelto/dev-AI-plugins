@@ -7,7 +7,7 @@ Final sweep after the other topics. Do not restate import-direction, public-API,
 **Hard (only if not already filed)**
 
 - DTO shape (snake_case, nullable soup) leaking into `ui/`.
-- `api/` or `models/` called directly from a component instead of `hooks/` (if `hooks/` exists in that slice).
+- `api/` called directly from a component. A form schema in `ui/` may call `models/` pure functions. Queries, mutations, and sequences still go through `hooks/`.
 - Long-lived timer, poller, or subscription with no explicit stop.
 - User-facing text produced in `models/` (typed reason missing; copy belongs in `ui/`).
 - Cross-model policy sitting in `entities/` instead of the owning feature.

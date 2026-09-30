@@ -73,9 +73,8 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
    import { useMutation, useQueryClient } from '@tanstack/react-query';
    import { useNavigate } from 'react-router';
    import { orderKeys } from '@/shared/api/query-keys/orders';
-   import { isAppError, AppErrorKind } from '@/shared/api/errors';
+   import { isAppError } from '@/shared/api/errors';
    import { placeOrder } from '../api/fetchers';
-   import { validateOrderDraft } from '../models/validation';
    import type { PlaceOrderInput } from '../api/dto';
 
    export const usePlaceOrder = () => {
@@ -84,12 +83,8 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 
      return useMutation({
        mutationKey: orderKeys.mutations.place(),
-       mutationFn:  (input: PlaceOrderInput) => {
-         // Ask models/ for the decision — hook only sequences
-         const error = validateOrderDraft(input);
-         if (error) throw error;
-         return placeOrder(input);
-       },
+       // Domain failures are return values from models/, checked in ui/ before mutate — not thrown here.
+       mutationFn: (input: PlaceOrderInput) => placeOrder(input),
        onSuccess: (order) => {
          queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
          navigate(`/orders/${order.id}`);

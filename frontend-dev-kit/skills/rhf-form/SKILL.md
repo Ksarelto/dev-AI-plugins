@@ -17,13 +17,13 @@ description: Build forms with react-hook-form + zod validation, shadcn/ui form c
 Every form built with this skill composes a shared `Form` compound component instead of
 hand-wiring shadcn's `FormField` + `FormItem` + `FormLabel` + `FormControl` + `FormMessage` at each
 field. It is generic and business-agnostic, so per the `architecture-audit` skill (`shared/` is
-generic UI) it lives once at `src/shared/ui/Form/` and every feature imports it — never copy-paste
+generic UI) it lives once at `src/shared/ui/form/` and every feature imports `@/shared/ui/form` — never copy-paste
 the boilerplate into a feature's `ui/` folder.
 
-1. **Check first** — if `src/shared/ui/Form/` already exists, reuse it; do not create a second
+1. **Check first** — if `src/shared/ui/form/` already exists, reuse it; do not create a second
    implementation. If it doesn't exist yet, scaffold it once from the template in
    [examples.md](examples.md#example-0--shared-form-compound-component-scaffold-once), following
-   the `react-component` skill's folder convention (`index.tsx` + `types.ts`, no barrel inside).
+   the `react-component` skill (`form/form.tsx`, `styles.ts`, `index.ts`, `types.ts`).
 2. It exposes `Form` (the `<form>` root bound to a `UseFormReturn`) and `Form.Field` (one field's
    `FormItem` + optional `FormLabel` + `FormControl` + optional `FormDescription` + `FormMessage`),
    with the field's control passed as a render-prop child so any input/select/checkbox composes
@@ -31,7 +31,7 @@ the boilerplate into a feature's `ui/` folder.
 
 ## Instructions
 
-1. **Define schema** — create a zod schema and infer the type in `types.ts`
+1. **Define schema** — zod schema in the form's `ui/` folder (`types.ts`). It calls `models/` pure functions for business invariants. Wire-shape zod stays in `api/`.
 2. **Create mutation hook** — `useCreateXxx` or `useUpdateXxx` with cache invalidation
 3. **Build form component:**
    ```tsx
@@ -41,7 +41,7 @@ the boilerplate into a feature's `ui/` folder.
    raw shadcn `<FormField>` + `<FormItem>` wiring
 5. **Pre-populate for edit** — call `form.reset(data)` inside a `useEffect` when the detail query resolves
 6. **Handle submit** — pass `onSubmit` to `<Form>`; it calls `form.handleSubmit(onSubmit)` internally
-7. **Error display** — server 422 errors mapped per field via `form.setError('fieldName', { message })`; global errors via `toast.error()`
+7. **Error display** — `AppError` with `kind === 'validation'` mapped per field via `form.setError('fieldName', { message })` from `err.data`. Other kinds go through `notify` from `@/shared/lib/notify`
 8. **Disable submit** — use `isPending` from the mutation hook
 
 ## Checklist
@@ -54,6 +54,7 @@ the boilerplate into a feature's `ui/` folder.
 - [ ] Edit forms pre-populated via `form.reset()` when data loads
 - [ ] Server 422 errors mapped to fields with `form.setError()`
 - [ ] No second `Form`/`Form.Field` implementation added to a feature — the shared one under
-      `src/shared/ui/Form/` is reused
+      `src/shared/ui/form/` is reused
+- [ ] HTTP failures narrow with `isAppError` — not `ApiError`, not a raw status code
 
 See [examples.md](examples.md) for few-shot templates.
