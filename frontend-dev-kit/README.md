@@ -4,15 +4,29 @@ Plugin for building React applications with **TypeScript**, **shadcn/ui**, **Tai
 
 ## Install
 
-```bash
-# Full marketplace
-ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-AI-plugins
+### Claude Code
 
-# This plugin only
-ln -s /path/to/dev-cusor-plugins/frontend-dev-kit ~/.cursor/plugins/local/frontend-dev-kit
+```text
+/plugin install frontend-dev-kit@dev-AI-plugins
 ```
 
-Reload Cursor (Command Palette → "Developer: Reload Window").
+Local development from this marketplace repo:
+
+```bash
+claude --plugin-dir ./frontend-dev-kit
+```
+
+### Cursor
+
+From this marketplace repo:
+
+```bash
+npm run install:cursor-local
+```
+
+Then **Developer: Reload Window** and enable the kit under **Customize → Plugins**.
+
+`feature-dev-kit` requires this plugin.
 
 ## Components
 
@@ -24,20 +38,24 @@ The others attach only when a matching file is in context.
 | Rule | When it attaches | Topic |
 |------|------------------|-------|
 | `honesty` | Every session (`alwaysApply`), and `**/*.{ts,tsx,md}` | Verify library APIs before generating code; flag uncertainty; never fake a passing test |
-| `general-coding-principles` | `**/*.{ts,tsx}` | Naming, function design, functional style, magic values, quality bar |
+| `general-coding-principles` | `**/*.{ts,tsx}` | Naming, function design, no comments, no magic values or closed-set literals, quality bar |
 | `typescript` | `**/*.{ts,tsx}` | Interfaces vs types, strictness, narrowing, utility types, explicit public signatures |
-| `react` | `**/*.tsx` | Purity, hooks, state ownership, effects, keys, memoization under the Compiler, refs, boundaries |
-| `component-structure` | `**/features/**/ui/**`, `**/widgets/**/ui/**`, `**/entities/**/ui/**`, `**/shared/ui/**` (`*.ts`, `*.tsx`) | Kebab-case component folders and files (`button.tsx`, `custom-button.tsx`); PascalCase export |
-| `styling` | `**/styles.ts` | Every component folder has `styles.ts`; all Tailwind classes live there, none inline in JSX |
+| `react` | `**/*.tsx` | Purity, hooks, no JSX ternaries, named handlers, effects, keys, memoization under the Compiler, refs, error boundaries |
+| `component-structure` | `**/{features,widgets,entities,pages}/**/ui/**`, `**/shared/ui/**` (`*.ts`, `*.tsx`) | Kebab-case component folders and files; PascalCase export; `index.ts` exports only what an outside file imports |
+| `styling` | `**/styles.ts`, `**/*.tsx`, `**/*.css` | All Tailwind classes in `styles.ts`, none inline; motion only from shadcn bases; look from theme tokens |
+| `shadcn` | `**/shared/ui/**`, `**/components.json`, `**/globals.css` | Registry source verbatim (parts, `data-slot`, classes, `tw-animate-css` motion); closed-set constants (`ButtonVariant`) |
+| `i18n` | `**/*.tsx`, `**/locales/**`, `constants.ts`, `config/`, `model/` | Every user-visible string from typed keys — `shared/lib/i18n/locales/common` or the slice's `locales/`; no string maps |
+| `testing` | `**/src/**/*.{ts,tsx}`, tests | Every executable file ships with a behavior test; mock only the boundary |
 
-A typical `.tsx` edit under `features|widgets|entities/**/ui/` or `shared/ui/` loads `honesty`,
-`general-coding-principles`, `typescript`, `react`, and `component-structure`. A `styles.ts`
-edit loads `honesty`, `general-coding-principles`, `typescript`, and `styling`. A plain `.ts`
-module loads `honesty`, `general-coding-principles`, and `typescript`.
+A typical `.tsx` edit under `features|widgets|entities|pages/**/ui/` loads `honesty`,
+`general-coding-principles`, `typescript`, `react`, `component-structure`, `styling`, `i18n`, and
+`testing`; under `shared/ui/` it adds `shadcn`. A `styles.ts` edit loads `honesty`,
+`general-coding-principles`, `typescript`, `styling`, and `testing`. A plain `.ts` module loads
+`honesty`, `general-coding-principles`, `typescript`, and `testing`.
 
 ### Skills
 
-Workflow guides with few-shot templates in each skill's `examples.md`.
+Workflow guides. Skills that ship templates keep them in `examples.md` (`architecture-audit`, `code-review`, `manage-feature`, and `testing` use `references/` instead).
 
 | Skill | Use when |
 |-------|----------|
@@ -84,8 +102,8 @@ Workflow guides with few-shot templates in each skill's `examples.md`.
 
 ## Few-shot examples
 
-- **Skills** → `skills/{skill-name}/examples.md` (full scenario templates)
-- **References** → `skills/{skill-name}/references/` (advanced patterns)
+- **Templates** → `skills/{skill-name}/examples.md` when that file exists
+- **References** → `skills/{skill-name}/references/`
 
 ## Stack assumptions
 
@@ -96,4 +114,5 @@ shadcn/ui + Tailwind · `react-hook-form` + `zod` · `@tanstack/react-query` v5 
 Cursor attaches `.mdc` rules from the table above. Claude Code does not load `.mdc` rules
 (`rules` in `plugin.json` is a Cursor mechanism), so `code-review` reads the matching rule files
 explicitly: `rules/general-coding-principles.mdc`, `rules/typescript.mdc`, `rules/react.mdc`,
-and `rules/honesty.mdc`.
+`rules/styling.mdc`, `rules/shadcn.mdc`, `rules/i18n.mdc`, `rules/testing.mdc`, and
+`rules/honesty.mdc`.

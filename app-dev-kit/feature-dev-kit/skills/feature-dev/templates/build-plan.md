@@ -39,7 +39,7 @@ re-run discovery rather than starting the build.
 ### Parallel groups
 
 - **P1** — `entities/profile` and `entities/reviewer` share no files. Both write to
-  `shared/config/textContent.ts`? → they are NOT independent; drop the group label and sequence them.
+  `shared/lib/i18n/locales/common/en.json`? → they are NOT independent; drop the group label and sequence them.
 - **P2** — widget and page: the page imports the widget, so P2 is invalid unless the page row runs
   after. Verify import direction before grouping.
 

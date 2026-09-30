@@ -18,7 +18,7 @@ count, new package, new route). Do not read the upstream app spec to classify.
 
 | Tier | When | What runs |
 |------|------|-----------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree), then Station 8 (walk new executable files), then `run-gates.sh --until fsd`. Skip Stations 1, 1.5, 1a, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree), then Station 8 (walk new executable files), then `run-gates.sh --until conventions`. Skip Stations 1, 1.5, 1a, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
 | **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. Skip Station 1.5. Layer gates are `--until fsd`. Station 8 always walks files created or changed in the increment. Build and coverage once at Station 9. Station 9.5 is `DIFF_SCOPE`. |
 | **full** | Six or more slices, or a new route plus a new entity | Same as standard, plus Station 1.5 scoped to `## FSD Impact` paths (not all of `src/`). Slices in one layer run one after another on the feature branch. One slice in a layer uses `slice-engineer`. |
 
@@ -31,6 +31,7 @@ count, new package, new route). Do not read the upstream app spec to classify.
 Resolve KIT_DIR
 Station 0    Intake — upstream-interpreter (scoped YAML) then spec-analyst
              → .spec/features/<slug>.md  (CLARIFY_PACKET if gaps)
+             → <slug>.context/prototype-inventory.md when a prototype page is bound
       ↓
 Station 0.5  🧑 SPEC APPROVAL GATE — human confirms acceptance criteria
       ↓
@@ -56,12 +57,13 @@ Station 4    entities/    (entities-engineer × N)       ← one after another �
 Station 5    features/    (features-engineer × N)       ← one after another · GATE: layer-green
       ↓
 Station 6    widgets/ + pages/ (composition-engineer)   ← one after another · GATE: layer-green
+             fills prototype-inventory React target / Status  ← GATE: parity (--check)
       ↓
 Station 7    app/         (app-engineer)                ← GATE: layer-green
       ↓
-Station 8    Tests (test-engineer × layer group)        ← always: every new executable file
+Station 8    Tests (test-engineer × layer group)        ← always spawned: every new executable file
       ↓
-Station 9    Full gate sweep (quality-gate-runner)      ← GATE: all-green (build + coverage once)
+Station 9    Full gate sweep (quality-gate-runner)      ← GATE: all-green (conventions + build + coverage once)
       ↓
 Station 9.5  Architecture-audit changed paths (architecture-auditor, REPORT_ONLY, DIFF_SCOPE)
       ↓
@@ -76,6 +78,7 @@ Station 11   Fix loop (owning engineer)                 ← max 3 iterations per
 Browser check   Chrome DevTools (`frontend-dev-kit:browser-debug`) before Station 12
   • When UI changed, including patch. Dev server down → STOP and ask; do not skip
   • Snapshot + screenshot, main actions, console, one adjacent route
+  • Prototype bound → inventory --check, then prototype vs React side by side per state
   • Write `.spec/features/<slug>.context/browser-check.md`
   • Failures → `MODE: revise`, not the human packet
 Station 12   🧑 HUMAN REVIEW GATE (max 3 cycles)
@@ -105,15 +108,17 @@ Each packet is small JSON plus a file path. The body lives in `.spec/features/<s
 | `dep-approved` | 1b→2 | Every package in `## Dependencies` marked human-approved | HARD STOP — `DEP_PACKET` |
 | `build-plan` | 2→3 | Build plan written, every affected slice assigned | STOP — re-run Station 1 |
 | `layer-green` | 3–7 | `run-gates.sh --until fsd` (types, lint, fsd) | Fix loop — never build the next layer on a red gate |
+| `parity` | 6→7 | When `prototype-inventory.md` exists: `extract-prototype-inventory.mjs --check` exits 0 (every row `done` with a React target or `n/a: <reason>`; every prototype state rendered) | `composition-engineer` (or the slice owner) builds the missing rows — never mark a row `n/a` to pass |
 | `behavior-tests` | 8 | Every new executable file has a behavior test in the right folder | `test-engineer` fills the gaps, then continue |
+| `conventions` | 9 (patch: after 8) | `check-conventions.mjs` zero errors — missing tests, comments, hardcoded copy, string maps, unused exports, inline classes/handlers, nested ternaries, magic props, motion outside `shared/ui` | Fix loop — route each finding to the slice owner (`missing-test` → `test-engineer`) |
 | `coverage` | 9 | Thresholds in `quality-gates.md`; every AC has a test | Spawn `test-engineer` again for the failing layer group, then re-run coverage |
 | `all-green` | 9→9.5 | Full sweep, including build and coverage, once | Fix loop |
 | `architecture-clean` | 9.5→10 | `architecture-auditor` REPORT_ONLY + `DIFF_SCOPE`: zero hard violations on changed paths | Fix loop. Missing agent or companion skill → `ESCALATION_PACKET` |
 | `review-clean` | 10→11 | No `[CRITICAL]`; no unresolved `[IMPORTANT]` | Owning engineer |
 | `human-approved` | 12 | Human replies `approve` | Skill sets `status: done` |
 
-**Gate bypass is never allowed.** A patch run still runs `--until fsd`. It does not run the package build
-or `test:auto`.
+**Gate bypass is never allowed.** A patch run still runs `--until conventions`. It does not run the package build
+or `test:auto`. Layer gates stop at `fsd` because tests arrive at Station 8.
 
 Station 1.5 is full tier only. Scope is the paths in `## FSD Impact` plus their importers, not `src/`.
 Hard violations on those paths escalate. Unrelated legacy issues stay as notes.
@@ -146,7 +151,7 @@ Same-layer slices run one after another on the feature branch. Do not use a git 
 | 6 | one `composition-engineer` per widget/page, in order, when 2+ |
 
 A single slice in a layer uses `slice-engineer`. Two slices that both edit
-`shared/config/textContent.ts` are not independent — sequence them.
+`shared/lib/i18n/locales/common/en.json` are not independent — sequence them.
 
 Stations 1, 1.5, 2, 3, 7, 9, 9.5, and 10 stay sequential.
 
@@ -165,13 +170,13 @@ Spokes return a handoff path, not a report. See `context-budget.md`.
 | `shared-engineer` | Checkpoint path + its build-plan rows |
 | `entities-engineer` | Checkpoint path + its entity rows |
 | `features-engineer` | Checkpoint path + its feature rows |
-| `composition-engineer` | Checkpoint path + its screen rows |
+| `composition-engineer` | Checkpoint path + its screen rows + `prototype-inventory.md` path when present |
 | `app-engineer` | Checkpoint path + the app row |
 | `slice-engineer` | The one `LAYER` + `SLICE` |
 | `test-engineer` | Acceptance criteria path + `SLICE_PATHS` for one layer group |
-| `quality-gate-runner` | `PROFILE: layer` (`--until fsd`) or `PROFILE: full` |
+| `quality-gate-runner` | `PROFILE: layer` (`--until fsd`), `PROFILE: patch` (`--until conventions`), or `PROFILE: full` + `BASE: {PARENT}` (`--base`) |
 | `architecture-auditor` | `MODE` + `SCOPE`. Diff mode also gets `DIFF_SCOPE` and `TOPICS` |
-| `code-reviewer` | Changed-file **list**. It reads diffs per file |
+| `code-reviewer` | Changed-file **list** + `prototype-inventory.md` path when present. It reads diffs per file |
 
 After each layer, the orchestrator rewrites `orchestrator-checkpoint.md` and spawns the next
 worker with that path plus one handoff link. It does not restate earlier spoke chat.
@@ -182,7 +187,7 @@ worker with that path plus one handoff link. It does not restate earlier spoke c
 
 When the human requests changes at Station 12, re-enter at the **lowest** station the change
 touches, then replay Stations 9, 9.5, and 10 before a new `REVIEW_PACKET`. Patch-tier revisions
-stay on `slice-engineer` plus `--until fsd` unless the change adds a dependency, a route, or a
+stay on `slice-engineer` plus `--until conventions` unless the change adds a dependency, a route, or a
 second layer — then promote to `standard`.
 
 | Change type | Re-entry | Cascade |

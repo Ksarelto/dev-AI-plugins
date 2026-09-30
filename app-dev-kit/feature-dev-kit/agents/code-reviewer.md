@@ -18,12 +18,15 @@ Do not load `frontend-dev-kit:code-review` and do not spawn a second pair of rev
 
 - File list from `git diff --name-only {base}...HEAD`. Read each diff with `git diff {base}...HEAD -- <path>`.
 - `## Acceptance Criteria` (that section only).
+- `.spec/features/<slug>.context/prototype-inventory.md` when a prototype page is bound (the parity checklist), plus `KIT_DIR`.
+- The latest `conventions` entry in the Gate Log — findings the gate already reported do not need re-deriving, but every one must be resolved.
 - Rules attach by glob when you open a file. Do not `Read` the rule files.
 
 ## Checklist
 
 Read the companion references that match the diff. Resolve the directory from the installed plugin: `~/.cursor/plugins/local/frontend-dev-kit/skills/code-review/references/` or `$KIT_DIR/../../frontend-dev-kit/skills/code-review/references/`.
 
+- `conventions.md` — always
 - `accessibility.md`
 - `styling-and-shadcn.md`
 - `testing.md`
@@ -34,11 +37,17 @@ Missing directory → stop. Do not invent a local checklist.
 
 1. Apply those references. Reuse vs duplication against `## Reuse Map`.
 2. Every acceptance criterion maps to code and a test.
-3. Comments: a comment that restates the code is `[IMPORTANT]`. One line for non-obvious logic is fine.
-4. `index.ts`: a re-export that no file outside that folder imports is `[IMPORTANT]`. A component-folder `index.ts` may export the component and its props type.
-5. Tag `[CRITICAL]` / `[IMPORTANT]` / `[MINOR]`. Pass = no CRITICAL and no unresolved IMPORTANT.
+3. **Tests:** list every executable file in the diff without a test — each is `[CRITICAL]`. Over-mocking (children, `shared/ui`, `react-hook-form`, own hooks) or a cast-forced mock is `[IMPORTANT]`.
+4. **Comments:** any comment other than a tool directive is `[IMPORTANT]`, one finding per file with line numbers.
+5. **Exports:** a symbol exported but imported by no other file, or an `index.ts` re-export nothing outside the folder imports (including a props type), is `[IMPORTANT]`.
+6. **Copy:** a user-facing literal or an English string map is `[CRITICAL]` (`i18n.md`).
+7. **JSX:** a nested ternary, a ternary in JSX, an inline `on*` handler, an inline class, or a literal closed-set prop is `[IMPORTANT]` (`conventions.md`, `styling-and-shadcn.md`).
+8. **Boundaries:** a route not wrapped in `RouteBoundary`, or a feature entry without `<ErrorBoundary>`, is `[CRITICAL]`.
+9. **shadcn fidelity:** a registry base whose classes, parts, or `data-slot` differ from the CLI output, or motion/look overrides at a call site, is `[CRITICAL]`.
+10. **Prototype parity:** run `node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check <inventory path>`. Each `ERROR` line (blank or `missing` row, `done` without a target, reasonless `n/a`, a prototype state with no `done` row) is `[CRITICAL]`. Then verify `done` rows against their React target — do not trust the Status column: the locale value behind the rendered key equals the Prototype text; a button uses the Hint's variant constant; a field has the same label, type, placeholder, and required rule; each `enum-labels` value has a key; each `dialog:<id>` opens from the listed trigger. A `done` row the target does not render is `[CRITICAL]`. Copy that differs without a spec reason is `[IMPORTANT]`. An `n/a` whose reason is not sample data, an icon swap, or prototype-only chrome is `[IMPORTANT]`.
+11. Tag `[CRITICAL]` / `[IMPORTANT]` / `[MINOR]`. Pass = no CRITICAL and no unresolved IMPORTANT.
 
-FSD import direction, query keys, and segment rules are out of scope. Predicted re-exports are in scope (item 4).
+FSD import direction, query keys, and segment rules are out of scope.
 
 ## Handoff
 
@@ -53,4 +62,4 @@ If this context is near its limit, refresh that file and continue from it. Do no
 
 ## Boundaries
 
-No `src/` edits. Bash only for git. No `AskUserQuestion`. No `/create-pr`.
+No `src/` edits. Bash only for git and the kit's read-only scripts (`extract-prototype-inventory.mjs --check`, `check-conventions.mjs`). No `AskUserQuestion`. No `/create-pr`.

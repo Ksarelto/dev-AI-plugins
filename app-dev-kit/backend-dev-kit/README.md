@@ -2,25 +2,29 @@
 
 Plugin for building **TypeScript / Node.js** REST APIs. The HTTP layer is **Express 5**, schemas are **Zod**, persistence is **Drizzle ORM** + postgres.js against PostgreSQL, tests are **Vitest + supertest + Testcontainers**.
 
-Upstream docs: [docs/backend/](../../docs/backend/README.md).
-
 **Factory entry**: `/backend-dev` — one resource increment from an approved spec-dev-kit spec
 (and optional html-generator-kit prototype). Hub-and-spoke, blackboard `.spec/backend/<slug>.md`,
 path-only `kit-result.json`. Never opens a PR.
 
 ## Install
 
-```bash
-# Full marketplace
-ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-AI-plugins
+### Claude Code
 
-# This plugin only
-ln -s /path/to/dev-cusor-plugins/app-dev-kit/backend-dev-kit ~/.cursor/plugins/local/backend-dev-kit
+```text
+/plugin install backend-dev-kit@dev-AI-plugins
 ```
 
-Reload Cursor (Command Palette → "Developer: Reload Window").
+```bash
+claude --plugin-dir ./app-dev-kit/backend-dev-kit
+```
 
-From this repo: `npm run install:cursor-local` after the kit is listed in the marketplace manifests.
+### Cursor
+
+```bash
+npm run install:cursor-local
+```
+
+Then **Developer: Reload Window** and enable the kit under **Customize → Plugins**.
 
 ## Components
 
@@ -95,9 +99,7 @@ Never read `process.env` at call sites — parse once in `src/config/env.ts`.
 
 Summary: Node 22+ · TypeScript strict ESM · Express 5 · Zod · Drizzle + postgres.js · drizzle-kit · `jose` + argon2 · pino + OpenTelemetry · BullMQ · Vitest + supertest + Testcontainers.
 
-Reference app: [`examples/library-api`](../../examples/library-api) (campus library — auth, books, loans, cache, BullMQ, OpenAPI).
-
 ## Few-shot examples
 
-- Skills → `skills/{skill-name}/examples.md`
+- Templates → `skills/{skill-name}/examples.md` when that file exists (`backend-dev` has none)
 - References → `skills/{skill-name}/references/`

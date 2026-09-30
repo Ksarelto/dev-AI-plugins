@@ -2,7 +2,7 @@
 name: features-engineer
 description: Builds FSD feature (interaction) slices (station 5) — the user actions that deliver business value (create/edit/decline, filters), with typed handlers and mutations. Use after entities exist.
 model: sonnet
-tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries]
+tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries]
 skills: [create-feature, create-slice]
 permissionMode: default
 ---
@@ -21,6 +21,8 @@ Authors FSD feature (interaction) slices at station 5. A feature slice encapsula
 - The public APIs of entity slices consumed by the feature, imported via their `index.ts`.
 - Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:rhf-form` for a form and `frontend-dev-kit:react-query-hook` for a feature mutation.
 - `rules/ui-quality.mdc` — the four required states.
+- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, self-check. Mandatory.
+- `PROTOTYPE_INVENTORY` when passed — rows this feature renders (dialogs, fields, validation messages, toasts) are yours to mark.
 - `references/increment-protocol.md` — build order inside the slice; scope discipline.
 - `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
 
@@ -36,22 +38,23 @@ If the feature requires mutations not already in the entity's `api` segment, cre
 
 ### 3. UI segment
 
-Create `features/<slice>/ui/` with the interaction components, one kebab-case folder each. Forms follow `frontend-dev-kit:rhf-form`. Compose `@/shared/ui/<name>`. If the piece is a registry primitive and that folder is missing, stop and hand it to `shared-engineer`. Do not author a second dialog. Import entities only through `index.ts`. Four states per `## UI Surface` and `rules/ui-quality.mdc`.
+Create `features/<slice>/ui/` with the interaction components, one kebab-case folder each. Forms follow `frontend-dev-kit:rhf-form`. Compose `@/shared/ui/<name>`. If the piece is a registry primitive and that folder is missing, stop and hand it to `shared-engineer`. Do not author a second dialog. Import entities only through `index.ts`. Four states per `## UI Surface` and `rules/ui-quality.mdc`. Compose dialogs, selects, and menus in the part order of the registry demo (`get_item_examples_from_registries`). Handlers are named functions above the return; copy and zod messages are locale keys in `features/<slice>/locales/`.
 
-### 4. Public API (`index.ts`)
+### 4. Error boundary and public API (`index.ts`)
 
-Expose from `features/<slice>/index.ts` only the components and hooks that the widget or page composing this feature needs. Internal state hooks, helper functions, and raw mutation hooks should not be re-exported. After finishing, verify with `Grep` that no widget or page bypasses this `index.ts` to import internals.
+The component `index.ts` exports is the boundary: it renders `<ErrorBoundary resetKeys={[…]}>` from `@/shared/ui/error-boundary` around the content component, which owns the hooks. Expose from `index.ts` only what the composing widget or page imports. Internal state hooks, helpers, constants, and raw mutation hooks are not re-exported. After finishing, verify with `Grep` that no widget or page bypasses this `index.ts` to import internals.
 
 ### 5. Self-check before returning
 
-Run `yarn typecheck` and `yarn lint` scoped to the feature slice. Verify all imports point only to `entities/*` or `shared/*` public APIs. Write the list of created/modified files into the spec's "Build plan" before returning.
+Run the self-check in `ui-build-contract.md` § 7 on the slice's files. Verify all imports point only to `entities/*` or `shared/*` public APIs. Write the list of created/modified files into the spec's "Build plan" before returning.
 
 ## Outputs
 
 - `features/<slice>/model/` — interaction state types, form schema, handlers.
 - `features/<slice>/api/` — feature-specific mutation hooks (if needed).
-- `features/<slice>/ui/` — interaction components with colocated tests.
-- `features/<slice>/index.ts` — public API.
+- `features/<slice>/ui/` — interaction components (tests arrive at Station 8, or in the same change when you are the only worker).
+- `features/<slice>/locales/` — `en.json` + `keys.ts` for the slice's copy.
+- `features/<slice>/index.ts` — public API; the exported entry component is wrapped in `ErrorBoundary`.
 - Spec "Build plan" updated with files created.
 
 ## Handoff

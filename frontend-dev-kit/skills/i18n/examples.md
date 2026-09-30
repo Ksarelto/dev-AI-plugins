@@ -103,10 +103,73 @@ formatCurrency(order.total, order.currency);
 
 ## RTL-safe layout
 
-```tsx
-// Bad — breaks in RTL locales
-<div className="ml-4 text-left">
+```ts
+// Bad — styles.ts that breaks in RTL locales
+export const meta = 'ml-4 text-left';
 
 // Good — flips automatically with dir="rtl"
-<div className="ms-4 text-start">
+export const meta = 'ms-4 text-start';
+```
+
+## String maps
+
+```ts
+// Bad — English copy in a constants object; untranslatable, and invisible to the key typing
+export const STATUS_LABELS = {
+  FREE: 'In cupboard',
+  OUT: 'Out',
+  OVERDUE: 'Overdue',
+};
+
+export const MESSAGES = {
+  created: 'Listing created',
+  deleteConfirm: 'Delete this listing?',
+};
+
+// Good — copy in en.json, the map holds keys, t() runs at render
+export const LISTING_STATUS_KEY = {
+  [ListingStatus.Free]: catalogueKeys.status.free,
+  [ListingStatus.Out]: catalogueKeys.status.out,
+  [ListingStatus.Overdue]: catalogueKeys.status.overdue,
+} satisfies Record<ListingStatusValue, string>;
+
+<Badge variant={LISTING_STATUS_BADGE[listing.status]}>
+  {t(LISTING_STATUS_KEY[listing.status])}
+</Badge>
+```
+
+## Registry and toast literals
+
+```tsx
+// Bad — sr-only text from the registry, and a literal toast
+<span className={styles.srOnly}>Close</span>
+notify.success('Listing created');
+
+// Good
+<span className={styles.srOnly}>
+  {t(commonKeys.actions.close)}
+</span>
+notify.success(t(listingKeys.create.success));
+```
+
+## Validation messages
+
+```ts
+// Bad — English inside the schema
+const schema = z.object({ name: z.string().min(1, 'Name is required') });
+
+// Good — a key; the shared FormMessage translates it
+const schema = z.object({ name: z.string().min(1, listingKeys.form.errors.nameRequired) });
+```
+
+## Server data is not translated
+
+```tsx
+// Good — the listing name came from the API; the label around it is a key
+<p className={styles.meta}>
+  {t(catalogueKeys.card.lender, { name: listing.lenderDisplayName })}
+</p>
+<h2 className={styles.title}>
+  {listing.shortName}
+</h2>
 ```

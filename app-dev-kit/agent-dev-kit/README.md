@@ -2,8 +2,6 @@
 
 Plugin for building **TypeScript / Node.js** AI agents and RAG pipelines. The LLM client is the official **`openai` SDK** pointed at **OpenRouter** (`OPENROUTER_API_KEY`). Default runtime is **`@openai/agents`**; **LangGraph.js** is the graph / checkpoint / `interruptBefore` path.
 
-Upstream docs: [docs/agents/](../../docs/agents/README.md).
-
 **Factory entry**: `/agent-dev` — one named agent or RAG increment from an approved spec-dev-kit
 spec (and optional html-generator-kit prototype). Hub-and-spoke, blackboard `.spec/agents/<slug>.md`,
 path-only `kit-result.json`. Never opens a PR. If `embed: backend-route` and `create-app.ts` is
@@ -11,17 +9,23 @@ missing, the factory STOPs.
 
 ## Install
 
-```bash
-# Full marketplace
-ln -s /path/to/dev-cusor-plugins ~/.cursor/plugins/local/dev-AI-plugins
+### Claude Code
 
-# This plugin only
-ln -s /path/to/dev-cusor-plugins/app-dev-kit/agent-dev-kit ~/.cursor/plugins/local/agent-dev-kit
+```text
+/plugin install agent-dev-kit@dev-AI-plugins
 ```
 
-Reload Cursor (Command Palette → "Developer: Reload Window").
+```bash
+claude --plugin-dir ./app-dev-kit/agent-dev-kit
+```
 
-From this repo: `npm run install:cursor-local` after the kit is listed in the marketplace manifests.
+### Cursor
+
+```bash
+npm run install:cursor-local
+```
+
+Then **Developer: Reload Window** and enable the kit under **Customize → Plugins**.
 
 ## Components
 
@@ -95,5 +99,5 @@ Summary: Node 22+ · TypeScript strict ESM · `openai` → `https://openrouter.a
 
 ## Few-shot examples
 
-- Skills → `skills/{skill-name}/examples.md`
+- Templates → `skills/{skill-name}/examples.md` when that file exists (`agent-dev` has none)
 - References → `skills/{skill-name}/references/`

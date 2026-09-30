@@ -14,47 +14,51 @@ description: Build forms with react-hook-form + zod validation, shadcn/ui form c
 
 ## Shared `Form` compound component
 
-Every form built with this skill composes a shared `Form` compound component instead of
-hand-wiring shadcn's `FormField` + `FormItem` + `FormLabel` + `FormControl` + `FormMessage` at each
-field. It is generic and business-agnostic, so per the `architecture-audit` skill (`shared/` is
-generic UI) it lives once at `src/shared/ui/form/` and every feature imports `@/shared/ui/form` — never copy-paste
-the boilerplate into a feature's `ui/` folder.
+Every form composes a shared `Form` compound component instead of hand-wiring shadcn's `FormField` + `FormItem` + `FormLabel` + `FormControl` + `FormMessage` at each field. It lives once at `src/shared/ui/form/` and every feature imports `@/shared/ui/form`.
 
-1. **Check first** — if `src/shared/ui/form/` already exists, reuse it; do not create a second
-   implementation. If it doesn't exist yet, scaffold it once from the template in
-   [examples.md](examples.md#example-0--shared-form-compound-component-scaffold-once), following
-   the `react-component` skill (`form/form.tsx`, `styles.ts`, `index.ts`, `types.ts`).
-2. It exposes `Form` (the `<form>` root bound to a `UseFormReturn`) and `Form.Field` (one field's
-   `FormItem` + optional `FormLabel` + `FormControl` + optional `FormDescription` + `FormMessage`),
-   with the field's control passed as a render-prop child so any input/select/checkbox composes
-   the same way.
+```
+shared/ui/form/
+  primitives.tsx   — the registry `form` source, re-homed verbatim (rules/shadcn.mdc)
+  form.tsx         — the compound: Form + Form.Field
+  styles.ts
+  types.ts
+  constants.ts     — FieldOrientation
+  form.test.tsx
+  index.ts         — exports Form, and FieldOrientation when a caller uses it
+```
+
+1. **Check first** — if `src/shared/ui/form/` exists, reuse it. Otherwise add the registry `form` item with `shadcn add`, re-home it into `primitives.tsx`, and scaffold the compound from [examples.md](examples.md#example-0--shared-form-compound-component-scaffold-once).
+2. `form.tsx` imports the parts from `./primitives` — never from `@/shared/ui/form`, which is its own public entry.
+3. The only edit to the registry source: `FormMessage` passes the error through `translateMessage` (`i18n` skill), so zod messages written as keys render as copy.
+4. `Form` is the `<form>` root bound to a `UseFormReturn`; `Form.Field` is one field (`FormItem` + optional `FormLabel` + `FormControl` + optional `FormDescription` + `FormMessage`), with the control passed as a render-prop child.
 
 ## Instructions
 
-1. **Define schema** — zod schema in the form's `ui/` folder (`types.ts`). It calls `models/` pure functions for business invariants. Wire-shape zod stays in `api/`.
-2. **Create mutation hook** — `useCreateXxx` or `useUpdateXxx` with cache invalidation
-3. **Build form component:**
-   ```tsx
-   const form = useForm<FormValues>({ resolver: zodResolver(schema) });
-   ```
-4. **Bind fields** — use the shared `<Form>` / `<Form.Field>` compound component (see above), not
-   raw shadcn `<FormField>` + `<FormItem>` wiring
-5. **Pre-populate for edit** — call `form.reset(data)` inside a `useEffect` when the detail query resolves
-6. **Handle submit** — pass `onSubmit` to `<Form>`; it calls `form.handleSubmit(onSubmit)` internally
-7. **Error display** — `AppError` with `kind === 'validation'` mapped per field via `form.setError('fieldName', { message })` from `err.data`. Other kinds go through `notify` from `@/shared/lib/notify`
-8. **Disable submit** — use `isPending` from the mutation hook
+1. **Define the schema** in the form's `types.ts`. Every message is a translation key: `z.string().min(1, usersKeys.form.errors.nameRequired)` — never English. Business invariants call `models/` pure functions. Wire-shape zod stays in `api/`.
+2. **Create the mutation hook** — `useCreateXxx` / `useUpdateXxx` with cache invalidation.
+3. **Build the form component**: `useForm<FormValues>({ resolver: zodResolver(schema), defaultValues })`. Default values live in the folder's `constants.ts`.
+4. **Bind fields** with `<Form.Field>`. `label`, `description`, `placeholder`, and option text are `t(key)`. Closed-set props are constants: `type={InputType.Email}`, `orientation={FieldOrientation.Horizontal}`.
+5. **Pre-populate for edit** — `form.reset(data)` in a `useEffect` when the detail query resolves.
+6. **Handle submit** with a named `handleSubmit` declared above the return and passed as `onSubmit={handleSubmit}` — never an inline arrow on `<Form>`.
+7. **Errors** — `AppError` with `kind === 'validation'` maps per field via `mapServerErrorsToForm(err.data, form.setError, form.getValues)` from `@/shared/lib/form`. Other kinds go to the global handler; a specific toast is `notify.error(t(key))`.
+8. **Submit button** — `<Button type={ButtonType.Submit} disabled={isPending}>`. Its label is computed before the return (`const submitKey = isPending ? keys.submitting : keys.submit`), never a ternary inside JSX.
+9. **Styles** — the form's layout classes live in its `styles.ts`. No `className="…"` in the component.
 
 ## Checklist
 
-- [ ] Zod schema defined; `z.infer` used for form values type
-- [ ] Fields use the shared `Form.Field` compound component, not hand-wired `FormField`/`FormItem`
-- [ ] All fields have a `label` (not placeholder-only) unless intentionally inline (e.g. a checkbox)
-- [ ] Submit uses mutation hook, not direct fetch
+- [ ] Zod schema defined; `z.infer` used for form values type; every message is a key
+- [ ] Fields use the shared `Form.Field`, not hand-wired `FormField`/`FormItem`
+- [ ] `shared/ui/form/form.tsx` imports parts from `./primitives`, not from its own index
+- [ ] All labels, placeholders, descriptions, option text, button text, and toasts go through `t()`
+- [ ] All fields have a `label` (not placeholder-only) unless intentionally inline (a checkbox)
+- [ ] Submit uses the mutation hook, not a direct fetch
+- [ ] Named `handleSubmit`; no inline arrow in `onSubmit` or any `on*` prop
+- [ ] `ButtonType.Submit` / `InputType.Email` constants — no literal `type="submit"` / `type="email"`
+- [ ] Submit label computed before return; no ternary in JSX
 - [ ] Submit button disabled while `isPending`
 - [ ] Edit forms pre-populated via `form.reset()` when data loads
 - [ ] Server 422 errors mapped to fields with `form.setError()`
-- [ ] No second `Form`/`Form.Field` implementation added to a feature — the shared one under
-      `src/shared/ui/form/` is reused
 - [ ] HTTP failures narrow with `isAppError` — not `ApiError`, not a raw status code
+- [ ] A test renders the form with the real `react-hook-form` and `zod`, types into fields, and mocks only the fetcher
 
 See [examples.md](examples.md) for few-shot templates.

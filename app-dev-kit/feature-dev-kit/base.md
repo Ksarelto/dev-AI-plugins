@@ -38,7 +38,7 @@ The pipeline is **spec-driven**: a spec (this file + per-feature specs) is the s
 | **Architecture** | layered (`pages/containers/components/api/utils`) | **Feature-Sliced Design** (§3) |
 | **UI primitives** | Ant Design 5 | **shadcn/ui** (Radix + Tailwind + CVA) via shadcn MCP |
 | **Styling** | styled-components 6, `theme.color.*`, rem | **Tailwind + CVA + shadcn tokens** (styled-components only where a slice must wrap legacy) |
-| Conventions | named exports, `: JSX.Element`, colocated `.tsx/.styles/.test/index.ts`, no comments, `TextContent` strings, `ENV` proxy, `isErrorResponse` guard | **inherited verbatim** — carried onto shadcn/FSD units |
+| Conventions | named exports, `: JSX.Element`, colocated `.tsx/.styles/.test/index.ts`, no comments, `ENV` proxy, `isErrorResponse` guard | **inherited verbatim** — carried onto shadcn/FSD units. `TextContent` string maps are **replaced** by react-i18next locales (slice `locales/` + `shared/lib/i18n/locales/common`) |
 
 > **Styling decision**: shadcn requires Tailwind, so the future UI stack moves from styled-components/AntD to **Tailwind + shadcn**. Authoring *conventions* (colocation, public API `index.ts`, named exports, test coverage) are preserved. This is the one deliberate stack change; if legacy interop is needed, styled-components may remain in `shared/ui` adapters only. *(Reversible — flip this row if you'd rather keep styled-components.)*
 
@@ -149,7 +149,7 @@ The factory produces features that conform to FSD. Layers, top (most app-specifi
 - **UI primitives → `shared/ui`, sourced from shadcn via the shadcn MCP** (registry components adapted to our conventions), replacing hand-written AntD wrappers. Legacy AntD wrappers map to `shared/ui` adapters only during migration.
 - TanStack Query hooks per domain → `entities/<domain>/api` (+ feature-specific mutations → `features/<x>/api`).
 - `queryKeys` → co-located per entity slice, re-exported via `shared` if cross-cutting.
-- `textContent`, `testId`, enums → `shared/config`.
+- `textContent` → react-i18next locales (`<slice>/locales/en.json` + `keys.ts`, app-wide in `shared/lib/i18n/locales/common`). `testId`, enums → `shared/config`.
 - Smart containers → `features/*` (single interaction) or `widgets/*` (composed block).
 - Route pages → `pages/*`; routing table + providers → `app`.
 
@@ -294,8 +294,8 @@ None exist today (`.claude/agents/` is empty). Format: markdown + YAML frontmatt
 | `create-shared-ui` | Add a UI-kit item to `shared/ui` by pulling it from the **shadcn registry via shadcn MCP**, then adapting it to our conventions (colocation, named export, `index.ts`, tokens). Only hand-write when the registry has no fit. |
 | `add-route` | Wire routing table + lazy page import in `app`. |
 | `wire-navigation` | Menu/nav/breadcrumb entries in `app`. |
-| `add-text-content` | Add keys to `shared/config` text content + enums. |
-| `run-quality-gates` | Wrap typecheck→lint→build→coverage→FSD-boundary into one structured pass/fail gate. |
+| `add-text-content` | Add react-i18next keys to the slice `locales/` or `shared/lib/i18n/locales/common`. |
+| `run-quality-gates` | Wrap typecheck→lint→FSD-boundary→conventions→build→coverage into one structured pass/fail gate. |
 
 ### 7.3 The separate ship command (human-invoked)
 

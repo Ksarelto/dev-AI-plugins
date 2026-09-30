@@ -1,0 +1,16 @@
+{
+  "actions": {
+    "place": "Place order",
+    "placing": "Placing…"
+  },
+  "form": {
+    "quantity": "Quantity",
+    "errors": {
+      "quantityMin": "Order at least one item"
+    }
+  },
+  "status": {
+    "free": "In cupboard",
+    "out": "Out"
+  }
+}

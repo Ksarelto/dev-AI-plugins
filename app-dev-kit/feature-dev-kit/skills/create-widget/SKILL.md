@@ -23,10 +23,12 @@ Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI bl
 4. **Build the widget component** at `widgets/<slice>/ui/<slice>/<slice>.tsx` (kebab-case folder, `styles.ts`, `index.ts`):
    - Import feature components (via `features/*/index.ts`) and entity display components (via `entities/*/index.ts`).
    - Use entity hooks for data — import them via the entity's `index.ts`.
-   - Classes via `frontend-dev-kit:tailwind-styles`. Four states via `rules/ui-quality.mdc`.
-   - The widget owns the loading state for its composed subtree: when any hook `isLoading`, render a `Skeleton` from `shared/ui`.
-   - The widget owns the error state: when a hook has an error, render an inline error message with a retry action.
-   - The widget owns the empty state: when data is defined but empty, render an `EmptyState` component.
+   - Classes in `styles.ts` via `frontend-dev-kit:tailwind-styles`. Four states via `rules/ui-quality.mdc`, as early returns — never a JSX ternary.
+   - Loading: `Skeleton` from `@/shared/ui/skeleton`, shaped like the populated layout.
+   - Error: `Alert` with `AlertVariant.Destructive`, translated title/description, and a retry `Button` wired to a named `handleRetry` (`refetch`). Never `error.message`.
+   - Empty: `Empty` from `@/shared/ui/empty` with translated copy and the prototype's call to action.
+   - A widget whose data source can fail on its own (a side panel, a chart) wraps its content in `ErrorBoundary` from `@/shared/ui/error-boundary`, so its crash leaves the page standing.
+   - With a prototype, build every row of `prototype-inventory.md` that belongs to this widget and mark it (`ui-build-contract.md` § 6).
 
 5. **Handle local UI state** (not API state) with `useState`: tab selection, sidebar open/close, active accordion. Do not manage API state — that belongs in entity/feature hooks.
 
@@ -37,14 +39,14 @@ Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI bl
    export { ProfileReconciliationPanel } from './ui/profile-reconciliation-panel'
    ```
 
-8. **Run `yarn typecheck`**: fix all TypeScript errors.
+8. **Self-check** (`{KIT_DIR}/skills/feature-dev/references/ui-build-contract.md` § 7): fix every finding.
 
 9. **Update the spec `## Build Plan`**: mark widget tasks as done, list files created.
 
 ## Pre-conditions
 
 - All feature and entity slices the widget composes exist with their `index.ts` public APIs.
-- `shared/ui` has `Skeleton`, `EmptyState`, and other required primitives.
+- `shared/ui` has `Skeleton`, `Empty`, `Alert`, `error-boundary`, and the other required primitives (missing → `shared-engineer`).
 
 ## Outputs
 

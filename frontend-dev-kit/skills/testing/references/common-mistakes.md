@@ -43,11 +43,24 @@
 
 | Wrong | Correct |
 |-------|---------|
-| Wrapping component in real Provider to satisfy a library | `vi.mock()` the library or context hook |
-| Building a second "test provider" component | Mock the hook the component calls |
+| `vi.mock('./child-card')` — mocking the component's own children | Render children for real |
+| `vi.mock('react-hook-form')` / a stubbed `useForm` | Type into the real inputs and submit |
+| `vi.mock('@/shared/ui/button')`, `vi.mock('react-i18next')`, `vi.mock('@/shared/lib/utils')` | Real primitives, real i18n (`rendererRTL` loads `en`), real `cn` |
+| `vi.mock('../hooks/useProfiles')` + `as ReturnType<typeof useProfiles>` | Mock the fetcher; let the real hook run |
+| `vi.mock(path, () => ({ onlyThis: vi.fn() }))` wiping the module | `importOriginal` partial mock |
+| A mocked hook/context returning fields nobody reads | Return only what the code under test reads |
+| Wrapping the component in an extra test-only Provider | `rendererRTL` already wraps the app providers |
 | Mocking at bottom of file | `vi.mock()` calls at the top (before imports) |
-| Not including all properties the component uses in hook mock | Mirror the full shape the component reads |
+| `// Arrange` / `// Act` / `// Assert` or any comment in the test | No comments — blank lines separate the phases |
 | Using `require` to import | Use ES module `import` |
+
+## Coverage of files
+
+| Wrong | Correct |
+|-------|---------|
+| A new hook, fetcher, model function, store, or component with no test in the change | Every executable file ships its test (`rules/testing.mdc`) |
+| One page-level test standing in for every child component | Each component folder has its own `{name}.test.tsx` |
+| A test that only asserts "renders" or "is defined" | Assert what the user sees, what was called, or what was returned |
 
 ## Test Organization
 

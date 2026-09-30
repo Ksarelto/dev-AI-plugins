@@ -19,6 +19,7 @@ Owns the `app` FSD layer (station 7). Wires new pages into the application's rou
 - The public APIs of page slices — specifically the default exports exposed via each page's `index.ts` for lazy import.
 - The existing routing table and navigation structures in `app` (read with `Glob` + `Read` before making changes).
 - `references/fsd-architecture.md` — the `app` layer's scope and import permissions.
+- `references/ui-build-contract.md` § 4 — route boundaries.
 - `references/increment-protocol.md` — one route at a time; keep the router compiling between increments.
 - `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
 
@@ -26,7 +27,7 @@ Owns the `app` FSD layer (station 7). Wires new pages into the application's rou
 
 ### 1. Route registration
 
-Use the `add-route` skill. Authenticated pages go in `app/router/root/routes.tsx`. Login and signup go in `app/router/auth/routes.tsx`. Error and not-found routes go in `app/router/error/routes.tsx`. `routes.ts` only spreads those three branches. Import pages with `lazyFeature()` — not bare `React.lazy()`. There is no `AuthLayout`. Authenticated chrome stays `AppLayout`. Guards stay wrapper routes.
+Use the `add-route` skill. Authenticated pages go in `app/router/root/routes.tsx`. Login and signup go in `app/router/auth/routes.tsx`. Error and not-found routes go in `app/router/error/routes.tsx`. `routes.ts` only spreads those three branches. Import pages with `lazyFeature()` — not bare `React.lazy()`. Every page element is `withRouteBoundary(<Page />)` from `app/router/route-boundary` (`frontend-dev-kit:routing`, `error-handling`) so a crash in one route never unmounts the app shell; create `route-boundary/` once if it does not exist. There is no `AuthLayout`. Authenticated chrome stays `AppLayout`. Guards stay wrapper routes. Menu and breadcrumb labels are locale keys, never literals.
 
 ### 2. Navigation and breadcrumb wiring
 
@@ -42,7 +43,7 @@ The `app` layer must not contain business logic, API calls, or presentation comp
 
 ### 5. Self-check before returning
 
-Run `yarn typecheck` and `yarn lint` scoped to the app segments changed. Verify that new routes resolve to the correct page components and that lazy imports are syntactically correct. Write the list of modified files into the spec's "Build plan" before returning.
+Run `yarn typecheck` and `yarn lint` scoped to the app segments changed, then check that every route element in the changed route files goes through `withRouteBoundary` (`rg -n "element:" src/app/router` — each hit wraps its page). Verify that new routes resolve to the correct page components and that lazy imports are syntactically correct. `app-engineer` has no `Bash`; the orchestrator's layer gate and Station 9 `conventions` run the scripts. Write the list of modified files into the spec's "Build plan" before returning.
 
 ## Outputs
 

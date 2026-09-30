@@ -49,8 +49,11 @@ Anything in the repo that documents how code should be written, such as `CODING_
 This kit's own standards are also always in scope, sourced as follows:
 
 - Where a dedicated rule file already exists, use it directly — `rules/typescript.mdc`,
-  `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/honesty.mdc`. No copy of
-  these lives in this skill; read the rule file itself.
+  `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/styling.mdc`,
+  `rules/shadcn.mdc`, `rules/i18n.mdc`, `rules/testing.mdc`, `rules/component-structure.mdc`,
+  `rules/honesty.mdc`. No copy of these lives in this skill; read the rule file itself.
+- `references/conventions.md` is always in scope for `src/**` diffs: comments, unnecessary exports,
+  JSX ternaries, inline handlers, closed-set prop literals, and error boundaries.
 - FSD architecture (layers, slices, segments, public APIs, query keys, state ownership) lives in
   the `architecture-audit` skill, not a rule. Load that skill and only the `references/*.md` files
   that match the changed paths. Do not invent a second architecture summary.
@@ -156,6 +159,11 @@ Existing kit rule files — read directly, no copy kept here:
 | `rules/typescript.mdc` | any `.ts`/`.tsx` |
 | `rules/react.mdc` | `.tsx` |
 | `rules/general-coding-principles.mdc` | any `.ts`/`.tsx` |
+| `rules/styling.mdc` | `.tsx`, `styles.ts`, `.css` |
+| `rules/shadcn.mdc` | `shared/ui/**`, `components.json`, `globals.css` |
+| `rules/i18n.mdc` | `.tsx`, `locales/**`, `constants.ts`, `config/**`, `model(s)/**` |
+| `rules/testing.mdc` | any `src/**` `.ts`/`.tsx` and tests |
+| `rules/component-structure.mdc` | component folders under `ui/` |
 | `rules/honesty.mdc` | any `.ts`/`.tsx`/`.md` (always applies) |
 | `architecture-audit` skill | `src/**` — load matching `references/`, not a rule file |
 
@@ -163,11 +171,12 @@ Topics with no dedicated rule file yet — distilled into this skill's own refer
 
 | File | Distilled from | Applies to |
 |---|---|---|
+| [references/conventions.md](references/conventions.md) | `react`, `general-coding-principles`, `component-structure`, `shadcn` rules | every `src/**` `.ts`/`.tsx` |
 | [references/styling-and-shadcn.md](references/styling-and-shadcn.md) | `tailwind-styles`, `shadcn-usage` skills | `.tsx` |
 | [references/accessibility.md](references/accessibility.md) | `accessibility` skill | interactive `.tsx` |
 | [references/i18n.md](references/i18n.md) | `i18n` skill | new/changed user-facing copy |
 | [references/data-fetching.md](references/data-fetching.md) | `react-query-hook` skill | `api/`, `**/hooks/use*.ts` |
-| [references/testing.md](references/testing.md) | `testing` skill | any non-trivial component/hook/utility |
+| [references/testing.md](references/testing.md) | `testing` skill | every executable file in the diff |
 
 The reference files are a snapshot, not a live link — if the source skill changes, re-derive the
 matching reference file. If any of those topics later gets a dedicated rule file of its own, drop

@@ -1,126 +1,109 @@
 # Mock Patterns
 
-## API Hooks (TanStack Query)
+Mock the boundary the test cannot run in jsdom — nothing else. Everything the component owns runs for real (`rules/testing.mdc`).
+
+| Mock | Keep real |
+|------|-----------|
+| The slice's `api/` fetchers, or `@/shared/api/base` | Query and mutation hooks the component owns (they run through `rendererRTL`'s `QueryClient`) |
+| `useNavigate` (and `useParams` when the test sets a route param) | The rest of `react-router` |
+| Browser APIs jsdom lacks (`matchMedia`, `ResizeObserver`, `scrollIntoView`) | `@/shared/ui/*` primitives, Radix |
+| Time (`vi.useFakeTimers()`) | `react-hook-form`, `zod`, i18n (`rendererRTL` loads `en`) |
+| `@/shared/config/env` when a flag changes behavior | `cn`, `styles.ts`, the component's own children, its `model/` functions, the store it owns |
+
+Before writing `vi.mock`, answer: *what breaks if this runs for real?* If the answer is "nothing", do not mock it.
+
+## Fetchers (preferred over mocking a query hook)
 
 ```ts
-import { useProfiles } from '@/features/profiles/hooks/useProfiles'
+vi.mock('../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+  fetchProfiles: vi.fn(),
+}))
 
-vi.mock('@/features/profiles/hooks/useProfiles')
+import { screen } from '@testing-library/react'
+import { ProfileStatus, type Profile } from '@/entities/profile'
+import { render } from '@/shared/lib/rendererRTL'
+import { fetchProfiles } from '../../api/fetchers'
+import { ProfilesList } from './profiles-list'
 
-const mockUseProfiles = vi.mocked(useProfiles)
+const mockFetchProfiles = vi.mocked(fetchProfiles)
+
+const mockProfile: Profile = {
+  id: '1',
+  displayName: 'Ada Lovelace',
+  status: ProfileStatus.Active,
+  createdAt: '2026-01-01T00:00:00Z',
+}
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockUseProfiles.mockReturnValue({
-    data: mockProfiles,
-    isPending: false,
-    refetch: vi.fn(),
-  } as ReturnType<typeof useProfiles>)
+  mockFetchProfiles.mockResolvedValue([mockProfile])
+})
+
+it('shows each profile name when the list loads', async () => {
+  render(<ProfilesList />)
+
+  const name = await screen.findByText('Ada Lovelace')
+
+  expect(name).toBeInTheDocument()
+})
+
+it('shows the error state when the request fails', async () => {
+  mockFetchProfiles.mockRejectedValueOnce(new Error('boom'))
+  render(<ProfilesList />)
+
+  const alert = await screen.findByRole('alert')
+
+  expect(alert).toHaveTextContent('Could not load profiles')
 })
 ```
 
-For mutations:
+The real `useProfiles` runs, so loading, error, and data states are exercised the way users see them. `importOriginal` keeps the fetchers this test does not touch real. `mockProfile` is typed as the fetcher's wire type once at the top, and `mockResolvedValue` checks it, with no cast. `rendererRTL`'s `QueryClient` must set `retry: false` so the error test does not wait on retries.
+
+## Mutations
 
 ```ts
-const mockMutate = vi.fn()
-
-mockUseCreateProfile.mockReturnValue({
-  mutate: mockMutate,
-  isPending: false,
-} as ReturnType<typeof useCreateProfile>)
-```
-
-## Child Components
-
-Mock the child in the test file. Do not add a shared `@/mocks` helper.
-
-```ts
-vi.mock('./child-card', () => ({
-  ChildCard: ({ title }: { title: string }) => <div>{title}</div>,
+vi.mock('../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+  declineProfile: vi.fn(),
 }))
-```
 
-**When to shallow-mock child components:**
-- Components tested separately in their own test file
-- Components that don't affect the behavior being tested
-- Complex components that would slow tests down
+it('calls the decline endpoint with the profile id', async () => {
+  vi.mocked(declineProfile).mockResolvedValue(undefined)
+  render(<DeclineProfile profileId="1" />)
 
-## Custom Hooks
+  await userEvent.click(screen.getByRole('button', { name: 'Decline' }))
+  await userEvent.click(screen.getByRole('button', { name: 'Confirm' }))
 
-```ts
-vi.mock('./hooks/useFeatureData', () => ({
-  useFeatureData: vi.fn(() => ({
-    data: mockData,
-    isLoading: false,
-    handleAction: vi.fn(),
-  })),
-}))
-```
-
-Use `mockReturnValueOnce` to override per-test:
-
-```ts
-vi.mocked(useFeatureData).mockReturnValueOnce({
-  data: null,
-  isLoading: true,
-  handleAction: vi.fn(),
+  expect(declineProfile).toHaveBeenCalledWith('1')
 })
 ```
 
-## Context Hooks
+## A query the component does not own
 
-When the component uses a context hook (`useXxxContext`), **mock the hook module** — do NOT render the real Provider tree.
+A widget or page test that consumes an entity's query still mocks the **entity's fetcher**, not its hook. The real hook runs and the test needs no `UseQueryResult` stub:
 
 ```ts
-const mockGoNext = vi.fn()
-
-vi.mock('@/containers/MyFeature/hooks/useMyFeatureContext', () => ({
-  useMyFeatureContext: vi.fn(() => ({
-    stepIndex: 1,
-    goNext: mockGoNext,
-  })),
+vi.mock('@/entities/profile/api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/entities/profile/api/fetchers')>()),
+  fetchProfile: vi.fn(),
 }))
 ```
 
-Rules:
-- Return only the properties the component under test **actually reads**
-- Use `vi.fn()` for methods you need to assert (`goNext`, `setField`, etc.)
-- Override per-test with `mockReturnValueOnce` when context data changes behavior
-- Do NOT build a second test Provider that mirrors the real context implementation
+Mocking a query hook forces a full `UseQueryResult` shape or a cast (`as ReturnType<typeof useProfile>`). Both are wrong — mock one level lower.
 
 ## React Router
 
 ```ts
-vi.mock('react-router', async () => {
-  const actual = await vi.importActual('react-router')
-  return {
-    ...actual,
-    useNavigate: vi.fn(),
-    useParams: vi.fn().mockReturnValue({ id: '123' }),
-    useSearchParams: vi.fn().mockReturnValue([new URLSearchParams(), vi.fn()]),
-  }
-})
+const mockNavigate = vi.fn()
+
+vi.mock('react-router', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('react-router')>()),
+  useNavigate: () => mockNavigate,
+}))
 ```
 
-## React Hook Form
-
-```ts
-vi.mock('react-hook-form', async () => {
-  const actual = await vi.importActual('react-hook-form')
-  return {
-    ...actual,
-    useForm: vi.fn().mockReturnValue({
-      handleSubmit: vi.fn((fn) => fn),
-      register: vi.fn(),
-      watch: vi.fn().mockReturnValue(mockFormValues),
-      getValues: vi.fn().mockReturnValue(mockFormValues),
-      formState: { errors: {}, isValid: true, isDirty: true },
-      setValue: vi.fn(),
-      reset: vi.fn(),
-    }),
-  }
-})
-```
+Mock `useParams` only in a test that needs a param. Prefer rendering at a route (`render(<Page />, { route: '/profiles/1' })`) when `rendererRTL` supports it.
 
 ## Environment
 
@@ -130,9 +113,23 @@ vi.mock('@/shared/config/env', () => ({
 }))
 ```
 
+## Browser APIs
+
+```ts
+beforeAll(() => {
+  window.HTMLElement.prototype.scrollIntoView = vi.fn()
+})
+```
+
+Put shared polyfills (`ResizeObserver`, `matchMedia`, pointer capture for Radix) in the Vitest setup file once, not in each test.
+
+## Forms
+
+Do not mock `react-hook-form` or `zod`. Type into the real inputs and submit; assert the validation copy or the fetcher call. See `rhf-form` examples § Example 5.
+
 ## Icon-only buttons
 
-An icon-only button has an `aria-label`. Query it by role and name. Do not add `@/components/Icons` or a `data-testid` to reach it.
+An icon-only button has an `aria-label`. Query it by role and name — no `data-testid`:
 
 ```ts
 const editButton = screen.getByRole('button', { name: 'Edit' })
@@ -140,8 +137,10 @@ await userEvent.click(editButton)
 expect(mockOnEdit).toHaveBeenCalled()
 ```
 
-## General Mocking Rules
+## Never
 
-- **Never add extra test-only providers** to satisfy third-party libraries — mock the library instead
-- **Keep `render` from `@/shared/lib/rendererRTL`** as the entry point; it already wraps necessary providers
-- Full integration with the real library belongs in E2E tests, not component tests
+- `vi.mock('./child-card')` or any child component of the unit under test.
+- `vi.mock('@/shared/ui/...')`, `vi.mock('react-hook-form')`, `vi.mock('react-i18next')`, `vi.mock('@/shared/lib/utils')`.
+- A mocked module or hook that returns fields the code under test never reads. Wire data passed to a typed fetcher mock is the exception — its type requires the full shape.
+- A second "test provider" that re-implements a real provider — `rendererRTL` already wraps the app providers.
+- `as ReturnType<typeof useX>` / `as unknown as` to force a mock's type.

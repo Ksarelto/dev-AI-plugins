@@ -95,4 +95,4 @@ Confirm `CONTEXT7_API_KEY` is set, then check that the plugin-declared `context7
 - [ ] Set `CONTEXT7_API_KEY` in the environment.
 - [ ] Call `search_items_in_registries` (query `button`) and get a real component back. `--help` is not enough. No result → do not start the pipeline.
 - [ ] Confirm the context7 MCP shows `resolve-library-id` and `query-docs`. Missing context7 warns only; Station 1a may fall back to web search.
-- [ ] Add shadcn browse tools to the UI agents (Claude Code: `mcp__shadcn__search_items_in_registries` and `mcp__shadcn__view_items_in_registries`). Cursor uses the merged server under its own tool names.
+- [ ] Add shadcn browse tools to the UI agents (Claude Code: `mcp__shadcn__search_items_in_registries`, `mcp__shadcn__view_items_in_registries`, and `mcp__shadcn__get_item_examples_from_registries` for the registry demos composers copy part order from). Cursor uses the merged server under its own tool names.

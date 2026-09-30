@@ -17,10 +17,12 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 ## Correctness
 
 - [ ] Every acceptance criterion in the spec has a test that fails without the change
+- [ ] Every new or changed executable file has a behavior test; tests mock only the fetcher, router, env, and browser APIs
 - [ ] The feature was exercised at runtime, not merely typechecked
 - [ ] Existing tests still pass — no regressions
 - [ ] Loading, empty, and error states are implemented, not just the happy path
 - [ ] Error paths surface a user-visible message, not a silent console log
+- [ ] Every route is wrapped in `RouteBoundary`; every feature entry renders inside `ErrorBoundary` — one crash never unmounts the app
 
 ## FSD integrity
 
@@ -31,7 +33,9 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 
 ## Quality
 
-- [ ] No comments in new code, except one line where the logic is non-obvious. Naming carries the rest
+- [ ] No comments in new code. Naming carries the intent
+- [ ] No ternary in JSX, no nested ternary anywhere, no inline `on*` handler, no inline class list, no literal closed-set prop (`ButtonVariant.Outline`, not `"outline"`)
+- [ ] The `conventions` gate is green on every file changed on the branch
 - [ ] No duplicated business logic across slices
 - [ ] No dead code, `console.log`, `TODO`, or commented-out blocks left behind
 - [ ] Changes are scoped to the feature — no opportunistic refactors of adjacent files
@@ -44,7 +48,9 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 - [ ] Contrast ≥ 4.5:1 for text; state is never conveyed by colour alone
 - [ ] Renders correctly at 320 / 768 / 1024 / 1440 px
 - [ ] Uses design tokens and the spacing scale — no arbitrary pixel values
-- [ ] Every user-facing string comes from i18n keys (`add-text-content`), never a literal
+- [ ] Every user-facing string comes from i18n keys (`add-text-content`), never a literal or a string map
+- [ ] shadcn primitives match the registry output — same parts, `data-slot`, classes, and open/close animation; no call-site motion or look overrides
+- [ ] With a prototype: `extract-prototype-inventory.mjs --check` passes and the browser check compared every prototype state side by side
 
 ## Integration
 
