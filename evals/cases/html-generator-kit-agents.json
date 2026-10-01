@@ -8,10 +8,6 @@
       "expect": "html-orchestrator"
     },
     {
-      "prompt": "Run spec-interpreter as a read-only YAML parser so pages and entities come back as a compact summary from SPEC_FILE",
-      "expect": "spec-interpreter"
-    },
-    {
       "prompt": "Have design-strategist query ui-ux-pro-max and write design-brief.md plus ux-directives.md",
       "expect": "design-strategist"
     },

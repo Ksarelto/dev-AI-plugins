@@ -5,7 +5,7 @@ Payload contracts for `html-orchestrator`. Paths and slices, not blobs.
 ## Rules
 
 1. The orchestrator receives `SPEC_FILE` (a path), never `SPEC_CONTENT` (the spec body).
-2. Only `spec-interpreter` Reads the spec file. Downstream agents never see the full spec.
+2. Only `scripts/spec-model.mjs` Reads the spec file. Downstream agents never see the full spec.
 3. Persist on disk (`OUTPUT_DIR`). The next station reads the file, not a pasted report, except
    the compact contracts listed below (they exist *so* workers do not open the CSS/JS).
 4. Compact contracts (pass as text because they *are* the slice):

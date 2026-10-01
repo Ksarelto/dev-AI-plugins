@@ -9,7 +9,10 @@
     "eval": "node evals/runner.mjs",
     "mock-flow:feature-dev": "node app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/mock-flow.mjs",
     "install:cursor-local": "node scripts/install-cursor-local.mjs",
-    "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall"
+    "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall",
+    "test:spec-contract": "node scripts/test-spec-contract.mjs",
+    "test:incremental": "node scripts/emulate-incremental-app.mjs",
+    "test:html-kit": "node --test app-dev-kit/html-generator-kit/skills/generate-html/scripts/"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

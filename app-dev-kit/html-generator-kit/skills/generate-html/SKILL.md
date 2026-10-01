@@ -56,6 +56,8 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `templates/page-shell.md` | `screen-generator` (Station 4) | standalone page HTML structure |
 | `templates/index-shell.md` | `assembly-wiring` (Station 5) | landing app-map structure |
 | `scripts/collect-design-inputs.mjs` | this skill (Step 2.6, Bash) | finds provided theme/brand/layout sources → `design-inputs.json` |
+| `scripts/spec-model.mjs` | orchestrator (Station 0, Bash) | deterministic SPEC_FILE → `spec-model.json` for a full build; no model call, no truncation |
+| `scripts/delta-pages.mjs` | this skill (Step 2, Bash) | same parser, filtered to new/modified screens for `MODE: append`; shares `scripts/lib/spec-model.mjs` with the above |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
 | `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
@@ -63,7 +65,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 
 ## Prerequisites
 
-- A validated spec must exist in `.spec/app/`. Run `/generate-spec` first if none exists.
+- An approved spec must be named by `.spec/app/current.json` (`spec_path`, under `.spec/spec/`). Run `/generate-spec` first if none exists.
 - **Optional design reference** — to make the prototype follow an existing theme, drop brand
   guides, `tokens.css`, colour/font notes, or screenshots/mockups into `.spec/design/`, or name
   their paths when invoking. Theme statements in the spec's context files are picked up too.
@@ -100,7 +102,8 @@ Read the selected `spec.md` **only to extract identity** (do not pass the full f
 - `metadata.title` (or fallback: slug with hyphens → spaces)
 - `status` from the front matter. If it is not `approved`, STOP: `"Spec is not approved (status: {status}). Finish /generate-spec first."` Write the aborted envelope — `SPEC_FILE` is known.
 
-Keep `SPEC_FILE` as the path. On a full build, `spec-interpreter` reads the file itself. Append mode does not call it.
+Keep `SPEC_FILE` as the path. On a full build, `scripts/spec-model.mjs` reads the file itself (a
+deterministic parser, not a model call). Append mode uses `scripts/delta-pages.mjs` instead.
 
 On any STOP after `SPEC_FILE` is known (Step 2 decline, Step 2.5 Abort, review Abort, escalation
 abort), write `{dirname(SPEC_FILE)}/html-kit-result.json` with `outcome: aborted` before returning
@@ -135,6 +138,8 @@ Screen-generators receive only the delta screens, including `description`, `doma
 `entity_fields`, `entity_statuses`, and `api_contract`. Assembly receives `assembly_pages`
 (`{ id, title, domain, description }`), not raw page-map pairs. If `entities_changed` is
 non-empty, the orchestrator runs `component-library-author` in update mode before those screens.
+`delta-pages.json` also lists `removed[]` (page-map entries whose spec screen no longer exists) —
+nothing acts on it yet; it's there for a future cleanup step, not a signal to delete files today.
 
 Ask user (single AskUserQuestion):
 > "Generating HTML prototype from `{spec-filename}`. Output → `.spec/prototype/{TIMECODE}_{SLUG}/`. Proceed?"
@@ -253,13 +258,13 @@ DESIGN_INPUTS: {OUTPUT_DIR}/design-inputs.json   # binding: true → provided re
 
 Read {KIT_DIR}/skills/generate-html/references/pipeline-flow.md before any station.
 Do NOT call AskUserQuestion. Do NOT write prototype files. Return one packet and STOP.
-Do NOT pass SPEC_CONTENT — spec-interpreter reads SPEC_FILE.
+Do NOT pass SPEC_CONTENT — scripts/spec-model.mjs reads SPEC_FILE.
 ```
 
 | Packet `type` | This skill |
 |---------------|------------|
 | `REVIEW_PACKET` | Present `review_packet` verbatim (plus serve + screenshot hints). `AskUserQuestion` — Approve & finalize / Request changes / Abort. |
-| `ESCALATION_PACKET` | `AskUserQuestion` with `errors[]` and `options[]`. Apply the user's choice (`resume` with answers, proceed-to-review, or STOP). |
+| `ESCALATION_PACKET` | `AskUserQuestion` with `errors[]` and `options[]`. Apply the user's choice (`resume` with answers, proceed-to-review, or STOP). An `options` list containing `install-browser` is the render-check-skipped case — see Step 4 point 4. |
 
 Do not inline the spec file into the spawn prompt.
 
@@ -268,9 +273,9 @@ Do not inline the spec file into the spawn prompt.
 1. Present the `REVIEW_PACKET` body verbatim, then add:
    - `Serve: npx serve .spec/prototype/{TIMECODE}_{SLUG}` — open `http://localhost:3000`
    - "Check screenshots in `{OUTPUT_DIR}/_verify/` for a quick look."
-   - If render check is `SKIPPED`: say so. Do **not** install Playwright from a subagent; if the
-     user asks for a browser check, this skill may install Playwright/axe in the consumer repo,
-     then re-spawn `MODE: revise` with `CHANGE_REQUEST: re-run Station 6.5 only`.
+   - If the packet is headed `⚠ UNVERIFIED`: say plainly that no browser ever opened these pages —
+     render and functionality bugs (unstyled pages, broken modals/forms, dead links) would not have
+     been caught.
 2. AskUserQuestion — "Review the prototype. How should I proceed?":
    - **Approve & finalize** — proceed to Step 5.
    - **Request changes** — relay free-text description to orchestrator.
@@ -283,8 +288,21 @@ Do not inline the spec file into the spawn prompt.
    TIMECODE / SLUG / TITLE / OUTPUT_DIR / KIT_DIR / UIUX_DIR / SPEC_FILE / DESIGN_INPUTS: (same as build)
    ```
    After 3 change cycles without approval: ask (AskUserQuestion) finalize-as-is or abort.
-4. On **ESCALATION_PACKET**: ask with the listed options. If the user chooses proceed-to-review,
-   treat the packet body as a REVIEW_PACKET and continue this step. If abort: STOP.
+4. On **ESCALATION_PACKET** with `options` containing `install-browser` (the render-check-skipped
+   case — no Playwright/browser binary was available): AskUserQuestion with the packet's `errors[]`
+   and these three options:
+   - **install-browser** — this skill (never the orchestrator) may run:
+     ```bash
+     npx --yes playwright install chromium
+     ```
+     (and `npm i -D playwright-core axe-core` in the consumer repo if the kit's own dependency
+     resolution didn't find them — see `references/verification-protocol.md`). Then re-spawn
+     `MODE: revise` with `CHANGE_REQUEST: re-run Station 6.5 only` and return to this step.
+   - **proceed-unverified** — treat the packet body as a `REVIEW_PACKET` headed `⚠ UNVERIFIED` and
+     continue at point 1 above.
+   - **abort** — STOP; generated files stay in place.
+5. On any other **ESCALATION_PACKET**: ask with the listed options. If the user chooses
+   proceed-to-review, treat the packet body as a REVIEW_PACKET and continue this step. If abort: STOP.
 
 ### Step 5 — Finalize (this skill writes README — Station 8)
 
@@ -368,6 +386,6 @@ Serve:   npx serve .spec/prototype/{TIMECODE}_{SLUG}
 | "No spec found" | Run `/generate-spec` first. The pointer is `.spec/app/current.json` |
 | Pipeline seems stuck | Check for a pending `AskUserQuestion` from **this** skill — answer it |
 | Scripts not found | Re-resolve `KIT_DIR` (plugin root, not `.spec/html-generator-kit/` unless that copy exists) |
-| Render check SKIPPED | Playwright is optional. This skill may install it if the user asks; the orchestrator must not `npm i` |
+| Render check SKIPPED | Not silently passed — it's an `ESCALATION_PACKET` (`install-browser` / `proceed-unverified` / `abort`). This skill may run `npx playwright install chromium` if the user picks `install-browser`; the orchestrator must never install anything |
 | Design authority first-principles | `UIUX_DIR` is `none` — install ui-ux-pro-max (Step 2.5) and re-run if a sourced look is required |
 | Prototype ignored my theme / brand | Check `{OUTPUT_DIR}/design-inputs.json`. `binding: false` means no source was found — put the brand guide, tokens, or screenshots in `.spec/design/` (always picked up) or name the path when invoking. `binding: true` but not followed → see `## Binding reference` → Deviations in `design-brief.md` |
