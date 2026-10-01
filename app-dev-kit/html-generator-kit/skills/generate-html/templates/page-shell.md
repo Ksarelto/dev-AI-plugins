@@ -26,6 +26,7 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
   <link rel="stylesheet" href="../css/tokens.css">
   <link rel="stylesheet" href="../css/base.css">
   <link rel="stylesheet" href="../css/components.css">
+  <script src="../js/store.js" defer></script>
   <script src="../js/app.js" defer></script>
   <script src="../js/data.js" defer></script>
   <script src="../js/navigation.js" defer></script>
@@ -42,20 +43,13 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
         <span class="badge badge-primary">prototype</span>
       </div>
       <nav class="sidebar-nav" aria-label="Main navigation">
-        <!--
-          NAV_ITEMS_BLOCK — generated from nav_structure by screen-generator.
-          Pattern per domain group:
-            <div class="nav-group">
-              <p class="nav-group-label">DOMAIN</p>
-              <a href="./PAGE_ID.html" class="nav-item" data-nav-id="PAGE_ID">ICON PAGE_TITLE</a>
-            </div>
-          Active state is added automatically by navigation.js via data-nav-id.
-        -->
+<!-- nav:start -->
+<!-- nav:end -->
       </nav>
     </aside>
 
     <!-- ═══════ Main Content ═══════ -->
-    <main class="main" x-data="ENTITY_DATA_FN()" x-init="init()">
+    <main class="main" x-data="ENTITY_DATA_CALL" x-init="init()">
       <div class="content">
 
         <!-- Page header -->
@@ -74,7 +68,7 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
         </div>
 
         <!-- ── Loading state ── -->
-        <div x-show="loading" role="status" aria-label="Loading PAGE_TITLE">
+        <div x-show="loading" data-state-root="loading" role="status" aria-label="Loading PAGE_TITLE">
           <div class="skeleton mb-2"></div>
           <div class="skeleton mb-2"></div>
           <div class="skeleton mb-2"></div>
@@ -83,13 +77,13 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
         </div>
 
         <!-- ── Error state ── -->
-        <div x-show="!loading && error" class="alert alert-destructive" role="alert">
+        <div x-show="!loading && error" data-state-root="error" class="alert alert-destructive" role="alert">
           <p x-text="error || 'Failed to load ENTITY_PLURAL. Please try again.'"></p>
           <button class="btn-secondary mt-2" @click="reload()">Retry</button>
         </div>
 
         <!-- ── Empty state ── -->
-        <div x-show="!loading && !error && items.length === 0" class="empty-state">
+        <div x-show="!loading && !error && items.length === 0" data-state-root="empty" class="empty-state">
           <div class="empty-state-icon">📭</div>
           <p class="empty-state-title">No ENTITY_PLURAL yet</p>
           <p class="empty-state-desc">EMPTY_STATE_DESCRIPTION</p>
@@ -97,14 +91,14 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
         </div>
 
         <!-- ── Success state ── -->
-        <div x-show="!loading && !error && items.length > 0">
+        <div x-show="!loading && !error && items.length > 0" data-state-root="success">
           <!-- SUCCESS_CONTENT_BLOCK — filled by screen-generator per page type -->
         </div>
 
       </div>
 
       <!-- ── Dev Panel (always last inside <main>) ── -->
-      <div class="dev-panel" aria-hidden="true">
+      <div class="dev-panel" role="toolbar" aria-label="Prototype controls">
         <span class="dev-panel-label">States:</span>
         <button class="btn-ghost btn-sm" @click="loading=true;error=null"
                 title="Loading state" aria-label="Preview loading state">⏳</button>
@@ -114,6 +108,8 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
                 title="Error state" aria-label="Preview error state">❌</button>
         <button class="btn-ghost btn-sm" @click="loading=false;error=null;items=[...defaultItems]"
                 title="Success state" aria-label="Preview success state">✅</button>
+        <button class="btn-ghost btn-sm" @click="ProtoStore.resetAll(); reload()"
+                title="Reset data" aria-label="Reset all data">🔄</button>
       </div>
 
     </main>
@@ -139,18 +135,31 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
 |-------------|-------------|---------|
 | `APP_TITLE` | Feature/app title | `Scheduled Orders` |
 | `PAGE_TITLE` | This page's title | `Profiles List` |
-| `ENTITY_DATA_FN` | Alpine data function name | `ProfileData` |
+| `ENTITY_DATA_CALL` | Alpine data factory call, by page type | `entityList('Profile')` |
 | `ENTITY_PLURAL` | Entity plural name (lowercase) | `profiles` |
 | `EMPTY_STATE_DESCRIPTION` | Specific empty-state copy | `Add a profile to get started.` |
 | `PRIMARY_EMPTY_CTA` | Primary CTA button text | `Add Profile` |
-| `NAV_ITEMS_BLOCK` | Generated nav from nav_structure | See comment in template |
 | `PRIMARY_ACTION_BUTTON` | Main action button (or empty) | `<button class="btn-primary">Add Profile</button>` |
 | `SUCCESS_CONTENT_BLOCK` | Page-type content | List table, detail form, etc. |
+
+`ENTITY_DATA_CALL` is one of three generic factory calls from `js/store.js` (`store-js.md`),
+depending on the page's type — never a per-entity `{Entity}Data()` function:
+
+- List pages: `entityList('{Entity}')`
+- Detail pages: `entityDetail('{Entity}')`
+- Form / settings pages: `entityForm('{Entity}')`
+
+The `<!-- nav:start -->` / `<!-- nav:end -->` markers inside `<nav class="sidebar-nav">` are left
+empty here. `screen-generator` emits the marker pair verbatim and writes nothing between them;
+`wire-nav.mjs` (run by `assembly-wiring` at Station 5, after every page exists) injects the actual
+nav into every page — and `index.html` — in one pass, which is what keeps nav in sync across pages.
 
 Notes:
 - `<body x-data x-cloak>` — the bare `x-data` makes `<body>` an Alpine root so Alpine removes its
   `x-cloak` on init (paired with `[x-cloak]{display:none}` in base.css). WITHOUT `x-data` the body's
-  `x-cloak` is never removed and the whole page stays hidden. The nested `x-data="{Entity}Data()"`
+  `x-cloak` is never removed and the whole page stays hidden. The nested `x-data="ENTITY_DATA_CALL"`
   on `<main>` is a child scope and works normally.
-- Alpine + focus plugin load LAST and deferred so `app.js`/`data.js` register their blocks on
-  `alpine:init` before Alpine boots.
+- `js/store.js` loads before `app.js`/`data.js`/`navigation.js` (order among these four doesn't
+  matter relative to each other, only that all four load before the Alpine core scripts). Alpine +
+  focus plugin load LAST and deferred so these register their blocks on `alpine:init` before Alpine
+  boots.

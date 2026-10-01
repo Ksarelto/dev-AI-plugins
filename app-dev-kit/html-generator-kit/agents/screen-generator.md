@@ -98,6 +98,7 @@ The page is a **standalone HTML file** with full `<html><head><body>`.
   <link rel="stylesheet" href="../css/tokens.css">
   <link rel="stylesheet" href="../css/base.css">
   <link rel="stylesheet" href="../css/components.css">
+  <script src="../js/store.js" defer></script>
   <script src="../js/app.js" defer></script>
   <script src="../js/data.js" defer></script>
   <script src="../js/navigation.js" defer></script>
@@ -107,11 +108,21 @@ The page is a **standalone HTML file** with full `<html><head><body>`.
 ```
 
 Note: APP_TITLE is derived from the `page.domain` or a generic "Prototype" — use what was passed.
-app.js/data.js/navigation.js MUST come before the Alpine core script so their `alpine:init`
-listeners register their stores/data blocks before Alpine boots.
+store.js/app.js/data.js/navigation.js MUST come before the Alpine core script so their
+`alpine:init` listeners register their stores/data factories before Alpine boots (order among
+these four doesn't matter relative to each other).
 
 **Body structure** (bare `x-data` on `<body>` is REQUIRED so Alpine removes the body's `x-cloak`).
 Use the shell that matches the `design_ref` layout archetype:
+
+`{ENTITY_DATA_CALL}` below is one of three generic Alpine data factory calls from `js/store.js`,
+chosen by this page's type (see Step 2):
+- list pages → `entityList('{Entity}')`
+- detail pages → `entityDetail('{Entity}')`
+- form/settings pages → `entityForm('{Entity}')`
+- dashboard pages → `entityList('{Entity}')` as the default; a dashboard may also read other
+  entities directly via `ProtoStore.all('{OtherEntity}')` in its own markup/computed values if it
+  needs cross-entity KPIs.
 
 SIDEBAR:
 ```html
@@ -120,7 +131,7 @@ SIDEBAR:
     <aside class="sidebar">
       <!-- sidebar-header + nav (see §Navigation below) -->
     </aside>
-    <main class="main" x-data="{Entity}Data()" x-init="init()">
+    <main class="main" x-data="{ENTITY_DATA_CALL}" x-init="init()">
       <div class="content">
         <!-- page-header -->
         <!-- four states -->
@@ -138,9 +149,9 @@ TOP-NAV (wrap in `.app.app-topnav`, put brand + horizontal nav in `<header class
   <div class="app app-topnav">
     <header class="topnav">
       <a href="../index.html" class="sidebar-brand link">{App title}</a>
-      <nav class="sidebar-nav" aria-label="Main navigation"><!-- nav-groups inline --></nav>
+      <nav class="sidebar-nav" aria-label="Main navigation"><!-- nav markers only (see §Navigation below) --></nav>
     </header>
-    <main class="main" x-data="{Entity}Data()" x-init="init()">
+    <main class="main" x-data="{ENTITY_DATA_CALL}" x-init="init()">
       <div class="content"><!-- page-header + four states --></div>
       <!-- dev-panel (always last inside <main>) -->
     </main>
@@ -150,23 +161,26 @@ TOP-NAV (wrap in `.app.app-topnav`, put brand + horizontal nav in `<header class
 ```
 
 **Navigation sidebar** (same structure on all pages):
+
+Nav is **NOT** authored here. Emit only the `<!-- nav:start -->`/`<!-- nav:end -->` markers from
+`page-shell.md` verbatim, inside `<nav class="sidebar-nav" aria-label="Main navigation">` (or the
+TOP-NAV equivalent):
+
 ```html
 <div class="sidebar-header">
   <a href="../index.html" class="sidebar-brand link">{App title}</a>
   <span class="badge badge-primary">prototype</span>
 </div>
 <nav class="sidebar-nav" aria-label="Main navigation">
-  <!-- One nav group per domain; one nav item per page.
-       Use data-nav-id="{page.id}" for active detection. -->
-  <div class="nav-group">
-    <p class="nav-group-label">{domain}</p>
-    <a href="./{page.id}.html" class="nav-item" data-nav-id="{page.id}">{icon} {title}</a>
-  </div>
+<!-- nav:start -->
+<!-- nav:end -->
 </nav>
 ```
 
-Pick domain-appropriate emoji for nav icons:
-`👥` profiles, `📄` documents, `🏦` clients, `📊` analytics, `⚙️` settings, `🏠` dashboard, `📋` reports, `🔔` notifications.
+`wire-nav.mjs` (run by `assembly-wiring` at Station 5, after every page exists) injects the full nav
+into every page in one pass — this is what keeps nav in sync across all pages, including ones from a
+previous run in append mode. Do not hand-write nav groups/items/icons here; that's no longer this
+agent's job.
 
 **Page header**:
 ```html
@@ -187,7 +201,7 @@ Pick domain-appropriate emoji for nav icons:
 
 Loading:
 ```html
-<div x-show="loading" role="status" aria-label="Loading {page.title}">
+<div x-show="loading" data-state-root="loading" role="status" aria-label="Loading {page.title}">
   <div class="skeleton mb-2"></div>
   <div class="skeleton mb-2"></div>
   <div class="skeleton mb-2"></div>
@@ -198,7 +212,7 @@ Loading:
 
 Error:
 ```html
-<div x-show="!loading && error" class="alert alert-destructive" role="alert">
+<div x-show="!loading && error" data-state-root="error" class="alert alert-destructive" role="alert">
   <p x-text="error || 'Failed to load {entity}s. Please try again.'"></p>
   <button class="btn-secondary mt-2" @click="reload()">Retry</button>
 </div>
@@ -206,7 +220,7 @@ Error:
 
 Empty:
 ```html
-<div x-show="!loading && !error && items.length === 0" class="empty-state">
+<div x-show="!loading && !error && items.length === 0" data-state-root="empty" class="empty-state">
   <div class="empty-state-icon">📭</div>
   <p class="empty-state-title">No {entity}s yet</p>
   <p class="empty-state-desc">{page.description} — nothing has been added yet.</p>
@@ -216,7 +230,7 @@ Empty:
 
 Success (list page example — adapt per page type):
 ```html
-<div x-show="!loading && !error && items.length > 0">
+<div x-show="!loading && !error && items.length > 0" data-state-root="success">
   <!-- Filter bar -->
   <div class="filter-bar">
     <input class="form-input flex-1" type="search" placeholder="Search {entity}s…"
@@ -293,14 +307,20 @@ Any modal you emit MUST use the testable hooks (`data-modal-open` on the trigger
 
 **Dev panel** (always the very last element inside `<main>`):
 ```html
-<div class="dev-panel" aria-hidden="true">
+<div class="dev-panel" role="toolbar" aria-label="Prototype controls">
   <span class="dev-panel-label">States:</span>
   <button class="btn-ghost btn-sm" @click="loading=true;error=null" title="Loading state" aria-label="Preview loading state">⏳</button>
   <button class="btn-ghost btn-sm" @click="items=[];loading=false;error=null" title="Empty state" aria-label="Preview empty state">📭</button>
   <button class="btn-ghost btn-sm" @click="error='Failed to load';loading=false" title="Error state" aria-label="Preview error state">❌</button>
   <button class="btn-ghost btn-sm" @click="loading=false;error=null;items=[...defaultItems]" title="Success state" aria-label="Preview success state">✅</button>
+  <button class="btn-ghost btn-sm" @click="ProtoStore.resetAll(); reload()" title="Reset data" aria-label="Reset all data">🔄</button>
 </div>
 ```
+
+**Role-gated content**: if `page.roles` (if passed) restricts a section, gate it with
+`x-show="$store.session.role === 'RoleName'"` (or `.includes(...)` for a multi-role allow-list) —
+do not hard-code a different mechanism. Full per-screen role wiring is a later phase; this just
+makes the primitive available.
 
 ### 4. Write the file
 
@@ -311,8 +331,9 @@ Write the complete HTML to `{output_path}`.
 - [ ] `<!DOCTYPE html>` and `<html lang="en">`
 - [ ] `<title>`, `<meta charset>`, `<meta viewport>` present in `<head>`
 - [ ] CSS links: `../css/tokens.css`, `../css/base.css`, `../css/components.css`
-- [ ] JS scripts: `../js/app.js`, `../js/data.js`, `../js/navigation.js` — all `defer`
-- [ ] All four states present with correct `x-show` directives
+- [ ] JS scripts: `../js/store.js`, `../js/app.js`, `../js/data.js`, `../js/navigation.js` — all `defer`
+- [ ] All four states present with correct `x-show` directives, each with its `data-state-root`
+      (`loading`/`error`/`empty`/`success`)
 - [ ] Dev panel present and is the last element in `<main>`
 - [ ] Zero inline `<style>` blocks
 - [ ] Zero inline `<script>` blocks
@@ -324,8 +345,8 @@ Write the complete HTML to `{output_path}`.
 - [ ] `.num` on numeric cells / stat values · `.chip-row` used instead of a second bare select
 - [ ] `.hover-lift` only on cards/stat-cards · `.reveal` on ≤6 elements, none inside an `x-for`
 - [ ] No chart library referenced — proportions use `.meter` / `.sparkbars`
-- [ ] Nav links use relative `href="./{id}.html"` (within pages/) — no absolute paths
-- [ ] `data-nav-id="{page.id}"` on the current page's nav link
+- [ ] `<!-- nav:start -->`/`<!-- nav:end -->` markers present inside `<nav class="sidebar-nav">` (or
+      the TOP-NAV equivalent) — no hand-authored nav items
 - [ ] Shell matches the design_ref layout archetype (`.app` sidebar OR `.app.app-topnav` + `.topnav`)
 - [ ] Any modal: `data-modal-open` trigger, `.modal[role="dialog"]`, `data-modal-close` on close/overlay
 - [ ] Any form: real `<form>`, mandatory fields `required`, `type="submit"`, validation wired

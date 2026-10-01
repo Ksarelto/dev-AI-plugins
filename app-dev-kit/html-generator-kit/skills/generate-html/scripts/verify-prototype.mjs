@@ -81,7 +81,7 @@ for (const f of pages) {
   const scriptTags = html.match(/<script\b[^>]*>/gi) || [];
   for (const s of scriptTags) if (!/\bsrc=/.test(s)) pushC(`${rel}: inline <script> without src`);
   // leftover placeholders
-  const ph = html.match(/\b(PAGE_TITLE|APP_TITLE|ENTITY_DATA_FN|ENTITY_PLURAL|SUCCESS_CONTENT_BLOCK|NAV_ITEMS_BLOCK|PAGE_CARDS_BLOCK|PRIMARY_[A-Z_]+)\b/g);
+  const ph = html.match(/\b(PAGE_TITLE|APP_TITLE|ENTITY_DATA_CALL|ENTITY_DATA_FN|ENTITY_PLURAL|SUCCESS_CONTENT_BLOCK|NAV_ITEMS_BLOCK|PAGE_CARDS_BLOCK|PRIMARY_[A-Z_]+)\b/g);
   if (ph) pushC(`${rel}: leftover placeholder(s): ${[...new Set(ph)].join(', ')}`);
   // asset references resolve
   const refs = [...html.matchAll(/(?:href|src)="([^"]+\.(?:css|js))"/g)].map((m) => m[1]).filter((u) => !/^https?:/.test(u));

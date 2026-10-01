@@ -95,6 +95,9 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 | I3 | Forms use real `<form>`, mandatory fields `required`, a `type="submit"` control | WARNING / CRITICAL | screen-generator + qa-validator |
 | I4 | Nav links resolve to existing files (no dead links) | CRITICAL | verify-prototype.mjs |
 
+Nav *consistency* across pages (same groups/order/links on every page, including `index.html`) is
+enforced by `wire-nav.mjs`'s exit code at Station 5, not by qa-validator — see `agents/assembly-wiring.md`.
+
 ---
 
 ## Render, Functionality & Design (Station 6.5 — browser-verified)

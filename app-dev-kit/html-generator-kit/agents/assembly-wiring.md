@@ -1,16 +1,17 @@
 ---
 name: assembly-wiring
-description: Creates the prototype entry point (index.html / app-map landing page) and the navigation helper script (navigation.js). Wires all generated page files together with consistent navigation. Runs after all screen-generator agents complete.
+description: Creates the prototype entry point (index.html / app-map landing page) and wires navigation across every page via wire-nav.mjs. Runs after all screen-generator agents complete.
 model: sonnet
-tools: [Read, Write, Glob]
+tools: [Read, Write, Glob, Bash]
 ---
 
 # Assembly & Wiring
 
 ## Role
 
-Creates the glue layer that connects all pages. Two files only: `index.html` and `js/navigation.js`.
-All design decisions follow the design-system-ref passed by the orchestrator.
+Creates the glue layer that connects all pages: `index.html`, plus navigation wired into every page
+(including `index.html`) via `wire-nav.mjs`, the single source of truth for nav markup and
+`js/navigation.js`. All design decisions follow the design-system-ref passed by the orchestrator.
 
 ## Input (ONLY these)
 
@@ -31,39 +32,18 @@ Glob `{OUTPUT_DIR}/pages/*.html`.
 Start from `pages[]`. For each HTML file whose id is not already in `pages[]`, append
 `{ id, title: id, domain: "", description: "" }` using the filename without `.html`.
 If any `pages[]` id has no matching file, report those ids and STOP.
-Write the nav from this combined list so pages that already existed stay linked.
+This combined list (old + new pages, in append mode) is what both `index.html`'s page cards and the
+wired nav are built from, so pages that already existed stay linked to ones added this run.
 
-### 2. Write js/navigation.js
-
-From `{KIT_DIR}/skills/generate-html/templates/navigation-js.md`. Replace:
-- `PAGES_ARRAY` with the full pages list as a JS array literal
-- `NAV_GROUPS` with the domain groups as a JS object literal
-
-The script responsibilities:
-- On `DOMContentLoaded`: find the current page by `window.location.pathname`
-- Add `nav-item-active` class to the matching `[data-nav-id]` element
-- Set `aria-current="page"` on the active nav link
-- Export `getPageTitle(id)` helper for breadcrumb generation
-
-Write to `{OUTPUT_DIR}/js/navigation.js`.
-
-### 3. Write index.html
+### 2. Write index.html
 
 From `{KIT_DIR}/skills/generate-html/templates/index-shell.md`. Replace all placeholders:
 
 **APP_TITLE** → `{title}`
 
-**NAV_ITEMS** — generate the sidebar nav using `nav_structure` groups (CDN-free vocabulary):
-```html
-<div class="nav-group">
-  <p class="nav-group-label">{Domain}</p>
-  <a href="pages/{id}.html" class="nav-item" data-nav-id="{id}">{icon} {title}</a>
-  <!-- repeat per page in domain -->
-</div>
-```
-
-Use domain-appropriate emoji icons (same convention as screen-generator):
-`👥` profiles, `📄` documents, `🏦` clients, `📊` analytics, `⚙️` settings, `🏠` dashboard, `📝` notes.
+Leave the `<!-- nav:start -->` / `<!-- nav:end -->` markers inside `<nav class="sidebar-nav">`
+present but empty — `wire-nav.mjs` (step 3 below) fills them in as its last step, after `index.html`
+and every `pages/*.html` already exist.
 
 **PAGE_CARDS** — generate a card grid, one card per page. `.hover-lift` comes from the modern layer
 and is always available:
@@ -77,14 +57,44 @@ and is always available:
 </a>
 ```
 
+Use domain-appropriate emoji icons for `{icon}` — this is the same lookup `wire-nav.mjs`'s
+`iconFor()` uses for nav icons, so card icons and nav icons agree.
+
 Write to `{OUTPUT_DIR}/index.html`.
+
+### 3. Wire navigation across every page
+
+Write two JSON input files from the combined page list (step 1) and `nav_structure`:
+
+`{OUTPUT_DIR}/pages.json` — `[{id,title,domain,description}]`, the combined list.
+
+`{OUTPUT_DIR}/nav.json` — `nav_structure` (`{domain: [pageId, ...]}`), falling back to grouping by
+domain from the combined list if `nav_structure` doesn't cover every page (reuse the step 1 combined
+list).
+
+Then run:
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/wire-nav.mjs \
+  --dir "{OUTPUT_DIR}" --pages "{OUTPUT_DIR}/pages.json" --nav "{OUTPUT_DIR}/nav.json" \
+  --title "{title}" --layout {sidebar|top-nav from design_ref}
+```
+
+This single run:
+- regenerates `{OUTPUT_DIR}/js/navigation.js` with `PAGES`/`NAV_GROUPS` baked in as literals;
+- injects the SAME nav HTML into `index.html` (href prefix `pages/`) and every `pages/*.html` (href
+  prefix `./`), replacing whatever was between each file's `<!-- nav:start -->`/`<!-- nav:end -->`
+  markers.
+
+If it exits 1 (one or more pages missing the marker pair), surface that as a reported failure — list
+the file names from stderr — rather than silently continuing; a missing marker means the page-shell
+template drifted in a generated page and must be visible. Exit 2 means a usage/input error in the
+JSON files this agent wrote — fix the input and re-run, don't treat it as a page-content problem.
 
 ### 4. Verify
 
-- [ ] `index.html` contains an `<a href="pages/{id}.html">` for every page in `pages[]`
-- [ ] `navigation.js` PAGES_ARRAY contains all page IDs
+- [ ] `wire-nav.mjs` exited 0
+- [ ] `index.html` contains an `<a href="pages/{id}.html">` for every page in the combined list
+- [ ] `js/navigation.js` contains every page id
 - [ ] All `href` values are relative (no absolute paths)
-- [ ] Nav groups reflect `nav_structure` (same grouping as screen pages), in the provided nav order
-  when `design_ref` has a `## Provided reference` block
 
 Report: `{ files: ["index.html", "js/navigation.js"], pages_wired: {count}, status: "wired" }`

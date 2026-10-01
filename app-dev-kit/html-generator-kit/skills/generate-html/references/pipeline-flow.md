@@ -69,7 +69,7 @@ question.
 |------|---------|-----------|-----------|
 | `design-brief` | 1.5→2 | `design-brief.md` **and** `ux-directives.md` exist and non-empty; brief names 1–3 valid signature blocks (`none` allowed only with a binding reference); `binding: true` → brief has `## Binding reference` | re-run strategist once, then `ESCALATION_PACKET` |
 | `design-system-contract` | 2→3 | `css/tokens.css`, `css/base.css`, `css/components.css`, `design-system-ref.md` all exist and non-empty; motion tokens + reduced-motion guard present; no `locked_missing` tokens | `ESCALATION_PACKET` |
-| `component-ready` | 3→4 | `js/app.js`, `js/data.js`, `component-manifest.md` all exist and non-empty | `ESCALATION_PACKET` |
+| `component-ready` | 3→4 | `js/app.js`, `js/data.js`, `js/store.js`, `component-manifest.md` all exist and non-empty | `ESCALATION_PACKET` |
 | `qa-pass` | 6→6.5 | `critical_issues` list is empty from `qa-validator` | Auto-fix attempt (max 1 retry), then `ESCALATION_PACKET` |
 | `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 with `report.browser: true` | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
 

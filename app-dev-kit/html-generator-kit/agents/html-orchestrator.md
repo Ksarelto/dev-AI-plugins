@@ -180,12 +180,14 @@ Mark task 2 complete.
 Delegate to `component-library-author` with ONLY:
 - `DESIGN_REF` content (the compact 60-line reference — not the full CSS files)
 - Per-entity data: `{ name, fields[], statuses[], api_contract }` for each entity
+- `roles` — from `spec-model.json`'s top-level `roles[]`
 - `KIT_DIR`
 - `OUTPUT_DIR`
 
-Wait for completion. Verify these 3 files exist:
+Wait for completion. Verify these 4 files exist:
 - `{OUTPUT_DIR}/js/app.js`
 - `{OUTPUT_DIR}/js/data.js`
+- `{OUTPUT_DIR}/js/store.js`
 - `{OUTPUT_DIR}/component-manifest.md`
 
 **GATE**: If any file missing or `component-manifest.md` is empty → return `ESCALATION_PACKET` and STOP.
@@ -227,6 +229,9 @@ Delegate to `assembly-wiring` with ONLY:
 - `OUTPUT_DIR`
 
 Wait for: `{OUTPUT_DIR}/index.html` and `{OUTPUT_DIR}/js/navigation.js` to exist.
+This station also wires navigation into every page via `wire-nav.mjs` — see
+`agents/assembly-wiring.md`. A reorder or an appended page reaches every page in one pass, including
+ones not regenerated this run.
 Mark task 5 complete.
 
 ### Station 6 — QA Validation (GATE: qa-pass)
@@ -315,6 +320,9 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
    Do not pass other pages.
 7. Station 5: pass `assembly-wiring` `assembly_pages` from `DELTA_PAGES`
    (`{ id, title, domain, description }` for every spec screen). Do not pass raw page-map pairs.
+   `assembly-wiring` re-runs `wire-nav.mjs` against the FULL combined page list (old + new) — this
+   is what keeps old pages' nav in sync with new ones; previously this was broken (old pages never
+   linked to new ones in append mode).
 8. Station 6 and Station 6.5, then return `REVIEW_PACKET`.
 
 ## Revise flow (MODE == revise)
