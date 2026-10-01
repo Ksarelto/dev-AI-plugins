@@ -40,6 +40,8 @@ Station 6    QA Validation (scripts/qa-static.mjs — deterministic, no model ca
       ↓
 Station 6.5  Render & Functionality Verification  ← GATE: render-pass
       ↓
+Station 6.6  Visual Review (visual-reviewer, reads the Station 6.5 screenshots)  ← GATE: visual-review
+      ↓
   ⇢ RETURN REVIEW_PACKET or ESCALATION_PACKET to the generate-html skill, then STOP
 ──────────────────────────────────────────────────────────────────
 
@@ -71,7 +73,8 @@ question.
 | `design-system-contract` | 2→3 | `build-design-system.mjs` exited 0 (Phase 4: the file-existence + non-empty + motion-token + locked-token + signature-block checks are now the script's own hard-failure checks, not a self-report the orchestrator re-verifies) | `ESCALATION_PACKET` |
 | `component-ready` | 3→4 | `js/app.js`, `js/data.js`, `js/store.js`, `component-manifest.md` all exist and non-empty | `ESCALATION_PACKET` |
 | `qa-pass` | 6→6.5 | `scripts/qa-static.mjs` exits 0 (`critical` list empty) | Auto-fix attempt (max 1 retry), then `ESCALATION_PACKET` |
-| `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 with `report.browser: true` (critical[] now also includes mobile-overflow, locked-token mismatches with `--brief`, and spec-conformance failures with `--model`, in addition to render/a11y/nav/modal/form) | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
+| `render-pass` | 6.5→6.6 | `verify-prototype.mjs` exits 0 with `report.browser: true` (critical[] now also includes mobile-overflow, locked-token mismatches with `--brief`, and spec-conformance failures with `--model`, in addition to render/a11y/nav/modal/form) | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
+| `visual-review` | 6.6→7 | `visual-reviewer` reports `passed: true` (no `critical` finding in its `VISUAL_REVIEW:` block) — **not** a HARD gate like `design-brief`/`component-ready`: a critical here still gets only ONE auto-fix retry before escalating, same semantics as `qa-pass`/`render-pass`. Skipped entirely when Station 6.5 itself was SKIPPED (no screenshots to review) | Route each critical to owning agent (page-specific → `screen-generator`; brief-wide → `design-system-author`), re-run the station, re-run Station 6.5 then 6.6 (max 1 cycle), then `ESCALATION_PACKET` |
 
 ## Append mode
 
@@ -92,6 +95,7 @@ file exists; skip only the browser half when Playwright is unavailable (see veri
 |------|----------|-----------|----------------|-----------|
 | QA auto-fix | Station 6 | 1 retry | No critical issues | `ESCALATION_PACKET` |
 | Render auto-fix | Station 6.5 | 1 cycle | verify-prototype.mjs exits 0 | `ESCALATION_PACKET` with report.json + screenshots |
+| Visual review auto-fix | Station 6.6 | 1 cycle | `visual-reviewer` reports `passed: true` | `ESCALATION_PACKET` with `CRITICAL_ISSUES` |
 | Human review | Station 7 (skill) | 3 cycles | User approves | AskUserQuestion with unresolved items; then finalize as-is or abort per user choice |
 
 Station 7's loop is owned by the `generate-html` skill, not the orchestrator. Each "Request change"
@@ -142,6 +146,7 @@ model call, no truncation (it replaced the old `spec-interpreter` agent).
 | `component-library-author` | design-system-ref.md content + entity definitions + KIT_DIR + OUTPUT_DIR |
 | `screen-generator` | The FULL per-page object from spec-model.json as-is — `{ id, spec_id, title, description, type, domain, entity, route, roles, components, states, entity_fields, entity_statuses, api_contract, transitions, acceptance_criteria, interactions }` — plus design_ref + ux_directives (all-pages + this type only) + component_manifest + `rules_dir`=`{KIT_DIR}/skills/generate-html/references/` + output_path (+ `MODE`/`CHANGE_REQUEST` on a single-page revise — see Modification Re-entry Points) |
 | `assembly-wiring` | pages[] IDs/titles/domains (no entity details) + nav_structure + design_ref + KIT_DIR + OUTPUT_DIR |
+| `visual-reviewer` | `screenshots_dir` (Station 6.5's `_verify/screenshots/`) + `design_brief` content + `mockup_paths` (design-inputs.json `sources[]` where `kind: image`) + pages[] IDs/titles + OUTPUT_DIR |
 | `modification-router` | User change text + pages[] IDs/titles/domains only |
 
 Station 6 (QA) is `scripts/qa-static.mjs`, run via Bash with `--dir`/`--model`/`--uiux-dir` — not an
@@ -165,8 +170,9 @@ When `modification-router` returns tasks, the orchestrator re-enters the pipelin
 | Assembly/nav change | Station 5 | No cascade |
 | Re-run verify only | Station 6.5 | After the skill installed Playwright |
 
-After any re-run (except verify-only), always re-run QA (Station 6) then Render Verification
-(Station 6.5) before returning to human review (Station 7).
+After any re-run (except verify-only), always re-run QA (Station 6), Render Verification
+(Station 6.5), then Visual Review (Station 6.6) before returning to human review (Station 7).
+Verify-only re-entries (Station 6.5) still re-run Station 6.6 afterward — the screenshots changed.
 
 ---
 

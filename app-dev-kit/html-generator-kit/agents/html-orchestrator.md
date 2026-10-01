@@ -103,7 +103,7 @@ In a single message, do both of these simultaneously:
    It reads `SPEC_FILE` itself; never paste spec text into this station. Exit 2 means no pages were
    extracted — the script's stderr already names the cause.
 
-Create task list via TaskCreate: stations 1, 1.5, 2, 3, 4, 5, 6, 6.5.
+Create task list via TaskCreate: stations 1, 1.5, 2, 3, 4, 5, 6, 6.5, 6.6.
 
 ### Station 1 — Receive spec model
 
@@ -324,6 +324,41 @@ something this orchestrator must never do).
 
 Mark verification complete.
 
+### Station 6.6 — Visual Review
+
+Static QA and the render check can confirm every individual DOM node, class, and computed style is
+correct and still miss a composition that reads as visibly broken, or a page that technically
+implements a provided mockup's structure without actually resembling it. This is a judgment call a
+pixel-level script can't make reliably — delegate it to `visual-reviewer`.
+
+Only run this station when Station 6.5 actually produced screenshots (`report.browser: true`). If
+6.5 was SKIPPED (no browser available) there is nothing to look at — skip Station 6.6 and proceed
+straight to the packet with no `Visual review` findings; do not escalate separately for this.
+
+Delegate to `visual-reviewer` with ONLY:
+- `screenshots_dir`: `{OUTPUT_DIR}/_verify/screenshots/`
+- `design_brief`: `DESIGN_BRIEF` content (already in memory from Station 1.5; re-read from disk if
+  this is a revise/append re-entry that skipped 1.5)
+- `mockup_paths`: the `path` of every entry in `DESIGN_INPUTS`'s `sources[]` where `kind == "image"`
+  (read `DESIGN_INPUTS` if not already in memory; often empty — most runs have no provided mockup)
+- `pages`: the current `pages[]` list as `{id, title}`
+- `OUTPUT_DIR`
+
+Wait for completion. Read the `VISUAL_REVIEW:` block.
+
+**GATE (visual-review)** — same one-retry-then-escalate shape as Station 6 and 6.5, not a new loop:
+- `passed: true` (no `critical` findings) → continue; include any `WARNINGS` in the review packet,
+  non-blocking.
+- `passed: false` (≥1 `critical` finding) → route each critical to the owning agent, exactly like a
+  Station 6.5 critical: a finding scoped to one page → `screen-generator` for that page; a finding
+  that names every/most pages (e.g. "every page's dark mode is illegible") → `design-system-author`.
+  Re-run the corrected station, then re-run Station 6.5 (render/functionality still needs to pass
+  against the new output) and Station 6.6 once more (max 1 auto-fix cycle, same ceiling as 6/6.5).
+  If still failing: return `ESCALATION_PACKET` with `errors: CRITICAL_ISSUES`,
+  `options: ["proceed-to-review", "abort"]`, and STOP.
+
+Mark task 6.6 complete.
+
 ### End of build/revise pass — RETURN the packet (do NOT run human review here)
 
 After Station 6.5, STOP and return a `REVIEW_PACKET` (format below) as your final message.
@@ -357,7 +392,7 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
    `assembly-wiring` re-runs `wire-nav.mjs` against the FULL combined page list (old + new) — this
    is what keeps old pages' nav in sync with new ones; previously this was broken (old pages never
    linked to new ones in append mode).
-8. Station 6 and Station 6.5, then return `REVIEW_PACKET`.
+8. Station 6, Station 6.5, and Station 6.6, then return `REVIEW_PACKET`.
 
 ## Revise flow (MODE == revise)
 
@@ -392,8 +427,9 @@ Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FI
      object) — `screen-generator`'s own create-mode step folds forward any prior per-page edits
      recorded under `{OUTPUT_DIR}/revisions/{page.id}.md` so a cascade never silently erases a
      page-level fix applied in an earlier edit cycle.
-3. Re-run Station 6 (QA) then Station 6.5 (render/functionality verification), unless the change
-   was 6.5-only.
+3. Re-run Station 6 (QA), Station 6.5 (render/functionality verification), then Station 6.6
+   (visual review), unless the change was 6.5-only (skip routing and re-run 6.5, then still re-run
+   6.6 against the refreshed screenshots).
 4. STOP and return a delta `REVIEW_PACKET` (or `ESCALATION_PACKET` if a gate still fails).
 
 ---
@@ -430,6 +466,10 @@ Functionality ({passed}/{total} flows): {nav · modals · forms}
 Accessibility (axe): {0 serious | N serious/critical violations}
 Screenshots: {OUTPUT_DIR}/_verify/screenshots/  ({count} PNGs — incl. mobile + dark)
 {render/functionality critical issues, if any}
+
+Visual review: {passed | N warning(s) | SKIPPED — no screenshots (render check SKIPPED)}
+{warnings list if any}
+{critical findings, if any — only present if escalating}
 
 The generate-html skill will ask you to Approve, Request changes, or Abort.
 ```

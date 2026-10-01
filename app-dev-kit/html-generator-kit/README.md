@@ -138,6 +138,7 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
     component-library-author.md              ← sonnet | Alpine stores, mock data, component-manifest
     screen-generator.md                      ← sonnet | one page HTML (N parallel instances)
     assembly-wiring.md                       ← sonnet | index.html + navigation.js
+    visual-reviewer.md                       ← sonnet | looks at Station 6.5's screenshots, flags visually broken pages
     modification-router.md                   ← sonnet | decomposes change requests
   skills/
     generate-html/
@@ -191,6 +192,7 @@ generate-html skill → spawn html-orchestrator (MODE: build, SPEC_FILE path onl
   Station 5: assembly-wiring → index.html + navigation.js
   Station 6: scripts/qa-static.mjs (deterministic) → pass/fail  ↓ GATE: qa-pass
   Station 6.5: verify-prototype.mjs (render + axe)      ↓ GATE: render-pass
+  Station 6.6: visual-reviewer (reads Station 6.5's screenshots) ↓ GATE: visual-review
   → RETURN REVIEW_PACKET or ESCALATION_PACKET
       │
 generate-html skill: human review gate (max 3 cycles)

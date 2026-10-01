@@ -117,6 +117,24 @@ test('verify-prototype.mjs: VERIFY_SKIP_BROWSER forces a clean static-only run, 
   }
 })
 
+test('verify-prototype.mjs: screenshot naming convention matches verification-protocol.md / visual-reviewer.md', () => {
+  // visual-reviewer.md documents this exact naming scheme in prose (it globs screenshots_dir
+  // rather than deriving names from source paths itself), so it must stay in sync with the
+  // script's actual shotBase derivation: '/' -> '__', '.html' extension dropped, then
+  // '__mobile'/'__dark' suffixes for the two non-desktop shots.
+  const source = readFileSync(script, 'utf8')
+  const shotBaseLine = source.match(/const shotBase = (.+);/)
+  assert.ok(shotBaseLine, 'expected a shotBase derivation line in verify-prototype.mjs')
+  assert.equal(
+    shotBaseLine[1],
+    "r.replace(/[\\/]/g, '__').replace(/\\.html$/, '')",
+    'shotBase derivation changed — update verification-protocol.md and agents/visual-reviewer.md naming convention prose to match',
+  )
+  assert.match(source, /join\(shotsDir, `\$\{shotBase\}\.png`\)/)
+  assert.match(source, /join\(shotsDir, `\$\{shotBase\}__mobile\.png`\)/)
+  assert.match(source, /join\(shotsDir, `\$\{shotBase\}__dark\.png`\)/)
+})
+
 test("playwright-core resolves from the kit's own node_modules (not cwd)", () => {
   // Regression for the #1 Phase-1 bug: `import('playwright')` used to resolve relative to the
   // shell's cwd, so installing the kit's own dependencies never made the browser check runnable.
