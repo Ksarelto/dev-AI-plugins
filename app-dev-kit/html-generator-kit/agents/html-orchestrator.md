@@ -208,10 +208,12 @@ All spawns in one message = all run in parallel.
 
 Per agent, pass ONLY the slice it needs:
 ```
-page:             { id, title, description, type, domain, entity }    ← this page only (type may be absent)
-entity_fields:    fields[] for this page's entity only
-entity_statuses:  statuses[] for this page's entity only
-api_contract:     { field: type } for this page's entity only
+page:             the FULL page object for this page from spec-model.json, as-is — it already
+                  carries everything screen-generator needs:
+                  { id, spec_id, title, description, type, domain, entity, route, roles,
+                    components, states, entity_fields, entity_statuses, api_contract,
+                    transitions, acceptance_criteria, interactions }
+                  (`type` may be `""` for a 1.x spec with no page-type signal)
 design_ref:       DESIGN_REF content  (compact, ~95 lines)
 ux_directives:    UX_DIRECTIVES — the "All pages" + "Do not" sections plus ONLY this page's type section
 component_manifest: COMP_MANIFEST content  (compact, ~40 lines)
@@ -219,6 +221,15 @@ rules_dir:        {KIT_DIR}/skills/generate-html/references/
 KIT_DIR:          {KIT_DIR}
 output_path:      {OUTPUT_DIR}/pages/{page.id}.html
 ```
+
+Do not separately assemble `entity_fields` / `entity_statuses` / `api_contract` slices — they are
+already nested inside `page`; forward the object from `spec-model.json` unmodified. This is also
+what makes the generated markup traceable: `screen-generator` stamps `page.spec_id` and
+`page.components[]`/`page.interactions[]` names onto the HTML as `data-*` attributes (see
+`agents/screen-generator.md`), so a reviewer (or a future mechanical checker) can match output back
+to the spec. Passing anything less than the full object silently breaks that traceability and
+starves screen-generator of the components/interactions/transitions/acceptance-criteria it needs to
+build what the spec actually asked for instead of falling back to a generic page-type template.
 
 Wait for ALL agents to complete. Collect results.
 If any agent failed: re-spawn only the failed pages (not all).
@@ -321,9 +332,12 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
 5. If `entities_changed` is non-empty, spawn `component-library-author` with `MODE: update`
    and `ENTITIES_CHANGED` before Station 4. It patches only those entities in `js/data.js`.
 6. Station 4: spawn one `screen-generator` per screen in `DELTA_PAGES` only, in one message.
-   Pass `page` (`id`, `title`, `description`, `domain`, `entity`; `type` may be absent),
-   `entity_fields`, `entity_statuses`, `api_contract`, plus the compact design ref and manifest.
-   Do not pass other pages.
+   Pass the FULL page object exactly as `delta-pages.mjs`'s `screens[]` entries carry it — the same
+   shape as a full build's `page` (`id, spec_id, title, description, type, domain, entity, route,
+   roles, components, states, entity_fields, entity_statuses, api_contract, transitions,
+   acceptance_criteria, interactions`; `type` may be absent for a 1.x spec), since `delta-pages.mjs`
+   shares `lib/spec-model.mjs`'s `pageFields()` with the full-build script and has carried this same
+   full shape since Phase 2. Plus the compact design ref and manifest. Do not pass other pages.
 7. Station 5: pass `assembly-wiring` `assembly_pages` from `DELTA_PAGES`
    (`{ id, title, domain, description }` for every spec screen). Do not pass raw page-map pairs.
    `assembly-wiring` re-runs `wire-nav.mjs` against the FULL combined page list (old + new) — this
@@ -352,6 +366,18 @@ Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FI
      Pass `OVERRIDE: {CHANGE_REQUEST}` only when the request explicitly changes a provided value
      ("use green instead of our brand blue"); the strategist unlocks only the attributes it names.
    - **Re-run Station 6.5 only** (skill-requested after Playwright install): skip routing; run 6.5.
+   - **Single-page edits route to `MODE: edit`**: a task whose `station` is 4 and whose `pages:`
+     names exactly one existing page (`modification-router`'s "Single page change" / "Copy on a
+     specific page" / "Add/change interaction on a page" / "Fix missing/broken state on a page"
+     rows) spawns `screen-generator` with `MODE: edit`, `CHANGE_REQUEST: {task.context}` (the
+     router's `context:` text verbatim), and `output_path` pointing at the EXISTING file. The agent
+     edits the file in place with targeted diffs instead of regenerating it from the page object —
+     see `agents/screen-generator.md` § Edit mode. A task whose `pages:` is a brand-new page id (the
+     "Add a new page" row), or any cascading task re-entering Station 1.5/2/3 (which must re-touch
+     multiple/all pages), stays `MODE: create` (the default, full regeneration from the page
+     object) — `screen-generator`'s own create-mode step folds forward any prior per-page edits
+     recorded under `{OUTPUT_DIR}/revisions/{page.id}.md` so a cascade never silently erases a
+     page-level fix applied in an earlier edit cycle.
 3. Re-run Station 6 (QA) then Station 6.5 (render/functionality verification), unless the change
    was 6.5-only.
 4. STOP and return a delta `REVIEW_PACKET` (or `ESCALATION_PACKET` if a gate still fails).

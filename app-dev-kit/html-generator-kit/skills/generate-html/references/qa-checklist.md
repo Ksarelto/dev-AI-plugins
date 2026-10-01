@@ -52,7 +52,7 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 | A2 | `<nav>` landmark with `aria-label` present on every page | CRITICAL | qa-validator |
 | A3 | `aria-label` on every icon-only button (`<button>` with no text content) | CRITICAL | screen-generator |
 | A4 | Data tables have `role="grid"` or `role="table"` | WARNING | qa-validator |
-| A5 | Table column headers have `scope="col"` | WARNING | screen-generator |
+| A5 | Table column headers have `role="columnheader"` (never `scope="col"` — this kit's table is a div-based grid, and `scope` is valid only on a real `<th>`) | WARNING | screen-generator |
 | A6 | Loading state has `role="status"` and `aria-label` | WARNING | screen-generator |
 | A7 | Error state has `role="alert"` | WARNING | screen-generator |
 | A8 | Modal/dialog has `role="dialog"`, `aria-modal`, `aria-labelledby`, `x-trap`, Escape close | CRITICAL | screen-generator |

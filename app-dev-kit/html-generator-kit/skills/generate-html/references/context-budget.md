@@ -12,6 +12,17 @@ Payload contracts for `html-orchestrator`. Paths and slices, not blobs.
    - `design-system-ref.md` (~95 lines)
    - `component-manifest.md` (~40 lines)
    - `ux-directives.md` — "All pages" + **this page type** only for each screen-generator
+
+4a. `screen-generator` receives the FULL per-page object from `spec-model.json` (`id, spec_id,
+    title, description, type, domain, entity, route, roles, components, states, entity_fields,
+    entity_statuses, api_contract, transitions, acceptance_criteria, interactions`) as one `page`
+    field — not a hand-assembled thin slice. The per-page object is itself already the budget-sized
+    unit (one screen's worth of data, not the spec or other screens' data); splitting it further into
+    separate `entity_fields`/`entity_statuses`/`api_contract` fields saved no context and silently
+    dropped `components`/`interactions`/`roles`/`transitions`/`acceptance_criteria`/`states` — the
+    fields that make a generated screen match what the spec actually asked for instead of a generic
+    page-type fallback, and that make the output traceable back to the spec (see
+    `agents/screen-generator.md` § Traceable markup).
 5. `rules_dir` is `{KIT_DIR}/skills/generate-html/references/` — never
    `.spec/html-generator-kit/…`.
 6. Review/revise cycles pass `CHANGE_REQUEST` + `pages[]` ids/titles/domains, not the spec again.

@@ -140,7 +140,7 @@ model call, no truncation (it replaced the old `spec-interpreter` agent).
 | `design-strategist` | TITLE + domain(s) + entity names + distinct page types + 1–3 sentence purpose/audience + KIT_DIR + OUTPUT_DIR + UIUX_DIR + DESIGN_INPUTS path (it reads the sources itself) |
 | `design-system-author` | design-brief.md content + entity names (strings) + KIT_DIR + OUTPUT_DIR + UIUX_DIR |
 | `component-library-author` | design-system-ref.md content + entity definitions + KIT_DIR + OUTPUT_DIR |
-| `screen-generator` | One page object + one entity definition + design_ref + ux_directives (all-pages + this type only) + component_manifest + `rules_dir`=`{KIT_DIR}/skills/generate-html/references/` + output_path |
+| `screen-generator` | The FULL per-page object from spec-model.json as-is — `{ id, spec_id, title, description, type, domain, entity, route, roles, components, states, entity_fields, entity_statuses, api_contract, transitions, acceptance_criteria, interactions }` — plus design_ref + ux_directives (all-pages + this type only) + component_manifest + `rules_dir`=`{KIT_DIR}/skills/generate-html/references/` + output_path (+ `MODE`/`CHANGE_REQUEST` on a single-page revise — see Modification Re-entry Points) |
 | `assembly-wiring` | pages[] IDs/titles/domains (no entity details) + nav_structure + design_ref + KIT_DIR + OUTPUT_DIR |
 | `qa-validator` | page IDs list only + OUTPUT_DIR + UIUX_DIR |
 | `modification-router` | User change text + pages[] IDs/titles/domains only |
@@ -158,7 +158,7 @@ When `modification-router` returns tasks, the orchestrator re-enters the pipelin
 | Look-and-feel change ("more modern", "feels dated", new palette/fonts) | Station 1.5 | Re-reads design-inputs.json; ui-ux-pro-max only for open slots or when nothing is binding; must re-run stations 2 + 3 + 4 (all pages) |
 | Design system change | Station 2 | Must re-run stations 3 + 4 (all pages) |
 | Component/data change | Station 3 | May require station 4 re-run |
-| Single page change | Station 4 (target page only) | No cascade |
+| Single page change | Station 4 (target page only, `MODE: edit`) | No cascade — the existing file is edited in place (targeted diff), not regenerated from scratch; see `agents/screen-generator.md` § Edit mode |
 | Multiple pages | Station 4 (affected pages, parallel) | No cascade |
 | Assembly/nav change | Station 5 | No cascade |
 | Re-run verify only | Station 6.5 | After the skill installed Playwright |
