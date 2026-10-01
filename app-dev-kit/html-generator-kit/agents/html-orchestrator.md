@@ -50,6 +50,7 @@ Mode extras:
 | MODE | Extra fields |
 |------|----------------|
 | `revise` | `CHANGE_REQUEST` (free-text user change), `PAGES` (current `pages[]` list) |
+| `append` | `REMOVE_PAGES` (optional — HTML ids the user chose to delete from `delta-pages.json`'s `removed[]`; omitted or empty means nothing to remove this run) |
 
 References resolve as `{KIT_DIR}/skills/generate-html/references/…` and
 `{KIT_DIR}/skills/generate-html/scripts/…`.
@@ -73,10 +74,14 @@ There is no `finalize` mode. The skill writes README after approval (Station 8).
   "errors": [],
   "options": [],
   "pages": [],
+  "removed_pages": [],
   "output_dir": "{OUTPUT_DIR}",
   "spec_file": "{SPEC_FILE}"
 }
 ```
+
+`removed_pages` — HTML ids actually deleted this run (append mode, `REMOVE_PAGES` non-empty only).
+Empty/omitted on a build, revise, or an append run where the user chose Keep.
 
 | type | When | Skill does |
 |------|------|------------|
@@ -289,7 +294,10 @@ Delegate to `assembly-wiring` with ONLY:
 Wait for: `{OUTPUT_DIR}/index.html` and `{OUTPUT_DIR}/js/navigation.js` to exist.
 This station also wires navigation into every page via `wire-nav.mjs` — see
 `agents/assembly-wiring.md`. A reorder or an appended page reaches every page in one pass, including
-ones not regenerated this run.
+ones not regenerated this run. `assembly-wiring` no longer auto-includes an untracked `pages/*.html`
+file into nav (that defensive behavior could silently undo a `REMOVE_PAGES` deletion or any other
+legitimate exclusion) — it reports one as a warning instead. If its report includes
+`untracked_files`, fold that into the review packet's warnings so the human sees it.
 Mark task 5 complete.
 
 ### Station 6 — QA Validation (GATE: qa-pass)
@@ -452,6 +460,14 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
 
 1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md`.
 2. Read `DELTA_PAGES`. If `screens` is empty, skip Station 4 (and 4.5) and continue at Station 5.
+2.5. If `REMOVE_PAGES` is non-empty: delete `{OUTPUT_DIR}/pages/{id}.html` for each id (Bash
+   `rm -f`) — **before** Station 5 runs, so `assembly-wiring`'s page scan never sees a deleted file.
+   `DELTA_PAGES.assembly_pages` is built by `delta-pages.mjs` from the CURRENT spec's screens only
+   (shared `lib/spec-model.mjs` `buildModel()`), so a removed screen's id is already absent from it
+   — no separate filtering of `assembly_pages` is needed here. Record the deleted ids for the
+   review packet's `removed_pages` and the `Removed (…)` line (see Review packet format below).
+   Never write `{OUTPUT_DIR}/page-map.json` — the `generate-html` skill is its sole owner and drops
+   the corresponding `spec_id` keys at Station 8 (finalize).
 3. Confirm `{OUTPUT_DIR}/design-brief.md`, `css/tokens.css`, and `design-system-ref.md` exist.
    If one is missing, return `ESCALATION_PACKET` and STOP. Do not re-run `design-strategist`
    or `design-system-author` when those files are present.
@@ -541,6 +557,8 @@ Design direction: {archetype} · primary {hue} · {font pairing} · {layout arch
 Pages generated ({count}):
 {list: • {id} → {title}}
 
+{Removed ({count}): {ids} — present only in append mode when REMOVE_PAGES was non-empty this run}
+
 QA: {PASSED | N warnings}
 {warnings list if any}
 
@@ -559,7 +577,8 @@ The generate-html skill will ask you to Approve, Request changes, or Abort.
 ```
 
 Also set `pages` to the current `pages[]` list so the skill can write README and re-spawn revise
-without re-interpreting the spec.
+without re-interpreting the spec. Set `removed_pages` to the ids deleted this run (step 2.5 of the
+Append flow), or omit/empty otherwise.
 
 Return this packet as the final message of a `build`/`revise` pass.
 

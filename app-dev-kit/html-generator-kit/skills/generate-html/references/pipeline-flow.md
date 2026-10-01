@@ -87,8 +87,21 @@ question.
 
 When `current.json` has a `prototype_ref`, the skill copies that directory and sets `MODE: append`.
 Stations 1.5–3 are not re-run. The copied design files must still exist (the same gates, checked
-on disk). Station 4 runs only for screens listed in `delta-pages.json`. Station 5 receives the
-existing page-map entries plus those delta screens and rebuilds the nav. The 15-screen interpreter cap does not apply.
+on disk). Station 4 runs only for screens listed in `delta-pages.json`. Station 5 receives
+`assembly_pages` (built fresh from the current spec by `delta-pages.mjs`, sharing `lib/spec-model.mjs`
+with a full build) and rebuilds the nav. The 15-screen interpreter cap does not apply.
+
+`delta-pages.json` also carries `removed[]` — page-map entries whose spec screen no longer exists.
+The skill (Step 2) surfaces these to the human before spawning the orchestrator: **Delete** (the
+default framing) or **Keep**. On Delete, the skill passes `REMOVE_PAGES` (the HTML ids) to the
+orchestrator, which deletes `{OUTPUT_DIR}/pages/{id}.html` for each one *before* Station 5 runs, and
+reports the removed ids back in the review packet (`removed_pages` / a `Removed (…)` line) so the
+human sees confirmation. `page-map.json` cleanup (dropping the matching `spec_id` keys) is done by
+the skill at Station 8/finalize, not by the orchestrator — the skill is the sole owner of that file.
+On Keep, nothing is deleted; the skill notes in the README that those pages were intentionally kept,
+orphaned from the spec. Either way, `assembly-wiring`'s page scan (Station 5) no longer auto-includes
+an untracked `pages/*.html` file into nav — a removed page's leftover file (or any other stray file)
+is reported as a warning, never silently re-added.
 
 **Gate bypass is never allowed** for the first four gates on a full build. The render gate is where the
 "looks broken / tiny / unstyled" class of bug is caught — never skip the **script** when the

@@ -28,12 +28,18 @@ Creates the glue layer that connects all pages: `index.html`, plus navigation wi
 
 ### 1. Build the full page list
 
-Glob `{OUTPUT_DIR}/pages/*.html`.
-Start from `pages[]`. For each HTML file whose id is not already in `pages[]`, append
-`{ id, title: id, domain: "", description: "" }` using the filename without `.html`.
+`pages[]` as given is the complete, authoritative page list — on a full build it comes from
+`spec-model.mjs`, on append from `delta-pages.mjs`'s `assembly_pages`; both are built from the same
+tested `lib/spec-model.mjs`, so there is a single source of truth for which pages exist. Do **not**
+treat an on-disk `pages/*.html` file as evidence a page belongs in nav.
+
 If any `pages[]` id has no matching file, report those ids and STOP.
-This combined list (old + new pages, in append mode) is what both `index.html`'s page cards and the
-wired nav are built from, so pages that already existed stay linked to ones added this run.
+
+Then Glob `{OUTPUT_DIR}/pages/*.html` purely as a cross-check: for any file whose id is NOT in
+`pages[]`, do **not** add it to the page list or to nav. Instead collect it as a warning (see Verify,
+step 4) — a stale file left on disk after a removal, or from some other out-of-band write, must
+never silently reappear in navigation just because it happens to still exist. `pages[]` alone (not
+the glob) is what both `index.html`'s page cards and the wired nav are built from.
 
 ### 2. Write index.html
 
@@ -64,13 +70,13 @@ Write to `{OUTPUT_DIR}/index.html`.
 
 ### 3. Wire navigation across every page
 
-Write two JSON input files from the combined page list (step 1) and `nav_structure`:
+Write two JSON input files from `pages[]` (step 1) and `nav_structure`:
 
-`{OUTPUT_DIR}/pages.json` — `[{id,title,domain,description}]`, the combined list.
+`{OUTPUT_DIR}/pages.json` — `[{id,title,domain,description}]`, exactly `pages[]` (never the glob
+result).
 
 `{OUTPUT_DIR}/nav.json` — `nav_structure` (`{domain: [pageId, ...]}`), falling back to grouping by
-domain from the combined list if `nav_structure` doesn't cover every page (reuse the step 1 combined
-list).
+domain from `pages[]` if `nav_structure` doesn't cover every page.
 
 Then run:
 ```bash
@@ -93,8 +99,12 @@ JSON files this agent wrote — fix the input and re-run, don't treat it as a pa
 ### 4. Verify
 
 - [ ] `wire-nav.mjs` exited 0
-- [ ] `index.html` contains an `<a href="pages/{id}.html">` for every page in the combined list
-- [ ] `js/navigation.js` contains every page id
+- [ ] `index.html` contains an `<a href="pages/{id}.html">` for every page in `pages[]`
+- [ ] `js/navigation.js` contains every page id in `pages[]`
 - [ ] All `href` values are relative (no absolute paths)
+- [ ] Any `pages/*.html` file not in `pages[]` (step 1's cross-check) is reported as a warning, not
+      silently added to nav
 
-Report: `{ files: ["index.html", "js/navigation.js"], pages_wired: {count}, status: "wired" }`
+Report: `{ files: ["index.html", "js/navigation.js"], pages_wired: {count}, untracked_files:
+["{count} untracked page file(s) found and left out of navigation: {filenames} — if this is
+unexpected, check page-map.json / delta-pages.json"] (omit/empty when none), status: "wired" }`
