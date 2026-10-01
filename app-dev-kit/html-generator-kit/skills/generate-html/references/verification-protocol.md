@@ -1,6 +1,6 @@
 # Verification Protocol — html-generator-kit
 
-Static QA (`qa-validator`) greps text and cannot see whether a page actually *renders*. This protocol
+Static QA (`qa-static.mjs`) greps text and cannot see whether a page actually *renders*. This protocol
 adds a real render + functionality check between QA (Station 6) and human review (Station 7), so a
 blank or unstyled page can never pass silently. Owned by `html-orchestrator` (Station 6.5).
 

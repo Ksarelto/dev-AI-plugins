@@ -1,6 +1,6 @@
 # QA Checklist — html-generator-kit
 
-Requirements that `qa-validator` checks and `screen-generator` self-validates against.
+Requirements that `qa-static.mjs` checks and `screen-generator` self-validates against.
 
 ---
 
@@ -8,10 +8,10 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 
 | # | Check | Severity | Who checks |
 |---|-------|----------|-----------|
-| C1 | Every page ID from `pages[]` has a corresponding `pages/{id}.html` | CRITICAL | qa-validator |
-| C2 | `index.html` links to every page ID | CRITICAL | qa-validator |
-| C3 | `navigation.js` PAGES_ARRAY contains every page ID | CRITICAL | qa-validator |
-| C4 | `css/tokens.css`, `css/base.css`, `css/components.css` all exist | CRITICAL | qa-validator |
+| C1 | Every page ID from `pages[]` has a corresponding `pages/{id}.html` | CRITICAL | qa-static.mjs |
+| C2 | `index.html` links to every page ID | CRITICAL | qa-static.mjs |
+| C3 | `navigation.js` PAGES_ARRAY contains every page ID | CRITICAL | qa-static.mjs |
+| C4 | `css/tokens.css`, `css/base.css`, `css/components.css` all exist | CRITICAL | qa-static.mjs |
 
 ---
 
@@ -19,17 +19,17 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 
 | # | Check | Severity | Who checks |
 |---|-------|----------|-----------|
-| S1 | Loading state: `x-show="loading"` present | CRITICAL | screen-generator + qa-validator |
-| S2 | Error state: `x-show` expression matching `error` present | CRITICAL | screen-generator + qa-validator |
-| S3 | Empty state: `x-show` expression matching `items.length === 0` present | CRITICAL | screen-generator + qa-validator |
+| S1 | Loading state: `x-show="loading"` present | CRITICAL | screen-generator + qa-static.mjs |
+| S2 | Error state: `x-show` expression matching `error` present | CRITICAL | screen-generator + qa-static.mjs |
+| S3 | Empty state: `x-show` expression matching `items.length === 0` present | CRITICAL | screen-generator + qa-static.mjs |
 | S4 | Success state: `x-show` expression matching success condition present | CRITICAL | screen-generator |
-| S5 | Dev panel: element with `class="dev-panel"` present as last child of `<main>` | CRITICAL | screen-generator + qa-validator |
-| S6 | No inline `<style>` blocks in `<body>` | CRITICAL | screen-generator + qa-validator |
-| S7 | No inline `<script>` blocks (no `<script>` without `src=` attribute) | CRITICAL | screen-generator + qa-validator |
+| S5 | Dev panel: element with `class="dev-panel"` present as last child of `<main>` | CRITICAL | screen-generator + qa-static.mjs |
+| S6 | No inline `<style>` blocks in `<body>` | CRITICAL | screen-generator + qa-static.mjs |
+| S7 | No inline `<script>` blocks (no `<script>` without `src=` attribute) | CRITICAL | screen-generator + qa-static.mjs |
 | S8 | `<!DOCTYPE html>` present | WARNING | screen-generator |
 | S9 | `<html lang="en">` present | WARNING | screen-generator |
-| S10 | `<title>` tag present | WARNING | qa-validator |
-| S11 | `<meta name="viewport"` present | WARNING | qa-validator |
+| S10 | `<title>` tag present | WARNING | qa-static.mjs |
+| S11 | `<meta name="viewport"` present | WARNING | qa-static.mjs |
 
 ---
 
@@ -37,8 +37,8 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 
 | # | Check | Severity | Who checks |
 |---|-------|----------|-----------|
-| F1 | CSS only in `css/*.css` files — no inline styles | CRITICAL | qa-validator (grep `<style`) |
-| F2 | JS only in `js/*.js` files — no inline scripts | CRITICAL | qa-validator (grep `<script` without `src=`) |
+| F1 | CSS only in `css/*.css` files — no inline styles | CRITICAL | qa-static.mjs (grep `<style`) |
+| F2 | JS only in `js/*.js` files — no inline scripts | CRITICAL | qa-static.mjs (grep `<script` without `src=`) |
 | F3 | Page files use relative `../css/` and `../js/` paths | CRITICAL | screen-generator |
 | F4 | index.html uses non-prefixed `css/` and `js/` paths | CRITICAL | assembly-wiring |
 
@@ -48,10 +48,10 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 
 | # | Check | Severity | Who checks |
 |---|-------|----------|-----------|
-| A1 | `<main>` landmark present on every page | CRITICAL | qa-validator |
-| A2 | `<nav>` landmark with `aria-label` present on every page | CRITICAL | qa-validator |
+| A1 | `<main>` landmark present on every page | CRITICAL | qa-static.mjs |
+| A2 | `<nav>` landmark with `aria-label` present on every page | CRITICAL | qa-static.mjs |
 | A3 | `aria-label` on every icon-only button (`<button>` with no text content) | CRITICAL | screen-generator |
-| A4 | Data tables have `role="grid"` or `role="table"` | WARNING | qa-validator |
+| A4 | Data tables have `role="grid"` or `role="table"` | WARNING | qa-static.mjs |
 | A5 | Table column headers have `role="columnheader"` (never `scope="col"` — this kit's table is a div-based grid, and `scope` is valid only on a real `<th>`) | WARNING | screen-generator |
 | A6 | Loading state has `role="status"` and `aria-label` | WARNING | screen-generator |
 | A7 | Error state has `role="alert"` | WARNING | screen-generator |
@@ -77,8 +77,8 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 
 | # | Check | Severity | Who checks |
 |---|-------|----------|-----------|
-| Q1 | No "Lorem ipsum" placeholder text | WARNING | qa-validator |
-| Q2 | No "TODO" / "PLACEHOLDER" text | WARNING | qa-validator |
+| Q1 | No "Lorem ipsum" placeholder text | WARNING | qa-static.mjs |
+| Q2 | No "TODO" / "PLACEHOLDER" text | WARNING | qa-static.mjs |
 | Q3 | Mock data has 6–8 records per entity | WARNING | component-library-author |
 | Q4 | Mock data includes all status variants | WARNING | component-library-author |
 | Q5 | Empty state has a primary CTA button | WARNING | screen-generator |
@@ -90,13 +90,13 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 
 | # | Check | Severity | Who checks |
 |---|-------|----------|-----------|
-| I1 | Modal trigger carries `data-modal-open` | WARNING (static) / CRITICAL (Station 6.5) | screen-generator + qa-validator |
-| I2 | Modal close control carries `data-modal-close` (+ overlay `@click.self`, Escape) | WARNING / CRITICAL | screen-generator + qa-validator |
-| I3 | Forms use real `<form>`, mandatory fields `required`, a `type="submit"` control | WARNING / CRITICAL | screen-generator + qa-validator |
+| I1 | Modal trigger carries `data-modal-open` | WARNING (static) / CRITICAL (Station 6.5) | screen-generator + qa-static.mjs |
+| I2 | Modal close control carries `data-modal-close` (+ overlay `@click.self`, Escape) | WARNING / CRITICAL | screen-generator + qa-static.mjs |
+| I3 | Forms use real `<form>`, mandatory fields `required`, a `type="submit"` control | WARNING / CRITICAL | screen-generator + qa-static.mjs |
 | I4 | Nav links resolve to existing files (no dead links) | CRITICAL | verify-prototype.mjs |
 
 Nav *consistency* across pages (same groups/order/links on every page, including `index.html`) is
-enforced by `wire-nav.mjs`'s exit code at Station 5, not by qa-validator — see `agents/assembly-wiring.md`.
+enforced by `wire-nav.mjs`'s exit code at Station 5, not by qa-static.mjs — see `agents/assembly-wiring.md`.
 
 ---
 
@@ -135,7 +135,7 @@ clean-state-before-mutation rationale.
 | R4 | Form flow: empty required submit blocked; filled submit succeeds | CRITICAL / WARNING | verify-prototype.mjs |
 | R5 | Dev-panel cycles loading/empty/error/success | WARNING | verify-prototype.mjs |
 | R6 | Accessibility (axe): critical-impact = critical, serious = warning | CRITICAL / WARNING | verify-prototype.mjs |
-| D1 | Design brief exists; CSS has no leftover `⟨SLOT⟩` markers (design actually applied) | CRITICAL | design-system-author + qa-validator |
+| D1 | Design brief exists; CSS has no leftover `⟨SLOT⟩` markers (design actually applied) | CRITICAL | design-system-author + qa-static.mjs |
 
 ---
 
@@ -144,17 +144,17 @@ clean-state-before-mutation rationale.
 | # | Check | Severity | Who checks |
 |---|-------|----------|-----------|
 | M1 | `ux-directives.md` exists and is non-empty | CRITICAL | orchestrator (Station 1.5 gate) |
-| M2 | Motion tokens `--dur-fast/-base/-slow`, `--lift`, `--ease-out` present in `tokens.css` | CRITICAL | design-system-author + qa-validator |
-| M3 | `prefers-reduced-motion` guard present in `components.css` | CRITICAL | design-system-author + qa-validator |
-| M4 | One `:focus-visible` ring rule present in `components.css` | CRITICAL | design-system-author + qa-validator |
-| M5 | Brief names 1–3 signature blocks; `components.css` contains exactly those | WARNING | design-system-author + qa-validator |
-| M6 | No `!important` outside the reduced-motion guard | WARNING | qa-validator |
-| M7 | Pages use at least one modern-layer class (`.num`, `.chip`, `.hover-lift`, `.reveal`, `.bento`) | WARNING | qa-validator |
-| M8 | Numeric table cells / stat values carry `.num` (tabular figures) | WARNING | screen-generator + qa-validator |
-| M9 | No signature class used in a page whose block was not emitted | WARNING | qa-validator |
-| M10 | `.reveal` not used inside an `x-for` template | WARNING | screen-generator + qa-validator |
-| M11 | No chart library referenced (`chart.js`, `d3`, `apexcharts`, `echarts`) | WARNING | qa-validator |
-| M12 | `pro-rules:` misses from `{UIUX_DIR}/references/pro-rules.md` | WARNING (skipped when unavailable) | qa-validator |
+| M2 | Motion tokens `--dur-fast/-base/-slow`, `--lift`, `--ease-out` present in `tokens.css` | CRITICAL | design-system-author + qa-static.mjs |
+| M3 | `prefers-reduced-motion` guard present in `components.css` | CRITICAL | design-system-author + qa-static.mjs |
+| M4 | One `:focus-visible` ring rule present in `components.css` | CRITICAL | design-system-author + qa-static.mjs |
+| M5 | Brief names 1–3 signature blocks; `components.css` contains exactly those | WARNING | design-system-author + qa-static.mjs |
+| M6 | No `!important` outside the reduced-motion guard | WARNING | qa-static.mjs |
+| M7 | Pages use at least one modern-layer class (`.num`, `.chip`, `.hover-lift`, `.reveal`, `.bento`) | WARNING | qa-static.mjs |
+| M8 | Numeric table cells / stat values carry `.num` (tabular figures) | WARNING | screen-generator + qa-static.mjs |
+| M9 | No signature class used in a page whose block was not emitted | WARNING | qa-static.mjs |
+| M10 | `.reveal` not used inside an `x-for` template | WARNING | screen-generator + qa-static.mjs |
+| M11 | No chart library referenced (`chart.js`, `d3`, `apexcharts`, `echarts`) | WARNING | qa-static.mjs |
+| M12 | `pro-rules:` misses from `{UIUX_DIR}/references/pro-rules.md` | WARNING (skipped when unavailable) | qa-static.mjs |
 
 ---
 

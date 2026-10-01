@@ -41,10 +41,10 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `references/design-system-conventions.md` | `design-system-author` (Station 2) | OKLCH token system, CSS conventions |
 | `references/alpine-interaction-patterns.md` | `screen-generator` (Station 4) | Alpine.js x- directives, store calls |
 | `references/interaction-conventions.md` | `screen-generator` (Station 4) | data hook naming for QA + verification |
-| `references/accessibility.md` | `screen-generator` (Station 4), `qa-validator` (Station 6) | a11y requirements and landmark structure |
-| `references/qa-checklist.md` | `qa-validator` (Station 6) | structured pass/fail scoring |
+| `references/accessibility.md` | `screen-generator` (Station 4), `scripts/qa-static.mjs` (Station 6) | a11y requirements and landmark structure |
+| `references/qa-checklist.md` | `scripts/qa-static.mjs` (Station 6) | structured pass/fail scoring |
 | `references/verification-protocol.md` | orchestrator (Station 6.5) | headless-browser verification via `scripts/verify-prototype.mjs` |
-| `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist`, `design-system-author`, `qa-validator` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
+| `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist`, `design-system-author`, `scripts/qa-static.mjs` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
 | `templates/design-brief.md` | `design-strategist` (Station 1.5) | output format for design-brief.md |
 | `templates/modern-signature-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/modern-always.css` + `runtime/css/signature/*.css`, what `build-design-system.mjs` appends |
 | `templates/tokens-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/tokens.css`'s slot table, what `build-design-system.mjs` fills from `design-values.json` |
@@ -61,6 +61,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `scripts/delta-pages.mjs` | this skill (Step 2, Bash) | same parser, filtered to new/modified screens for `MODE: append`; shares `scripts/lib/spec-model.mjs` with the above |
 | `scripts/build-design-system.mjs` | `design-system-author` (Station 2, Bash) | fills `css/*.css` + `design-system-ref.md` from `design-values.json` — mechanical substitution + hard-fail validation (Phase 4) |
 | `scripts/copy-runtime-assets.mjs` | `component-library-author` (Station 3, Bash) | byte-for-byte copy of `js/app.js`, `js/store.js`, and vendored Alpine into `js/vendor/` (Phase 4) |
+| `scripts/qa-static.mjs` | orchestrator (Station 6, Bash) | deterministic QA gate — every `qa-checklist.md` row still attributed to `qa-validator` is now a mechanical grep/file-existence check (no model call); replaced the Haiku `qa-validator` agent (Phase 7) |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
 | `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 

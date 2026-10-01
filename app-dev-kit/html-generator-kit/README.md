@@ -89,7 +89,7 @@ Or add the marketplace in Agent chat:
 | Required? | **Optional but strongly recommended.** Without it the pipeline designs from model priors and prototypes drift back toward generic |
 | Needs | Node (for the installer) + **Python 3.x** (the search engine; stdlib only, no network calls) |
 | Where it lands | `.claude/skills/ui-ux-pro-max/` · `~/.claude/skills/…` · `.cursor/skills/…` — the kit resolves all of these |
-| Used by | `design-strategist` (palette/type/style/UX/motion queries), `design-system-author` (stack notes), `qa-validator` (pro-rules checklist) |
+| Used by | `design-strategist` (palette/type/style/UX/motion queries), `design-system-author` (stack notes), `scripts/qa-static.mjs` (pro-rules checklist) |
 | Contract | [`skills/generate-html/references/ui-ux-pro-max.md`](skills/generate-html/references/ui-ux-pro-max.md) — queries, hex→OKLCH mapping, conflict priority, degradation |
 
 When it is unavailable, the pipeline still completes and the review packet says
@@ -138,7 +138,6 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
     component-library-author.md              ← sonnet | Alpine stores, mock data, component-manifest
     screen-generator.md                      ← sonnet | one page HTML (N parallel instances)
     assembly-wiring.md                       ← sonnet | index.html + navigation.js
-    qa-validator.md                          ← haiku | spec coverage + HTML quality + a11y
     modification-router.md                   ← sonnet | decomposes change requests
   skills/
     generate-html/
@@ -162,6 +161,7 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
       scripts/
         spec-model.mjs                        ← deterministic spec → model parser (Station 0, full build)
         delta-pages.mjs                        ← append-mode delta, shares lib/spec-model.mjs with the above
+        qa-static.mjs                          ← deterministic QA gate (Station 6) — replaced qa-validator
         collect-design-inputs.mjs (Step 2.6) and the rest
 ```
 
@@ -189,7 +189,7 @@ generate-html skill → spawn html-orchestrator (MODE: build, SPEC_FILE path onl
   Station 3: component-library-author → app.js + data.js + manifest
   Station 4: screen-generator × N (PARALLEL) → pages/{id}.html
   Station 5: assembly-wiring → index.html + navigation.js
-  Station 6: qa-validator → pass/fail                   ↓ GATE: qa-pass
+  Station 6: scripts/qa-static.mjs (deterministic) → pass/fail  ↓ GATE: qa-pass
   Station 6.5: verify-prototype.mjs (render + axe)      ↓ GATE: render-pass
   → RETURN REVIEW_PACKET or ESCALATION_PACKET
       │

@@ -141,8 +141,9 @@ The database ranks rule categories 1–10. This kit resolves conflicts in this o
 ## Pre-delivery checklist
 
 `{UIUX_DIR}/references/pro-rules.md` is the upstream pre-launch checklist (icons, interaction
-feedback, contrast, safe areas, a11y). `qa-validator` reads it when `UIUX_DIR != none` and reports
-misses as warnings — the kit's own `qa-checklist.md` remains the blocking gate.
+feedback, contrast, safe areas, a11y). `qa-static.mjs` reads it when `--uiux-dir` is not `none` and
+reports statically-checkable misses as warnings — the kit's own `qa-checklist.md` remains the
+blocking gate.
 
 ---
 

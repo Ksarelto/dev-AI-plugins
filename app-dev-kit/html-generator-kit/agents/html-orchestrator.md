@@ -253,17 +253,21 @@ Mark task 5 complete.
 
 ### Station 6 — QA Validation (GATE: qa-pass)
 
-Delegate to `qa-validator` with ONLY:
-- Page IDs list (strings only — not full page objects)
-- `OUTPUT_DIR`
-- `UIUX_DIR`
+Static QA is a deterministic script, not an agent — every row it checks is a mechanical
+grep/file-existence check, not a judgment call. Run it via Bash:
 
-Wait for result `{ passed, critical_issues[], warnings[] }`.
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/qa-static.mjs \
+  --dir "{OUTPUT_DIR}" --model "{OUTPUT_DIR}/spec-model.json" --uiux-dir "{UIUX_DIR}"
+```
 
-If NOT passed:
+`--model` always exists (Station 0 writes it). Read `{OUTPUT_DIR}/_qa/report.json` for the
+structured result `{ critical, warnings, passed }`.
+
+If NOT passed (exit 1 / `passed: false`):
 1. Log critical issues.
-2. For each critical issue, spawn the appropriate corrective agent (screen-generator for missing/broken pages or a provided layout not followed; assembly-wiring for index/nav issues; design-system-author for a provided token/font not applied or a missing provided-reference block).
-3. Re-run qa-validator once (max 1 retry).
+2. For each critical issue, spawn the appropriate corrective agent (screen-generator for missing/broken pages or a provided layout not followed; assembly-wiring for index/nav issues; design-system-author for a provided token/font not applied).
+3. Re-run `qa-static.mjs` once (max 1 retry).
 4. If still failing: return `ESCALATION_PACKET` with `errors: critical_issues`,
    `options: ["proceed-to-review", "abort"]`, and STOP.
 
