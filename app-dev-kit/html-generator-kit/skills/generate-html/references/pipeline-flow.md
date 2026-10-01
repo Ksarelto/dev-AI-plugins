@@ -34,6 +34,12 @@ Station 3    Component Library  ← GATE: component-ready
       ↓
 Station 4    Screen Generation  ← PARALLEL (all screens at once)
       ↓
+Station 4.5  Incremental per-page verify-and-fix  ← PARALLEL (all pages just generated, at once)
+             scripts/verify-prototype.mjs --page {id} (static+render gate only, no --model/--brief)
+             cap 2 cycles + no-progress early stop (see Loop Guards) — NOT an escalation gate; a
+             page still critical after 2 cycles proceeds to Station 5 as-is and is caught again,
+             with the usual escalation path, at Station 6.5
+      ↓
 Station 5    Assembly & Wiring
       ↓
 Station 6    QA Validation (scripts/qa-static.mjs — deterministic, no model call)  ← GATE: qa-pass
@@ -60,7 +66,8 @@ never reaches the real user, so an in-agent gate would silently self-approve. Th
 main conversation loop, so only it can truly pause for human approval.
 
 **Packets:** the orchestrator never asks. It returns `REVIEW_PACKET` or `ESCALATION_PACKET`. Hard
-gate failures and QA/render failures after one retry are `ESCALATION_PACKET`, not an in-agent
+gate failures and QA/render failures after their 2-cycle, no-progress-early-stop cap are
+`ESCALATION_PACKET`, not an in-agent
 question.
 
 ---
@@ -72,9 +79,9 @@ question.
 | `design-brief` | 1.5→2 | `design-brief.md` **and** `ux-directives.md` exist and non-empty; brief names 1–3 valid signature blocks (`none` allowed only with a binding reference); `binding: true` → brief has `## Binding reference` | re-run strategist once, then `ESCALATION_PACKET` |
 | `design-system-contract` | 2→3 | `build-design-system.mjs` exited 0 (Phase 4: the file-existence + non-empty + motion-token + locked-token + signature-block checks are now the script's own hard-failure checks, not a self-report the orchestrator re-verifies) | `ESCALATION_PACKET` |
 | `component-ready` | 3→4 | `js/app.js`, `js/data.js`, `js/store.js`, `component-manifest.md` all exist and non-empty | `ESCALATION_PACKET` |
-| `qa-pass` | 6→6.5 | `scripts/qa-static.mjs` exits 0 (`critical` list empty) | Auto-fix attempt (max 1 retry), then `ESCALATION_PACKET` |
-| `render-pass` | 6.5→6.6 | `verify-prototype.mjs` exits 0 with `report.browser: true` (critical[] now also includes mobile-overflow, locked-token mismatches with `--brief`, and spec-conformance failures with `--model`, in addition to render/a11y/nav/modal/form) | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
-| `visual-review` | 6.6→7 | `visual-reviewer` reports `passed: true` (no `critical` finding in its `VISUAL_REVIEW:` block) — **not** a HARD gate like `design-brief`/`component-ready`: a critical here still gets only ONE auto-fix retry before escalating, same semantics as `qa-pass`/`render-pass`. Skipped entirely when Station 6.5 itself was SKIPPED (no screenshots to review) | Route each critical to owning agent (page-specific → `screen-generator`; brief-wide → `design-system-author`), re-run the station, re-run Station 6.5 then 6.6 (max 1 cycle), then `ESCALATION_PACKET` |
+| `qa-pass` | 6→6.5 | `scripts/qa-static.mjs` exits 0 (`critical` list empty) | Auto-fix (max 2 cycles, no-progress early stop — see Loop Guards § No-progress rule), then `ESCALATION_PACKET` |
+| `render-pass` | 6.5→6.6 | `verify-prototype.mjs` exits 0 with `report.browser: true` (critical[] now also includes mobile-overflow, locked-token mismatches with `--brief`, and spec-conformance failures with `--model`, in addition to render/a11y/nav/modal/form) | Route each critical to owning agent, re-run station, re-verify (max 2 cycles, no-progress early stop), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
+| `visual-review` | 6.6→7 | `visual-reviewer` reports `passed: true` (no `critical` finding in its `VISUAL_REVIEW:` block) — **not** a HARD gate like `design-brief`/`component-ready`: a critical here still gets the same max-2-cycles + no-progress-early-stop treatment as `qa-pass`/`render-pass`, not an unlimited retry. Skipped entirely when Station 6.5 itself was SKIPPED (no screenshots to review) | Route each critical to owning agent (page-specific → `screen-generator`; brief-wide → `design-system-author`), re-run the station, re-run Station 6.5 then 6.6 (max 2 cycles, no-progress early stop), then `ESCALATION_PACKET` |
 
 ## Append mode
 
@@ -93,14 +100,36 @@ file exists; skip only the browser half when Playwright is unavailable (see veri
 
 | Loop | Location | Max cycles | Exit condition | On exceed |
 |------|----------|-----------|----------------|-----------|
-| QA auto-fix | Station 6 | 1 retry | No critical issues | `ESCALATION_PACKET` |
-| Render auto-fix | Station 6.5 | 1 cycle | verify-prototype.mjs exits 0 | `ESCALATION_PACKET` with report.json + screenshots |
-| Visual review auto-fix | Station 6.6 | 1 cycle | `visual-reviewer` reports `passed: true` | `ESCALATION_PACKET` with `CRITICAL_ISSUES` |
+| Incremental per-page verify-and-fix | Station 4.5 | 2 cycles, no-progress early stop | `verify-prototype.mjs --page {id}` exits 0 for that page | Proceed to Station 5 as-is — **not** an escalation (see § No-progress rule and Station 4.5 in the sequence above); the same issue, if still present, is caught by Station 6.5's own gate and escalation path |
+| QA auto-fix | Station 6 | 2 cycles, no-progress early stop | No critical issues | `ESCALATION_PACKET` |
+| Render auto-fix | Station 6.5 | 2 cycles, no-progress early stop | verify-prototype.mjs exits 0 | `ESCALATION_PACKET` with report.json + screenshots |
+| Visual review auto-fix | Station 6.6 | 2 cycles, no-progress early stop | `visual-reviewer` reports `passed: true` | `ESCALATION_PACKET` with `CRITICAL_ISSUES` |
 | Human review | Station 7 (skill) | 3 cycles | User approves | AskUserQuestion with unresolved items; then finalize as-is or abort per user choice |
 
 Station 7's loop is owned by the `generate-html` skill, not the orchestrator. Each "Request change"
 cycle re-spawns the orchestrator in `MODE: revise`; approval is Station 8 in the skill (no
 `MODE: finalize`).
+
+### No-progress rule (one rule, applied at Stations 4.5, 6, 6.5, and 6.6)
+
+Before each retry/re-run cycle in any of the four loops above, record the current `critical[]` set
+(the exact strings the gate reported — `qa-static.mjs`'s `report.json.critical`,
+`verify-prototype.mjs`'s `report.json.critical`, or `visual-reviewer`'s `CRITICAL_ISSUES`). No
+normalization beyond that: compare the exact strings, since every one of these scripts already
+produces a stable, deterministic message for the same underlying problem (e.g. the exact file path +
+rule id), so an identical string really does mean an identical issue.
+
+After the retry's re-run, capture the new `critical[]` set and compare it to the recorded one:
+
+- **Progress was made** (the new set is a strict subset — at least one previously-critical string is
+  gone, even if new ones appeared) → continue to the next cycle, up to the 2-cycle cap.
+- **No progress** (the new set is identical to, or a superset of — nothing from the old list was
+  fixed — the previous set) → **stop retrying immediately and escalate**, even if only 1 of the 2
+  cycles has been used. Burning a second identical cycle wastes a retry and produces a worse
+  `ESCALATION_PACKET` (same information either way, one less chance spent reporting it).
+
+This is one mechanism, not two: "cap 2 cycles" and "stop early on no progress" are read together —
+the cap is the ceiling, the no-progress check is what usually stops a loop sooner than the ceiling.
 
 ---
 
@@ -120,13 +149,23 @@ Never spawn screen generators sequentially — it defeats the purpose of paralle
 The number of parallel agents equals the number of pages in `pages[]`.
 Each agent receives only its own page's slice — not all pages' data.
 
+### Station 4.5 (always parallel)
+
+`verify-prototype.mjs --dir {OUTPUT_DIR} --page {id}` MUST be run for every page generated this run
+in a single message (one Bash call per page, all in that one message — same convention as Station
+4's single-message spawn, applied here via Bash instead of Agent). Any page-specific fix-and-reverify
+cycle that follows (max 2, no-progress early stop) is scoped to just that page and does not block
+the other pages' own cycles.
+
 ### All other stations (strictly sequential)
 
 Stations 1, 2, 3, 5, 6, 7, 8 are strictly sequential.
 Do NOT attempt to overlap:
 - Station 3 before Station 2 completes (depends on design-system-ref.md)
 - Station 4 before Station 3 completes (depends on component-manifest.md)
-- Station 5 before Station 4 completes (needs all pages to exist for index.html)
+- Station 4.5 before Station 4 completes (needs the page file to exist to verify it)
+- Station 5 before Station 4.5 completes (Station 4.5 is a cheap early catch before assembly spends
+  work on top of a broken page — but Station 4.5 never blocks Station 5 past its 2-cycle cap)
 
 ---
 
@@ -174,6 +213,11 @@ After any re-run (except verify-only), always re-run QA (Station 6), Render Veri
 (Station 6.5), then Visual Review (Station 6.6) before returning to human review (Station 7).
 Verify-only re-entries (Station 6.5) still re-run Station 6.6 afterward — the screenshots changed.
 
+Station 4.5 (the incremental per-page verify-and-fix in the table above) applies only to a full
+build/append pass's own Station 4 → Station 5 transition — not to these revise-flow re-entries. A
+revise-flow single-page edit already goes through the full Station 6 → 6.5 → 6.6 gate chain
+regardless of which station it re-entered at, so there is no separate early-catch step to add here.
+
 ---
 
 ## Anti-Patterns (never do these)
@@ -195,3 +239,5 @@ Verify-only re-entries (Station 6.5) still re-run Station 6.6 afterward — the 
 | Hardcoding `.spec/html-generator-kit/` | Plugin root is `KIT_DIR`; `.spec/` is artifacts |
 | Overriding a provided colour/font/layout with a database pick or "differentiation" | A provided reference is mandatory; the kit designs only what it leaves open |
 | Changing a locked colour to fix contrast | Fix the pairing or disclose an `a11y-risk` deviation; the human decides |
+| Giving Station 4.5 its own `ESCALATION_PACKET` branch | Duplicates Station 6.5's existing escalation path; a page still critical after Station 4.5's 2 cycles proceeds to Station 5 as-is and is caught there instead |
+| Burning a full retry cycle (Station 4.5/6/6.5/6.6) when the critical set didn't change | Wastes a cycle and produces a worse escalation packet — see § No-progress rule; stop and escalate immediately instead |

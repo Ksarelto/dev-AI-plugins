@@ -2,7 +2,24 @@
 // Render + functionality verification for a generated HTML prototype.
 //
 // Usage:
-//   node verify-prototype.mjs <PROTOTYPE_DIR> [--port 4599] [--model spec-model.json] [--brief design-brief.md]
+//   node verify-prototype.mjs <PROTOTYPE_DIR> [--port 4599] [--model spec-model.json] [--brief design-brief.md] [--page <id>]
+//
+// --page <id> (added Phase 9, Station 4.5's incremental per-page verify-and-fix): restricts BOTH
+// the static gate and the browser gate to exactly one page — `pages/{id}.html`, or `index.html`
+// when `id` is literally `index` — instead of looping over every .html file in PROTOTYPE_DIR. This
+// is additive and opt-in: omitting --page reproduces the full-prototype behavior byte-for-byte.
+// Screenshot naming/location is unchanged (the same `shotBase` derivation), so a later full run's
+// screenshots are never orphaned or inconsistently named.
+//
+// Known, intentional limitation of --page mode: it runs before Station 5 (assembly/nav-wiring), so
+// other pages may not be wired into this page's nav yet, and `index.html` may not exist at all.
+// Two checks that inherently need OTHER pages to exist are skipped gracefully (not reported as
+// missing/broken) when a link/interaction target file is absent AND --page is set:
+//   1. the file-existence dead-link check (a href="...other.html" whose target isn't on disk yet),
+//   2. the spec-conformance interaction-target navigation check (an interaction whose `target` page
+//      isn't on disk yet).
+// A genuinely broken link/target (one that's still missing once the FULL prototype exists, i.e. a
+// plain run without --page) is still caught normally — this skip only applies in --page mode.
 //
 // What it does:
 //   1. Serves PROTOTYPE_DIR over http (never file://).
@@ -87,10 +104,23 @@ function flagValue(name) {
 }
 const modelPath = flagValue('model');
 const briefPath = flagValue('brief');
+const pageFlag = flagValue('page');
 
 if (!dir || !existsSync(dir)) {
-  console.error('verify-prototype: PROTOTYPE_DIR not found. Usage: node verify-prototype.mjs <dir> [--port N] [--model spec-model.json] [--brief design-brief.md]');
+  console.error('verify-prototype: PROTOTYPE_DIR not found. Usage: node verify-prototype.mjs <dir> [--port N] [--model spec-model.json] [--brief design-brief.md] [--page id]');
   process.exit(2);
+}
+
+// --page <id>: resolve to the single file this run checks. `index` means the root index.html
+// (there is no pages/index.html); anything else is pages/{id}.html. Missing on disk is a setup
+// error (exit 2) — the caller asked to verify a page that doesn't exist yet.
+let singlePagePath = null;
+if (pageFlag) {
+  singlePagePath = pageFlag === 'index' ? join(dir, 'index.html') : join(dir, 'pages', `${pageFlag}.html`);
+  if (!existsSync(singlePagePath)) {
+    console.error(`verify-prototype: --page ${pageFlag} not found at ${singlePagePath}`);
+    process.exit(2);
+  }
 }
 
 const MIME = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -112,7 +142,8 @@ function htmlFiles() {
   walk(dir);
   return out;
 }
-const pages = htmlFiles();
+let pages = htmlFiles();
+if (singlePagePath) pages = pages.filter((p) => p === singlePagePath);
 if (pages.length === 0) pushC('No .html files found in prototype dir');
 
 // ── 2. static checks ────────────────────────────────────────────────────
@@ -406,9 +437,16 @@ async function checkConformanceStatic(page, modelPage, r, rawHtml) {
 }
 
 // Interaction targets need an actual click + navigation, so each gets its own fresh page.
-async function checkInteractionTargets(ctx, base, r, modelPage, result) {
+// `pageMode` (true only under --page): skip gracefully, without reporting anything, when the
+// interaction's target page isn't on disk yet — Station 4.5 runs before Station 5's assembly, so a
+// target page can legitimately not exist yet (or index.html hasn't been assembled at all).
+async function checkInteractionTargets(ctx, base, r, modelPage, result, pageMode) {
   for (const interaction of modelPage.interactions || []) {
     if (!interaction.target) continue;
+    if (pageMode) {
+      const targetPath = interaction.target === 'index' ? join(dir, 'index.html') : join(dir, 'pages', `${interaction.target}.html`);
+      if (!existsSync(targetPath)) continue; // target not built yet — not a broken-link signal in this mode
+    }
     const p = await ctx.newPage();
     try {
       await p.goto(`${base}/${r}`, { waitUntil: 'load', timeout: 15000 });
@@ -431,8 +469,14 @@ async function checkInteractionTargets(ctx, base, r, modelPage, result) {
 }
 
 // ── navigation click-through: actually follow every unique internal link once ──────────────
-async function checkNavClickThrough(ctx, base, r, hrefs) {
-  const unique = [...new Set(hrefs)].filter((h) => !/^https?:/i.test(h)).slice(0, 15);
+// `sourceFile` + `pageMode`: under --page, skip a link whose target file isn't on disk yet — it's
+// not a broken link in this mode, it's a page Station 5 hasn't assembled/linked yet. Clicking it
+// would 404 and get misreported as "lands on an unstyled/broken page".
+async function checkNavClickThrough(ctx, base, r, hrefs, sourceFile, pageMode) {
+  let unique = [...new Set(hrefs)].filter((h) => !/^https?:/i.test(h)).slice(0, 15);
+  if (pageMode) {
+    unique = unique.filter((h) => existsSync(join(sourceFile, '..', h.split('#')[0].split('?')[0])));
+  }
   for (const h of unique) {
     const p = await ctx.newPage();
     const newErrors = [];
@@ -792,14 +836,15 @@ async function main() {
         const hrefs = await page.evaluate(() =>
           [...document.querySelectorAll('a[href$=".html"]')].map((a) => a.getAttribute('href')));
         let deadLinks = [];
+        let skippedLinks = []; // --page mode only: target not built yet, not a broken-link signal
         for (const h of [...new Set(hrefs)]) {
           if (/^https?:/i.test(h)) continue;
           const target = join(f, '..', h.split('#')[0].split('?')[0]);
-          if (!existsSync(target)) deadLinks.push(h);
+          if (!existsSync(target)) { if (pageFlag) skippedLinks.push(h); else deadLinks.push(h); }
         }
         if (hrefs.length) {
           if (deadLinks.length) { pushC(`${r}: dead nav link(s): ${deadLinks.join(', ')}`); pushFlow(r, 'navigation', 'fail', `dead: ${deadLinks.join(', ')}`); }
-          else pushFlow(r, 'navigation', 'pass', `${hrefs.length} link(s) resolve`);
+          else pushFlow(r, 'navigation', 'pass', `${hrefs.length} link(s) resolve${skippedLinks.length ? ` (${skippedLinks.length} skipped — other page(s) not built yet)` : ''}`);
         }
 
         // ── spec-conformance (I) — static part, on this same unmutated page ────
@@ -820,12 +865,12 @@ async function main() {
         // ── interaction-target navigation checks (I) — need a fresh page each ──
         if (specModel && conformanceResult) {
           const modelPage = (specModel.pages || []).find((p) => p.id === pageIdFromRel(r));
-          await checkInteractionTargets(ctx, base, r, modelPage, conformanceResult);
+          await checkInteractionTargets(ctx, base, r, modelPage, conformanceResult, !!pageFlag);
           conformance.push(conformanceResult);
         }
 
         // ── navigation click-through (E) — fresh page per unique link ──
-        if (hrefs.length) await checkNavClickThrough(ctx, base, r, hrefs);
+        if (hrefs.length) await checkNavClickThrough(ctx, base, r, hrefs, f, !!pageFlag);
 
         // ── presence probes for the mutating flows below — a fresh page per flow is only
         //    worth spinning up when the page actually has something for that flow to do

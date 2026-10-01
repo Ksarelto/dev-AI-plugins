@@ -168,8 +168,34 @@ PLAYWRIGHT_MODULE=/tmp/pwlib/node_modules/playwright/index.js \
 |--------|---------|---------------------|
 | PASS (exit 0), `report.browser: true` | No critical issues, browser ran | Return `REVIEW_PACKET` with screenshots |
 | PASS (exit 0), `report.browser: false` | Static gate passed, but no browser ever opened the pages | Return `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never fold into a plain `REVIEW_PACKET` |
-| FAIL (exit 1) | ≥1 critical issue | Route each issue to the owning agent (screen-generator / design-system-author / assembly-wiring), re-run affected station, then re-verify (max 1 auto-fix cycle) before `ESCALATION_PACKET` |
+| FAIL (exit 1) | ≥1 critical issue | Route each issue to the owning agent (screen-generator / design-system-author / assembly-wiring), re-run affected station, then re-verify (max 2 cycles, no-progress early stop — see pipeline-flow.md's Loop Guards § No-progress rule) before `ESCALATION_PACKET` |
 | SETUP ERROR (exit 2) | Bad dir/port | Fix invocation and retry |
 
 Per-task discipline: run this check after ANY station that rewrites files (design system, a page,
 assembly), not only at the end — the same script works on a partial prototype.
+
+## Incremental, single-page mode (`--page <id>`)
+
+Added Phase 9 to implement the "per-task discipline" rule above for Station 4 specifically (see
+Station 4.5 in `pipeline-flow.md` and `agents/html-orchestrator.md`):
+
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599 --page {id}
+```
+
+- Serves and checks ONLY `pages/{id}.html` — or `index.html` when `id` is literally `index` (there
+  is no `pages/index.html`) — instead of looping over every `.html` file in `OUTPUT_DIR`. Everything
+  meaningful for one page in isolation still runs: the static gate, the render gate (styled-ness),
+  console/network error capture, modal/form/dev-panel flows found on that page, mobile overflow,
+  and — if `--model` is also passed — that page's own spec-conformance checks.
+- `--page` with no matching file on disk is a setup error (exit 2), not a false pass.
+- Screenshot naming/location is unchanged (the same `shotBase` derivation as a full run), so a later
+  full run's screenshots are never orphaned or inconsistently named.
+- **Known limitation**: Station 4.5 runs before Station 5 (assembly/nav-wiring), so `index.html` may
+  not exist yet and other pages may not be wired into this page's nav. Two checks that inherently
+  need OTHER pages to exist are skipped gracefully (not reported as missing/broken) when a link or
+  interaction target isn't on disk yet: the file-existence dead-link check, and the spec-conformance
+  interaction-target navigation check. A link/target still missing once the full prototype exists
+  (i.e. checked without `--page`) is still caught normally — this skip only applies in `--page` mode.
+- Omitting `--page` reproduces the full, unrestricted behavior byte-for-byte — this mode is
+  additive and opt-in.
