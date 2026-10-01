@@ -60,6 +60,12 @@ TOP-NAV archetype:
 
 Use `filteredItems` (not `items`) inside `x-for` when a filter bar is present.
 
+This `items.length` form is literal and checked by `qa-static.mjs` (S1-S3) on **every** page
+regardless of type — a detail page has no list of its own, so `entityDetail` in `js/store.js`
+exposes a `get items()` alias (`this.item ? [this.item] : []`) precisely so this same markup works
+unchanged on a detail page too. Never rename this to `item ? 1 : 0` or similar on the page itself —
+use `items.length` verbatim and let the factory supply the alias.
+
 ## Lists
 
 ```html

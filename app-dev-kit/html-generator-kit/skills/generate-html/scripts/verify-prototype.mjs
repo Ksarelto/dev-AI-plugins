@@ -687,15 +687,27 @@ async function main() {
       const errors = [];
       const localFailures = [];
       const crossOriginFailures = [];
+      // The browser's own opportunistic /favicon.ico probe isn't an asset the page referenced —
+      // nothing in this kit emits a <link rel="icon">, so every page would otherwise fail this
+      // check on a 404 nobody asked for. Exclude it; a REAL referenced asset (css/js/img) still counts.
+      // Chromium logs this SAME failed probe as a `console.error` ("Failed to load resource: the
+      // server responded with a status of 404 …") in addition to the network-level response/
+      // requestfailed events below — the console listener must apply the identical filter, or the
+      // favicon noise still fails the check through this other door.
+      const isNoiseRequest = (u) => /\/favicon\.ico(\?|$)/.test(u);
+      // A "Failed to load resource" console message carries the failing URL in `location().url`,
+      // not in `text()` (the text itself is the generic browser string, no URL) — check both so
+      // the favicon probe's resource-load error doesn't reach `errors[]` through the console path.
+      const isNoiseConsoleMessage = (m) => {
+        if (!/Failed to load resource/i.test(m.text())) return false;
+        try { return isNoiseRequest(m.location()?.url || ''); } catch { return false; }
+      };
       page.on('console', (m) => {
+        if (isNoiseConsoleMessage(m)) return;
         if (m.type() === 'error') errors.push(m.text());
         else if (m.type() === 'warning' && /alpine/i.test(m.text())) errors.push(`[alpine warning] ${m.text()}`);
       });
       page.on('pageerror', (e) => errors.push(String(e)));
-      // The browser's own opportunistic /favicon.ico probe isn't an asset the page referenced —
-      // nothing in this kit emits a <link rel="icon">, so every page would otherwise fail this
-      // check on a 404 nobody asked for. Exclude it; a REAL referenced asset (css/js/img) still counts.
-      const isNoiseRequest = (u) => /\/favicon\.ico(\?|$)/.test(u);
       page.on('response', (res) => {
         if (res.status() >= 400) {
           const u = res.url();

@@ -130,6 +130,11 @@ in the pre-Phase-3 per-entity `submit()` code, which called a bare `$store...` i
         item: null,
         loading: false,
         error: null,
+        // The universal four-state markup (page-shell.md / qa-static.mjs's S1-S3) is
+        // `x-show="!loading && !error && items.length === 0|>0"` on EVERY page, list or not — a
+        // detail page has no list of its own, so alias the single `item` as a one-or-zero-length
+        // array instead of requiring every detail/form page to hand-roll this getter itself.
+        get items() { return this.item ? [this.item] : [] },
         init() { this.reload() },
         reload() {
           this.loading = true
