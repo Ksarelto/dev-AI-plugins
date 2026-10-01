@@ -158,16 +158,22 @@ Delegate to `design-system-author` with ONLY:
 - `OUTPUT_DIR`
 - `UIUX_DIR`
 
-Wait for completion. Verify these 4 files exist:
+Wait for completion. The 4-file existence + non-empty + motion-token + locked-token +
+signature-block checks that this gate used to require the orchestrator to independently verify are
+now `build-design-system.mjs`'s own hard-failure checks (Phase 4) — the script exits non-zero and
+names exactly what's wrong (a missing design value, an unmatched locked token, an invalid or excess
+signature block) instead of writing partial output for the orchestrator to grep. Trust the agent's
+relayed report (`status: "design-system-contract-ready"`) as confirmation the script exited 0; still
+sanity-check that the 4 files exist on disk before Station 3:
 - `{OUTPUT_DIR}/css/tokens.css`
 - `{OUTPUT_DIR}/css/base.css`
 - `{OUTPUT_DIR}/css/components.css`
 - `{OUTPUT_DIR}/design-system-ref.md`
 
-**GATE**: If any file is missing → return `ESCALATION_PACKET` and STOP. The design-system-contract
-gate is hard. No screen generation begins before this gate passes. A non-empty `locked_missing`
-in the agent's report fails this gate the same way: re-run `design-system-author` once naming the
-missing tokens, then `ESCALATION_PACKET`.
+**GATE**: If any file is missing, or the agent reports the script failed → re-run
+`design-system-author` once naming the reported failure reason, then `ESCALATION_PACKET` if it
+fails again. The design-system-contract gate is hard — no screen generation begins before it
+passes.
 
 Read `{OUTPUT_DIR}/design-system-ref.md` (compact ~95 lines). Store as `DESIGN_REF`.
 Note the agent's `signature_emitted` / `signature_skipped` report — if it skipped a block because the

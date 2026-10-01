@@ -1,0 +1,7 @@
+.nav-item { position: relative; }
+.nav-item-active::before {
+  content: ''; position: absolute; inset-block: 0.35rem; inset-inline-start: 0;
+  width: 3px; border-radius: 999px; background: var(--primary);
+}
+.card-accent { border-inline-start: 3px solid var(--primary); }
+.app-topnav .nav-item-active::before { inset: auto 0.5rem 0 0.5rem; width: auto; height: 2px; }

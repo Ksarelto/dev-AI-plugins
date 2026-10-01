@@ -46,18 +46,21 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `references/verification-protocol.md` | orchestrator (Station 6.5) | headless-browser verification via `scripts/verify-prototype.mjs` |
 | `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist`, `design-system-author`, `qa-validator` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
 | `templates/design-brief.md` | `design-strategist` (Station 1.5) | output format for design-brief.md |
-| `templates/modern-signature-css.md` | `design-system-author` (Station 2) | contemporary CSS layer (motion, focus, bento/glass/gradient signatures) |
-| `templates/tokens-css.md` | `design-system-author` (Station 2) | OKLCH tokens starter |
-| `templates/base-css.md` | `design-system-author` (Station 2) | reset + typography foundation |
-| `templates/components-css.md` | `design-system-author` (Station 2) | component class patterns |
-| `templates/app-js.md` | `component-library-author` (Station 3) | Alpine stores: notification, modal, theme |
+| `templates/modern-signature-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/modern-always.css` + `runtime/css/signature/*.css`, what `build-design-system.mjs` appends |
+| `templates/tokens-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/tokens.css`'s slot table, what `build-design-system.mjs` fills from `design-values.json` |
+| `templates/base-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/base.css`'s `⟨FONT_IMPORT⟩` slot |
+| `templates/components-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/components.css` (no slots — copied verbatim, then appended to) |
+| `templates/app-js.md` / `templates/store-js.md` | human reference only (Phase 4) | describe `templates/runtime/app.js` / `runtime/store.js`'s contract; `copy-runtime-assets.mjs` is what actually writes `js/app.js` / `js/store.js` |
 | `templates/mock-data-js.md` | `component-library-author` (Station 3) | entity mock-data pool pattern |
-| `templates/navigation-js.md` | `assembly-wiring` (Station 5) | active-page highlight + breadcrumb helpers |
+| `templates/navigation-js.md` | human reference only | describes `wire-nav.mjs`'s generated `js/navigation.js` contract |
 | `templates/page-shell.md` | `screen-generator` (Station 4) | standalone page HTML structure |
 | `templates/index-shell.md` | `assembly-wiring` (Station 5) | landing app-map structure |
+| `templates/runtime/vendor/README.md` | human reference only | vendored Alpine.js version, source, upgrade instructions |
 | `scripts/collect-design-inputs.mjs` | this skill (Step 2.6, Bash) | finds provided theme/brand/layout sources → `design-inputs.json` |
 | `scripts/spec-model.mjs` | orchestrator (Station 0, Bash) | deterministic SPEC_FILE → `spec-model.json` for a full build; no model call, no truncation |
 | `scripts/delta-pages.mjs` | this skill (Step 2, Bash) | same parser, filtered to new/modified screens for `MODE: append`; shares `scripts/lib/spec-model.mjs` with the above |
+| `scripts/build-design-system.mjs` | `design-system-author` (Station 2, Bash) | fills `css/*.css` + `design-system-ref.md` from `design-values.json` — mechanical substitution + hard-fail validation (Phase 4) |
+| `scripts/copy-runtime-assets.mjs` | `component-library-author` (Station 3, Bash) | byte-for-byte copy of `js/app.js`, `js/store.js`, and vendored Alpine into `js/vendor/` (Phase 4) |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
 | `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 

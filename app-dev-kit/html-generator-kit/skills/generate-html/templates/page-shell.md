@@ -1,7 +1,8 @@
 # Template: page-shell.md
 
-Standalone HTML page template for `pages/{id}.html`. **CDN-free CSS** — styling comes entirely from
-`css/*.css`; only Alpine.js (+ focus plugin) is loaded from a CDN for interactivity.
+Standalone HTML page template for `pages/{id}.html`. **CDN-free** — styling comes entirely from
+`css/*.css`, and Alpine.js (+ focus plugin) is vendored under `js/vendor/` (see
+`templates/runtime/vendor/README.md`), not loaded from a CDN.
 Replace all `ALL_CAPS` placeholders. Do not leave placeholders in output. Use ONLY the class
 vocabulary from `design-system-ref.md` — no Tailwind utility classes.
 
@@ -30,8 +31,8 @@ vocabulary from `design-system-ref.md` — no Tailwind utility classes.
   <script src="../js/app.js" defer></script>
   <script src="../js/data.js" defer></script>
   <script src="../js/navigation.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="../js/vendor/alpine-focus.min.js" defer></script>
+  <script src="../js/vendor/alpine.min.js" defer></script>
 </head>
 <body x-data x-cloak>
   <div class="app">

@@ -1,32 +1,3 @@
-# Template: base-css.md
-
-**Superseded as a generation template (Phase 4)** — `scripts/build-design-system.mjs` fills
-`templates/runtime/css/base.css` (the same content below, kept in sync) from
-`design-values.json`'s `fonts.import`, and nothing reads this `.md` file to produce output anymore.
-This file stays as the human-readable description of that slot, or for reading a generated
-prototype's `css/base.css`. Source of truth is `templates/runtime/css/base.css` — this file is a
-description of its contract, not the generator.
-
-Reset + typography for `css/base.css`. **CDN-free** for the design system (Google Fonts `<link>`
-is allowed — it is not the Tailwind runtime the QA gate forbids).
-
-CRITICAL: the root font-size is left at the browser default (16px). Do NOT set
-`html { font-size: 62.5% }` — the old 1rem=10px trick shrinks every rem-based size to 62.5%
-and is the cause of the "everything is tiny" bug. All rem values below assume a 16px root.
-
-## FILL slots (from design-brief.md)
-
-- `⟨FONT_IMPORT⟩` — the Google Fonts `@import url(...)` line for the brief's chosen families
-  (body + display). Request only the weights used: 400;500;600;700 for body, 500;600;700 for display.
-- Font *families* are referenced via `var(--font-sans)` / `var(--font-display)` (defined in
-  `tokens.css`) — do NOT hardcode a family name here.
-
-If the brief chose a system-only pairing (no webfont), omit the `@import` line entirely; the
-`var(--font-*)` fallbacks in tokens.css already resolve to system stacks.
-
----
-
-```css
 ⟨FONT_IMPORT⟩
 
 *, *::before, *::after {
@@ -100,4 +71,3 @@ img, svg { display: block; max-width: 100%; }
   .sidebar, .dev-panel, .page-actions, .toast-container { display: none !important; }
   .main { padding: 0 !important; }
 }
-```

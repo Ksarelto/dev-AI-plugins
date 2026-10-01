@@ -1,6 +1,7 @@
 # Template: index-shell.md
 
-Landing page / app map template for `index.html` (prototype root). **CDN-free CSS.**
+Landing page / app map template for `index.html` (prototype root). **CDN-free** (styling and
+Alpine.js alike — Alpine is vendored under `js/vendor/`, see `templates/runtime/vendor/README.md`).
 `index.html` is static — no `x-data` on `<main>`. Paths are NON-prefixed (root level).
 Use ONLY the class vocabulary from `design-system-ref.md` — no Tailwind utility classes.
 
@@ -18,7 +19,7 @@ Use ONLY the class vocabulary from `design-system-ref.md` — no Tailwind utilit
   <link rel="stylesheet" href="css/components.css">
   <script src="js/app.js" defer></script>
   <script src="js/navigation.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="js/vendor/alpine.min.js" defer></script>
 </head>
 <body x-data x-cloak>
   <div class="app">

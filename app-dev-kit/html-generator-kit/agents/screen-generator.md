@@ -87,7 +87,7 @@ Use `{KIT_DIR}/skills/generate-html/templates/page-shell.md` as the base structu
 
 The page is a **standalone HTML file** with full `<html><head><body>`.
 
-**Mandatory head elements** (CDN-free CSS; only Alpine loaded from CDN, LAST + deferred):
+**Mandatory head elements** (CDN-free — Alpine is vendored under `js/vendor/`, loaded LAST + deferred):
 ```html
 <!DOCTYPE html>
 <html lang="en">
@@ -102,8 +102,8 @@ The page is a **standalone HTML file** with full `<html><head><body>`.
   <script src="../js/app.js" defer></script>
   <script src="../js/data.js" defer></script>
   <script src="../js/navigation.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/@alpinejs/focus@3.x.x/dist/cdn.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="../js/vendor/alpine-focus.min.js" defer></script>
+  <script src="../js/vendor/alpine.min.js" defer></script>
 </head>
 ```
 

@@ -1,5 +1,14 @@
 # Template: modern-signature-css.md
 
+**Superseded as a generation template (Phase 4)** — the ALWAYS blocks below live at
+`templates/runtime/css/modern-always.css` and each SWITCHED block at
+`templates/runtime/css/signature/{name}.css` (kept in sync with the content below); the motion
+token block lives merged into `templates/runtime/css/tokens.css`'s `:root`.
+`scripts/build-design-system.mjs` appends `modern-always.css` plus the files named in
+`design-values.json`'s `signatureBlocks` to `components.css`. Nothing reads this `.md` file to
+produce output anymore — it stays as the human-readable description of each block for anyone
+deciding `design-values.json`'s `signatureBlocks`/`motion` fields.
+
 The **contemporary layer**. Appended to `{OUTPUT_DIR}/css/components.css` by `design-system-author`,
 after the base component vocabulary. This is what makes a prototype look like it was designed this
 year rather than assembled from a 2019 admin template.

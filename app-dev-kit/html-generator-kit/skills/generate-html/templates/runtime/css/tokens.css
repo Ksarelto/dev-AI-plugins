@@ -1,49 +1,3 @@
-# Template: tokens-css.md
-
-**Superseded as a generation template (Phase 4)** — `scripts/build-design-system.mjs` fills
-`templates/runtime/css/tokens.css` (the same content below, kept in sync) from
-`design-values.json`, and nothing reads this `.md` file to produce output anymore. This file stays
-as the human-readable slot table for anyone deciding `design-values.json`'s `palette`/`radius`/
-`shadowAlpha`/`fonts`/`density` fields, or reading a generated prototype's `css/tokens.css`. Source
-of truth is `templates/runtime/css/tokens.css` — this file is a description of its contract, not
-the generator.
-
-Design tokens for `css/tokens.css`. **CDN-free** — no Tailwind runtime. Colours are OKLCH
-(shadcn-style). Consumers reference tokens as `var(--token)` directly (NOT `hsl(var(--token))`).
-
-## This is a FILL template, not a copy template
-
-`tokens.css` is where a prototype's visual identity lives — so it must be **generated from
-`design-brief.md`, not copied verbatim**. Copying verbatim is exactly what made every prototype
-look identical (one indigo hue, one font). The design-system-author substitutes every `⟨SLOT⟩`
-below with a concrete value derived from the brief.
-
-### Slots (all come from `design-brief.md`)
-
-| Slot | Source in brief | Example values |
-|------|-----------------|----------------|
-| `⟨NEUTRAL_HUE⟩` | neutral temperature | warm `70`, cool `264`, neutral `0` |
-| `⟨NEUTRAL_CHROMA⟩` | neutral temperature | `0.002`–`0.02` (higher = more tinted gray) |
-| `⟨PRIMARY_L⟩ ⟨PRIMARY_C⟩ ⟨PRIMARY_H⟩` | primary colour | e.g. `0.55 0.15 165` (teal) |
-| `⟨ACCENT_H⟩` | accent colour | often == primary hue, or a complementary hue |
-| `⟨RADIUS⟩` | radius personality | sharp `0.25rem` · balanced `0.625rem` · round `1rem` |
-| `⟨SHADOW_ALPHA⟩` | shadow intensity | flat `0.04` · soft `0.08` · lifted `0.14` |
-| `⟨FONT_BODY⟩` | font pairing (body) | `'Inter'`, `'Public Sans'`, `'IBM Plex Sans'` |
-| `⟨FONT_DISPLAY⟩` | font pairing (headings) | `'Space Grotesk'`, `'Fraunces'`, `⟨FONT_BODY⟩` |
-| `⟨DENSITY_*⟩` | density | compact vs comfortable (see density block) |
-
-Rules:
-- Keep the SAME token **names** — screen-generator and components.css depend on them.
-- All neutral surface/border/text tokens share `⟨NEUTRAL_HUE⟩`/`⟨NEUTRAL_CHROMA⟩` so the greys feel
-  intentional (warm product ≠ cool product).
-- `--primary-foreground` must pass WCAG AA against `--primary` (the brief already checked this;
-  re-verify: light text on a dark-enough primary, or dark text on a light primary).
-- Fonts are loaded via a Google Fonts `<link>`/`@import` in `base.css` (the brief names them) with a
-  system fallback — so an offline viewer still gets a sensible stack.
-
----
-
-```css
 :root {
   /* ── Typography families (from brief; system fallback keeps offline usable) ── */
   --font-sans: ⟨FONT_BODY⟩, system-ui, -apple-system, 'Segoe UI', sans-serif;
@@ -126,6 +80,14 @@ Rules:
   --sidebar-width: 16rem;
   --topnav-height: 3.75rem;
   --content-max: 1200px;
+
+  /* ── Motion (from the brief's Motion spec) ──────── */
+  --dur-fast: ⟨DUR_FAST⟩;      /* micro feedback: 120ms–160ms */
+  --dur-base: ⟨DUR_BASE⟩;      /* hovers, reveals: 200ms–280ms */
+  --dur-slow: ⟨DUR_SLOW⟩;      /* overlays, page reveal: 320ms–420ms */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --lift: ⟨LIFT_Y⟩;            /* hover translate: -1px (restrained) … -4px (playful) */
 }
 
 .dark {
@@ -163,8 +125,3 @@ Rules:
   --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 0.45), 0 2px 4px -2px oklch(0 0 0 / 0.30);
   --shadow-lg: 0 12px 32px -8px oklch(0 0 0 / 0.55);
 }
-```
-
-> **Note on `calc()` inside `oklch()`**: modern Chromium (used by the render check) supports it.
-> If the design-system-author prefers, it may pre-compute the lightness arithmetic and emit literal
-> values instead of `calc(...)` — either is acceptable as long as the hues/chroma come from the brief.

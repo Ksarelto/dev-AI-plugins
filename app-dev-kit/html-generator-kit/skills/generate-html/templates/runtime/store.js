@@ -1,25 +1,3 @@
-# Template: store-js.md
-
-**Superseded as a generation template** — `scripts/copy-runtime-assets.mjs` copies
-`templates/runtime/store.js` to `{OUTPUT_DIR}/js/store.js` byte-for-byte now, and nothing reads this
-`.md` file to produce output anymore. This file stays as a human-readable description of the
-generated contract (the shared entity store + `entityList`/`entityDetail`/`entityForm` Alpine data
-factories) for anyone reading a generated prototype's `js/store.js`. Source of truth is
-`templates/runtime/store.js` — this file is a description of its contract, not the generator.
-
-This file is generic — no entity-specific placeholders, no `⟨SLOT⟩`s, nothing for an agent to fill.
-
-It persists every entity's pool to `sessionStorage` so a create/edit/delete survives navigating to
-another page within the same browser session, keyed off `window.PROTOTYPE_SEED` (written per-entity
-by `component-library-author` into `js/data.js`) and `window.PROTOTYPE_ROLES`. It also fixes the bug
-in the pre-Phase-3 per-entity `submit()` code, which called a bare `$store...` inside an
-`Alpine.data` factory method and threw — outside a template expression the magic property is
-`this.$store`, not a free `$store` identifier. Here, `submit()` reaches the notification store via
-`global.Alpine.store('notification')`, never a bare `$store`.
-
----
-
-```javascript
 // Generic entity store + Alpine data factories — shared by every entity, every page.
 // Persists to sessionStorage so create/edit/delete survive navigating to another page within the
 // same browser session (a dev-panel "Reset data" action clears back to the seed).
@@ -183,43 +161,3 @@ in the pre-Phase-3 per-entity `submit()` code, which called a bare `$store...` i
     })
   }
 })(typeof window !== 'undefined' ? window : globalThis)
-```
-
----
-
-## Usage in pages
-
-```html
-<!-- List page -->
-<main x-data="entityList('Listing')">
-  <template x-for="item in filteredItems" :key="item.id">
-    <tr>
-      <td x-text="item.title"></td>
-      <td><button @click="remove(item.id)">Delete</button></td>
-    </tr>
-  </template>
-</main>
-
-<!-- Detail page — reads ?id= from the URL automatically -->
-<main x-data="entityDetail('Listing')">
-  <h1 x-text="item?.title"></h1>
-</main>
-
-<!-- Form page — create when the URL has no ?id=, edit when it does -->
-<main x-data="entityForm('Listing')">
-  <form @submit.prevent="submit($el)">
-    <input id="title" x-model="draft.title" required />
-    <button type="submit">Save</button>
-  </form>
-</main>
-
-<!-- Role switcher -->
-<select x-model="$store.session.role" @change="$store.session.setRole($event.target.value)">
-  <template x-for="role in $store.session.roles" :key="role">
-    <option :value="role" x-text="role"></option>
-  </template>
-</select>
-
-<!-- Dev-panel "Reset data" button -->
-<button class="btn-ghost btn-sm" @click="ProtoStore.resetAll(); reload()" title="Reset data" aria-label="Reset all data">🔄</button>
-```

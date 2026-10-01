@@ -2,7 +2,7 @@
 name: component-library-author
 description: Authors shared Alpine.js code and entity seed data for the prototype. Produces js/app.js (Alpine stores), js/store.js (shared entity store + entityList/entityDetail/entityForm data factories), js/data.js (entity seed data pools), and component-manifest.md (compact component API reference for screen-generator agents). Runs once per prototype — this is the component-ready gate.
 model: sonnet
-tools: [Read, Write, Glob]
+tools: [Read, Write, Glob, Bash]
 ---
 
 # Component Library Author
@@ -33,11 +33,21 @@ only for an entity that has none yet.
 
 ### 1. Write js/app.js and js/store.js
 
-From `{KIT_DIR}/skills/generate-html/templates/app-js.md` and
-`{KIT_DIR}/skills/generate-html/templates/store-js.md`. No placeholder substitution — both files
-are generic, copy their code blocks as-is.
+These two files (and, when vendored, the Alpine vendor files) are fixed content — zero
+`⟨SLOT⟩`s to fill. Run the copy script via Bash instead of retyping them with Read+Write:
 
-Write to `{OUTPUT_DIR}/js/app.js` and `{OUTPUT_DIR}/js/store.js`.
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/copy-runtime-assets.mjs --out {OUTPUT_DIR}
+```
+
+This copies `templates/runtime/app.js` → `{OUTPUT_DIR}/js/app.js`,
+`templates/runtime/store.js` → `{OUTPUT_DIR}/js/store.js`, and (if the kit's Alpine vendor files are
+present) `templates/runtime/vendor/alpine*.min.js` → `{OUTPUT_DIR}/js/vendor/`, byte-for-byte — no
+templating, no risk of a dropped line. `templates/app-js.md` / `templates/store-js.md` are now only
+human-readable descriptions of what these files contain; they are not read by this step.
+
+A non-zero exit means a required source file is missing from the kit — treat that as a hard
+failure of this station (do not fall back to hand-writing the files) and report it.
 
 `js/store.js` is what reads `window.PROTOTYPE_SEED`/`window.PROTOTYPE_ROLES` (written in step 2) and
 registers the shared `entityList`/`entityDetail`/`entityForm` Alpine data factories plus

@@ -1,33 +1,3 @@
-# Template: components-css.md
-
-**Superseded as a generation template (Phase 4)** — `scripts/build-design-system.mjs` copies
-`templates/runtime/css/components.css` (the same content below, kept in sync) verbatim — it has no
-`⟨SLOT⟩`s — then appends `templates/runtime/css/modern-always.css` and the signature files named in
-`design-values.json`'s `signatureBlocks`. Nothing reads this `.md` file to produce output anymore.
-Source of truth is `templates/runtime/css/components.css` — this file is a description of its
-contract, not the generator.
-
-Shared pattern classes + a small utility layer for `css/components.css`. **CDN-free** — this file
-replaces Tailwind entirely. Every class the page/index templates reference is defined here.
-
-## Mostly stable, but two brief-driven parts
-
-Copy this file into `{OUTPUT_DIR}/css/components.css` **with two adjustments from `design-brief.md`:**
-
-1. **Density**: padding/spacing come from the `--control-*`, `--cell-*`, `--card-pad`, `--main-pad-*`
-   tokens (defined in tokens.css from the brief). They are already wired below — do not hardcode
-   over them.
-2. **Layout archetype**: keep the `LAYOUT — SIDEBAR` block if the brief chose `sidebar`; if it chose
-   `top-nav`, ALSO keep the `LAYOUT — TOP-NAV` block (both are harmless to include — the shell markup
-   picks one). Never delete a layout block the shell might reference.
-
-Everything else is structural and stays as-is. Class vocabulary is authoritative: templates,
-screen-generator and assembly-wiring must use ONLY these class names (no Tailwind utilities, no
-slashed/colon class names).
-
----
-
-```css
 /* ══════════════════════════════════════════════════════════════
    LAYOUT — SIDEBAR (keep when brief archetype = sidebar)
    ══════════════════════════════════════════════════════════════ */
@@ -432,4 +402,3 @@ form.was-validated .form-input:invalid, form.was-validated .form-textarea:invali
 .cols-1 { grid-template-columns: 1fr; }
 .cols-2 { grid-template-columns: 1fr 1fr; }
 .pre-wrap { white-space: pre-wrap; font-family: inherit; line-height: 1.6; margin: 0; }
-```

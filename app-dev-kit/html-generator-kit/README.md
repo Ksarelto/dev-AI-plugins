@@ -3,7 +3,7 @@
 **Entry point**: `/generate-html [spec-slug]` → `skills/generate-html/SKILL.md`
 
 Transforms a validated YAML spec from `.spec/app/` into a **clickable multi-page HTML prototype**
-in `.spec/prototype/{TIMECODE}_{SLUG}/`. Styling is CDN-free (no Tailwind); Alpine.js and Google Fonts load from a CDN. Headless-browser verified.
+in `.spec/prototype/{TIMECODE}_{SLUG}/`. Styling and Alpine.js are both CDN-free (no Tailwind runtime; Alpine.js + its focus plugin are vendored under `js/vendor/`) — only Google Fonts loads from a CDN. Headless-browser verified.
 
 If you provide a theme — brand colours, fonts, a style guide, `tokens.css`, screenshots/mockups, or
 a layout — the prototype **must** follow it: every stated value is locked verbatim and QA fails the
@@ -109,9 +109,12 @@ When it is unavailable, the pipeline still completes and the review packet says
 │   └── components.css          # Component classes (no Tailwind runtime)
 ├── js/
 │   ├── app.js                  # Alpine stores: notification, modal, theme
+│   ├── store.js                # Shared entity store + entityList/entityDetail/entityForm factories
 │   ├── data.js                 # Entity mock-data pools
-│   └── navigation.js           # Active-page + breadcrumb helpers
+│   ├── navigation.js           # Active-page + breadcrumb helpers
+│   └── vendor/                 # Vendored Alpine.js + focus plugin (pinned version, no CDN)
 ├── design-inputs.json          # Provided design sources found (binding: true|false)
+├── design-values.json          # Concrete design decisions (palette/fonts/density/motion/signature)
 ├── design-brief.md             # Binding reference (if any) + chosen direction for open slots
 ├── ux-directives.md            # Per-page-type UX rules the screens were built against
 ├── design-system-ref.md        # Compact token + class reference
