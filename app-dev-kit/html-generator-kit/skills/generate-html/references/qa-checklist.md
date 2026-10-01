@@ -100,6 +100,31 @@ enforced by `wire-nav.mjs`'s exit code at Station 5, not by qa-validator — see
 
 ---
 
+## Render, Functionality & Design — Phase 6 additions (Station 6.5, browser-verified)
+
+| # | Check | Severity | Who checks |
+|---|-------|----------|-----------|
+| R7 | No horizontal overflow at the 390px mobile viewport (`documentElement.scrollWidth > clientWidth`) | CRITICAL | verify-prototype.mjs |
+| R7a | No clipped `overflow: hidden` content at 390px (capped at 3 reported/page) | WARNING | verify-prototype.mjs |
+| R8 | A `## Binding reference` locked token's ACTUAL computed `getComputedStyle(:root)` value matches the design brief (only with `--brief`) | CRITICAL | verify-prototype.mjs |
+| R9 | `<main data-spec-screen>`, every `page.components[]` has a `data-component`, every `page.interactions[]` has a `data-interaction` whose target (if any) lands on the right page (only with `--model`) | CRITICAL | verify-prototype.mjs |
+| R10 | Every non-derived `entity_fields[].name` has a `data-field` somewhere on the page (only with `--model`) | WARNING | verify-prototype.mjs |
+| R11 | `entity_statuses[]` enum values appear somewhere in rendered text/classes (only with `--model`) | WARNING | verify-prototype.mjs |
+| R12 | A role-restricted screen (`page.roles[]` non-empty) references `$store.session.role` somewhere in its source (only with `--model`) | WARNING | verify-prototype.mjs |
+| R13 | A visible `<button>` that is not a modal trigger, a form submit, or inside `.dev-panel` has an observable effect when clicked (URL/toast-state/body-length change) | WARNING (heuristic) | verify-prototype.mjs |
+| R14 | A `console.warn` matching `/alpine/i` (an Alpine expression error) | CRITICAL | verify-prototype.mjs |
+| R15 | A same-origin (local) asset request 404s/fails | CRITICAL | verify-prototype.mjs |
+| R16 | A cross-origin request (e.g. a Google Fonts `@import`) 404s/fails | WARNING | verify-prototype.mjs |
+
+Form/modal checks (I1–I3 above) now loop over EVERY form/modal on a page, not just the first, and
+the "empty submit blocked" check requires `.form-error` visible or `form.was-validated` — bare
+`:invalid` no longer satisfies it, and a blocked-but-still-saved submit (success signal present
+despite being blocked) is also critical. A valid submit missing a success signal is now CRITICAL
+(was a warning before Phase 6). See `verification-protocol.md` for the full station-order and
+clean-state-before-mutation rationale.
+
+---
+
 ## Render, Functionality & Design (Station 6.5 — browser-verified)
 
 | # | Check | Severity | Who checks |

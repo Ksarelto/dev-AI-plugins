@@ -276,8 +276,14 @@ Static QA cannot see whether a page actually renders. Run the render check per
 `{KIT_DIR}/skills/generate-html/references/verification-protocol.md`:
 
 ```bash
-node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599
+node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599 \
+  --model "{OUTPUT_DIR}/spec-model.json" --brief "{OUTPUT_DIR}/design-brief.md"
 ```
+
+`--model` always exists (Station 0 writes it). `--brief` exists only once Station 1.5 has run —
+guard for its absence (append mode before any design pass, or an early revise re-entry) the same way
+the script itself does: pass it when the file exists, omit the flag otherwise. Both flags are
+optional to the script — spec-conformance / locked-token checks simply skip silently without them.
 
 Do **not** `npm i` Playwright, axe-core, or `npx playwright install` a browser binary — those are
 side effects a subagent must not take.
@@ -300,10 +306,14 @@ then STOP. The skill relabels `review_packet` `⚠ UNVERIFIED` and proceeds to r
 something this orchestrator must never do).
 
 **GATE (render-pass)** on exit 1 / `passed: false`:
-- For each `critical[]` entry, route to the owning agent (page render/style →
-  screen-generator; tokens/base/components → design-system-author; index/nav → assembly-wiring),
-  re-run that station, then re-run this verification (max 1 auto-fix cycle). If still failing,
-  return `ESCALATION_PACKET` with the report path + `options: ["proceed-to-review", "abort"]`.
+- For each `critical[]` entry, route to the owning agent (page render/style/functionality/spec-
+  conformance → screen-generator; tokens/base/components/locked-token mismatch →
+  design-system-author; index/nav → assembly-wiring), re-run that station, then re-run this
+  verification (max 1 auto-fix cycle). If still failing, return `ESCALATION_PACKET` with the report
+  path + `options: ["proceed-to-review", "abort"]`.
+- A `spec-conformance` critical (missing `data-component`/`data-interaction`/`data-spec-screen`, or
+  an interaction landing on the wrong page) routes to `screen-generator` for that one page, same as
+  any other render-pass critical — same mechanism, not a new one.
 - An axe contrast failure on a colour locked by the brief's `## Binding reference` is **not**
   auto-fixed by changing that colour. Fix the pairing (foreground/text token) if possible;
   otherwise list it under the review packet's reference deviations for the human to decide.

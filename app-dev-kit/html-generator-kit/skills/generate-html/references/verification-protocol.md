@@ -16,7 +16,7 @@ an Alpine init failure). This protocol catches all of those by loading the pages
 
 ```
 {OUTPUT_DIR}/_verify/
-├── report.json            # machine-readable pass/fail + per-page metrics + flows[] + axe[]
+├── report.json            # machine-readable pass/fail + per-page metrics + flows[] + axe[] + conformance[]
 └── screenshots/           # three PNGs per screen: desktop, mobile (390px), dark
     ├── index.png · index__mobile.png · index__dark.png
     └── pages__{id}.png · pages__{id}__mobile.png · pages__{id}__dark.png
@@ -25,38 +25,80 @@ an Alpine init failure). This protocol catches all of those by loading the pages
 These are review aids — include the screenshot paths in the human-review packet. `_verify/` is
 excluded from the prototype's own asset scan.
 
+`report.json`'s top-level shape:
+```
+{ dir, port, pages, browser, browserChannel, axe, checks[], flows[], conformance[], critical[], warnings[], passed }
+```
+`conformance[]` (only populated when `--model` is passed) has one entry per spec-model page that
+matched a generated page, by id:
+```
+{ page, missing_components: [], missing_interactions: [], wrong_targets: [{interaction, expected, actual}],
+  missing_fields: [], ignored_enum: boolean, missing_role_gate: boolean }
+```
+
 ## How the orchestrator runs it (Station 6.5)
 
 ```bash
-node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599
+node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599 \
+  --model "{OUTPUT_DIR}/spec-model.json" --brief "{OUTPUT_DIR}/design-brief.md"
 ```
+
+`--model` and `--brief` are both optional — omit (or point at a missing path) to skip the
+spec-conformance check and the locked-token check silently; everything else still runs. `--model`
+always exists since Station 0; `--brief` exists after Station 1.5 (guard for its absence in append
+mode before Station 1.5 has ever run, same as the script does internally).
 
 `KIT_DIR` is the plugin root. Never run `.spec/html-generator-kit/scripts/verify-prototype.mjs`
 (that path does not exist even as a legacy copy — the script lives under `skills/generate-html/scripts/`).
 
-The script self-serves `{OUTPUT_DIR}` over http (never `file://`) and:
+The script self-serves `{OUTPUT_DIR}` over http (never `file://`) and, per page, checks the page
+**clean (first-load, un-mutated) before anything mutates it**, then runs the flows that DO mutate
+state each on its own fresh page (`ctx.newPage()` + `sessionStorage.clear()`), so one flow's
+leftover state never bleeds into another's:
 
 1. **Static gate** (always): no Tailwind CDN, no inline `<style>`/`<script>`, every local `css`/`js`
    asset resolves, no leftover `ALL_CAPS` placeholders.
 2. **Render gate** (when Playwright is available): headless Chromium loads `index.html` and every
    page, waits for Alpine to strip `x-cloak`, then asserts it is **styled**:
-   - no page-fatal console errors,
+   - no page-fatal console errors/`pageerror`s, and no `console.warn` matching `/alpine/i` (an Alpine
+     expression error) — all three are critical; a same-origin asset request that 404s/fails is
+     critical, a cross-origin one (e.g. a Google Fonts `@import`) is a warning,
    - root font-size ≥ 14px (guards the tiny-elements regression),
    - a present shell is styled — if the page has a `.sidebar` it is ≥ 200px wide, or a `.topnav` it is
      ≥ 40px tall (shell-less centered pages like login are exempt),
-   - `.btn-primary` has a real background (guards missing `components.css`).
+   - `.btn-primary` has a real background (guards missing `components.css`),
+   - no horizontal overflow at the 390px mobile viewport (critical), and no clipped
+     `overflow: hidden` content (warning, capped at 3/page),
+   - with `--brief`: every `## Binding reference` locked token's ACTUAL computed value on
+     `:root` matches the brief (critical on mismatch).
 3. **Functionality gate** (smart generic heuristics — no per-screen manifest; conventions in
    `{KIT_DIR}/skills/generate-html/references/interaction-conventions.md`). Each is recorded in `report.flows[]`:
-   - **navigation** — every `a[href$=".html"]` target file exists (dead link → critical),
-   - **modal** — click `[data-modal-open]` → a `.modal[role="dialog"]` shows → `[data-modal-close]`
-     / Escape hides it (fail → critical),
-   - **form** — on pages with a `<form>` + `required` fields: empty submit must be blocked
-     (`.form-error` / `:invalid` / `form.was-validated`); a filled submit must succeed
-     (empty submit not blocked → critical; valid submit rejected → warning),
-   - **dev-panel** — cycles loading/empty/error/success and each state's root becomes visible.
-4. **Accessibility** (when `axe-core` is importable): runs axe per page; `critical`-impact
-   violations are criticals, `serious` ones are warnings.
-5. **Screenshots**: desktop + mobile (390px) + dark-mode per screen.
+   - **navigation** — every `a[href$=".html"]` target file exists (dead link → critical), PLUS an
+     actual click from a fresh load of the source page onto every unique internal link, asserting
+     the destination's shell renders and no NEW console error appears,
+   - **modal** — every `[data-modal-open]` on the page (capped at 10): click → a `.modal[role="dialog"]`
+     shows → `[data-modal-close]` / Escape hides it (fail → critical),
+   - **form** — every `<form>` with ≥1 `required` field (not just the first): empty submit must be
+     BLOCKED (`.form-error` visible or `form.was-validated` — bare `:invalid` no longer counts, it's
+     always true for an empty required field) AND produce NO success signal (blocked-but-still-saved
+     is also critical); a type-aware filled submit (email/number/date/datetime-local/select/text)
+     must succeed with a success signal (`.toast-container .alert-success` or a URL change) — missing
+     success is now **critical**,
+   - **dev-panel** — cycles loading/empty/error/success and each state's root becomes visible,
+   - **dead-button detection** — a visible `<button>` that isn't a modal trigger, a form submit, or
+     inside `.dev-panel` is clicked; no observable change in URL/toast-state/body-length → warning
+     (a heuristic — never critical),
+   - **spec-conformance** (only with `--model`) — `data-spec-screen`/`data-component`/
+     `data-interaction`/`data-field` presence per the matching `spec-model.json` page (missing
+     component/interaction/screen attr → critical; an interaction's target landing on the wrong page
+     → critical; a missing field attr, an ignored status enum, or a role-gated page with no
+     `$store.session.role` reference → warning).
+4. **Accessibility** (when `axe-core` is importable): runs axe per page, light mode AND a second pass
+   with `.dark` toggled on `<html>` (restored after); `critical`-impact violations are criticals,
+   `serious` ones are warnings.
+5. **Screenshots**: desktop + mobile (390px) + dark-mode per screen, taken BEFORE any interaction
+   flow mutates the page — a reviewer's first look always matches first-load state, not some
+   flow's leftover state.
 
 Exit code: `0` pass, `1` critical issues, `2` setup error.
 

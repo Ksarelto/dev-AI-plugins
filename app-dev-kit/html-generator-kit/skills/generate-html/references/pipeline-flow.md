@@ -71,7 +71,7 @@ question.
 | `design-system-contract` | 2→3 | `build-design-system.mjs` exited 0 (Phase 4: the file-existence + non-empty + motion-token + locked-token + signature-block checks are now the script's own hard-failure checks, not a self-report the orchestrator re-verifies) | `ESCALATION_PACKET` |
 | `component-ready` | 3→4 | `js/app.js`, `js/data.js`, `js/store.js`, `component-manifest.md` all exist and non-empty | `ESCALATION_PACKET` |
 | `qa-pass` | 6→6.5 | `critical_issues` list is empty from `qa-validator` | Auto-fix attempt (max 1 retry), then `ESCALATION_PACKET` |
-| `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 with `report.browser: true` | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
+| `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 with `report.browser: true` (critical[] now also includes mobile-overflow, locked-token mismatches with `--brief`, and spec-conformance failures with `--model`, in addition to render/a11y/nav/modal/form) | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
 
 ## Append mode
 
