@@ -88,7 +88,7 @@ Or reload inside a session after changes:
 
 ## Cursor
 
-Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the same `rules/`, `skills/`, `agents/`, `commands/`, and MCP files as Claude Code.
+Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the same `rules/`, `skills/`, `commands/`, and MCP files as Claude Code. `agents` is `./agents/` in Cursor and `./agents/*.md` in Claude Code.
 
 ### Install from GitHub
 

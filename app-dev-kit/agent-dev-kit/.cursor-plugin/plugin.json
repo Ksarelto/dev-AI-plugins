@@ -25,6 +25,6 @@
   "category": "productivity",
   "rules": "./rules/",
   "skills": "./skills/",
-  "agents": "./agents/*.md",
+  "agents": "./agents/",
   "mcpServers": "./.mcp.json"
 }

@@ -3,7 +3,7 @@
 ## Adding a plugin
 
 1. Create a new directory using **kebab-case** (e.g. `my-new-plugin`) at the repo root, or under `app-dev-kit/` for the spec → prototype → build family. Marketplace `source` must match that directory.
-2. Add **both** harness manifests with the same fields and component paths:
+2. Add **both** harness manifests with the same fields and component paths (`agents` is the exception below):
    - `.claude-plugin/plugin.json`
    - `.cursor-plugin/plugin.json`
 3. Add component files in the appropriate directories (`rules/`, `skills/`, `agents/`, `commands/`, optional `.mcp.json`)
@@ -21,7 +21,7 @@ same change. An undiscoverable skill — one whose description doesn't match how
 ask for it — is a bug even if `npm run validate` passes.
 See [evals/README.md](evals/README.md) for the case format.
 
-Content is shared; only the manifest directories differ. Keep the two `plugin.json` files in sync when you change metadata or paths.
+Content is shared; only the manifest directories differ. Keep the two `plugin.json` files in sync when you change metadata or paths, except `agents`: `.claude-plugin` uses `./agents/*.md` (Claude Code rejects a directory), `.cursor-plugin` uses `./agents/` (Cursor does not expand globs, so `*.md` loads no agents).
 
 ## Naming conventions
 
