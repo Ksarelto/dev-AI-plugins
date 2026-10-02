@@ -41,7 +41,10 @@ Track order is **backend → agent → frontend**. Do not fan out tracks that sh
 |-------|--------|
 | Empty `.spec/context/` and no approved spec | STOP before generate-spec |
 | Spec envelope aborted / error | STOP |
+| Envelope `error` with `reason: stale-agent` | `blocked` + `blocked-reason: stale-agent`. Ask once. Do not start the next task |
+| Missing envelope, pulse exit 3, 4, or 5 | Leave `in-progress`. Rebuild that call once, then block as `stale-agent` |
 | html-generator aborted | `PROTOTYPE_REF = ""`; continue to 2a |
+| html-generator `stale-agent` | Ask once: continue without prototype, or stop |
 | `analyze-capabilities.mjs` exit 1 | No needed tracks — report and stop |
 | Dirty tree before a spawn | Do not spawn; commit / stash / block |
-| Callee envelope missing | Leave `in-progress`; never mark `done` |
+| Callee envelope missing | Leave `in-progress`; never mark `done`. If the pulse is exit 3, 4, or 5, rebuild once, then `blocked` / `stale-agent` |

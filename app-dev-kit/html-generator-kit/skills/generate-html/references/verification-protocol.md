@@ -37,8 +37,13 @@ node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" 
 The script self-serves `{OUTPUT_DIR}` over http (never `file://`) and:
 
 1. **Static gate** (always): no Tailwind CDN, no inline `<style>`/`<script>`, every local `css`/`js`
-   asset resolves, no leftover `ALL_CAPS` placeholders.
-2. **Render gate** (when Playwright is available): headless Chromium loads `index.html` and every
+   asset resolves, no leftover `ALL_CAPS` placeholders, and the shared shell matches across routes.
+   `aside.sidebar` or `header.topnav` (brand, nav, widgets inside that shell) must be the same on
+   every `pages/*.html` that has one, and on `index.html` when it uses that same shell. Active link
+   and `href` shape (`./id.html` vs `pages/id.html`) are ignored. The in-page `.page-header` (title,
+   breadcrumb, page actions) may differ. A shell-less page (login) is exempt. A mismatch is a
+   critical naming that page — route it to `screen-generator`.
+2. **Render gate** (when Playwright is available): one headless browser loads `index.html` and every
    page, waits for Alpine to strip `x-cloak`, then asserts it is **styled**:
    - no page-fatal console errors,
    - root font-size ≥ 14px (guards the tiny-elements regression),
@@ -103,5 +108,8 @@ PLAYWRIGHT_MODULE=/tmp/pwlib/node_modules/playwright/index.js \
 | FAIL (exit 1) | ≥1 critical issue | Route each issue to the owning agent (screen-generator / design-system-author / assembly-wiring), re-run affected station, then re-verify (max 1 auto-fix cycle) before `ESCALATION_PACKET` |
 | SETUP ERROR (exit 2) | Bad dir/port | Fix invocation and retry |
 
-Per-task discipline: run this check after ANY station that rewrites files (design system, a page,
-assembly), not only at the end — the same script works on a partial prototype.
+Run this once, at Station 6.5, after screens, assembly, and QA are done. Do not run it after each
+page or after an earlier station. A render-pass fix cycle may run it once more on the finished
+files. That rerun attaches to a Chrome that is already open (`VERIFY_CDP_URL`, `DevToolsActivePort`,
+or port 9222) and only headless-launches when none is listening. It never opens a new window, and
+it never closes a browser it did not launch.

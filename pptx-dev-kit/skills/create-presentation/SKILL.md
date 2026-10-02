@@ -58,7 +58,24 @@ BRAND: {BRAND or "none"}
 REFERENCE_PPTX: {absolute path or none}
 OUTPUT_DIR: {printed path}
 KIT_DIR: {this kit's root}
+PULSE: {OUTPUT_DIR}/watch/pptx-orchestrator.json
+PULSE_SCRIPT: {resolved check-pulse.mjs}
 ```
+
+Spawn with `run_in_background: true`, then run the Liveness parent loop. Do not block on the Agent call.
+
+### Liveness — poll the orchestrator
+
+Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
+
+`PULSE` is `{OUTPUT_DIR}/watch/pptx-orchestrator.json`.
+
+1. Record `agent_id`. Touch `--role pptx-orchestrator --status working --station start`.
+2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. Do not end the turn while `status` is `working`.
+3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and report it. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then stop and report the build-failure form with `Error: stale-agent`. Do not claim `deck.pptx` was produced.
+4. `awaiting-human` is healthy. Never resume or rebuild across it.
+
+If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
 
 ### 4. Report
 

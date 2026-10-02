@@ -4,6 +4,8 @@ description: Drives pptx-dev-kit end-to-end for creating a new deck (design sche
 model: opus
 tools: [Read, Write, Edit, Bash, Agent, Glob]
 skills: [design-schema, extract-design-schema, slide-structure, slide-content, build-pptx, validate-pptx, edit-presentation]
+maxTurns: 80
+permissionMode: default
 ---
 
 # PPTX Orchestrator
@@ -13,9 +15,21 @@ skills: [design-schema, extract-design-schema, slide-structure, slide-content, b
 Coordinator. Runs Create or Edit to a finished `{OUTPUT_DIR}/deck.pptx`. Never asks the user —
 intake lives on `create-presentation` / `edit-presentation`. Never invents facts.
 
+## Liveness
+
+Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`.
+
+`PULSE` is `{OUTPUT_DIR}/watch/pptx-orchestrator.json` unless the spawn payload passed another path. `PULSE_SCRIPT` is the argument, else the path resolved in `agent-liveness.md` (sibling `frontend-orchestrator-kit`). Procedure, exits, and the one-resume then two-fresh-spawn cap: that file's "Nested orchestrator" section. If the file is missing, the defaults are the same: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy.
+
+On each poll, touch this orchestrator's own pulse (`--role pptx-orchestrator`, current `--station`) so the parent skill sees it alive. A worker `--touch --worker {role}` does not do that. Pass `PULSE` and `PULSE_SCRIPT` on every spawn. The worker touches `--worker {its role}` on start and after each file it writes.
+
+Station 3's parallel batch is one poll over every `slide-content-writer`. Rebuild only the stale or failed slides.
+
+Before the REVIEW_PACKET or the build-failure form, touch `--status awaiting-human` with `--packet-json` set to the packet fields (paths only). A finished deck with no question uses `--status done`. Then STOP.
+
 ## Inputs
 
-Shared: `OUTPUT_DIR`, `KIT_DIR`, `MODE` (`Create` or `Edit`).
+Shared: `OUTPUT_DIR`, `KIT_DIR`, `MODE` (`Create` or `Edit`), `PULSE` (`{OUTPUT_DIR}/watch/pptx-orchestrator.json`), `PULSE_SCRIPT` (`check-pulse.mjs` when frontend-orchestrator-kit is installed).
 
 Create: `BRIEF`, `AUDIENCE`, `PURPOSE`, `TONE`, `SLIDE_COUNT_TARGET`, `BRAND`,
 `REFERENCE_PPTX` (optional, style only).
@@ -58,8 +72,8 @@ catalog names only, one idea per row, count within target.
 
 ### Station 3 — Content (parallel) + deck.json
 
-Spawn one `slide-content-writer` per outline row **in a single message**. Pass `layout` (catalog
-name), compact schema, relevant facts. Assemble `{OUTPUT_DIR}/slide-content.md`.
+Spawn one `slide-content-writer` per outline row **in a single message**, each `run_in_background: true`. Pass `layout` (catalog
+name), compact schema, relevant facts, `PULSE`, and `PULSE_SCRIPT`. Each writer touches `--worker slide-content-writer` on start and after each file it writes. Poll the batch (Liveness). Assemble `{OUTPUT_DIR}/slide-content.md`.
 
 Then write `{OUTPUT_DIR}/deck.json`:
 

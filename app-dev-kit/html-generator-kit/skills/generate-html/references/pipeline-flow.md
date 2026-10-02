@@ -187,3 +187,4 @@ After any re-run (except verify-only), always re-run QA (Station 6) then Render 
 | Hardcoding `.spec/html-generator-kit/` | Plugin root is `KIT_DIR`; `.spec/` is artifacts |
 | Overriding a provided colour/font/layout with a database pick or "differentiation" | A provided reference is mandatory; the kit designs only what it leaves open |
 | Changing a locked colour to fix contrast | Fix the pairing or disclose an `a11y-risk` deviation; the human decides |
+| Running `verify-prototype.mjs` after each page or station | Opens a browser per change. The render check runs once at Station 6.5, after assembly and QA |

@@ -152,7 +152,31 @@ INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json
 Read {KIT_DIR}/skills/generate-spec/references/pipeline-flow.md before any station.
 Do NOT call AskUserQuestion. Do NOT inline base.spec.md or prior context files.
 Return one packet and STOP.
+PULSE:        {RUN_DIR}/watch/spec-orchestrator.json
+PULSE_SCRIPT: {PULSE_SCRIPT argument, or the resolved check-pulse.mjs}
+WATCH:        .spec/app/watch/current.json
 ```
+
+Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
+
+### Liveness — poll the orchestrator
+
+Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
+
+`PULSE` is `{RUN_DIR}/watch/spec-orchestrator.json`. Write the pointer before the spawn (this is Station 1's watch file — `RUN_DIR` did not exist when `/orchestrate-frontend` started):
+
+```bash
+node {PULSE_SCRIPT} --watch .spec/app/watch/current.json --station 1 --pulse {PULSE}
+```
+
+1. Record `agent_id`. Touch `--role spec-orchestrator --status working --station start`.
+2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. Do not end the turn while `status` is `working`.
+3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table below. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write `{RUN_DIR}/kit-result.json` with `--outcome error --reason stale-agent` and stop.
+4. `awaiting-human` is healthy. Never resume or rebuild across it.
+
+If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
+
+Re-spawns (`MODE: resume` or `revise`) use this same loop.
 
 | Packet `type` | This skill |
 |---------------|------------|

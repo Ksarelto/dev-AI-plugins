@@ -36,6 +36,10 @@ use the first that exists:
 All script and reference paths are `{KIT_DIR}/skills/orchestrate-frontend/…`. Never hardcode
 `.spec/orchestrator-kit/skills/…`.
 
+`PULSE_SCRIPT` is the argument when a parent passed one, otherwise
+`{KIT_DIR}/skills/orchestrate-frontend/scripts/check-pulse.mjs`. `WATCH` is
+`.spec/app/watch/current.json` unless a parent passed another path.
+
 ---
 
 ## Companion files (loaded on demand — not loaded unless a step references them)
@@ -47,7 +51,9 @@ All script and reference paths are `{KIT_DIR}/skills/orchestrate-frontend/…`. 
 | `references/result-envelope.md` | this skill | after every delegated Skill returns |
 | `references/task-decomposition.md` | this skill, `build-checklist.mjs` | Station 2a |
 | `references/checklist-format.md` | this skill | reading/writing `task-checklist.md` |
+| `references/agent-liveness.md` | this skill, delegated kits | before Stations 1–3, and whenever a pulse is checked |
 | `scripts/build-checklist.mjs` | this skill (Bash) | deterministic UI-task derivation / re-derivation |
+| `scripts/check-pulse.mjs` | this skill (Bash), delegated kits | write `.spec/app/watch/current.json`, touch a pulse, classify it |
 | `scripts/write-kit-result.mjs` | this skill (Station 4 or abort) | run-level envelope for `orchestrate-app` |
 
 This kit has **no agents of its own**.
@@ -82,6 +88,8 @@ SPEC_PATH:      {path to approved spec.md}
 PROTOTYPE_REF:  {prototype dir or empty}
 SKIP_UPSTREAM:  true          # skip Stations 1–2; spec already approved
 RESULT_OUT:     {optional extra envelope path}
+PULSE_SCRIPT:   {optional; default is this kit's scripts/check-pulse.mjs}
+WATCH:          {optional; default .spec/app/watch/current.json}
 ```
 
 ```
@@ -94,7 +102,7 @@ RESULT_OUT:     {optional extra envelope path}
 
 ## Steps
 
-Read `references/pipeline-flow.md` and `references/context-budget.md` before starting.
+Read `references/pipeline-flow.md`, `references/context-budget.md`, and `references/agent-liveness.md` before starting.
 
 ### Station 0 — Resume check
 
@@ -113,6 +121,17 @@ A fresh session starts by reading `.spec/app/current.json`. Do not recover the s
      `done`/`skipped` ids) · **Resume as-is** · **Abort**.
    - Otherwise jump to **Station 3** at the first **feature** whose `status` is not `done` or `skipped`.
      Treat leftover `in-progress` as the first item to re-offer (do not mark it `done`).
+     When that feature is `in-progress` and `slug` is set, check its pulse first:
+
+     ```bash
+     node {PULSE_SCRIPT} \
+       --check --pulse ".spec/features/{slug}.context/pulse.json"
+     ```
+
+     No `slug` is exit 4 (missing). Exit 2 → re-offer `{dirname(pulse)}/packet.json`; do not rebuild.
+     Exit 3, 4, or 5 → log `stale-agent — rebuilding` and rebuild that feature once at Station 3
+     (`--rebuilds 1` on the watch pointer). A second stale return sets `blocked` /
+     `blocked-reason: stale-agent` and asks once. Exit 0 → re-offer; do not mark `done`.
      Report: `"Resuming frontend {slug} — {done}/{total} features done."`
 2. Otherwise this is a new run — continue to Station 1 (or Station 2a when `SKIP_UPSTREAM` is set).
 
@@ -129,9 +148,19 @@ If none approved:
    `"No requirement files found in .spec/context/. Drop .md files there, then re-run /orchestrate-frontend."`
    Do **not** invoke generate-spec (it would stop the same way after loading its skill body).
 2. Invoke `spec-dev-kit:generate-spec` with the **slug/app name only** — never paste context-file
-   contents. It owns its HITL gate.
-3. After it returns, read `.spec/app/current.json`.
-   - `spec_path` set → `SPEC_PATH` = that path. Confirm `{dirname}/kit-result.json` is `approved`.
+   contents. It owns its HITL gate. Pass the liveness paths (it writes the watch pointer once
+   `RUN_DIR` exists, then polls `spec-orchestrator`):
+
+   ```
+   WATCH:        .spec/app/watch/current.json
+   PULSE_SCRIPT: {PULSE_SCRIPT}
+   ```
+
+3. After it returns, run the post-return check in `references/agent-liveness.md` on the pulse
+   recorded in `.spec/app/watch/current.json`. Then read `.spec/app/current.json`.
+   - `spec_path` set and the envelope is `approved` → `SPEC_PATH` = that path.
+   - Envelope `error` with `reason: stale-agent`, or a missing envelope whose pulse is still
+     exit 3, 4, or 5 after one rebuild → STOP. Ask once. Nothing downstream can run.
    - missing pointer or `aborted` / `error` → STOP. Nothing downstream can run.
 
 Do not Read `spec.md` body here.
@@ -143,20 +172,35 @@ If `SKIP_UPSTREAM` is set, keep the passed `PROTOTYPE_REF` (may be `""`) and ski
 Otherwise `AskUserQuestion` — "Generate a clickable HTML prototype before building features? (recommended for
 apps with more than one screen)" — **Yes** / **Skip**.
 
-On **Yes**: invoke `html-generator-kit:generate-html` with structured fields, **not** a pasted spec:
+On **Yes**: write the watch pointer, then invoke `html-generator-kit:generate-html` with structured
+fields, **not** a pasted spec:
+
+```bash
+node {PULSE_SCRIPT} \
+  --watch .spec/app/watch/current.json \
+  --station 2 \
+  --pulse "{dirname(SPEC_PATH)}/watch/html-orchestrator.json"
+```
 
 ```
-SPEC_PATH: {SPEC_PATH}
+SPEC_PATH:    {SPEC_PATH}
+PULSE:        {dirname(SPEC_PATH)}/watch/html-orchestrator.json
+PULSE_SCRIPT: {PULSE_SCRIPT}
+WATCH:        .spec/app/watch/current.json
 ```
 
 Argument: the spec **folder name** (`spec-{tc}_{slug}`) or the `spec.md` path — generate-html
 treats an existing `spec.md` path as `SPEC_FILE` and will not re-glob “most recent”.
 
-After return, Read `{dirname(SPEC_PATH)}/html-kit-result.json`:
+After return, run the post-return check in `references/agent-liveness.md`, then Read
+`{dirname(SPEC_PATH)}/html-kit-result.json`:
 
 - `outcome: approved` → `PROTOTYPE_REF` = envelope `prototype_ref` (the **new** prototype
   timecode folder — not the spec folder’s timecode).
-- `aborted` / `error` / missing → `PROTOTYPE_REF = ""` and continue to Station 2a.
+- `error` with `reason: stale-agent`, or a missing envelope whose pulse is still exit 3, 4, or 5
+  after one rebuild → ask once: **Continue without prototype** or **Stop**. Do not treat a stale
+  run as a finished prototype.
+- `aborted` / other `error` / missing → `PROTOTYPE_REF = ""` and continue to Station 2a.
 
 On **Skip**: `PROTOTYPE_REF = ""`.
 
@@ -194,12 +238,24 @@ feature. Nested tasks are not separate calls, branches, or commits.
 0. If the feature has `depends-on` ids that are not `done`, do not start it: ask once whether to
    build the dependency first (recommended) or skip this feature for now.
 1. If `status: blocked`, ask once whether to retry (`pending`) or keep skipping.
-2. If `status: in-progress` (crashed prior run): re-offer this feature; do not assume it finished.
+2. If `status: in-progress` (crashed prior run): check the pulse as in Station 0. Exit 3, 4, or 5
+   rebuilds once. Otherwise re-offer this feature; do not assume it finished.
 3. `git status --porcelain` — if dirty, `AskUserQuestion`: **Commit** (you wait; re-check) ·
    **Stash** · **Abort this feature** (`blocked`, reason: dirty tree). Never spawn feature-dev dirty.
    `new-feature.sh` will exit 1 if you skip this.
 4. Set the feature `status: in-progress`, append a `## Log` line, write the checklist.
    Do **not** check out the integration branch between features. Stay on the current HEAD.
+   Write the watch pointer (`rebuilds` is `1` when Station 0 already rebuilt this feature, else `0`):
+
+   ```bash
+   node {PULSE_SCRIPT} \
+     --watch .spec/app/watch/current.json \
+     --station 3 \
+     --pulse ".spec/features/{feature.slug-hint}.context/pulse.json" \
+     --feature-id {feature.id} \
+     --rebuilds {0 or 1}
+   ```
+
 5. Invoke `feature-dev-kit:feature-dev` with **paths and ids only**:
 
    ```
@@ -218,6 +274,9 @@ feature. Nested tasks are not separate calls, branches, or commits.
    PARENT_BRANCH:  {current HEAD when it is feature/*; empty on the first feature}
    CHANGE:         remove
    RESULT_OUT:     {dirname(CHECKLIST_PATH)}/results/{feature.id}.json
+   PULSE:          .spec/features/{feature.slug-hint}.context/pulse.json
+   PULSE_SCRIPT:   {PULSE_SCRIPT}
+   WATCH:          .spec/app/watch/current.json
    ```
 
    Pass `CHANGE=remove` only when a nested task `change` is `remove`. Those screen refs are deletions.
@@ -226,12 +285,21 @@ feature. Nested tasks are not separate calls, branches, or commits.
 
    Do **not** paste user stories, ACs, or spec YAML into `REQUEST`. feature-dev’s
    `import-upstream.mjs` reads `UPSTREAM_SPEC`.
-6. After return, Read `RESULT_OUT` (fallback: `.spec/features/{slug}.kit-result.json`).
+6. After return, run `check-pulse.mjs --check` on the pulse path in `.spec/app/watch/current.json`
+   (`references/agent-liveness.md`). Then Read `RESULT_OUT` (fallback: `.spec/features/{slug}.kit-result.json`).
    - `outcome: approved` → feature `status: done`; copy `slug`, `branch`, and `parent_branch`
-     onto `slug` / `branch` / `parent-branch`; mark nested tasks `done`; log.
+     onto `slug` / `branch` / `parent-branch`; mark nested tasks `done`; log. The envelope is
+     still required — a fresh pulse alone is not `done`.
    - `outcome: aborted` → feature `status: pending`; log `reason`. Do not start the next feature.
    - `outcome: error` → feature `status: blocked`; `blocked-reason` = envelope `reason`.
-   - missing envelope after a crash → leave `in-progress`; log “no kit-result”; on resume, re-offer.
+     `reason: stale-agent` → ask once. Do not start the next feature.
+   - missing envelope, pulse exit 3, 4, or 5, and `rebuilds` is 0 → leave `in-progress`; log
+     `stale-agent — rebuilding`; set `rebuilds` to 1; re-invoke this feature once from its
+     checkpoint. Do not start the next feature.
+   - missing envelope after that rebuild, or pulse still exit 3, 4, or 5 → `blocked`,
+     `blocked-reason: stale-agent`; ask once; stop.
+   - missing envelope after a crash that is not a stale pulse → leave `in-progress`; log
+     “no kit-result”; on resume, re-offer.
 7. If features remain: `AskUserQuestion` —
    "Feature {n}/{total} is committed on {branch}. Continue cuts the next branch with checkout -b
    on top of this one. Continue, pause, or abort?"
@@ -294,7 +362,8 @@ Remaining: {pending titles} — re-run /orchestrate-frontend {slug} to continue.
 |-------|-----------|
 | Callee skill not found | Install the plugin, retry |
 | `build-checklist.mjs` exits 1 | Spec has no non-`wont` screens — revise the spec or use `/orchestrate-app` for backend/agent tracks |
-| `kit-result.json` missing after a Skill return | Treat as `error`; do not guess paths from chat |
+| `kit-result.json` missing after a Skill return | Run the pulse check. Stale or missing → rebuild that station once, then `blocked` / `stale-agent`. Do not guess paths from chat |
+| Pulse `not-responding` or `stalled` | The callee polls `references/agent-liveness.md`. Do not mark the feature `done` |
 | Dirty tree blocks Station 3 | Commit or stash; `new-feature.sh` refuses a dirty worktree |
 | Checklist `blocked` after a spec edit | Source screen removed — confirm at Station 2a |
 | Want to restart one task | Set its row to `pending`, clear `slug`/`branch`, re-run |

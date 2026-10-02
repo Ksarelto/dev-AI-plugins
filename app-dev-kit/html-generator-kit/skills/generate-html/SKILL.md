@@ -254,7 +254,31 @@ DESIGN_INPUTS: {OUTPUT_DIR}/design-inputs.json   # binding: true → provided re
 Read {KIT_DIR}/skills/generate-html/references/pipeline-flow.md before any station.
 Do NOT call AskUserQuestion. Do NOT write prototype files. Return one packet and STOP.
 Do NOT pass SPEC_CONTENT — spec-interpreter reads SPEC_FILE.
+PULSE:        {dirname(SPEC_FILE)}/watch/html-orchestrator.json
+PULSE_SCRIPT: {PULSE_SCRIPT argument, or the resolved check-pulse.mjs}
+WATCH:        .spec/app/watch/current.json
 ```
+
+Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
+
+### Liveness — poll the orchestrator
+
+Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
+
+`PULSE` is `{dirname(SPEC_FILE)}/watch/html-orchestrator.json`. When `WATCH` was passed, or the script exists, write the pointer before the spawn:
+
+```bash
+node {PULSE_SCRIPT} --watch .spec/app/watch/current.json --station 2 --pulse {PULSE}
+```
+
+1. Record `agent_id`. Touch `--role html-orchestrator --status working --station start`.
+2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. Do not end the turn while `status` is `working`.
+3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table below. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write `html-kit-result.json` with `--outcome error --reason stale-agent` and stop.
+4. `awaiting-human` is healthy. Never resume or rebuild across it.
+
+If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
+
+Re-spawns (`MODE: revise`) use this same loop.
 
 | Packet `type` | This skill |
 |---------------|------------|
@@ -280,7 +304,7 @@ Do not inline the spec file into the spawn prompt.
    MODE:           revise
    CHANGE_REQUEST: {user's change text}
    PAGES:          {current pages[] list from the last packet}
-   TIMECODE / SLUG / TITLE / OUTPUT_DIR / KIT_DIR / UIUX_DIR / SPEC_FILE / DESIGN_INPUTS: (same as build)
+   TIMECODE / SLUG / TITLE / OUTPUT_DIR / KIT_DIR / UIUX_DIR / SPEC_FILE / DESIGN_INPUTS / PULSE / PULSE_SCRIPT: (same as build)
    ```
    After 3 change cycles without approval: ask (AskUserQuestion) finalize-as-is or abort.
 4. On **ESCALATION_PACKET**: ask with the listed options. If the user chooses proceed-to-review,

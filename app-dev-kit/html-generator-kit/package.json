@@ -2,6 +2,9 @@
   "name": "html-generator-kit",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "node --test skills/generate-html/scripts/*.test.mjs"
+  },
   "dependencies": {
     "yaml": "^2.6.1"
   }

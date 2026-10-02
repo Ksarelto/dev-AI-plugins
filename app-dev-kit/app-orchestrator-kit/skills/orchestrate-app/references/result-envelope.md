@@ -77,7 +77,9 @@ Empty string means “not applicable”, never `null`. Additive fields may be `"
 | `approved` | `done` (record `slug` / `branch`) |
 | `aborted` | `pending` |
 | `error` | `blocked` + `blocked-reason` |
+| `error` with `reason: stale-agent` | `blocked` + `blocked-reason: stale-agent`. Ask once. Do not start the next feature or the next work-plan task |
 | missing envelope | leave `in-progress`; resume re-offers it |
+| missing envelope, pulse exit 3, 4, or 5 | leave `in-progress` and rebuild that call once; then `blocked` + `blocked-reason: stale-agent` |
 
 ---
 

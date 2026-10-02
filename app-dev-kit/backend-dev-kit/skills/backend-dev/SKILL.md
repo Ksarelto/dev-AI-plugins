@@ -100,8 +100,8 @@ enforces: every rule and permission becomes a service check with its error code,
 machine transition a guarded service method, every system transition with `after` a scheduled job.
 Pass `--changes` only when that file exists. A reopened board has `## Change request`. When `CHANGE=remove`, delete the existing tables and routes for those refs. Do not scaffold a replacement.
 
-5. Spawn `backend-interpreter` then `backend-analyst` (paths only).
-6. `CLARIFY_PACKET` → this skill asks; write `## Clarifications`; max 3 rounds.
+5. Spawn `backend-interpreter`, then `backend-analyst`, each with `run_in_background: true` and the Liveness parent loop below (`--check --worker {role}`). Pass paths only, plus `PULSE` and `PULSE_SCRIPT`. Each worker touches `--worker {its role}` on start and after each file it writes.
+6. `CLARIFY_PACKET` → this skill asks; write `## Clarifications`; max 3 rounds. Exit 2 on that worker is the packet in `{dirname(PULSE)}/packet.json`.
 
 ### Station 0.5 — Human contract gate
 
@@ -110,14 +110,42 @@ Only this skill may set blackboard `status: approved`, except `import-upstream.m
 
 ### Stations 1–7 — Hub
 
-Spawn `backend-orchestrator` with `MODE: build`, `SLUG`, `SPEC_PATH` (blackboard),
-`KIT_DIR`, `UPSTREAM_SPEC`. It returns one packet.
+Spawn `backend-orchestrator`:
+
+```
+MODE:         build
+SLUG:         {slug}
+SPEC_PATH:    .spec/backend/{slug}.md
+KIT_DIR:      {resolved plugin root}
+UPSTREAM_SPEC: {path only}
+PULSE:        .spec/backend/{slug}.context/pulse.json
+PULSE_SCRIPT: {PULSE_SCRIPT argument, or the resolved check-pulse.mjs}
+```
+
+Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
 
 If `src/http/create-app.ts` is missing, the hub invokes `scaffold-service` (now invokable)
 then continues. Implementer is `api-implementer`. Tests: `test-writer`. Review: `code-reviewer`.
 Gates: `quality-gate-runner` via `run-gates.sh`.
 
-`DEP_PACKET` → this skill asks per package.
+`DEP_PACKET` → this skill asks per package. `MODE: revise` uses the same loop and the same `PULSE` / `PULSE_SCRIPT`.
+
+### Liveness — poll the agent
+
+Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
+
+`PULSE` is `.spec/backend/{slug}.context/pulse.json`. If the real slug differs from a passed `SLUG_HINT` path, use the real path. When `WATCH` was passed, write the pointer before the first spawn:
+
+```bash
+node {PULSE_SCRIPT} --watch {WATCH} --station 3 --pulse {PULSE}
+```
+
+1. Record `agent_id`. Touch `--role backend-orchestrator --status working --station start`. Station 0 workers: `--role backend-dev --station 0`, then `--check --worker {role}`.
+2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. A Station 0 worker adds `--worker {role}`. Do not end the turn while `status` is `working`.
+3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table in `references/packets.md`. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write the envelope `--outcome error --reason stale-agent` and stop.
+4. `awaiting-human` is healthy. Never resume or rebuild across it.
+
+If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
 
 ### Station 12 — Human review
 

@@ -3,7 +3,7 @@ name: spec-orchestrator
 description: Drives the spec-dev-kit pipeline from analysis through diagrams, enforces loop guards with the deterministic gate-check and validate-spec scripts, then RETURNS a CLARIFY_PACKET, REVIEW_PACKET, ESCALATION_PACKET, or READY_TO_PUBLISH. Use to coordinate spec stations. Never calls AskUserQuestion — the generate-spec skill owns every human gate. Never writes spec.md.
 model: opus
 tools: [Read, Grep, Glob, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet]
-maxTurns: 40
+maxTurns: 80
 permissionMode: default
 ---
 
@@ -18,6 +18,16 @@ permissionMode: default
 Pipeline coordinator, not spec author. Sequences Stations 2–8 (and Station 9 apply/revise),
 delegates to specialists, runs the deterministic scripts via Bash, and **returns a typed packet**
 to the `generate-spec` skill whenever a human is needed.
+
+## Liveness
+
+Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`. This agent has no `Write` tool — touch the pulse only with `PULSE_SCRIPT` (Bash).
+
+`PULSE` is the spawn argument, else `{RUN_DIR}/watch/spec-orchestrator.json`. Procedure and exits: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` ("Nested orchestrator"). If that file is missing: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy. One `resume`, then at most two fresh spawns of that worker, then `ESCALATION_PACKET` with `reason: stale-agent`.
+
+On each poll, `--touch --role spec-orchestrator --station {current}` so the parent skill sees this agent alive. Pass `PULSE` and `PULSE_SCRIPT` on every spawn. The worker touches `--worker {its role}` on start and after each file it writes.
+
+Before any packet, `--touch --status awaiting-human --packet-json '{...}'` (the packet fields this agent already returns — not the spec body). `READY_TO_PUBLISH` uses `--status done`. Then STOP.
 
 This agent is spawned as a subagent. A subagent's `AskUserQuestion` never reaches the real user —
 an in-agent gate would silently self-approve. The skill (main conversation) owns every human gate.
@@ -42,6 +52,8 @@ Always:
 - `BASE_SPEC` — `{RUN_DIR}/base.spec.md` on a continue run. Pass the path. Do not paste the file.
 - `KIT_DIR` — plugin root (see skill for resolution)
 - `INTAKE_REPORT_PATH` — `{RUN_DIR}/artifacts/intake.json`
+- `PULSE` — `{RUN_DIR}/watch/spec-orchestrator.json` unless the skill passed another path
+- `PULSE_SCRIPT` — `check-pulse.mjs`. Touch the pulse only through this script.
 
 Mode extras:
 
@@ -262,7 +274,8 @@ Owned by the `generate-spec` skill (`publish-spec.mjs`). Never set `status: appr
 ## Delegation contract
 
 Every spawn includes: `OBJECTIVE`, `KIT_DIR`, `RUN_DIR`, the path fields from
-`references/context-budget.md`, `BOUNDARY`, `RETURN`. Pass **paths**, not blobs.
+`references/context-budget.md`, `BOUNDARY`, `RETURN`, `PULSE`, `PULSE_SCRIPT`. Pass **paths**, not blobs.
+Background the spawn and ping that worker (Liveness). Do not block on the Agent call.
 
 Do not pass Claude-only `thinking: { budget_tokens }`. Worker `effort` / `model` live in agent
 frontmatter (`effort: xhigh` on analyst, interrogator, enricher, synthesizer).

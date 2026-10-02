@@ -107,6 +107,7 @@ Requirements that `qa-validator` checks and `screen-generator` self-validates ag
 | R4 | Form flow: empty required submit blocked; filled submit succeeds | CRITICAL / WARNING | verify-prototype.mjs |
 | R5 | Dev-panel cycles loading/empty/error/success | WARNING | verify-prototype.mjs |
 | R6 | Accessibility (axe): critical-impact = critical, serious = warning | CRITICAL / WARNING | verify-prototype.mjs |
+| R7 | Shared shell matches across routes: `aside.sidebar` or `header.topnav` (brand, nav, widgets inside it). Active link and href shape ignored. In-page `.page-header` may differ. Shell-less pages exempt | CRITICAL | verify-prototype.mjs |
 | D1 | Design brief exists; CSS has no leftover `⟨SLOT⟩` markers (design actually applied) | CRITICAL | design-system-author + qa-validator |
 
 ---

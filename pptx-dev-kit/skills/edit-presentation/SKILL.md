@@ -49,9 +49,11 @@ SOURCE_PPTX: {absolute path to OUTPUT_DIR/source.pptx}
 EDIT_INSTRUCTIONS: {verbatim}
 OUTPUT_DIR: {printed path}
 KIT_DIR: {kit root}
+PULSE: {OUTPUT_DIR}/watch/pptx-orchestrator.json
+PULSE_SCRIPT: {resolved check-pulse.mjs}
 ```
 
-Wait for the REVIEW_PACKET.
+Spawn with `run_in_background: true`, then run the same Liveness parent loop as `create-presentation` (pulse `{OUTPUT_DIR}/watch/pptx-orchestrator.json`, role `pptx-orchestrator`). Do not block on the Agent call. A stale agent stops with the build-failure form (`Error: stale-agent`). Do not claim `deck.pptx` was produced.
 
 ### 3. Report
 

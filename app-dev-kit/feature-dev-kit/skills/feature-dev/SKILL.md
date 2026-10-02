@@ -229,7 +229,7 @@ Classify from the approved blackboard only (slice count, new package, new route)
 
 | Tier | When | What this skill does |
 |------|------|----------------------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) with `LAYER`, `SLICE`, and one `create-*` skill. Then Station 8 (walk new executable files and spawn `test-engineer` for any without a test) and `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions`. If UI changed, run the browser check below. Then Step 5. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) in the background and run the Liveness parent loop below. Pass `LAYER`, `SLICE`, and one `create-*` skill. Then Station 8 (walk new executable files and spawn `test-engineer` for any without a test — same loop) and `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions`. If UI changed, run the browser check below. Then Step 5. |
 | **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. |
 | **full** | Six or more slices, or a new route plus a new entity | Spawn `feature-orchestrator` with `TIER: full`. |
 
@@ -250,11 +250,28 @@ Return one packet per references/packets.md (paths only) and STOP.
 Do NOT ask the user anything. Do NOT run /create-pr, push, or merge.
 Do NOT write files under src/.
 Do NOT pass the upstream spec body or any worker report — spokes return a HANDOFF path.
+PULSE:       .spec/features/{slug}.context/pulse.json
+PULSE_SCRIPT: {resolved check-pulse.mjs, or the PULSE_SCRIPT argument}
 ```
+
+Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
+
+### Liveness — poll the orchestrator
+
+Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
+
+`PULSE` defaults to `.spec/features/{slug}.context/pulse.json`. If the real slug differs from a passed `slug-hint` path, touch the real path and rewrite `WATCH` (`.spec/app/watch/current.json`) with `--station 3 --feature-id` when `WATCH` was passed.
+
+1. Record `agent_id`. Touch `--role feature-orchestrator --status working --station start`. Patch: `--role slice-engineer` (or `test-engineer`).
+2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. Do not end the turn while `status` is `working`.
+3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table below. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write the envelope `--outcome error --reason stale-agent` and stop.
+4. `awaiting-human` is healthy. Never resume or rebuild across it.
+
+If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
 
 If this conversation is near its limit (several clarify rounds, a revise cycle, or a packet plus a long spec), write `.spec/features/{slug}.context/session.md` first (status, pending packet path, links only) and pass that path. Do not replay the prior conversation into the spawn.
 
-Loop on `type`:
+Loop on `type`. Every re-spawn uses the same background parent loop.
 
 | Packet | This skill |
 |--------|------------|
@@ -294,7 +311,7 @@ On fail, re-spawn `MODE: revise` with the browser-check path as `CHANGE_REQUEST`
      TIER:           standard | full
      CHANGE_REQUEST: {user's text}
      SESSION:        .spec/features/{slug}.context/session.md
-     SLUG / SPEC_PATH / BRANCH / KIT_DIR: (same as build)
+     SLUG / SPEC_PATH / BRANCH / KIT_DIR / PULSE / PULSE_SCRIPT: (same as build)
      ```
      The orchestrator re-enters at the lowest affected station, replays Stations 9–10 (including 9.5), and returns a fresh packet.
    - **Abort** → do not commit. Leave the index as it is. Write kit-result `aborted` and stop.

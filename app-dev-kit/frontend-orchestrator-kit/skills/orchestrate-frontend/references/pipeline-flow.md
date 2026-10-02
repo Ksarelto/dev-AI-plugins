@@ -17,10 +17,10 @@
 | # | Station | Delegate to | Notes |
 |---|---------|-------------|-------|
 | 0 | Resume check | this skill *(inline)* | Read `.spec/app/current.json`, then `.spec/app/task-checklist.md`; if spec is newer, offer Station 2a re-derive before Station 3 |
-| 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` or an `approved` spec already matches. Requires `.spec/context/*.md` |
-| 2 | Prototype | `html-generator-kit:generate-html` | Optional. Skip when `SKIP_UPSTREAM`. Pass `SPEC_PATH`. Capture `{dirname(SPEC_PATH)}/html-kit-result.json` |
+| 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` or an `approved` spec already matches. Requires `.spec/context/*.md`. Callee writes the watch pointer once `RUN_DIR` exists and polls `spec-orchestrator` |
+| 2 | Prototype | `html-generator-kit:generate-html` | Optional. Skip when `SKIP_UPSTREAM`. Pass `SPEC_PATH`, `PULSE`, `PULSE_SCRIPT`. Capture `{dirname(SPEC_PATH)}/html-kit-result.json` |
 | 2a | Checklist derivation | `scripts/build-checklist.mjs` + this skill | **UI screens only.** Script reads `spec.md` from disk. Human confirms the list |
-| 3 | Task loop | `feature-dev-kit:feature-dev` (once per feature) | Paths + ids only. Clean git tree required. Envelope → `done` / `pending` / `blocked` / leave `in-progress` |
+| 3 | Task loop | `feature-dev-kit:feature-dev` (once per feature) | Paths + ids + `PULSE`. Clean git tree required. Envelope → `done` / `pending` / `blocked` / leave `in-progress`. Stale pulse rebuilds once |
 | 4 | Report | this skill *(inline)* | Write `frontend-kit-result.json`; paths + checklist counts; remind `/create-pr` |
 
 ---
@@ -47,8 +47,10 @@
 | `aborted` (human declined) | `pending` |
 | `error` (structural: rejected dep, missing scoped import, …) | `blocked` + `blocked-reason` |
 | missing envelope (crash mid-station) | leave `in-progress`; resume re-offers it |
+| pulse exit 3, 4, or 5, envelope missing | leave `in-progress` and rebuild that station once; then `blocked` + `blocked-reason: stale-agent` |
+| envelope `error` with `reason: stale-agent` | `blocked` + `blocked-reason: stale-agent`; ask once; do not start the next feature |
 
-Do **not** use a second mapping. `SKILL.md` and this file must match.
+Do **not** use a second mapping. `SKILL.md` and this file must match. A fresh pulse is not `approved`.
 
 ---
 
@@ -80,9 +82,13 @@ for feature in features (in file order):
     PARENT_BRANCH:  current HEAD when it is feature/*; empty on the first feature
     CHANGE:         remove                       # only when a nested task change is remove
     RESULT_OUT:     {checklist dir}/results/{feature.id}.json
+    PULSE:          .spec/features/{slug-hint}.context/pulse.json
+    PULSE_SCRIPT:   {PULSE_SCRIPT}
+    WATCH:          .spec/app/watch/current.json
     (never inline spec body, stories, or ACs)
 
   envelope = Read(RESULT_OUT)   # fallback feature kit-result.json
+  # before that, check-pulse.mjs --check on WATCH.pulse — see agent-liveness.md
   copy slug, branch, parent_branch onto the feature; mark nested tasks done on approved
   persist checklist
 
@@ -108,5 +114,6 @@ Do not retarget that parent to `develop` / `main` / `master`. Independent PRs re
 | `html-generator-kit` declined or envelope aborted | `PROTOTYPE_REF = ""`; continue to Station 2a |
 | `build-checklist.mjs` produces zero features | Surface `SPEC_PATH` and stop |
 | Dirty tree at Station 3 | Do not spawn; commit/stash/block |
-| feature-dev envelope missing | Leave `in-progress`; never mark `done` |
+| feature-dev envelope missing | Leave `in-progress`; never mark `done`. If the pulse is exit 3, 4, or 5, rebuild once, then `blocked` / `stale-agent` |
+| Pulse not responding or stalled | Follow `agent-liveness.md`. Do not end the turn while status is `working` |
 | Checklist file corrupted / unparsable | STOP — human fixes or deletes it |

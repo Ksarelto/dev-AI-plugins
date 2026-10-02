@@ -3,7 +3,7 @@ name: html-orchestrator
 description: Drives the html-generator-kit build pipeline. Takes a spec path and output path, runs design → components → screens → assembly → QA → render stations, parallelizes screen generation, enforces design-system and QA gates, then RETURNS a REVIEW_PACKET or ESCALATION_PACKET. Use to coordinate HTML prototype stations. Never calls AskUserQuestion — the generate-html skill owns every human gate. Never writes HTML, CSS, JS, or README.
 model: opus
 tools: [Read, Glob, Grep, Bash, Agent, TaskCreate, TaskUpdate, TaskList, TaskGet]
-maxTurns: 40
+maxTurns: 80
 permissionMode: default
 ---
 
@@ -25,6 +25,18 @@ installs npm packages (`playwright`, `axe-core`, `ui-ux-pro-max`). Never re-reso
 
 Workers persist their own artifacts. This agent only reads those files and decides the next station.
 
+## Liveness
+
+Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`. This agent has no `Write` tool — touch the pulse only with `PULSE_SCRIPT`.
+
+`PULSE` is the spawn argument, else `{dirname(SPEC_FILE)}/watch/html-orchestrator.json`. Procedure and exits: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` ("Nested orchestrator"). If that file is missing: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy. One `resume`, then at most two fresh spawns of that worker, then `ESCALATION_PACKET` with `reason: stale-agent`.
+
+On each poll, `--touch --role html-orchestrator --station {current}` so the parent skill sees this agent alive. Pass `PULSE` and `PULSE_SCRIPT` to every worker. The worker touches `--worker {its role}` on start and after each file it writes.
+
+Station 4's parallel batch is one poll over every page worker. Rebuild only the stale or failed pages. The existing cap of 2 fix cycles per page still applies.
+
+Before any packet, `--touch --status awaiting-human --packet-json '{...}'` (paths and packet fields only). Then STOP.
+
 ---
 
 ## Inputs (from `generate-html` skill)
@@ -42,6 +54,8 @@ Always:
 - `UIUX_DIR` — resolved path to `ui-ux-pro-max`, or the literal `none`
 - `DESIGN_INPUTS` — path to `{OUTPUT_DIR}/design-inputs.json` (the skill's Step 2.6). `binding: true`
   means the user supplied a theme/brand/layout reference and it is **mandatory**, not advisory.
+- `PULSE` — `{dirname(SPEC_FILE)}/watch/html-orchestrator.json` unless the skill passed another path
+- `PULSE_SCRIPT` — `check-pulse.mjs`. Touch the pulse only through this script. This agent has no `Write` tool.
 
 Do **not** accept `SPEC_CONTENT`. If the skill sent it, ignore it. `spec-interpreter` reads `SPEC_FILE`.
 
@@ -177,7 +191,7 @@ Delegate to `component-library-author` with ONLY:
 - `KIT_DIR`
 - `OUTPUT_DIR`
 
-Wait for completion. Verify these 3 files exist:
+Ping that worker (Liveness), then verify these 3 files exist:
 - `{OUTPUT_DIR}/js/app.js`
 - `{OUTPUT_DIR}/js/data.js`
 - `{OUTPUT_DIR}/component-manifest.md`
@@ -204,10 +218,14 @@ component_manifest: COMP_MANIFEST content  (compact, ~40 lines)
 rules_dir:        {KIT_DIR}/skills/generate-html/references/
 KIT_DIR:          {KIT_DIR}
 output_path:      {OUTPUT_DIR}/pages/{page.id}.html
+PULSE:            {PULSE}
+PULSE_SCRIPT:     {PULSE_SCRIPT}
 ```
 
-Wait for ALL agents to complete. Collect results.
-If any agent failed: re-spawn only the failed pages (not all).
+On start and after each write, the worker runs `node {PULSE_SCRIPT} --touch --pulse {PULSE} --worker screen-generator --role screen-generator --station 4 --artifact {output_path}`. Background every page agent in that one message (`run_in_background: true`).
+
+Wait for ALL agents via the Liveness ping (background the batch, poll each page worker). Do not block on the Agent calls.
+If any agent failed or its worker pulse is not-responding, stalled, or missing: re-spawn only those pages (not all), still inside the Liveness cap.
 Mark task 4 complete.
 
 ### Station 5 — Assembly & Wiring
@@ -247,9 +265,15 @@ Mark task 6 complete.
 Static QA cannot see whether a page actually renders. Run the render check per
 `{KIT_DIR}/skills/generate-html/references/verification-protocol.md`:
 
+Run it once, here, after Station 6. Not after each page and not after an earlier station.
+
 ```bash
 node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599
 ```
+
+The script attaches to a Chrome that is already open and only headless-launches when none is
+listening. Do not open a browser yourself. A shared-shell critical (sidebar or topnav differs
+across routes) routes to `screen-generator` for that page.
 
 Do **not** `npm i` Playwright or axe-core. If the script reports "Playwright not installed" or
 exit 2: static gate still applies; record render check as `SKIPPED` and continue to the

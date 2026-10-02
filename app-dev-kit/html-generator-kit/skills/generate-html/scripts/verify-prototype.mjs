@@ -7,8 +7,10 @@
 // What it does:
 //   1. Serves PROTOTYPE_DIR over http (never file://).
 //   2. Static checks on every .html: no Tailwind CDN, no inline <style>/<script>,
-//      CSS/JS assets resolve, no leftover ALL_CAPS placeholders.
-//   3. If Playwright is importable: launches headless Chromium, opens index.html and
+//      CSS/JS assets resolve, no leftover ALL_CAPS placeholders, shared sidebar/topnav
+//      matches across routes (in-page .page-header may differ).
+//   3. If Playwright is importable: attaches to an already-open Chrome, or launches
+//      one headless browser, opens index.html and
 //      each page, waits for Alpine (x-cloak removed), then asserts the prototype is
 //      actually STYLED:
 //        - no page-fatal console errors
@@ -31,11 +33,15 @@
 //
 // Optional env: PLAYWRIGHT_MODULE=/abs/path/to/playwright/index.js
 //               AXE_MODULE=/abs/path/to/axe-core/axe.min.js  (else tries ./node_modules)
+//               VERIFY_CDP_URL=http://127.0.0.1:9222  (attach here first)
+//               VERIFY_SKIP_BROWSER=1  (static gate only)
 
 import http from 'node:http';
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
 import { join, extname, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { cdpEndpoints } from './lib/cdp-endpoints.mjs';
+import { shellMismatches } from './lib/shell-consistency.mjs';
 
 const args = process.argv.slice(2);
 const dir = args.find((a) => !a.startsWith('--'));
@@ -89,6 +95,11 @@ for (const f of pages) {
   if (!/name="viewport"/.test(html)) pushW(`${rel}: missing viewport meta`);
 }
 
+for (const issue of shellMismatches(pages.map((f) => ({
+  rel: relative(dir, f).replaceAll('\\', '/'),
+  html: readFileSync(f, 'utf8'),
+})))) pushC(issue);
+
 // ── 3. serve ──────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
@@ -126,6 +137,42 @@ async function loadPlaywright() {
   return null;
 }
 
+const LAUNCH_TIMEOUT_MS = 5000;
+
+async function cdpAlive(url) {
+  try {
+    const res = await fetch(`${url}/json/version`, { signal: AbortSignal.timeout(400) });
+    return res.ok;
+  } catch { return false; }
+}
+
+// Attach to a Chrome that is already open. Launch only when none is listening, and only headless.
+async function attachOrLaunch(chromium) {
+  for (const url of cdpEndpoints()) {
+    if (!(await cdpAlive(url))) continue;
+    try {
+      const browser = await chromium.connectOverCDP(url, { timeout: LAUNCH_TIMEOUT_MS });
+      return { browser, channel: 'cdp', owned: false };
+    } catch { /* port answered but is not a browser — try the next one */ }
+  }
+  let bundled = false;
+  try { bundled = existsSync(chromium.executablePath()); } catch {}
+  if (bundled) {
+    try {
+      return {
+        browser: await chromium.launch({ headless: true, timeout: LAUNCH_TIMEOUT_MS }),
+        channel: 'chromium',
+        owned: true,
+      };
+    } catch { /* bundled binary failed — try system Chrome, still headless */ }
+  }
+  return {
+    browser: await chromium.launch({ channel: 'chrome', headless: true, timeout: LAUNCH_TIMEOUT_MS }),
+    channel: 'chrome',
+    owned: true,
+  };
+}
+
 function loadAxeSource() {
   const candidates = [
     process.env.AXE_MODULE,
@@ -144,21 +191,38 @@ const pushFlow = (page, name, status, detail) => { flows.push({ page, name, stat
 async function main() {
   await new Promise((r) => server.listen(port, r));
   const base = `http://localhost:${port}`;
-  const chromium = await loadPlaywright();
+  const chromium = process.env.VERIFY_SKIP_BROWSER ? null : await loadPlaywright();
   const axeSource = loadAxeSource();
-  const report = { dir, port, pages: pages.length, browser: !!chromium, axe: !!axeSource, checks: [], flows, critical, warnings };
-
-  if (!chromium) {
+  let browser = null;
+  let launchChannel = null;
+  let owned = false;
+  if (process.env.VERIFY_SKIP_BROWSER) {
+    pushW('VERIFY_SKIP_BROWSER set — browser render skipped (static checks only).');
+  } else if (!chromium) {
     pushW('Playwright not installed — browser render + functionality check skipped (static checks only). Install with: npx playwright install chromium && npm i -D playwright');
   } else {
+    try {
+      const launched = await attachOrLaunch(chromium);
+      browser = launched.browser;
+      launchChannel = launched.channel;
+      owned = launched.owned;
+    } catch (e) {
+      pushW(`No browser available (${String(e).split('\n')[0]}) — static checks only.`);
+    }
+  }
+  const report = { dir, port, pages: pages.length, browser: !!browser, browserChannel: launchChannel, axe: !!axeSource, checks: [], flows, critical, warnings };
+
+  if (browser) {
     if (!axeSource) pushW('axe-core not found — accessibility audit skipped. Install with: npm i -D axe-core (or set AXE_MODULE).');
-    const browser = await chromium.launch();
-    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const existing = !owned ? browser.contexts()[0] : null;
+    const ctx = existing || await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const closeCtx = !existing;
     const rel = (f) => relative(dir, f).replaceAll('\\', '/');
     for (const f of pages) {
       const url = `${base}/${rel(f)}`;
       const r = rel(f);
       const page = await ctx.newPage();
+      await page.setViewportSize({ width: 1280, height: 900 });
       const errors = [];
       page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
       page.on('pageerror', (e) => errors.push(String(e)));
@@ -331,7 +395,8 @@ async function main() {
       report.checks.push(entry);
       await page.close();
     }
-    await browser.close();
+    if (closeCtx) await ctx.close();
+    if (owned) await browser.close();
   }
 
   report.critical = critical;
@@ -344,7 +409,7 @@ async function main() {
   const flowCount = (s) => flows.filter((x) => x.status === s).length;
   console.log(`\n── Prototype verification ──`);
   console.log(`dir:      ${dir}`);
-  console.log(`pages:    ${pages.length}   browser: ${chromium ? 'chromium' : 'SKIPPED (no playwright)'}   axe: ${axeSource ? 'on' : 'off'}`);
+  console.log(`pages:    ${pages.length}   browser: ${browser ? launchChannel : 'SKIPPED'}   axe: ${axeSource ? 'on' : 'off'}`);
   console.log(`screenshots: ${report.checks.filter((c) => c.screenshot).length} screens ×3 (desktop/mobile/dark) → ${relative(process.cwd(), shotsDir)}`);
   if (flows.length) {
     console.log(`\nFLOWS: ${flowCount('pass')} pass · ${flowCount('fail')} fail · ${flowCount('skip')} skip`);

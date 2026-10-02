@@ -50,7 +50,9 @@ SPEC: .spec/features/<slug>.md — read sections: <list sections>; write to sect
 TARGET: <fsd-layer>/<slice>/<segment(s)>
 APPLY: skill: <one skill name>
 BOUNDARY: only touch files under <path>; do not modify <excluded paths>
-RETURN: HANDOFF path + one CONTAINS line
+PULSE: .spec/features/<slug>.context/pulse.json
+PULSE_SCRIPT: <check-pulse.mjs>   # omit only when frontend-orchestrator-kit is not installed
+RETURN: HANDOFF path + one CONTAINS line. Touch --worker <role> on start and after each write.
 ```
 
 Example:
