@@ -16,9 +16,10 @@ Companion schema: `result-envelope.md` (canonical copy lives in
    prompts or into a Skill-tool spawn.
 2. After a delegated skill returns, the parent reads **only** that kit’s `kit-result.json`
    (see `result-envelope.md`). Progress otherwise lives in `task-checklist.md`.
-3. Skill-tool arguments are structured **paths and ids**: `SPEC_PATH`, `TASK_ID`,
-   `SCREEN_REF`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`, `PROTOTYPE_REF`, `CHECKLIST_PATH`,
-   `SLUG_HINT`, `RESULT_OUT`. Not file contents.
+3. Skill-tool arguments are structured **paths and ids**: `SPEC_PATH`, `FEATURE_ID`,
+   `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`,
+   `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`.
+   Not file contents. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
 4. `REQUEST` to feature-dev is at most **one line** naming the task id and the files to read.
    `import-upstream.mjs` already writes stories/ACs onto the blackboard from `UPSTREAM_SPEC`.
 5. `build-checklist.mjs` reads `spec.md` from disk. This skill does not parse YAML stories

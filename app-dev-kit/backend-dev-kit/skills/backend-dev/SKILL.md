@@ -58,7 +58,7 @@ Scripts live at `{KIT_DIR}/skills/backend-dev/…`.
 
 ## Arguments
 
-Structured fields from `orchestrate-app` or the human: `UPSTREAM_SPEC`, `TASK_ID`,
+Structured fields from `orchestrate-app` or the human: `UPSTREAM_SPEC`, `TASK_ID`, `SLICE_REF`,
 `ENTITY_REFS`, `API_REFS`, `STORY_REFS`, `AC_REFS`, `PROTOTYPE_REF`,
 `SLUG_HINT`, `RESULT_OUT`. `REQUEST` is one line when those are set.
 
@@ -86,12 +86,18 @@ Read `references/pipeline-flow.md`.
    ```bash
    node {KIT_DIR}/skills/backend-dev/scripts/import-upstream.mjs \
      --spec {UPSTREAM_SPEC} --out .spec/backend/{slug}.md \
-     --task-id {TASK_ID} --entity-refs {ENTITY_REFS} --api-refs {API_REFS} \
+     --task-id {TASK_ID} --slice-ref {SLICE_REF or omit} \
+     --entity-refs {ENTITY_REFS} --api-refs {API_REFS} \
      --story-refs {STORY_REFS} --ac-refs {AC_REFS} \
      --prototype-ref "{PROTOTYPE_REF}" --require-scoped \
      --changes {dirname(UPSTREAM_SPEC)}/artifacts/changes.json
    ```
 
+With `SLICE_REF` (spec 2.0) the import reads `{dirname(UPSTREAM_SPEC)}/slices/{SLICE_REF}.yaml` and
+fills `## Business Rules`, `## State Machines`, `## Permissions`, `## Notifications`,
+`## Non-functional`, and `## Slice Steps` from it. Those sections are the contract the build
+enforces: every rule and permission becomes a service check with its error code, every state
+machine transition a guarded service method, every system transition with `after` a scheduled job.
 Pass `--changes` only when that file exists. A reopened board has `## Change request`. When `CHANGE=remove`, delete the existing tables and routes for those refs. Do not scaffold a replacement.
 
 5. Spawn `backend-interpreter` then `backend-analyst` (paths only).

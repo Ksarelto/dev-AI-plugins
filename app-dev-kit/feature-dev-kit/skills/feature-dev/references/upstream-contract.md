@@ -5,7 +5,8 @@ a whole surface; **frontend-orchestrator-kit** groups it into features. This kit
 feature per run** — every nested screen of that feature, and no other screen. Dumping every
 `ui-surface.screens[]` entry into one blackboard is invalid.
 
-Canonical YAML schema: spec-dev-kit `references/spec-schema.md` (version 1.2).
+Canonical YAML schema: spec-dev-kit `references/spec-schema.md` (version 2.0; 1.x still read).
+What each kit reads, and in what order: spec-dev-kit `references/consumer-contract.md`.
 Task derivation: frontend-orchestrator-kit `references/task-decomposition.md`.
 
 ---
@@ -21,6 +22,9 @@ The `orchestrate-frontend` skill (or a human invoking `/feature-dev` with the sa
 | `FEATURE_ID` | when from frontend-orchestrator-kit | Checklist feature id, e.g. `F-001` |
 | `TASK_IDS` | when from frontend-orchestrator-kit | Nested task ids, comma-separated, e.g. `T-001,T-002` |
 | `SCREEN_REFS` | when the feature has screens | Nested `ui-surface.screens[].id` values, e.g. `SCR-001,SCR-002` |
+| `SLICE_REF` | spec 2.0 checklists | Delivery slice id, e.g. `SL-002`. The import reads `{spec dir}/slices/{SLICE_REF}.yaml` (else the slice in the spec) for the goal, frontend steps, rules, and notifications. `done-when` AC bodies are always included. Slice `api-refs` are unioned with the screens' `api-refs`. With no `SCREEN_REFS`, the slice's screens are imported |
+| `STORY_REFS` / `AC_REFS` / `ENTITY_REFS` | from the checklist | Unions of the nested tasks' refs. When passed they win over any derivation. `AC_REFS` is still unioned with the slice's `done-when`. Checklist `entity-refs` already include the slice's `entity-refs` |
+| `CHANGE` | only for a removal | `remove` when a nested task `change` is `remove`. Delete those screens' pages and routes. Do not scaffold a replacement. Not an `import-upstream.mjs` flag |
 | `PROTOTYPE_REF` | optional | `.spec/prototype/{proto-tc}_{slug}/` or empty — html-generator's own timecode |
 | `CHECKLIST_PATH` | optional | `task-checklist.md`. **Orchestrator-owned write-back** — this kit never edits it |
 | `SLUG_HINT` | yes for a checklist feature | kebab-case feature slug; never the app `metadata.slug` |
@@ -45,14 +49,19 @@ Do not look for a `## UI Surface` heading in the app spec — it does not exist 
 
 | Spec field | Blackboard destination | Filter |
 |------------|------------------------|--------|
-| `metadata.slug`, `metadata.title`, `spec-version`, `timecode` | identity / Request header | none (identity only) |
-| `context.problem`, `context.goal`, `context.constraints` | `## Request` (one-paragraph context) | none — short |
-| `ui-surface.screens[]` | `## UI Surface` | **only** `SCREEN_REFS` (every nested screen of this feature) |
+| `metadata.title`, `context.goal` (or the slice `goal`) | `## Request` | identity + one line |
+| slice `steps` (track `frontend`) | `## Request` | `SLICE_REF` only |
+| `ui-surface.screens[]` (incl. `page-type`, `primary-entity`, `roles`) | `## UI Surface` | **only** `SCREEN_REFS` |
 | `ui-surface.interactions[]` | `## UI Surface` | `screen-ref` is in `SCREEN_REFS` |
-| `user-stories[]` | `## Request` / stories list | stories of those screens |
-| `acceptance-criteria[]` | `## Acceptance Criteria` | ACs of those screens |
-| `entities[]` | `## API Contract / Data Model` | names in those screens' `components[]` |
-| `api-surface.endpoints[]` / `mutations[]` | `## API Contract / Data Model` | path/body mentions a kept entity |
+| `user-stories[]` | `## Request` | `STORY_REFS`, else the stories of the kept ACs |
+| `acceptance-criteria[]` | `## Acceptance Criteria` | `AC_REFS`, always unioned with the slice's `done-when`; else (2.0) ACs of the screens' `story-refs` ∩ the slice's stories; else (1.x) keyword match on the screen |
+| `entities[]` (fields, `values`, `derived`) | `## API Contract / Data Model` | `ENTITY_REFS`; else screens' `primary-entity` (2.0); else names in `components[]` (1.x) |
+| `api-surface.endpoints[]` (roles, error codes + copy) | `## API Contract / Data Model` | screens' `api-refs` union the slice's `api-refs` (2.0); else path/body mentions a kept entity (1.x; `mutations` merged by id) |
+| `state-machines[]` | `### Status lifecycle` | machines of the kept entities |
+| `business-rules[]` | `### Rules the UI must surface` | `applies-to` a kept entity / endpoint / screen, or in the slice's `rule-refs` |
+| `permissions[]` | `### Permissions` | `refs` touch a kept screen or endpoint |
+| `notifications[]` | `### Notifications (copy)` | effects of the kept state machines, or the slice's `notification-refs` |
+| `glossary[]` | `### Glossary` | all (short) |
 
 Do **not** copy screens that belong to another feature. A Sign-in feature must not list Building
 catalogue when that screen is not in `SCREEN_REFS`.

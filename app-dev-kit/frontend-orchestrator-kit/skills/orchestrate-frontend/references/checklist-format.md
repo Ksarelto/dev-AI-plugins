@@ -14,9 +14,13 @@ Legacy specs under `.spec/app/spec-{timecode}_{slug}/` still keep the checklist 
 Hybrid YAML front matter (machine state) + Markdown body (human-readable log), same convention as
 spec-dev-kit's `spec.md`.
 
+`checklist-version` is `"1.2"` when the checklist was built from a spec 2.0 delivery plan
+(features and tasks carry `slice-ref`; features carry `depends-on`; tasks carry `api-refs`), and
+`"1.1"` for a 1.x spec.
+
 ```yaml
 ---
-checklist-version: "1.1"
+checklist-version: "1.2"
 spec-ref: ".spec/spec/spec-{tc}_{slug}/spec.md"
 prototype-ref: ".spec/prototype/{proto-tc}_{slug}/"  # html-generator's NEW timecode; empty if skipped
 generated: "YYYY-MM-DDTHH:mm:ssZ"
@@ -26,6 +30,8 @@ features:
   - id: F-001
     title: Sign in
     slug-hint: sign-in            # kebab of the feature title; never app metadata.slug
+    slice-ref: SL-001             # 1.2 only — the spec delivery slice this feature builds
+    depends-on: []                # 1.2 only — feature ids that must be done first
     story-refs: [US-001]
     priority: must                # must | should | could  (wont is never listed)
     status: pending               # pending | in-progress | done | blocked | skipped
@@ -36,18 +42,20 @@ features:
     tasks:
       - id: T-001
         title: Sign in
+        slice-ref: SL-001         # 1.2 only
         screen-ref: SCR-001
         story-refs: [US-001]
         ac-refs: [AC-001]
         entity-refs: [Session]
+        api-refs: [API-001]       # 1.2 only — endpoints the screen calls
         status: pending           # follows the feature; blocked if the source screen disappears
         blocked-reason: ""
         change: ""                # remove — delete the existing page instead of rebuilding it
 ---
 ```
 
-A feature is one user story plus the screens whose acceptance criteria belong to that story.
-Nested tasks stay screen-level. `slug`, `branch`, and `parent-branch` live on the feature.
+A feature is one delivery slice (2.0) — or, for a 1.x spec, one user story plus the screens whose
+acceptance criteria belong to that story. Nested tasks stay screen-level. `slug`, `branch`, and `parent-branch` live on the feature.
 A legacy checklist that still has a flat `tasks[]` list is re-derived into this shape.
 
 ## Body (appended, never rewritten)

@@ -56,7 +56,7 @@ Scripts: `{KIT_DIR}/skills/agent-dev/…`.
 
 ## Arguments
 
-`UPSTREAM_SPEC`, `TASK_ID`, `AGENT_REF`, `STORY_REFS`, `AC_REFS`, `PROTOTYPE_REF`,
+`UPSTREAM_SPEC`, `TASK_ID`, `SLICE_REF`, `AGENT_REF`, `STORY_REFS`, `AC_REFS`, `PROTOTYPE_REF`,
 `SLUG_HINT`, `RESULT_OUT`. `REQUEST` is one line when those are set.
 
 ```
@@ -79,7 +79,7 @@ Resume or `new-agent.sh {slug}` from `SLUG_HINT`. If the blackboard `status` is 
 ```bash
 node {KIT_DIR}/skills/agent-dev/scripts/import-upstream.mjs \
   --spec {UPSTREAM_SPEC} --out .spec/agents/{slug}.md \
-  --task-id {TASK_ID} --agent-ref {AGENT_REF} \
+  --task-id {TASK_ID} --slice-ref {SLICE_REF or omit} --agent-ref {AGENT_REF} \
   --story-refs {STORY_REFS} --ac-refs {AC_REFS} \
   --prototype-ref "{PROTOTYPE_REF}" --require-scoped \
   --changes {dirname(UPSTREAM_SPEC)}/artifacts/changes.json

@@ -171,8 +171,13 @@ node {KIT_DIR}/skills/orchestrate-frontend/scripts/build-checklist.mjs {SPEC_PAT
 If `{dirname(SPEC_PATH)}/artifacts/changes.json` exists, add `--changes` with that path.
 
 The script Reads `spec.md` from disk. Do not pre-load the spec into chat.
-It groups screens into **features** (one user story each). Nested tasks stay screen-level.
-No API-only or agent-only stories.
+- **Spec 2.0** (has `delivery-plan.slices`): one **feature per delivery slice** that has a
+  `frontend` track, in the spec's slice order (each feature carries `slice-ref` and `depends-on`).
+  Nested tasks are that slice's screens. Never re-order these features — the order is the
+  dependency order the spec author approved.
+- **Spec 1.x**: screens are grouped into features by owning user story, then sorted by priority.
+
+Nested tasks stay screen-level. No API-only or agent-only stories.
 
 Exit 1 — no buildable (non-`wont`) screens — report `SPEC_PATH` and stop.
 Exit 2 — parse/usage failure — report the error lines and stop.
@@ -186,6 +191,8 @@ text; you may move a task between features in the YAML; re-present) · **Abort**
 For each feature in checklist order, skipping `done` / `skipped`. One `feature-dev` call per
 feature. Nested tasks are not separate calls, branches, or commits.
 
+0. If the feature has `depends-on` ids that are not `done`, do not start it: ask once whether to
+   build the dependency first (recommended) or skip this feature for now.
 1. If `status: blocked`, ask once whether to retry (`pending`) or keep skipping.
 2. If `status: in-progress` (crashed prior run): re-offer this feature; do not assume it finished.
 3. `git status --porcelain` — if dirty, `AskUserQuestion`: **Commit** (you wait; re-check) ·
@@ -199,8 +206,12 @@ feature. Nested tasks are not separate calls, branches, or commits.
    REQUEST:        Feature {feature.id} ({feature.slug-hint}). Nested tasks in CHECKLIST_PATH. Read UPSTREAM_SPEC.
    UPSTREAM_SPEC:  {SPEC_PATH}
    FEATURE_ID:     {feature.id}
+   SLICE_REF:      {feature.slice-ref, or omit on a 1.x checklist}
    TASK_IDS:       {comma-separated nested task ids}
    SCREEN_REFS:    {comma-separated nested screen-refs}
+   STORY_REFS:     {union of nested task story-refs}
+   AC_REFS:        {union of nested task ac-refs}
+   ENTITY_REFS:    {union of nested task entity-refs}
    PROTOTYPE_REF:  {checklist prototype-ref}
    CHECKLIST_PATH: {path to task-checklist.md}
    SLUG_HINT:      {feature.slug-hint}
@@ -210,6 +221,8 @@ feature. Nested tasks are not separate calls, branches, or commits.
    ```
 
    Pass `CHANGE=remove` only when a nested task `change` is `remove`. Those screen refs are deletions.
+   Pass the ref unions from the checklist (after any Station 2a edit) so feature-dev builds exactly
+   what the human approved instead of re-deriving it.
 
    Do **not** paste user stories, ACs, or spec YAML into `REQUEST`. feature-dev’s
    `import-upstream.mjs` reads `UPSTREAM_SPEC`.

@@ -16,7 +16,7 @@
 
 | # | Station | Delegate to | Notes |
 |---|---------|-------------|-------|
-| 0 | Resume check | this skill *(inline)* | Glob `task-checklist.md`; if spec is newer, offer Station 2a re-derive before Station 3 |
+| 0 | Resume check | this skill *(inline)* | Read `.spec/app/current.json`, then `.spec/app/task-checklist.md`; if spec is newer, offer Station 2a re-derive before Station 3 |
 | 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` or an `approved` spec already matches. Requires `.spec/context/*.md` |
 | 2 | Prototype | `html-generator-kit:generate-html` | Optional. Skip when `SKIP_UPSTREAM`. Pass `SPEC_PATH`. Capture `{dirname(SPEC_PATH)}/html-kit-result.json` |
 | 2a | Checklist derivation | `scripts/build-checklist.mjs` + this skill | **UI screens only.** Script reads `spec.md` from disk. Human confirms the list |
@@ -68,12 +68,17 @@ for feature in features (in file order):
     REQUEST:        one line — feature id + "nested tasks in CHECKLIST_PATH; read UPSTREAM_SPEC"
     UPSTREAM_SPEC:  {spec.md path}
     FEATURE_ID:     feature.id
+    SLICE_REF:      feature.slice-ref, or omit on a 1.x checklist
     TASK_IDS:       comma-separated nested task ids
     SCREEN_REFS:    comma-separated nested screen-refs
+    STORY_REFS:     union of nested task story-refs
+    AC_REFS:        union of nested task ac-refs
+    ENTITY_REFS:    union of nested task entity-refs
     PROTOTYPE_REF:  checklist.prototype-ref      # may be empty
     CHECKLIST_PATH: {task-checklist.md path}
     SLUG_HINT:      feature.slug-hint
     PARENT_BRANCH:  current HEAD when it is feature/*; empty on the first feature
+    CHANGE:         remove                       # only when a nested task change is remove
     RESULT_OUT:     {checklist dir}/results/{feature.id}.json
     (never inline spec body, stories, or ACs)
 

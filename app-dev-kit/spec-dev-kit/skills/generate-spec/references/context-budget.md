@@ -53,6 +53,7 @@ BASE_SPEC, PRIOR_INDEX                 # continue runs only; paths, do not paste
 ```
 KIT_DIR, RUN_DIR
 ANALYSIS_PATH: {RUN_DIR}/artifacts/analysis.json
+ASK_GAPS: askable_gaps + open_conflicts from gate-check.mjs
 PRIOR_QA: last 3 Q&A entries only (not the full qa-log)
 ROUND: current round number
 ```
@@ -82,6 +83,7 @@ Do **not** pass a separate `ASSUMPTIONS` field. It is already inside `enriched.j
 ```
 KIT_DIR, RUN_DIR
 ENRICHED_PATH: {RUN_DIR}/artifacts/enriched.json
+INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json   # source-fidelity check
 COMPLETENESS_OUT_PATH: {RUN_DIR}/artifacts/completeness.json
 CHECKLIST_PATH: {KIT_DIR}/skills/generate-spec/references/completeness-checklist.md
 ```
@@ -90,6 +92,7 @@ CHECKLIST_PATH: {KIT_DIR}/skills/generate-spec/references/completeness-checklist
 ```
 KIT_DIR, RUN_DIR, TIMECODE, SLUG
 ENRICHED_PATH: artifacts/enriched.json
+INTAKE_REPORT_PATH: artifacts/intake.json
 QA_LOG_PATH:   artifacts/qa-log.md
 ANALYSIS_PATH: artifacts/analysis.json
 CONTINUE, PRIOR_INDEX, PRIOR_ITEMS   # continue runs only
@@ -114,6 +117,8 @@ SPEC_PATH: {RUN_DIR}/spec.md
 ```
 KIT_DIR, RUN_DIR
 SPEC_PATH: {RUN_DIR}/spec.md
+VIEWS_PATH: {RUN_DIR}/spec.views.md        # render-spec-views.mjs output
+VALIDATOR_WARNINGS: WARN lines from Station 7
 CYCLE: 0 for full summary; 1+ for delta only
 ```
 
@@ -133,7 +138,7 @@ Before spawning Station 4/6/8/9, estimate serialized payload size (paths do not 
 |---------|-----------|------------------|
 | `qa-log.md` (if a worker must inline) | 15 KB | Keep verbatim only the two most recent rounds |
 | `enriched.json` (if accidentally inlined) | 30 KB | Do not inline — pass the path |
-| `spec.md` | 60 KB | If exceeded before validation: `ESCALATION_PACKET` |
+| `spec.md` | 250 KB | `SPEC_TOO_LARGE` warning — look for restated sections; never escalate on size alone (a full app spec with its requirements register is legitimately large; downstream kits read slice briefs, not the whole file) |
 
 Log breaches into `open-questions[]` so downstream kits know a distillation happened.
 

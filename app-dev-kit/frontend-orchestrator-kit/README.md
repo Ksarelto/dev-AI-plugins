@@ -77,7 +77,7 @@ Also install **frontend-dev-kit** — `feature-dev-kit` requires it.
 
 - `.spec/spec/spec-{tc}_{slug}/spec.md` — from spec-dev-kit. The pointer is `.spec/app/current.json`. Runs that still keep `spec.md` under `.spec/app/spec-{tc}_{slug}/` remain valid.
 - `.spec/prototype/{tc}_{slug}/` — from html-generator-kit (unchanged).
-- `.spec/app/task-checklist.md` — one feature per user story, with nested screen-tasks. Legacy runs keep the checklist beside `spec.md`.
+- `.spec/app/task-checklist.md` — one feature per frontend delivery slice (spec 2.0), with nested screen-tasks. A 1.x spec still groups screens under the owning user story. Legacy runs keep the checklist beside `spec.md`.
 - `{RUN_DIR}/frontend-kit-result.json` — path-only outcome for `orchestrate-app`.
 - One stacked feature branch and one commit per completed feature. Each still needs a manual `/create-pr`.
 

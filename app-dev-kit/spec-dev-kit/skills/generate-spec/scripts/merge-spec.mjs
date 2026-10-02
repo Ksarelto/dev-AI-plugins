@@ -3,11 +3,16 @@
 // No base → delta.yaml must be a full spec front matter object; write spec.md from it.
 // No delta and spec.md already present → leave it (first-run synthesizer wrote spec.md).
 //
+// Every id-keyed list is upserted: an existing id in the delta replaces that item; a new id is
+// appended; ids under `removed:` are dropped. Entities merge field-by-field. Legacy
+// api-surface.mutations (1.x) are folded into api-surface.endpoints.
+// spec-version stays the base's unless the delta sets it (a 1.x → 2.0 upgrade is explicit).
+//
 // Usage: node merge-spec.mjs --run <run-dir> [--root <dir>]
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { flag, loadYaml, readSpec, writeSpec } from './lib-spec.mjs'
+import { endpointsOf, flag, loadYaml, readSpec, writeSpec } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
 const runArg = String(flag(args, 'run') || '')
@@ -33,8 +38,8 @@ if (!existsSync(deltaPath)) {
   process.exit(1)
 }
 
-const delta = parse(readFileSync(deltaPath, 'utf8'))
-const idOf = (item) => item?.id ?? item?.name ?? ''
+const delta = parse(readFileSync(deltaPath, 'utf8')) ?? {}
+const idOf = (item) => item?.id ?? item?.name ?? item?.term ?? ''
 const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v)
 
 function upsert(baseList, addList, removedIds, bucket) {
@@ -71,9 +76,11 @@ function upsert(baseList, addList, removedIds, bucket) {
       added.push(key)
     }
   }
-  bucket.added = added
-  bucket.modified = modified
-  bucket.removed = removedApplied.reverse()
+  if (bucket) {
+    bucket.added = added
+    bucket.modified = modified
+    bucket.removed = removedApplied.reverse()
+  }
   return out
 }
 
@@ -178,6 +185,13 @@ function section(name) {
   return bucket
 }
 
+function foldMutations(fm) {
+  const api = isObj(fm['api-surface']) ? fm['api-surface'] : null
+  if (!api || !Array.isArray(api.mutations)) return
+  api.endpoints = endpointsOf(fm)
+  delete api.mutations
+}
+
 const folder = basename(runDir)
 const stamp = folder.match(/^spec-(\d{8}-\d{6})_/)?.[1] ?? ''
 
@@ -188,6 +202,7 @@ if (!existsSync(basePath)) {
   }
   delta.status = 'reviewing'
   if (stamp) delta.timecode = stamp
+  if (String(delta['spec-version']).startsWith('2')) foldMutations(delta)
   writeFileSync(specPath, writeSpec(specPath, delta, '\n', stringify))
   console.log(`OK: wrote ${specPath} from delta`)
   process.exit(0)
@@ -196,6 +211,7 @@ if (!existsSync(basePath)) {
 const { fm, body } = readSpec(basePath, parse)
 fm.status = 'reviewing'
 if (stamp) fm.timecode = stamp
+if (delta['spec-version']) fm['spec-version'] = String(delta['spec-version'])
 const removed = isObj(delta.removed) ? delta.removed : {}
 
 fm.metadata = mergeObj(fm.metadata, delta.metadata)
@@ -207,17 +223,34 @@ fm.metadata['source-files'] = [...new Set([
   ...(delta['source-files'] ?? []),
 ])]
 
-for (const key of ['context', 'non-functional', 'traceability']) {
-  if (delta[key] !== undefined) fm[key] = mergeObj(fm[key], delta[key])
-}
-for (const key of ['risks', 'assumptions', 'open-questions']) {
-  if (delta[key] !== undefined) {
-    fm[key] = upsert(fm[key], delta[key], removed[key], { added: [], modified: [], removed: [] })
+// context: scalar fields overlay; success-metrics upsert by id.
+if (delta.context !== undefined) {
+  const { 'success-metrics': kpis, ...rest } = isObj(delta.context) ? delta.context : {}
+  const baseKpis = fm.context?.['success-metrics']
+  fm.context = mergeObj(fm.context, rest)
+  if (kpis !== undefined || baseKpis !== undefined) {
+    fm.context['success-metrics'] = upsert(baseKpis, kpis, removed['success-metrics'], section('success-metrics'))
   }
 }
+for (const key of ['non-functional', 'boundaries']) {
+  if (delta[key] !== undefined) fm[key] = mergeObj(fm[key], delta[key])
+}
+if (delta.traceability !== undefined) {
+  const { decisions, ...rest } = isObj(delta.traceability) ? delta.traceability : {}
+  const baseDecisions = fm.traceability?.decisions
+  fm.traceability = mergeObj(fm.traceability, rest)
+  fm.traceability.decisions = upsert(baseDecisions, decisions, removed.decisions, section('decisions'))
+}
 
-fm['user-stories'] = upsert(fm['user-stories'], delta['user-stories'], removed['user-stories'], section('user-stories'))
-fm['acceptance-criteria'] = upsert(fm['acceptance-criteria'], delta['acceptance-criteria'], removed['acceptance-criteria'], section('acceptance-criteria'))
+// Top-level id- or name-keyed lists. Each gets a changes.json bucket.
+const LISTS = [
+  'requirements', 'roles', 'glossary', 'permissions', 'business-rules', 'state-machines',
+  'notifications', 'user-stories', 'acceptance-criteria', 'risks', 'assumptions', 'open-questions',
+]
+for (const key of LISTS) {
+  if (delta[key] === undefined && fm[key] === undefined && removed[key] === undefined) continue
+  fm[key] = upsert(fm[key], delta[key], removed[key], section(key))
+}
 fm.entities = mergeEntities(fm.entities, delta.entities, removed.entities, removed.fields, section('entities'))
 
 const uiBase = isObj(fm['ui-surface']) ? fm['ui-surface'] : {}
@@ -225,29 +258,47 @@ const uiAdd = isObj(delta['ui-surface']) ? delta['ui-surface'] : {}
 fm['ui-surface'] = {
   ...mergeObj(uiBase, uiAdd),
   screens: upsert(uiBase.screens, uiAdd.screens, removed.screens, section('screens')),
-  interactions: upsert(uiBase.interactions, uiAdd.interactions, removed.interactions, { added: [], modified: [], removed: [] }),
+  interactions: upsert(uiBase.interactions, uiAdd.interactions, removed.interactions, section('interactions')),
 }
 
+// One endpoint list. Delta mutations (legacy writers) count as endpoints.
 const apiBase = isObj(fm['api-surface']) ? fm['api-surface'] : {}
 const apiAdd = isObj(delta['api-surface']) ? delta['api-surface'] : {}
+const { mutations: _baseMut, endpoints: _baseEp, ...apiBaseRest } = apiBase
+const { mutations: _addMut, endpoints: _addEp, ...apiAddRest } = apiAdd
 fm['api-surface'] = {
-  ...mergeObj(apiBase, apiAdd),
-  endpoints: upsert(apiBase.endpoints, apiAdd.endpoints, removed.endpoints, section('endpoints')),
-  mutations: upsert(apiBase.mutations, apiAdd.mutations, removed.mutations, section('mutations')),
+  ...apiBaseRest,
+  ...apiAddRest,
+  endpoints: upsert(
+    endpointsOf({ 'api-surface': apiBase }),
+    endpointsOf({ 'api-surface': apiAdd }),
+    [...(removed.endpoints ?? []), ...(removed.mutations ?? [])],
+    section('endpoints'),
+  ),
 }
+section('mutations') // kept empty so 1.x readers of changes.mutations still find the key
 
-if (delta['agent-surface']) {
+if (delta['agent-surface'] || fm['agent-surface']) {
   const agentBase = isObj(fm['agent-surface']) ? fm['agent-surface'] : {}
   const agentAdd = isObj(delta['agent-surface']) ? delta['agent-surface'] : {}
   fm['agent-surface'] = {
     ...mergeObj(agentBase, agentAdd),
     agents: upsert(agentBase.agents, agentAdd.agents, removed.agents, section('agents')),
     tools: upsert(agentBase.tools, agentAdd.tools, removed.tools, section('tools')),
-    'knowledge-bases': upsert(agentBase['knowledge-bases'], agentAdd['knowledge-bases'], removed['knowledge-bases'], { added: [], modified: [], removed: [] }),
+    'knowledge-bases': upsert(agentBase['knowledge-bases'], agentAdd['knowledge-bases'], removed['knowledge-bases'], section('knowledge-bases')),
   }
 } else {
   section('agents')
   section('tools')
+}
+
+if (delta['delivery-plan'] || fm['delivery-plan']) {
+  const planBase = isObj(fm['delivery-plan']) ? fm['delivery-plan'] : {}
+  const planAdd = isObj(delta['delivery-plan']) ? delta['delivery-plan'] : {}
+  fm['delivery-plan'] = {
+    ...mergeObj(planBase, planAdd),
+    slices: upsert(planBase.slices, planAdd.slices, removed.slices, section('slices')),
+  }
 }
 
 const nextBody = existsSync(deltaMdPath) ? readFileSync(deltaMdPath, 'utf8') : body

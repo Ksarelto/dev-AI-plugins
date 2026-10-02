@@ -20,6 +20,11 @@ Deep requirements analysis. Takes the raw intake report and performs thorough ga
 
 **Guiding principle**: A gap surfaced to the user is cheap. A gap silently filled by enricher becomes a landmine in the build phase. When in doubt, tag as `blocks_synthesis: true` and let interrogator decide whether to ask or defer.
 
+**But a stated rule is not a gap.** Rich sources (a full PRD with role matrices, edge-case tables,
+notification tables, decisions already made) answer most questions. Before opening a gap, search
+the intake for the answer; a gap is only what the source does not say or says two ways. Never
+re-ask a decision the source lists as already made — record it for a `DEC-*` (`source: context`).
+
 ---
 
 ## Responsibilities
@@ -40,7 +45,8 @@ the reframe matches the user's actual intent before locking it in.
 
 **Step 1 — Requirements Mapping**
 
-For each `raw_requirement` in `intake_report`:
+For **every** `raw_requirement` in `intake_report` (each one must end up classified — anything
+left over goes to `analysis_audit.unanalyzed_signals`):
 1. Classify by type: `functional` | `non-functional` | `constraint` | `assumption` | `open-question` | `preference`
 2. Assign to a user story candidate (group related requirements)
 3. Extract implied entities and their relationships
@@ -48,7 +54,8 @@ For each `raw_requirement` in `intake_report`:
 
 **Step 2 — Per-Story Completeness Check**
 
-For each `user_story_candidate`, verify all four narrative parts:
+For each `user_story_candidate`, verify all four narrative parts. When the same part is missing
+on many stories (e.g. no priorities anywhere), open **one** gap for the pattern, not one per story:
 
 | Part | Required? | Missing → gap |
 |------|-----------|---------------|
@@ -91,7 +98,9 @@ If two user stories reference the same entity or the same role:
 - Do they treat it the same way? (e.g., US-001 says "admin can delete" and US-005 says "any user can delete" → CONFLICT)
 - Are the fields/properties consistent? (e.g., US-002 sets `status: active` and US-003 checks `status: enabled` → possible terminology drift)
 
-Flag inconsistencies as `cross_story_conflicts[]` with pointers to both stories.
+Flag inconsistencies as `cross_story_conflicts[]` (with `status: open | resolved`) with pointers
+to both stories. If one already exists as a `conflicts[]` entry, reference its `conflict_id`
+instead of adding a second item.
 
 **Step 6 — Gap Detection Against 10 Categories**
 
@@ -119,7 +128,11 @@ For each gap found:
 - `medium`: reasonable industry default exists but must be logged as assumption
 - `low`: cosmetic or optional field, negligible downstream cost
 
-**Blocks synthesis** = the synthesizer cannot produce a valid, non-hand-wavy spec section without this. Use liberally for security, permissions, data model gaps.
+**Blocks synthesis** = the synthesizer cannot produce a valid, non-hand-wavy spec section without this. Use it for real dealbreakers (security, permissions, core data shape). Note: `gate-check.mjs` **always asks** a `high` + `blocks_synthesis` gap, even when it has a default — so do not set it on gaps a sensible default can close.
+
+**`default_if_assumed`** is your proposed answer (the interrogator offers it as the Recommended
+option). It is filled for every gap; `can_assume_default` alone decides whether it may be applied
+without asking.
 
 **Root-cause grouping**: If multiple gaps stem from one missing decision (e.g., "no auth model" → 5 downstream gaps in permissions, error states, audit), tag them with the same `root_cause_group` id. Interrogator will ask ONE question instead of five.
 
@@ -132,7 +145,8 @@ For each `potential_conflict` in intake report, perform deep analysis:
 4. Is there a way both can be true?
 5. Does one file have `role_hint: authoritative` and the other `discussion`? (weight authoritative higher)
 
-Classify:
+Classify (and set `status`: only `contradiction` needs the user — resolve `complementary`,
+`scope_difference`, and clear `terminology_drift` yourself, writing the `resolution`):
 - `contradiction` — mutually exclusive, must resolve
 - `complementary` — not actually a conflict
 - `scope_difference` — both true in different contexts
@@ -140,7 +154,8 @@ Classify:
 
 For each `terminology_drift[]` from intake: decide whether to canonicalize (pick one term) or preserve (they're actually different concepts). If unclear → gap.
 
-**Step 8 — Gap Score Calculation**
+**Step 8 — Gap Score Calculation** (informational — `scripts/gate-check.mjs` recomputes it from
+`gaps[]` and decides the loop exit; never rely on the stored number)
 
 ```
 gap_score = 0
@@ -195,11 +210,17 @@ If `unanalyzed_signals` is non-empty: flag as `analysis_warning: "N raw signals 
 When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
 
 1. Map each answer to its corresponding `gap_id` in the prior analysis (or `root_cause_group`).
-2. For each resolved gap or resolved root-cause group: mark `status: resolved`, extract new requirements from the answer, and cascade resolution to all gaps in the group.
-3. Check if any answers introduced new gaps (scope expansion) — extract new requirements and re-run Steps 2–7 on the new fragments.
-4. Recalculate `gap_score` with resolved gaps removed.
-5. Detect if any answers created new conflicts with prior requirements.
-6. Return updated analysis report.
+2. For each gap an answer decides: mark `status: resolved`, `resolved_by: user_answer`,
+   `answer_ref: "Round N Qk"`. Resolve only what the answer actually decides; leftover sub-questions
+   become new, narrower gaps (`opened_by: "Round N Qk"`). A group is resolved only when all its
+   members are. A gap left open keeps `status: open` — the gate script reads it.
+3. Write the answer-derived requirements to `requirements_from_answers[]` (`{ id: "A-001", text,
+   answer_ref }`) and choices to `decisions_from_answers[]`; the enricher turns them into
+   `source: answered` requirements and `DEC-*` (`source: qa`).
+4. Check if any answers introduced new gaps (scope expansion) — extract new requirements and re-run Steps 2–7 on the new fragments.
+5. Recalculate `gap_score` with resolved gaps removed.
+6. Detect if any answers created new conflicts with prior requirements.
+7. Return updated analysis report.
 
 ---
 
@@ -221,7 +242,8 @@ When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
       "why_this_gap_matters": "AC becomes untestable without an error scenario; build phase would invent behavior",
       "root_cause_group": null,
       "status": "open | resolved",
-      "resolved_by": "user_answer | assumption"
+      "resolved_by": "user_answer | assumption",
+      "answer_ref": "Round 1 Q2"
     }
   ],
   "root_cause_groups": [
@@ -251,7 +273,15 @@ When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
       "affected_field": "actor"
     }
   ],
-  "resolved_gaps": [],
+  "requirements_map": [
+    { "raw_id": "R-001", "type": "functional", "story_candidate": "USC-001", "entities": ["Session"] }
+  ],
+  "reframed_success_criteria": [
+    { "raw_id": "R-080", "original": "loads fast", "reframed": "booking page interactive in < 2 s p95 on a phone" }
+  ],
+  "decisions_from_context": ["R-090"],
+  "requirements_from_answers": [],
+  "decisions_from_answers": [],
   "user_story_candidates": [
     {
       "candidate_id": "USC-001",

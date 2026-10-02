@@ -20,7 +20,7 @@
       "expect": "spec-enricher"
     },
     {
-      "prompt": "Run spec-completeness to mechanically score the 10-category checklist into completeness.json",
+      "prompt": "Run spec-completeness to check source fidelity and score the 10-category checklist into completeness.json",
       "expect": "spec-completeness"
     },
     {

@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Scoped spec YAML → agent blackboard. One agent-surface row per run.
-// Usage: node import-upstream.mjs --spec <spec.md> --out <agent.md> [filters] [--require-scoped] [--changes <changes.json>]
+// Usage: node import-upstream.mjs --spec <spec.md> --out <agent.md> [--slice-ref SL-001] [filters]
+//        [--require-scoped] [--changes <changes.json>]
+// --slice-ref (spec 2.0) scopes stories/ACs to the slice and adds its agent steps; the agent is
+// --agent-ref, else the first AGT id in the slice's agent-refs.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -27,6 +30,7 @@ const agentRef = flag('agent-ref') === true ? '' : (flag('agent-ref') || '')
 const prototypeRef = flag('prototype-ref') === true ? '' : (flag('prototype-ref') || '')
 const storyRefs = listFlag('story-refs')
 const acRefs = listFlag('ac-refs')
+const sliceRef = flag('slice-ref') === true ? '' : (flag('slice-ref') || '')
 const changesArg = flag('changes')
 
 function loadChanges(changesFlag) {
@@ -76,24 +80,46 @@ if (!match) {
   process.exit(2)
 }
 const spec = parse(match[1])
-const agents = spec['agent-surface']?.agents ?? []
-const tools = spec['agent-surface']?.tools ?? []
-const kbs = spec['agent-surface']?.['knowledge-bases'] ?? []
-const stories = spec['user-stories'] ?? []
-const acs = spec['acceptance-criteria'] ?? []
+const list = (v) => (Array.isArray(v) ? v : [])
+const agents = list(spec['agent-surface']?.agents)
+const tools = list(spec['agent-surface']?.tools)
+const kbs = list(spec['agent-surface']?.['knowledge-bases'])
+const stories = list(spec['user-stories'])
+const acs = list(spec['acceptance-criteria'])
+// One endpoint list; 1.x specs may split reads/writes into endpoints + mutations (dedupe by id).
+const endpoints = [...new Map([
+  ...list(spec['api-surface']?.endpoints),
+  ...list(spec['api-surface']?.mutations),
+].map((e) => [e?.id ?? `${e?.method} ${e?.path}`, e])).values()]
 
-if (requireScoped && agents.length > 1 && !agentRef && !taskId) {
-  console.error('ERROR [REQUIRE_SCOPED] multiple agents imported with no AGENT_REF / TASK_ID')
+// 2.0 slice: {spec dir}/slices/{SL}.yaml when spec-dev-kit wrote it, else the slice in the spec.
+let slice = null
+if (sliceRef) {
+  const briefPath = join(dirname(specPath), 'slices', `${sliceRef}.yaml`)
+  slice = existsSync(briefPath)
+    ? parse(readFileSync(briefPath, 'utf8'))?.slice
+    : list(spec['delivery-plan']?.slices).find((s) => s?.id === sliceRef)
+  if (!slice) {
+    console.error(`ERROR [SLICE_NOT_FOUND] ${sliceRef} is not in delivery-plan.slices of ${specPath}`)
+    process.exit(1)
+  }
+}
+const sliceAgent = list(slice?.['agent-refs']).find((ref) => /^AGT-/.test(ref)) ?? ''
+
+if (requireScoped && agents.length > 1 && !agentRef && !taskId && !sliceAgent) {
+  console.error('ERROR [REQUIRE_SCOPED] multiple agents imported with no AGENT_REF / TASK_ID / SLICE_REF')
   process.exit(1)
 }
 
-const keptAgent = agentRef
-  ? agents.find((a) => a.id === agentRef)
+const wantAgent = agentRef || sliceAgent
+const keptAgent = wantAgent
+  ? agents.find((a) => a.id === wantAgent)
   : agents[0]
-const keptTools = tools.filter((t) => (keptAgent?.['tool-refs'] ?? []).includes(t.id))
-const keptKbs = kbs.filter((k) => (keptAgent?.['knowledge-base-refs'] ?? []).includes(k.id))
-const keptStories = storyRefs.length
-  ? stories.filter((s) => storyRefs.includes(s.id))
+const keptTools = tools.filter((t) => list(keptAgent?.['tool-refs']).includes(t.id))
+const keptKbs = kbs.filter((k) => list(keptAgent?.['knowledge-base-refs']).includes(k.id))
+const wantStories = storyRefs.length ? storyRefs : list(slice?.['story-refs'])
+const keptStories = wantStories.length
+  ? stories.filter((s) => wantStories.includes(s.id))
   : stories
 const keptAcs = acRefs.length
   ? acs.filter((a) => acRefs.includes(a.id))
@@ -131,7 +157,8 @@ const front = {
   branch: fm.branch ?? (slug ? `agent/${slug}` : ''),
   'upstream-spec': specPath,
   'task-id': taskId,
-  'agent-ref': keptAgent?.id ?? agentRef,
+  'slice-ref': sliceRef,
+  'agent-ref': keptAgent?.id ?? wantAgent,
   'prototype-ref': prototypeRef,
 }
 if (reopen) front['prior-branch'] = fm.branch ?? ''
@@ -143,10 +170,6 @@ const changeSection = overlap.length > 0 && (reopen || fm['prior-branch'])
 const acLines = keptAcs.length
   ? keptAcs.map((a) => `- ${a.id} (${a['story-ref']}): Given ${a.given}; when ${a.when}; then ${a.then}`).join('\n')
   : '- (none imported)'
-const endpoints = [
-  ...(spec['api-surface']?.endpoints ?? []),
-  ...(spec['api-surface']?.mutations ?? []),
-]
 function toolLine(tool) {
   const endpoint = endpoints.find((item) => item.id === tool['api-ref'])
   const contract = endpoint
@@ -160,6 +183,17 @@ const toolLines = keptTools.length
 const kbLines = keptKbs.length
   ? keptKbs.map((k) => `- ${k.id} ${k.name} retrieval=${k.retrieval ?? ''} source=${k.source ?? ''}`).join('\n')
   : '- (none)'
+// Rules and permissions that guard the tools' endpoints — the agent must respect them too.
+const toolApis = new Set(keptTools.map((t) => t['api-ref']).filter(Boolean))
+const ruleLines = list(spec['business-rules'])
+  .filter((b) => list(b['applies-to']).some((r) => toolApis.has(r)) || list(slice?.['rule-refs']).includes(b.id))
+  .map((b) => `- ${b.id} ${b.name ?? ''}: ${b.rule}${b['on-violation'] ? ` — on violation: ${b['on-violation']}` : ''}`)
+const permissionLines = list(spec.permissions)
+  .filter((p) => list(p.refs).some((r) => toolApis.has(r)))
+  .map((p) => `- ${p.id} ${p.action}: allow ${list(p.allow).join(', ') || '—'}${Object.entries(p.conditional ?? {}).map(([r, c]) => `; ${r} if ${c}`).join('')}`)
+const stepLines = list(slice?.steps).filter((s) => s.track === 'agent')
+  .map((s, i) => `${i + 1}. ${s.do}${list(s.refs).length ? ` (${s.refs.join(', ')})` : ''}`)
+const guardrails = [...ruleLines, ...permissionLines].join('\n') || '- (none)'
 
 const body = `
 # Agent increment — ${keptAgent?.name ?? slug}
@@ -190,6 +224,14 @@ ${toolLines}
 ### Knowledge bases
 
 ${kbLines}
+
+### Rules and permissions on tool endpoints
+
+${guardrails}
+
+## Slice Steps
+
+${stepLines.join('\n') || '- (no slice steps — derive the plan from the contract above)'}
 
 ## Contract Hints
 

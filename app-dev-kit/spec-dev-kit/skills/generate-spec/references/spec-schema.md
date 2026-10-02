@@ -1,98 +1,202 @@
 # Spec Schema — YAML Front Matter
 
-**Version**: 1.2
-**Consumed by**: `spec-synthesizer` (write), `scripts/validate-spec.mjs` (validate), `feature-dev-kit/spec-analyst` (read), `html-generator-kit` (read), `backend-dev-kit` (read), `agent-dev-kit` (read)
+**Version**: 2.0
+**Written by**: `spec-synthesizer` (Station 6), `merge-spec.mjs` (continue runs)
+**Validated by**: `scripts/validate-spec.mjs` (Station 7 and publish)
+**Read by**: every downstream kit — see `consumer-contract.md` for who reads which section and in what order
 
 ---
 
-## Full Schema
+## Design rules
+
+1. **The YAML is the contract.** Everything a build kit needs is in the front matter. The Markdown
+   body holds only narrative that cannot live in YAML (problem, solution overview, flows, rationale).
+2. **One home per fact.** Each requirement, rule, decision, assumption, and question is written
+   once, in its own section, and referenced by id everywhere else. Never restate an item in a second
+   section. A risk that depends on an open question says `Q-001`; it does not repeat the question.
+3. **Stated is not assumed.** A rule that appears in `.spec/context/` is a `requirements[]` entry
+   with `source: stated`. `assumptions[]` holds only what the pipeline inferred.
+4. **Everything is addressable.** Every list item has an id (or, for entities, a unique `name`).
+   Downstream kits pass ids, not prose.
+5. **Human views are generated, not written.** Tables (coverage, permissions, API list, screen
+   inventory, delivery checklist) come from `scripts/render-spec-views.mjs` into `spec.views.md`.
+   The synthesizer never hand-writes them.
+
+---
+
+## Id kinds
+
+| Prefix | Section | Prefix | Section |
+|--------|---------|--------|---------|
+| `REQ-` | `requirements[]` | `SCR-` | `ui-surface.screens[]` |
+| `KPI-` | `context.success-metrics[]` | `INT-` | `ui-surface.interactions[]` |
+| `PERM-` | `permissions[]` | `API-` | `api-surface.endpoints[]` |
+| `BR-` | `business-rules[]` | `AGT-` / `TOOL-` / `KB-` | `agent-surface.*` |
+| `SM-` | `state-machines[]` | `NTF-` | `notifications[]` |
+| `US-` | `user-stories[]` | `RISK-` | `risks[]` |
+| `AC-` | `acceptance-criteria[]` | `ASSM-` | `assumptions[]` |
+| `SL-` | `delivery-plan.slices[]` | `Q-` / `DEC-` | `open-questions[]` / `traceability.decisions[]` |
+
+Ids are 3-digit zero-padded, sequential, never reused. Continue runs take the next free number from
+`artifacts/prior-index.json` (`next`). Entities and roles are referenced by `name`.
+
+---
+
+## Full schema
 
 ```yaml
 ---
-spec-version: "1.2"                      # Schema version — bump on breaking changes
-timecode: "YYYYMMDD-HHmmss"              # Pipeline run timestamp (ISO 8601 compact)
+spec-version: "2.0"                      # Schema version — see Schema Evolution
+timecode: "YYYYMMDD-HHmmss"              # Pipeline run timestamp
 type: feature                            # feature | app | domain | integration
-status: draft                            # See Status Lifecycle below
+status: reviewing                        # See Status Lifecycle
 
 metadata:
-  slug: ""                               # kebab-case identifier derived from title
-  title: ""                              # Human-readable feature/app name
-  created: "YYYY-MM-DDTHH:mm:ssZ"       # ISO 8601 — set at first publish
-  updated: "YYYY-MM-DDTHH:mm:ssZ"       # ISO 8601 — updated on each revision
-  source-files: []                       # List of .spec/context/ files consumed
-  pipeline-rounds:                       # Audit trail
-    clarification: 0                     # How many clarification rounds ran
-    completeness: 0                      # How many completeness rounds ran
-    review: 0                            # How many review cycles ran
+  slug: ""                               # kebab-case app slug
+  title: ""
+  created: "YYYY-MM-DDTHH:mm:ssZ"
+  updated: "YYYY-MM-DDTHH:mm:ssZ"
+  source-files: []                       # .spec/context/ files consumed
+  pipeline-rounds: { clarification: 0, completeness: 0, review: 0 }
 
 context:
-  problem: ""                            # What problem does this solve? (1–3 sentences)
-  goal: ""                               # What does success look like?
-  target-users: []                       # Who uses this feature/app?
-  existing-system: ""                    # What currently exists that this extends/replaces?
-  constraints: []                        # Tech/time/budget/legal constraints
-  non-goals: []                          # v1.1 — explicit "Not Doing" list; machine-visible form of
-                                         # the Markdown "Out of Scope" section. Optional but recommended.
+  problem: ""                            # 1–3 sentences
+  goal: ""                               # what success looks like
+  target-users: []                       # role names — each must exist in roles[]
+  existing-system: ""                    # "None — greenfield" when applicable
+  constraints: []                        # binding technical / legal / organisational limits
+  non-goals: []                          # explicit "not doing" list
+  success-metrics:                       # measurable outcomes from the source (omit if none stated)
+    - id: KPI-001
+      metric: ""                         # e.g. "Distinct items listed"
+      target: ""                         # e.g. ">= 40"
+      window: ""                         # e.g. "first 3 months"
+
+glossary:                                # domain words the build must use consistently
+  - term: ""
+    meaning: ""
+
+requirements:                            # atomic register — one rule or behaviour per entry
+  - id: REQ-001
+    text: ""                             # one testable statement, in the source's words
+    kind: behavior                       # behavior | rule | constraint | nfr | data | copy | metric
+    source: stated                       # stated | answered — inferences live ONLY in assumptions[]
+    source-ref: "requirements.md#L264"   # file#Lline for stated; "qa-log Round N Qk" for answered
+    priority: must                       # must | should | could | wont
+    scope: in                            # in | non-goal | deferred
+    covered-by: [AC-011, BR-001]         # ids that implement/test it (AC, BR, SM, NTF, PERM, SCR, API)
+                                         # or "non-functional.<category>"
+
+roles:
+  - name: ""                             # e.g. "Resident" — referenced by name everywhere
+    description: ""
+
+permissions:                             # who may do what; every role not listed is denied
+  - id: PERM-001
+    action: ""                           # e.g. "Hide or retire any listing"
+    allow: []                            # role names, unconditional
+    conditional:                         # role name → condition text
+      Resident: "only for listings they own"
+    denied-behavior: ""                  # what a denied caller sees (optional; default 403 + plain message)
+    refs: []                             # API / SCR ids enforcing it
+    ac-refs: []                          # ACs proving allow + deny (kind: permission)
 
 entities:
-  - name: ""                             # PascalCase entity name
-    description: ""
+  - name: ""                             # PascalCase, unique
+    description: ""                      # what the record means in the domain (not the field name)
+    retention: ""                        # how long records are kept / summarised / removed (optional)
     fields:
       - name: ""
-        type: ""                         # TypeScript type
+        type: ""                         # TypeScript type; enums are <Entity><Field> e.g. ListingStatus
         required: true
-        description: ""
+        description: ""                  # meaning + constraints; never just the field name
+        values: []                       # enum members, required when type is an enum
+        derived: false                   # true = computed, not stored (e.g. a display status)
+        unique: false                    # optional
     relationships:
       - entity: ""
-        type: one-to-one | one-to-many | many-to-many
+        type: many-to-one                # one-to-one | one-to-many | many-to-one | many-to-many
+        via: ""                          # FK field on this entity (many-to-one / one-to-one), optional
         description: ""
 
+state-machines:                          # one per lifecycle field with 2+ values
+  - id: SM-001
+    entity: ""                           # entity name
+    field: status                        # field on that entity
+    initial: ""                          # a value of that field
+    states: []                           # must equal the field's values
+    transitions:
+      - from: ""                         # a state, or "*" for any
+        to: ""
+        trigger: ""                      # the event, in plain words
+        actor: ""                        # role name, list of role names, or "system" for timers / cascades
+        api-ref: ""                      # endpoint that causes it (required unless actor is system)
+        after: ""                        # ISO-8601 duration for timers (actor: system), e.g. PT24H
+        guard: []                        # BR ids or short condition text
+        effects: []                      # NTF ids or short side-effect text
+        ac-refs: []
+
+business-rules:                          # invariants, limits, timers, eligibility
+  - id: BR-001
+    name: ""                             # kebab-case handle, e.g. active-borrow-cap
+    rule: ""                             # one statement
+    params: {}                           # machine-readable numbers/durations, e.g. { max: 3 }, { window: PT12H }
+    applies-to: []                       # entity names / API ids
+    on-violation: ""                     # what the user sees
+    ac-refs: []                          # ≥1 AC that proves it
+
 user-stories:
-  - id: US-001                           # Sequential, never reuse
-    as: ""                               # Role/persona
-    i-want: ""                           # Capability
-    so-that: ""                          # Benefit/outcome
+  - id: US-001
+    as: ""                               # a role name
+    i-want: ""                           # ONE capability (split stories that need "and")
+    so-that: ""
     priority: must                       # must | should | could | wont
 
 acceptance-criteria:
-  - id: AC-001                           # Sequential, never reuse
-    story-ref: US-001                    # Links to user-stories[].id
-    given: ""                            # Precondition
-    when: ""                             # Action
-    then: ""                             # Observable outcome
-    testable: true                       # Can be automated? true | false
+  - id: AC-001
+    story-ref: US-001
+    kind: happy                          # happy | error | edge | permission | nfr
+    given: ""
+    when: ""
+    then: ""                             # observable outcome, never an implementation detail
+    testable: true
 
 api-surface:
-  endpoints:
+  endpoints:                             # ONE list for reads and writes (no `mutations`)
     - id: API-001
       method: GET                        # GET | POST | PUT | PATCH | DELETE
-      path: ""                           # e.g. /v1/profiles/{id}
+      path: ""                           # /v1/resources/{id} — one spelling per resource
       description: ""
-      auth-required: true
+      auth-required: true                # false for public calls such as starting a session
+      roles: []                          # role names allowed (omit = any signed-in role)
+      story-refs: []
       request:
         path-params: {}
         query-params: {}
         body: {}
       response:
-        success: {}
-        errors: []
-  mutations: []                          # Same shape as endpoints, for write ops
+        success: { status: 200, schema: "" }
+        errors:
+          - status: 409
+            code: ""                     # stable machine code, e.g. ACTIVE_BORROW_CAP
+            message: ""                  # user-facing text
+            when: ""                     # condition or BR id
 
-agent-surface:                           # v1.2 optional — omit or leave empty when the product has no AI
+agent-surface:                           # optional — omit when the product has no AI
   agents:
     - id: AGT-001
-      name: ""                           # kebab-case agent name
+      name: ""
       kind: conversational               # conversational | rag | tool-using | graph
       runtime: openai-agents             # openai-agents | langgraph
       description: ""
-      tool-refs: []                      # TOOL-xxx ids
-      knowledge-base-refs: []            # KB-xxx ids
+      tool-refs: []
+      knowledge-base-refs: []
       embed: none                        # none | backend-route | frontend-widget
   tools:
     - id: TOOL-001
       name: ""
       description: ""
-      api-ref: ""                        # optional API-xxx from api-surface
+      api-ref: ""
   knowledge-bases:
     - id: KB-001
       name: ""
@@ -103,172 +207,209 @@ ui-surface:
   screens:
     - id: SCR-001
       title: ""
-      route: ""                          # e.g. /profiles/:id
-      states:                            # Required 4 states per data screen
-        - loading
-        - empty
-        - error
-        - success
-      components: []                     # Key UI components on this screen
-      notes: ""
+      route: ""
+      page-type: list                    # list | detail | form | dashboard | settings | other
+      primary-entity: ""                 # entity name, or "" for pure-content pages
+      roles: []                          # who can open it (omit = any signed-in role)
+      story-refs: []
+      api-refs: []                       # endpoints the screen calls
+      states: [loading, empty, error, success]   # all four on data screens
+      components: []                     # specific named components, incl. modals/forms
+      notes: ""                          # action-oriented one-liner naming the primary entity
   interactions:
     - id: INT-001
-      trigger: ""                        # User action
-      response: ""                       # System response
+      trigger: ""
+      response: ""
       screen-ref: SCR-001
+      target-screen: ""                  # SCR id when the interaction navigates (optional)
+
+notifications:
+  - id: NTF-001
+    event: ""                            # what happened
+    recipients: []                       # role names or party words (e.g. lender, borrower)
+    channels: [in-app]                   # in-app | email | sms | push | external
+    mandatory: false                     # true = recipient cannot turn it off
+    timing: ""                           # "immediately", "evening 18:00–20:00 local, once per day", …
+    copy: ""                             # example message in the product's voice
+    ac-refs: []
 
 non-functional:
-  performance:
-    - ""                                 # e.g. "List loads in < 500ms at p95"
-  accessibility:
-    - ""                                 # e.g. "WCAG 2.2 AA compliance"
-  security:
-    - ""                                 # e.g. "All endpoints require Bearer token"
-  scalability:
-    - ""
-  observability:
-    - ""                                 # e.g. "Log all mutations with userId + timestamp"
+  performance: []                        # measurable targets
+  accessibility: []
+  security: []
+  scalability: []
+  observability: []
+
+boundaries:                              # guardrails for build agents
+  always: []
+  ask-first: []
+  never: []
+
+delivery-plan:                           # the build order downstream kits follow
+  strategy: ""                           # one paragraph: why this order
+  slices:
+    - id: SL-001
+      title: ""                          # becomes the feature / task name downstream
+      goal: ""                           # user-visible outcome when the slice is done
+      depends-on: []                     # earlier SL ids only
+      tracks: [backend, frontend]        # backend | frontend | agent — kits that must act
+      story-refs: []                     # every must story belongs to exactly one slice
+      entity-refs: []
+      api-refs: []
+      screen-refs: []
+      agent-refs: []                     # AGT / TOOL / KB ids
+      rule-refs: []                      # BR ids
+      state-machine-refs: []             # SM ids
+      notification-refs: []              # NTF ids
+      permission-refs: []                # PERM ids
+      steps:                             # ordered build guidance, one entry per track step
+        - track: backend
+          do: ""                         # imperative, one sentence
+          refs: []                       # ids/entity names this step touches
+      done-when: []                      # AC ids that must pass to call the slice done
 
 risks:
   - id: RISK-001
     description: ""
     likelihood: low                      # low | medium | high
-    impact: low                          # low | medium | high
-    mitigation: ""
+    impact: low
+    mitigation: ""                       # may reference Q / ASSM / DEC ids instead of restating them
 
-assumptions:
+assumptions:                             # ONLY inferences — never a stated rule
   - id: ASSM-001
-    description: ""                      # What was assumed to fill a gap
-    source: analyst                      # user | analyst | enricher
+    description: ""                      # one claim per assumption
+    source: enricher                     # analyst | enricher
     confidence: medium                   # low | medium | high
-    requires-confirmation: true          # Should human verify before build?
+    requires-confirmation: true
+    affects: []                          # ids that depend on it
 
 open-questions:
   - id: Q-001
     question: ""
-    raised-by: ""                        # analyst | enricher | user
+    raised-by: analyst                   # analyst | enricher | user | review
+    blocking: false                      # true = a slice cannot start until answered
+    affects: []                          # ids / slices blocked
     status: open                         # open | resolved
-    answer: ""                           # Populated when resolved
+    answer: ""
 
 traceability:
-  source-requirements:
-    - file: ""                           # .spec/context/ filename
-      section: ""                        # Heading or line ref
-      maps-to: []                        # US/AC/API IDs derived from this source
   decisions:
     - id: DEC-001
       decision: ""
       rationale: ""
       alternatives-considered: []
+      source: qa                         # qa | context | review — "context" for decisions the source already made
+      affects: []
 ---
 ```
+
+Optional sections may be omitted when empty: `glossary`, `context.success-metrics`,
+`agent-surface`, `notifications`, `state-machines` (only when no entity has a lifecycle field),
+`api-surface` (UI-only / local-only products — say so in `context.constraints`).
 
 ---
 
 ## Status Lifecycle
 
 ```
-draft
-  │
-  ├─► awaiting-clarification  (gap_score > 25 detected)
-  │         │
-  │         ▼
-  │       analyzing           (user answered, re-running analysis)
-  │         │
-  ├─◄───────┘
-  │
-  ├─► enriching               (enricher running)
-  │
-  ├─► reviewing               (presented to user for approval)
-  │
-  ├─► approved                (user approved, ready for downstream kits)
-  │
-  └─► (downstream kits set:)
-      building | done
+draft → (awaiting-clarification ⇄ analyzing) → enriching → reviewing → approved → building → done
+                                                            └── changes-requested ──┘
 ```
 
----
-
-## Validation Rules
-
-| Field | Rule | Error |
-|-------|------|-------|
-| `spec-version` | Must be `"1.0"`, `"1.1"`, or `"1.2"` (semver string) | `SCHEMA_VERSION_INVALID` |
-| `timecode` | Must match `\d{8}-\d{6}` | `TIMECODE_FORMAT_INVALID` |
-| `type` | Must be one of: `feature`, `app`, `domain`, `integration` | `TYPE_INVALID` |
-| `status` | Must be valid lifecycle value | `STATUS_INVALID` |
-| `metadata.slug` | Must be kebab-case, no spaces, no uppercase | `SLUG_FORMAT_INVALID` |
-| `user-stories[].id` | Must start with `US-`, sequential | `STORY_ID_FORMAT_INVALID` |
-| `acceptance-criteria[].story-ref` | Must reference existing `user-stories[].id` | `BROKEN_STORY_REF` |
-| `acceptance-criteria[].testable` | Must be `true` or `false` | `TESTABLE_FLAG_MISSING` |
-| `api-surface.endpoints[].method` | Must be HTTP verb | `HTTP_METHOD_INVALID` |
-| `non-functional` | At minimum, `performance` and `accessibility` must be non-empty | `NFR_INCOMPLETE` |
+The synthesizer emits `reviewing`. Only `publish-spec.mjs` (after explicit human approval) sets
+`approved`. Downstream kits may set `building` / `done`.
 
 ---
 
-## Minimum Viable Spec (required fields for `status: approved`)
+## Validation Rules (enforced by `validate-spec.mjs`)
 
-A spec cannot be set to `approved` unless ALL of the following are populated:
+Errors block Station 7 and publish. Warnings are surfaced in the Station 9 review packet.
 
-- `metadata.title` — non-empty
-- `context.problem` — non-empty
-- `context.goal` — non-empty
-- `context.target-users` — at least 1 entry
-- `user-stories` — at least 1 story
-- `acceptance-criteria` — at least 1 criterion per user story
-- `non-functional.accessibility` — at least 1 constraint
-- `non-functional.security` — at least 1 constraint
-- `traceability.source-requirements` — at least 1 entry
+### Structure (all versions)
+
+| Rule | Code |
+|------|------|
+| `spec-version` ∈ `1.0`, `1.1`, `1.2`, `2.0` | `SCHEMA_VERSION_INVALID` |
+| `timecode` matches `\d{8}-\d{6}` | `TIMECODE_FORMAT_INVALID` |
+| `type`, `status` valid | `TYPE_INVALID`, `STATUS_INVALID` |
+| `metadata.slug` kebab-case | `SLUG_FORMAT_INVALID` |
+| Every id matches its prefix and is unique across the spec | `ID_FORMAT_INVALID`, `DUPLICATE_ID` |
+| `acceptance-criteria[].story-ref` resolves | `BROKEN_STORY_REF` |
+| `testable` is boolean | `TESTABLE_FLAG_MISSING` |
+| HTTP method valid | `HTTP_METHOD_INVALID` |
+| `non-functional.performance` and `.accessibility` non-empty | `NFR_INCOMPLETE` |
+| Agent / tool / KB refs resolve | `BROKEN_TOOL_REF`, `BROKEN_KB_REF`, `BROKEN_API_REF` |
+
+### Contract quality (`2.0`)
+
+| Rule | Code | Level |
+|------|------|-------|
+| `api-surface.mutations` is absent — one `endpoints` list | `MUTATIONS_DEPRECATED` | error |
+| No two endpoints share `method + path`; no singular/plural spelling of the same path | `DUPLICATE_ENDPOINT` | error |
+| Every id referenced anywhere (`covered-by`, `*-refs`, `refs`, `affects`, `guard`, `effects`, `done-when`) resolves | `BROKEN_REF` | error |
+| Every role name used (`as`, `allow`, `conditional`, `roles`, `actor`, `target-users`) exists in `roles[]` | `UNKNOWN_ROLE` | error |
+| Relationship `type` is one of the four values; `entity` exists | `RELATIONSHIP_INVALID` | error |
+| Field descriptions are not placeholders (`Field x.`, empty, or equal to the field name) | `PLACEHOLDER_DESCRIPTION` | error |
+| Enum-typed fields (`…Status`, or any field with `values`) list `values` | `ENUM_VALUES_MISSING` | error |
+| A lifecycle field with 2+ values has a state machine; its `states` equal the field `values`; transitions use known states | `STATE_MACHINE_MISSING`, `STATE_MACHINE_INVALID` | error |
+| Every `must` + `scope: in` requirement has non-empty `covered-by` (`metric` → a `KPI-*`) | `REQUIREMENT_UNCOVERED` | error |
+| `requirements[].source` is `stated` or `answered` (an inference is an assumption, never a requirement) | `REQUIREMENT_INVALID` | error |
+| Every `must` story has ≥1 `happy` AC and ≥1 non-happy AC | `STORY_UNHAPPY_PATH_MISSING` | error |
+| Every business rule has ≥1 `ac-refs` | `RULE_UNTESTED` | error |
+| Every `must` story is in exactly one slice; `depends-on` points to earlier slices only | `SLICE_STORY_UNASSIGNED`, `SLICE_STORY_DUPLICATED`, `SLICE_ORDER_INVALID` | error |
+| Every screen and endpoint belongs to some slice | `SLICE_COVERAGE_GAP` | warning |
+| Slice `tracks` match its refs (API → backend, SCR → frontend, AGT → agent) | `SLICE_TRACK_MISMATCH` | warning |
+| An assumption restates a requirement, an open question restates an assumption, or two business rules say the same thing | `DUPLICATE_STATEMENT` | warning |
+| A human-triggered transition names no `api-ref` | `TRANSITION_NO_ENDPOINT` | warning |
+| A permission has no `ac-refs` | `PERMISSION_UNTESTED` | warning |
+| An assumption has empty `affects` | `ASSUMPTION_UNLINKED` | warning |
+| A slice lists a permission whose endpoints another slice builds | `SLICE_PERMISSION_MISPLACED` | warning |
+| `i-want` bundles 3+ capabilities | `STORY_TOO_BIG` | warning |
+| Body contains generated-view sections (`## Data Model`, `## API Endpoints Summary`, `## Screen Inventory`, `## Acceptance Criteria Coverage Map`, `## Key Assumptions`) | `BODY_DUPLICATES_YAML` | error |
+| Screen lacks `page-type` / `primary-entity` | `SCREEN_UNTYPED` | warning |
+
+`1.x` specs get the structure checks plus warnings for the 2.0 rules, so old specs still validate and
+downstream kits still read them (see `consumer-contract.md` § Legacy specs).
 
 ---
 
-## Prototype / HTML Consumability
+## Minimum Viable Spec (required for `status: approved`)
 
-The downstream `html-generator-kit` reads a subset of this schema to build a clickable prototype.
-It reads **only** `entities[]` and `ui-surface.screens[]` (plus `metadata` and `context`), and its
-screen layout is chosen by **keyword-matching the screen description**. The following rules ensure
-the frontmatter is rich enough for that kit to render accurate screens instead of generic guesses.
-These are hard expectations for any spec that will be prototyped.
+- `metadata.title`, `context.problem`, `context.goal` non-empty
+- `context.target-users` ≥ 1 and `roles` ≥ 1 (`2.0`)
+- `user-stories` ≥ 1, each with ≥ 1 acceptance criterion
+- `non-functional.accessibility` and `non-functional.security` ≥ 1
+- `requirements` ≥ 1 (`2.0`) — `1.x`: `traceability.source-requirements` ≥ 1
+- `delivery-plan.slices` ≥ 1 (`2.0`)
 
-### Entities
+---
 
-- Every entity that appears on any screen MUST have a **complete field list** with real TypeScript
-  types — never just `id` + `name`. The prototype renders one table column / form field per entity
-  field, so a sparse entity produces a thin, useless table.
-- Any entity with lifecycle states MUST expose a status field named `status`, typed
-  `<Entity>Status` (e.g. `ProfileStatus`), whose `description` **enumerates the allowed values**,
-  e.g. `"One of: NEW, ACTIVE, DECLINED"`. The prototype detects the badge column by the `Status`
-  type suffix and reads the enum values from this description.
+## Prototype / HTML consumability
 
-### Screens (`ui-surface.screens[]`)
+`html-generator-kit` renders one page per screen and one table column / form field per entity field.
 
-- `notes` MUST be an **action-oriented one-liner** that (a) names the screen's **primary entity**,
-  and (b) begins with a phrase that reveals the page type using this vocabulary (the prototype keys
-  on these words to pick the layout):
-
-  | Page type | Trigger words to start `notes` with |
-  |-----------|-------------------------------------|
-  | list      | list, browse, filter, "all {Entity}s", search |
-  | detail    | view, detail, manage, "single {Entity}" |
-  | form      | create, add, new, register |
-  | dashboard | dashboard, overview, summary |
-  | settings  | settings, configuration, preferences |
-
-  Example: `"List and filter all Profiles; each row opens the profile detail."`
-
-- `components[]` MUST be **specific, named components** (e.g. `ProfilesTable`,
-  `StatusFilterDropdown`, `CreateProfileModal`) — including any modal or form present on the
-  screen. Generic entries like `"Table"` or `"Button"` provide no signal.
+- Every entity on a screen has a complete field list with real TypeScript types — never just
+  `id` + `name`.
+- Enum fields list `values`. For `1.x` readers, also end the description with
+  `One of: A, B, C` (the synthesizer writes both).
+- Every screen sets `page-type` and `primary-entity` explicitly. `notes` still starts with a
+  page-type word (list / view / create / dashboard / settings) for older readers.
+- `components[]` are specific named components (`ProfilesTable`, `CreateProfileModal`), never
+  `Table` or `Button`.
+- `derived: true` fields are shown, never rendered as form inputs.
 
 ---
 
 ## Schema Evolution
 
-When the schema changes:
-1. Bump `spec-version` (semver: patch for additive, minor for new required fields, major for breaking).
-2. Update this file.
-3. Update `scripts/validate-spec.mjs` (`SUPPORTED_SCHEMA_VERSIONS`) to accept both old and new versions.
-4. Add migration note in the spec body `## Schema History` section.
+1. Bump `spec-version`: minor for additive optional fields, major for removed or renamed fields.
+2. Update this file, `templates/spec-frontmatter.yaml`, `scripts/validate-spec.mjs`
+   (`SUPPORTED_SCHEMA_VERSIONS`), `scripts/merge-spec.mjs`, and `consumer-contract.md`.
+3. Keep readers tolerant of the previous major version.
 
-Current version `1.2` — additive over `1.1` (optional `agent-surface`). `1.0` and `1.1` specs
-remain valid; the validator accepts all three. `1.1` added optional `context.non-goals[]`.
+| Version | Change |
+|---------|--------|
+| 1.0 | Initial hybrid spec |
+| 1.1 | `context.non-goals[]` |
+| 1.2 | optional `agent-surface` |
+| 2.0 | `requirements`, `roles`, `permissions`, `business-rules`, `state-machines`, `notifications`, `glossary`, `context.success-metrics`, `boundaries`, `delivery-plan`; `many-to-one`; enum `values`; screen `page-type` / `primary-entity`; AC `kind`; `api-surface.mutations` removed (merged into `endpoints`); `traceability.source-requirements` replaced by `requirements[].source-ref`; generated views moved out of the body |

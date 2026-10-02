@@ -18,7 +18,7 @@ individually. Together they run:
 | Plugin | Path | Entry | What it ships |
 |--------|------|-------|----------------|
 | [spec-dev-kit](spec-dev-kit/) | `app-dev-kit/spec-dev-kit/` | `/generate-spec` | Skills + 8 agents |
-| [html-generator-kit](html-generator-kit/) | `app-dev-kit/html-generator-kit/` | `/generate-html` | Skills + 9 agents |
+| [html-generator-kit](html-generator-kit/) | `app-dev-kit/html-generator-kit/` | `/generate-html` | Skills + 8 agents |
 | [feature-dev-kit](feature-dev-kit/) | `app-dev-kit/feature-dev-kit/` | `/feature-dev` | Skills + 15 agents + rules + `mcp.json` |
 | [frontend-orchestrator-kit](frontend-orchestrator-kit/) | `app-dev-kit/frontend-orchestrator-kit/` | `/orchestrate-frontend` | Skills only (no agents) |
 | [backend-dev-kit](backend-dev-kit/) | `app-dev-kit/backend-dev-kit/` | `/backend-dev` | Skills + agents + rules + `.mcp.json` |

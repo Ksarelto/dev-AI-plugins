@@ -10,7 +10,7 @@ Output directory layout, file ownership, naming, and lifecycle.
 .spec/prototype/{TIMECODE}_{SLUG}/
 ├── index.html              # Landing page / app map
 ├── pages/                  # One standalone HTML file per screen
-│   ├── {screen-id}.html    # e.g. profiles-list.html, profile-detail.html
+│   ├── {page-id}.html      # route kebab, e.g. catalogue.html, listings-id.html — never SCR-*. page-map.json is the SCR → page-id map
 │   └── ...
 ├── css/
 │   ├── tokens.css          # shadcn OKLCH custom properties + motion tokens (no Tailwind runtime)

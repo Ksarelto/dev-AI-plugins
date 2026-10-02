@@ -27,7 +27,11 @@ If the blackboard has `## Change request`, edit the existing router, table, and 
 
 1. Discover existing `create-app.ts`, `compose.ts`, `tables/`. Write `## Reuse Map`.
 1b. If new packages are required, write `## Dependencies` and return `DEP_PACKET`.
-2. Write `## Build Plan` (table → zod → repo → service → router → compose → openapi).
+2. Write `## Build Plan` (table → zod → repo → service → router → compose → openapi). When the
+   import filled `## Slice Steps`, follow their order. Every `## Business Rules`, `## State Machines`,
+   `## Permissions`, and `## Notifications` row must map to a plan step (service check with its error
+   code, guarded transition, `requireRole`/`requirePermission`, emitted event); list any row you
+   cannot place under `## Decisions & Open Questions` instead of dropping it.
 3. If `src/http/create-app.ts` is missing, invoke skill `scaffold-service`, then spawn
    `api-implementer` with the blackboard path and `APPLY: express-feature`.
 4. Spawn `test-writer`.

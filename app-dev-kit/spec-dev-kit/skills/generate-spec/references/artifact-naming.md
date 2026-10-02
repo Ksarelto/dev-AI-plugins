@@ -1,6 +1,6 @@
 # Artifact Naming — Timecode + Slug Conventions
 
-**Used by**: `generate-spec` skill (timecode + slug derivation, Station 0); inline publish step, Station 10
+**Used by**: `generate-spec` skill (timecode + slug derivation, Station 0; publish, Station 10)
 
 ---
 
@@ -11,13 +11,21 @@ Which folder is current lives in `.spec/app/current.json` (`app-state.md`), not 
 
 ```
 .spec/spec/spec-{YYYYMMDD-HHmmss}_{app-slug}/
-  spec.md                ← hybrid spec (YAML front matter + Markdown body)
-  base.spec.md           ← previous spec, only when this run continues an app
-  artifacts/prior-index.json
-  artifacts/delta.yaml   ← add, modify, and remove, continue runs
-  artifacts/delta.md     ← narrative replacement, only when it changes
-  artifacts/changes.json ← merge-spec.mjs: added, modified, removed ids
-  artifacts/prior-items.yaml ← full prior items for modified ids
+  spec.md                    ← hybrid spec (YAML front matter + Markdown body) — the contract
+  spec.views.md              ← generated tables (render-spec-views.mjs); never edited by hand
+  slices/SL-NNN.yaml         ← one build brief per delivery slice (write-slice-briefs.mjs, at publish)
+  kit-result.json            ← path-only envelope for parent orchestrators
+  base.spec.md               ← previous spec, only when this run continues an app
+  artifacts/intake.json      ← Station 1
+  artifacts/analysis.json    ← Station 2 / 2b
+  artifacts/qa-log.md        ← every human round
+  artifacts/enriched.json    ← Station 4
+  artifacts/completeness.json← Station 5
+  artifacts/prior-index.json ← continue runs: ids and next free numbers
+  artifacts/prior-items.yaml ← continue runs: full prior items for modified ids
+  artifacts/delta.yaml       ← continue runs: add, modify, and removed:
+  artifacts/delta.md         ← continue runs: narrative replacement, only when it changes
+  artifacts/changes.json     ← merge-spec.mjs: added / modified / removed ids per section
 ```
 
 ### Examples
@@ -25,126 +33,73 @@ Which folder is current lives in `.spec/app/current.json` (`app-state.md`), not 
 ```
 .spec/spec/spec-20240115-143022_campus/
   spec.md
+  spec.views.md
+  slices/SL-001.yaml
+  slices/SL-002.yaml
 
 .spec/spec/spec-20240201-091500_campus/
   spec.md
   base.spec.md
+  …
 ```
 
 ---
 
 ## Timecode Format
 
-**Pattern**: `YYYYMMDD-HHmmss`
-
-- `YYYY` — 4-digit year
-- `MM` — 2-digit month (01–12)
-- `DD` — 2-digit day (01–31)
-- `-` — literal separator
-- `HH` — 2-digit hour, 24h format (00–23)
-- `mm` — 2-digit minutes (00–59)
-- `ss` — 2-digit seconds (00–59)
-
-**Timezone**: UTC always. Never local time — prevents drift across team members.
-
-**Generated once** at Station 0 (context discovery) and frozen for the entire pipeline run. All agents in one run use the same timecode.
+**Pattern**: `YYYYMMDD-HHmmss` — UTC, generated once at Station 0 by `continue-spec.mjs` and frozen
+for the whole run. All agents in one run use the same timecode.
 
 ---
 
 ## Slug Derivation
 
-The slug identifies the feature/app being specced. The `generate-spec` skill derives it at Station 0 using this priority order:
+The slug identifies the app. On a continue run `continue-spec.mjs` keeps the slug from
+`current.json`; the argument only matters for the first feature. Priority order:
 
-### Priority 1: Explicit filename match
-If `.spec/context/` contains a file like:
-- `{feature-name}.md` → use `feature-name`
-- `req-{feature-name}.md` → use `feature-name`
-- `notes-{feature-name}.md` → use `feature-name`
-
-Strip known prefixes: `req-`, `notes-`, `spec-`, `feature-`, `requirements-`
-
-### Priority 2: First H1 heading in intake report
-Extract the first `# Heading` found across all context files. Normalize to slug format.
-
-### Priority 3: Most frequent entity name
-From `intake_report.consolidated_entities[]`, use the most frequently mentioned entity name.
-
-### Priority 4: Fallback
-Use `untitled-{YYYYMMDD}`.
-
----
+1. **Explicit argument** — `/generate-spec profile-management`.
+2. **Filename** — `{name}.md`, `req-{name}.md`, `notes-{name}.md` → `name`
+   (strip `req-`, `notes-`, `spec-`, `feature-`, `requirements-`).
+3. **First H1** across the context files.
+4. **Most frequent entity name** in `intake.json.consolidated_entities`.
+5. **Fallback** — `untitled-{YYYYMMDD}`.
 
 ## Slug Normalization Rules
 
 ```
-1. Lowercase all characters
-2. Replace spaces with hyphens
-3. Replace underscores with hyphens
-4. Remove special characters (keep only a-z, 0-9, -)
-5. Collapse multiple hyphens to single hyphen
-6. Strip leading/trailing hyphens
-7. Maximum length: 50 characters (truncate at word boundary)
+1. Lowercase            4. Keep only a-z, 0-9, -
+2. Spaces → hyphens     5. Collapse repeated hyphens; strip leading/trailing
+3. Underscores → hyphens 6. Max 50 characters, cut at a word boundary
 ```
 
-**Examples**:
 ```
 "Profile Management"         → "profile-management"
-"Invoice Approval Workflow"  → "invoice-approval-workflow"
 "User Auth & SSO"            → "user-auth-sso"
-"FEATURE: New Dashboard V2"  → "feature-new-dashboard-v2" → "new-dashboard-v2" (strip known prefix)
-"   Spaces everywhere   "    → "spaces-everywhere"
+"FEATURE: New Dashboard V2"  → "new-dashboard-v2" (known prefix stripped)
 ```
 
 ---
 
 ## Spec File Format
 
-Each `spec.md` is a **hybrid spec**: YAML front matter followed by Markdown body.
-
-```
----
-# YAML front matter (as defined in references/spec-schema.md)
-spec-version: "1.0"
-timecode: "20240115-143022"
-...
----
-
-# Markdown body (as defined in templates/spec-body.md)
-## Problem Statement
-...
-```
+YAML front matter per `spec-schema.md` (`spec-version: "2.0"`), then the Markdown body per
+`templates/spec-body.md` (`## Problem Context`, `## Solution Overview`, `## User Flows`,
+`## Design Rationale`, optional `## Implementation Notes`, `## Visual Reference` from Station 8,
+`## Schema History`).
 
 ---
 
-## Versioning Within a Run
+## Versioning Across Runs
 
-Each `/generate-spec` publish writes a new folder. It does not overwrite the previous spec.
-`continue-spec.mjs` copies the spec named by `current.json` and continues `US` / `SCR` / `AC` ids.
-Downstream kits load `current.json` `spec_path`. They do not pick the newest timecode themselves.
-
----
-
-## Context Snapshot (Optional)
-
-The publisher MAY also write a context snapshot inside the output folder:
-
-```
-.spec/processed/spec-{YYYYMMDD-HHmmss}_{slug}/   ← the inbox files moved here on publish
-```
-
-This file contains the raw text of all `.spec/context/` files as they existed at run time — a snapshot for reproducibility. This is not required for pipeline operation but recommended for audit purposes.
+Each publish writes a new folder; the previous spec stays on disk. `continue-spec.mjs` copies the
+spec named by `current.json` into `base.spec.md` and continues every id kind from `next_ids`.
+Downstream kits load `current.json` `spec_path`; they never pick the newest timecode themselves.
+On publish the inbox moves to `.spec/processed/{spec-id}/` — that folder is the context snapshot.
 
 ---
 
-## Feature-Dev-Kit Spec Path
+## Downstream Traceability
 
-When `feature-dev-kit` creates its blackboard file, it SHOULD record the source spec path:
-
-```markdown
----
-# In .spec/features/{slug}.md front matter:
-spec-source: ".spec/spec/spec-20240115-143022_campus/spec.md"
----
-```
-
-This maintains the traceability chain from context → spec → feature blackboard → code.
+Build kits record the spec they built from. feature-dev-kit writes `upstream-spec:` in
+`.spec/features/{slug}.md` front matter, plus `slice-ref:` when it built a delivery slice — the
+chain context → spec → slice brief → blackboard → code.

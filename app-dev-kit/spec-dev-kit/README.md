@@ -3,8 +3,16 @@
 **Entry point**: `/generate-spec [feature-name]` → `skills/generate-spec/SKILL.md`
 
 Transforms raw requirements in `.spec/context/` into a validated, approved hybrid YAML+Markdown
-spec in `.spec/spec/spec-{timecode}_{slug}/spec.md`. Downstream kits read `.spec/app/current.json`:
-`/generate-html`, `/backend-dev`, `/agent-dev`, `/feature-dev`, and the orchestrators.
+spec in `.spec/spec/spec-{timecode}_{slug}/spec.md` (schema 2.0). The spec is a **build guide**:
+
+- a **requirements register** — every stated rule with its source line and the ids that cover it;
+- the **contract** — roles, permissions, entities, state machines, business rules, endpoints,
+  screens, notifications, glossary — each item written once and referenced by id;
+- a **delivery plan** — ordered slices with tracks, steps, and `done-when` ACs, plus one
+  build brief per slice (`slices/SL-NNN.yaml`) written at publish.
+
+Downstream kits read `.spec/app/current.json`: `/generate-html`, `/backend-dev`, `/agent-dev`,
+`/feature-dev`, and the orchestrators — see `skills/generate-spec/references/consumer-contract.md`.
 
 Human gates (`AskUserQuestion`) are owned by the **skill**. The orchestrator is a subagent and
 returns packets (`CLARIFY_PACKET`, `REVIEW_PACKET`, `ESCALATION_PACKET`, `READY_TO_PUBLISH`).
@@ -49,7 +57,8 @@ Or add the marketplace in Agent chat:
 2. Run `/generate-spec` (or `/generate-spec my-feature-name`).
 3. Answer clarification questions as prompted (skill-owned).
 4. Approve the spec at the review gate (skill-owned).
-5. The spec is published to `.spec/spec/spec-{timecode}_{slug}/spec.md`. The inbox moves to `.spec/processed/{spec-id}/`.
+5. The spec is published to `.spec/spec/spec-{timecode}_{slug}/spec.md`, with `spec.views.md`
+   (generated tables) and `slices/` (build briefs). The inbox moves to `.spec/processed/{spec-id}/`.
 
 ---
 
@@ -73,7 +82,9 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
       SKILL.md                             ← entry point; owns HITL + Station 0/1/10
       references/
         pipeline-flow.md                   ← CANONICAL station map
-        spec-schema.md
+        spec-schema.md                     ← schema 2.0 + validator rule codes
+        consumer-contract.md               ← how downstream kits read the spec and briefs
+        app-state.md
         completeness-checklist.md
         clarification-protocol.md
         context-protocol.md
@@ -81,8 +92,17 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
         context-budget.md
       templates/
         spec-frontmatter.yaml
-        spec-body.md
-      scripts/                         ← see `scripts/`
+        spec-body.md                       ← narrative only; never restates the YAML
+      fixtures/
+        example-spec.md                    ← complete valid 2.0 spec (exemplar + test fixture)
+      scripts/
+        continue-spec.mjs                  ← Station 0 scaffold + prior index
+        gate-check.mjs                     ← Stations 2–3 loop decision
+        validate-spec.mjs                  ← Station 7 + publish gate
+        merge-spec.mjs / lookup-spec.mjs   ← continue runs
+        render-spec-views.mjs              ← spec.views.md
+        write-slice-briefs.mjs             ← slices/SL-NNN.yaml
+        publish-spec.mjs / archive-context.mjs / write-kit-result.mjs / revert-increment.mjs
 ```
 
 `KIT_DIR` is the plugin root (this directory when installed). Scripts are
@@ -101,11 +121,11 @@ not the only path.
       ▼ Station 3: pre-enrich gate (orchestrator)
       ▼ Station 4: enricher → enriched.json
       ▼ Station 5: completeness; may CLARIFY_PACKET again
-      ▼ Station 6: synthesizer → spec.md (reviewing)
+      ▼ Station 6: synthesizer → spec.md (reviewing) incl. delivery plan
       ▼ Station 7: validate-spec.mjs
       ▼ Station 8: diagrams
       ▼ Station 9: review — HARD STOP (skill asks)
-      ▼ Station 10: skill sets status: approved
+      ▼ Station 10: skill sets status: approved; views + slice briefs written
       │
       ▼ .spec/spec/spec-{timecode}_{slug}/spec.md
 ```
@@ -118,7 +138,7 @@ Canonical contracts: `skills/generate-spec/references/pipeline-flow.md`.
 
 | Loop | Max rounds | Exit condition | On exceed |
 |------|-----------|----------------|-----------|
-| Clarification | 3 | `gap_score ≤ 25` AND no conflicts | Remaining gaps → `assumptions[]` |
-| Completeness | 3 | `completeness_score ≥ 85` | Uncovered categories → `open-questions[]` |
+| Clarification | 3 | `gate-check.mjs` → `PROCEED` (no blocking gap, no conflict, askable score ≤ 25) | Remaining gaps → `assumptions[]` + blocking `open-questions[]` |
+| Completeness | 3 | score ≥ 85 AND no unmapped source requirement | Uncovered items → blocking `open-questions[]` |
 | Synthesis correction | 2 | `validate-spec.mjs` exits 0 | `ESCALATION_PACKET` to the skill |
 | Review | 3 | User explicit approval | Escalate: approve-as-is / drop / replace |

@@ -8,7 +8,7 @@ alwaysApply: false
 
 - Branch: `feature/<ticket>-<slug>` or `nt-<slug>`. Slug is lowercase and hyphenated.
 - Commit: `[TICKET] imperative summary`. One logical change. No `WIP`, `fix`, or `update`.
-- Rebase onto the integration branch. Push with `--force-with-lease`. Never `--force`.
+- Humans rebase onto the integration branch and push with `--force-with-lease`. Never `--force`. Agents do not push.
 - Do not commit to `main`, `master`, or `develop` directly.
 - Shipping is `/create-pr`, typed by a human after spec status is `done`. No agent pushes or opens a PR.
 - A PR body comes from the spec (summary, acceptance criteria, FSD impact, test plan). The procedure is the `create-pr` skill.

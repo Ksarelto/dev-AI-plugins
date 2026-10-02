@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // Deterministic capability analysis for app-orchestrator-kit.
 // Reads spec.md, writes/re-derives work-plan.md beside it (tracks + B-* / A-* tasks).
+// Spec 2.0 (delivery-plan.slices present): one B-task per slice with a backend track and one
+//   A-task per agent in a slice with an agent track, in slice order, refs taken from the slice.
+// Spec 1.x: one B-task per entity (endpoints matched by path segment), ordered by relationships.
 // Usage: node analyze-capabilities.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>]
 // Exit 0 = written (at least one needed track). Exit 1 = nothing to build. Exit 2 = usage/parse.
 
@@ -76,6 +79,7 @@ const changedEndpoints = new Set([...modifiedIds('endpoints'), ...modifiedIds('m
 const changedAgents = modifiedIds('agents')
 const changedStories = modifiedIds('user-stories')
 const changedAcs = modifiedIds('acceptance-criteria')
+const changedSlices = modifiedIds('slices')
 
 function taskState(prior, hit) {
   if (hit && prior?.status === 'done') {
@@ -96,12 +100,16 @@ const screens = spec['ui-surface']?.screens ?? []
 const entities = spec.entities ?? []
 const stories = spec['user-stories'] ?? []
 const acs = spec['acceptance-criteria'] ?? []
-const endpoints = [
+// One endpoint list; 1.x specs may still split reads and writes into endpoints + mutations.
+const endpoints = [...new Map([
   ...(spec['api-surface']?.endpoints ?? []),
   ...(spec['api-surface']?.mutations ?? []),
-]
+].map((e) => [e?.id ?? `${e?.method} ${e?.path}`, e])).values()]
 const agentSurface = spec['agent-surface'] ?? {}
 const namedAgents = agentSurface.agents ?? []
+const slices = (spec['delivery-plan']?.slices ?? []).filter((s) => s?.id)
+const sliceMode = slices.length > 0
+const sliceTracks = new Set(slices.flatMap((s) => s.tracks ?? []))
 
 function storyText() {
   return [
@@ -112,11 +120,11 @@ function storyText() {
   ].join(' ')
 }
 
-const frontendNeeded = screens.length > 0
-const backendNeeded = endpoints.length > 0 || entities.length > 0
+const frontendNeeded = sliceMode ? sliceTracks.has('frontend') : screens.length > 0
+const backendNeeded = sliceMode ? sliceTracks.has('backend') : endpoints.length > 0 || entities.length > 0
 const agentNamed = namedAgents.length > 0
-const agentHeuristic = !agentNamed && AGENT_RE.test(storyText())
-const agentNeeded = agentNamed || agentHeuristic
+const agentHeuristic = !sliceMode && !agentNamed && AGENT_RE.test(storyText())
+const agentNeeded = sliceMode ? sliceTracks.has('agent') : agentNamed || agentHeuristic
 
 const TRACK_META = {
   backend: { entry: 'backend-dev-kit:backend-dev' },
@@ -197,10 +205,11 @@ function endpointOwner(endpoint) {
 
 const endpointOwnerById = new Map(endpoints.map((endpoint) => [endpoint.id, endpointOwner(endpoint)]))
 
-const existingByKey = new Map((existing?.tasks ?? []).map((t) => {
-  const key = t.track === 'agent' ? `A:${t['agent-ref'] || t.id}` : `B:${(t['entity-refs'] ?? [])[0] || t['slug-hint'] || t.id}`
-  return [key, t]
-}))
+function taskKey(t) {
+  if (t['slice-ref']) return t.track === 'agent' ? `A:${t['slice-ref']}|${t['agent-ref']}` : `B:${t['slice-ref']}`
+  return t.track === 'agent' ? `A:${t['agent-ref'] || t.id}` : `B:${(t['entity-refs'] ?? [])[0] || t['slug-hint'] || t.id}`
+}
+const existingByKey = new Map((existing?.tasks ?? []).map((t) => [taskKey(t), t]))
 
 let nextB = 1
 let nextA = 1
@@ -221,7 +230,75 @@ function alloc(prefix, nextRef, preserved) {
 
 const tasks = []
 
-if (backendNeeded) {
+// 2.0: the delivery plan is the work breakdown. Each task carries slice-ref; the callee reads
+// {spec dir}/slices/{slice-ref}.yaml for everything else.
+if (sliceMode) {
+  const backendIdBySlice = new Map()
+  for (const slice of slices) {
+    const tracksOf = new Set(slice.tracks ?? [])
+    const storyIds = slice['story-refs'] ?? []
+    const acIds = acs.filter((a) => storyIds.includes(a['story-ref'])).map((a) => a.id)
+    const priority = maxPriority(storyIds)
+    if (priority === 'wont') continue
+    const sliceHit = (prior, extra) => changedSlices.has(slice.id) || extra || refsHit(storyIds, acIds, prior)
+    const base = {
+      'slice-ref': slice.id,
+      'story-refs': storyIds,
+      'ac-refs': acIds,
+      priority,
+      'depends-on': [],
+    }
+    if (tracksOf.has('backend')) {
+      const prior = existingByKey.get(`B:${slice.id}`)
+      const entityRefs = slice['entity-refs'] ?? []
+      const apiRefs = slice['api-refs'] ?? []
+      const state = taskState(prior, sliceHit(prior, entityRefs.some((n) => changedEntities.has(n)) || apiRefs.some((id) => changedEndpoints.has(id))))
+      const id = alloc('B', nextB, prior?.id)
+      backendIdBySlice.set(slice.id, id)
+      tasks.push({
+        id,
+        track: 'backend',
+        title: slice.title,
+        ...base,
+        'depends-on': (slice['depends-on'] ?? []).map((dep) => backendIdBySlice.get(dep)).filter(Boolean),
+        'entity-refs': entityRefs,
+        'api-refs': apiRefs,
+        'agent-ref': '',
+        'slug-hint': kebab(slice.title) || kebab(slice.id),
+        status: state.status,
+        slug: prior?.slug ?? '',
+        branch: prior?.branch ?? '',
+        'blocked-reason': state.reason,
+      })
+    }
+    if (tracksOf.has('agent')) {
+      const agentIds = (slice['agent-refs'] ?? []).filter((ref) => /^AGT-/.test(ref))
+      for (const agentId of agentIds) {
+        const agent = namedAgents.find((a) => a.id === agentId) ?? { id: agentId }
+        const prior = existingByKey.get(`A:${slice.id}|${agentId}`)
+        const state = taskState(prior, sliceHit(prior, changedAgents.has(agentId)))
+        tasks.push({
+          id: alloc('A', nextA, prior?.id),
+          track: 'agent',
+          title: agent.name || agentId,
+          ...base,
+          'depends-on': backendIdBySlice.has(slice.id) ? [backendIdBySlice.get(slice.id)] : [],
+          'entity-refs': [],
+          'api-refs': [],
+          'tool-refs': agent['tool-refs'] ?? [],
+          'agent-ref': agentId,
+          'slug-hint': kebab(agent.name) || kebab(agentId),
+          status: state.status,
+          slug: prior?.slug ?? '',
+          branch: prior?.branch ?? '',
+          'blocked-reason': state.reason,
+        })
+      }
+    }
+  }
+}
+
+if (!sliceMode && backendNeeded) {
   for (const entity of entities) {
     const name = entity.name
     const related = endpoints.filter((e) => endpointOwnerById.get(e.id) === name)
@@ -284,7 +361,7 @@ if (backendNeeded) {
   }
 }
 
-if (agentNeeded) {
+if (!sliceMode && agentNeeded) {
   const sourceAgents = namedAgents.length
     ? namedAgents
     : [{ id: 'AGT-heuristic', name: 'heuristic-agent', description: 'Heuristic agent track from story keywords' }]
@@ -315,12 +392,20 @@ if (agentNeeded) {
   }
 }
 
-const currentKeys = new Set(tasks.map((t) => (
-  t.track === 'agent' ? `A:${t['agent-ref']}` : `B:${(t['entity-refs'] ?? [])[0] || t['slug-hint']}`
-)))
+const currentKeys = new Set(tasks.map(taskKey))
 for (const [key, prior] of existingByKey) {
   if (currentKeys.has(key) || prior.status === 'skipped') continue
   if (tasks.some((t) => t.id === prior.id)) continue
+  if (sliceMode && !prior['slice-ref']) {
+    // 1.x → 2.0 upgrade: entity-based tasks are replaced by slice tasks. Keep shipped work as
+    // done history; never queue a removal of code the new slices still need.
+    tasks.push({
+      ...prior,
+      status: prior.status === 'done' ? 'done' : 'skipped',
+      'blocked-reason': 'superseded by delivery-plan slices',
+    })
+    continue
+  }
   if (prior.status === 'done') {
     tasks.push({
       ...prior,
@@ -378,14 +463,21 @@ function topoBackend(backendTasks) {
   return [...ordered, ...nameless]
 }
 
-tasks.sort((a, b) => {
-  if (a.track !== b.track) return a.track.localeCompare(b.track)
-  return byPriority(a, b)
-})
-const backendOrdered = topoBackend(tasks.filter((task) => task.track === 'backend'))
-let backendAt = 0
-for (let i = 0; i < tasks.length; i++) {
-  if (tasks[i].track === 'backend') tasks[i] = backendOrdered[backendAt++]
+if (sliceMode) {
+  // Slice order is the build order inside each track; superseded 1.x rows go last.
+  const sliceIndex = new Map(slices.map((s, i) => [s.id, i]))
+  const rank = (t) => sliceIndex.get(t['slice-ref']) ?? Number.MAX_SAFE_INTEGER
+  tasks.sort((a, b) => (a.track !== b.track ? a.track.localeCompare(b.track) : rank(a) - rank(b)))
+} else {
+  tasks.sort((a, b) => {
+    if (a.track !== b.track) return a.track.localeCompare(b.track)
+    return byPriority(a, b)
+  })
+  const backendOrdered = topoBackend(tasks.filter((task) => task.track === 'backend'))
+  let backendAt = 0
+  for (let i = 0; i < tasks.length; i++) {
+    if (tasks[i].track === 'backend') tasks[i] = backendOrdered[backendAt++]
+  }
 }
 
 if (!tracks.some((t) => t.needed)) {
@@ -395,7 +487,7 @@ if (!tracks.some((t) => t.needed)) {
 
 const now = new Date().toISOString()
 const front = {
-  'work-plan-version': '1.0',
+  'work-plan-version': sliceMode ? '1.1' : '1.0',
   'spec-ref': specPath,
   'prototype-ref': prototypeRef || existing?.['prototype-ref'] || '',
   generated: existing?.generated ?? now,
