@@ -3,7 +3,7 @@
 **Entry point**: `/generate-html [spec-slug]` → `skills/generate-html/SKILL.md`
 
 Transforms a validated YAML spec from `.spec/app/` into a **clickable multi-page HTML prototype**
-in `.spec/prototype/{TIMECODE}_{SLUG}/`. Styling is CDN-free (no Tailwind); Alpine.js and Google Fonts load from a CDN. Headless-browser verified.
+in `.spec/prototype/{TIMECODE}_{SLUG}/`. Styling and Alpine.js are both CDN-free (no Tailwind runtime; Alpine.js + its focus plugin are vendored under `js/vendor/`) — only Google Fonts loads from a CDN. Headless-browser verified.
 
 If you provide a theme — brand colours, fonts, a style guide, `tokens.css`, screenshots/mockups, or
 a layout — the prototype **must** follow it: every stated value is locked verbatim and QA fails the
@@ -89,7 +89,7 @@ Or add the marketplace in Agent chat:
 | Required? | **Optional but strongly recommended.** Without it the pipeline designs from model priors and prototypes drift back toward generic |
 | Needs | Node (for the installer) + **Python 3.x** (the search engine; stdlib only, no network calls) |
 | Where it lands | `.claude/skills/ui-ux-pro-max/` · `~/.claude/skills/…` · `.cursor/skills/…` — the kit resolves all of these |
-| Used by | `design-strategist` (palette/type/style/UX/motion queries), `design-system-author` (stack notes), `qa-validator` (pro-rules checklist) |
+| Used by | `design-strategist` (palette/type/style/UX/motion queries), `design-system-author` (stack notes), `scripts/qa-static.mjs` (pro-rules checklist) |
 | Contract | [`skills/generate-html/references/ui-ux-pro-max.md`](skills/generate-html/references/ui-ux-pro-max.md) — queries, hex→OKLCH mapping, conflict priority, degradation |
 
 When it is unavailable, the pipeline still completes and the review packet says
@@ -109,9 +109,12 @@ When it is unavailable, the pipeline still completes and the review packet says
 │   └── components.css          # Component classes (no Tailwind runtime)
 ├── js/
 │   ├── app.js                  # Alpine stores: notification, modal, theme
+│   ├── store.js                # Shared entity store + entityList/entityDetail/entityForm factories
 │   ├── data.js                 # Entity mock-data pools
-│   └── navigation.js           # Active-page + breadcrumb helpers
+│   ├── navigation.js           # Active-page + breadcrumb helpers
+│   └── vendor/                 # Vendored Alpine.js + focus plugin (pinned version, no CDN)
 ├── design-inputs.json          # Provided design sources found (binding: true|false)
+├── design-values.json          # Concrete design decisions (palette/fonts/density/motion/signature)
 ├── design-brief.md             # Binding reference (if any) + chosen direction for open slots
 ├── ux-directives.md            # Per-page-type UX rules the screens were built against
 ├── design-system-ref.md        # Compact token + class reference
@@ -135,7 +138,7 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
     component-library-author.md              ← sonnet | Alpine stores, mock data, component-manifest
     screen-generator.md                      ← sonnet | one page HTML (N parallel instances)
     assembly-wiring.md                       ← sonnet | index.html + navigation.js
-    qa-validator.md                          ← haiku | spec coverage + HTML quality + a11y
+    visual-reviewer.md                       ← sonnet | looks at Station 6.5's screenshots, flags visually broken pages
     modification-router.md                   ← sonnet | decomposes change requests
   skills/
     generate-html/
@@ -159,6 +162,7 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
       scripts/
         spec-model.mjs                        ← deterministic spec → model parser (Station 0, full build)
         delta-pages.mjs                        ← append-mode delta, shares lib/spec-model.mjs with the above
+        qa-static.mjs                          ← deterministic QA gate (Station 6) — replaced qa-validator
         collect-design-inputs.mjs (Step 2.6) and the rest
 ```
 
@@ -186,8 +190,9 @@ generate-html skill → spawn html-orchestrator (MODE: build, SPEC_FILE path onl
   Station 3: component-library-author → app.js + data.js + manifest
   Station 4: screen-generator × N (PARALLEL) → pages/{id}.html
   Station 5: assembly-wiring → index.html + navigation.js
-  Station 6: qa-validator → pass/fail                   ↓ GATE: qa-pass
+  Station 6: scripts/qa-static.mjs (deterministic) → pass/fail  ↓ GATE: qa-pass
   Station 6.5: verify-prototype.mjs (render + axe)      ↓ GATE: render-pass
+  Station 6.6: visual-reviewer (reads Station 6.5's screenshots) ↓ GATE: visual-review
   → RETURN REVIEW_PACKET or ESCALATION_PACKET
       │
 generate-html skill: human review gate (max 3 cycles)

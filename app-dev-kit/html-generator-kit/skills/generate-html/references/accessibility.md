@@ -1,7 +1,7 @@
 # Accessibility Rules — html-generator-kit
 
 WCAG 2.2 AA baseline every generated page must meet. Read by `screen-generator` and enforced by
-`qa-validator`. Keep it mechanical — these are pass/fail rules, not guidance.
+`qa-static.mjs`. Keep it mechanical — these are pass/fail rules, not guidance.
 
 ---
 
@@ -30,7 +30,10 @@ WCAG 2.2 AA baseline every generated page must meet. Read by `screen-generator` 
 ## Data tables (div-grid pattern)
 
 - Table container: `role="grid"` (or `role="table"`) + `aria-label`.
-- Header row: `role="row"`; header cells `role="columnheader"` + `scope="col"`.
+- Header row: `role="row"`; header cells `role="columnheader"`. Do **not** add `scope="col"` to a
+  `<div>` — `scope` is only valid on a real `<th>` element, and this kit's table is a div-based grid
+  by design (see `templates/runtime/css/components.css`'s `.table`/`.table-header`/`.table-cell`
+  rules); `role="columnheader"` alone is the correct, HTML-valid substitute here.
 - Body rows: `role="row"`; cells `role="gridcell"`.
 
 ## State regions

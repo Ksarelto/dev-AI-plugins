@@ -41,10 +41,10 @@ Use this routing table:
 | Global layout / CSS components | "card layout", "table style", "button style" | `design-system-author` | Station 2 | ⚠️ FULL |
 | Alpine stores, global JS | "notification", "modal", "theme toggle" | `component-library-author` | Station 3 | ⚠️ All pages re-gen |
 | Mock data values / counts | "more data", "realistic names", "add more rows" | `component-library-author` | Station 3 (data.js only) | pages may need reload |
-| Copy on a specific page | "rename", "change text", "wording on X" | `screen-generator` | Station 4 (one page) | single page |
-| Add/change interaction on a page | "add filter", "add sort", "dropdown on X" | `screen-generator` | Station 4 (one page) | single page |
-| Fix missing/broken state on a page | "loading state broken", "empty state wrong" | `screen-generator` | Station 4 (one page) | single page |
-| Add a new page | "add a page for", "missing screen" | `screen-generator` | Station 4 (new page) | new file |
+| Copy on a specific page | "rename", "change text", "wording on X" | `screen-generator` | Station 4 (one page, `MODE: edit`) | single page — edited in place |
+| Add/change interaction on a page | "add filter", "add sort", "dropdown on X" | `screen-generator` | Station 4 (one page, `MODE: edit`) | single page — edited in place |
+| Fix missing/broken state on a page | "loading state broken", "empty state wrong" | `screen-generator` | Station 4 (one page, `MODE: edit`) | single page — edited in place |
+| Add a new page | "add a page for", "missing screen" | `screen-generator` | Station 4 (new page, `MODE: create`) | new file |
 | Navigation order / grouping | "nav order", "nav label", "wrong nav group" | `assembly-wiring` | Station 5 | index.html + nav.js |
 | Index.html / landing page | "app map", "landing page", "home page" | `assembly-wiring` | Station 5 | index.html |
 | Multiple pages same change | "all pages", "every screen", "global" | `screen-generator` | Station 4 (ALL pages) | ⚠️ ALL pages re-gen |
@@ -83,6 +83,11 @@ tasks:
 
 One task per atomic change.
 Context must be specific enough for the agent to act without additional clarification.
+
+For a single-page task (station 4, one page in `pages:`), the orchestrator forwards this `context:`
+text verbatim as `screen-generator`'s `CHANGE_REQUEST` under `MODE: edit` — this router's `context:`
+string is not just a label here, it is the literal instruction the edit is made from, so write it as
+a complete, self-contained change description (not a short tag like "add filter").
 
 ### 5. Estimate effort
 

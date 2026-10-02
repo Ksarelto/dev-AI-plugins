@@ -7,12 +7,18 @@ Alpine + `@alpinejs/focus` are loaded per page (deferred). No build step.
 
 ## Page skeleton (match the design-brief's layout archetype — see design-system-ref)
 
+`{ENTITY_DATA_CALL}` below is one of three generic Alpine data factory calls from `js/store.js`
+(see **Shared entity store** below), chosen by the page's type: `entityList('{Entity}')` for list
+pages, `entityDetail('{Entity}')` for detail pages, `entityForm('{Entity}')` for form/settings
+pages. A dashboard page defaults to `entityList('{Entity}')` and may also read other entities
+directly via `ProtoStore.all('{OtherEntity}')` for cross-entity KPIs.
+
 SIDEBAR archetype:
 ```html
 <body x-data x-cloak>
   <div class="app">
     <aside class="sidebar"> … nav … </aside>
-    <main class="main" x-data="{Entity}Data()" x-init="init()">
+    <main class="main" x-data="{ENTITY_DATA_CALL}" x-init="init()">
       <div class="content"> … </div>
     </main>
   </div>
@@ -24,7 +30,7 @@ TOP-NAV archetype:
 <body x-data x-cloak>
   <div class="app app-topnav">
     <header class="topnav"> … brand + horizontal nav … </header>
-    <main class="main" x-data="{Entity}Data()" x-init="init()">
+    <main class="main" x-data="{ENTITY_DATA_CALL}" x-init="init()">
       <div class="content"> … </div>
     </main>
   </div>
@@ -35,8 +41,8 @@ TOP-NAV archetype:
   `x-cloak` on init (paired with `[x-cloak]{display:none}` in base.css). WITHOUT `x-data`, the
   body's `x-cloak` is never removed and the whole page stays `display:none`. The `x-data` on
   `<main>` is a nested child scope and works normally.
-- Entity state is scoped to `<main>` via `x-data="{Entity}Data()"`; `x-init="init()"` seeds
-  `defaultItems`.
+- Entity state is scoped to `<main>` via `x-data="{ENTITY_DATA_CALL}"`; `x-init="init()"` triggers
+  the factory's own `reload()`/seed logic.
 - The `.sidebar` (≥200px wide) is the render check's "layout is styled" signal. For the TOP-NAV
   archetype the check accepts a rendered `.topnav` instead — either satisfies the layout gate.
 
@@ -53,6 +59,12 @@ TOP-NAV archetype:
 ```
 
 Use `filteredItems` (not `items`) inside `x-for` when a filter bar is present.
+
+This `items.length` form is literal and checked by `qa-static.mjs` (S1-S3) on **every** page
+regardless of type — a detail page has no list of its own, so `entityDetail` in `js/store.js`
+exposes a `get items()` alias (`this.item ? [this.item] : []`) precisely so this same markup works
+unchanged on a detail page too. Never rename this to `item ? 1 : 0` or similar on the page itself —
+use `items.length` verbatim and let the factory supply the alias.
 
 ## Lists
 
@@ -83,6 +95,38 @@ Always key `x-for` by a stable unique field (`item.id`) — never the loop index
 - Modal: open with `$store.modal.open('confirm-delete-' + item.id)`; check with
   `$store.modal.isOpen(id)`; close with `$store.modal.close()`.
 - Theme: `$store.theme.toggle()`; read `$store.theme.isDark`.
+
+## Shared entity store (js/store.js)
+
+`window.ProtoStore` is the single, shared persistence layer for every entity — it reads/writes
+`sessionStorage`, seeded from `window.PROTOTYPE_SEED` (written per-entity in `js/data.js`):
+
+| Method | Purpose |
+|--------|---------|
+| `.all(entity)` | Full pool for an entity |
+| `.byId(entity, id)` | One record, or `null` |
+| `.create(entity, record)` | Inserts a record (assigns an id if missing) |
+| `.update(entity, id, patch)` | Merges `patch` into the matching record |
+| `.remove(entity, id)` | Deletes a record |
+| `.reset(entity)` / `.resetAll()` | Clears persisted state back to `PROTOTYPE_SEED` |
+| `.currentId()` | Reads `?id=` from the current URL |
+| `.roles()` | Returns `PROTOTYPE_ROLES` |
+
+`js/store.js` also registers `Alpine.store('session')` (`.role`, `.roles`, `.setRole(role)`) and the
+three generic Alpine data factories — `entityList`, `entityDetail`, `entityForm` — that every page
+uses instead of a hand-written per-entity `Alpine.data` block:
+
+```html
+<!-- Role switcher -->
+<select x-model="$store.session.role" @change="$store.session.setRole($event.target.value)">
+  <template x-for="role in $store.session.roles" :key="role">
+    <option :value="role" x-text="role"></option>
+  </template>
+</select>
+
+<!-- Role-gated content -->
+<div x-show="$store.session.role === 'Admin'"> … </div>
+```
 
 ## Confirm-delete modal (uses the testable data hooks — see interaction-conventions.md)
 
@@ -126,14 +170,19 @@ Trigger carries `data-modal-open`; overlay + Cancel carry `data-modal-close`:
 </form>
 ```
 
-`submit($el)` (in the entity data block): if `!$el.checkValidity()`, add `was-validated` to the form
-and set `errors`; else show `$store.notification.success(...)` and `reset()`. Mark every mandatory
-field `required`. This is what the verifier's form flow drives — see `rules/interaction-conventions.md`.
+`submit($el)` (the shared `entityForm` factory in `js/store.js`): if `!$el.checkValidity()`, add
+`was-validated` to the form and set `errors`; else persist via `ProtoStore.create`/`.update`
+(sessionStorage) — so a saved record is visible on other pages during the session — show
+`$store.notification.success(...)`, and `reset()`. Mark every mandatory field `required`. This is
+what the verifier's form flow drives — see `rules/interaction-conventions.md`.
 
 ## Dev panel (always last inside `<main>`)
 
 State-switcher buttons mutate the entity block directly:
-`loading`, `items=[]`, `error='…'`, and reset via `items=[...defaultItems]`.
+`loading`, `items=[]`, `error='…'`, and reset via `items=[...defaultItems]`. A fifth button resets
+persisted data back to the seed: `@click="ProtoStore.resetAll(); reload()"`. The panel's container
+uses `role="toolbar" aria-label="Prototype controls"` (not `aria-hidden="true"` — that would hide
+focusable buttons from assistive tech, an axe `aria-hidden-focus` violation).
 
 ## Rules of thumb
 

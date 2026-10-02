@@ -82,6 +82,12 @@ Verifier flow (only on pages that contain a `<form>` with a `required` field):
 2. Fill every `required` field with a plausible value and submit → expect no visible `.form-error`
    and a success signal (toast/`.alert-success`) — missing success is a **warning**, not critical.
 
+A successful submit now persists through `window.ProtoStore` (sessionStorage) rather than mutating
+an in-memory array only — so a saved record stays saved: it is visible on another page during the
+same session, and still there if the verifier (or a human reviewer) navigates away and back. This
+doesn't change what's testable above — the same form-error / success-signal hooks are what the
+verifier drives either way.
+
 ## Dev panel (already standard)
 
 The dev-panel state buttons carry `aria-label="Preview {loading|empty|error|success} state"`. The

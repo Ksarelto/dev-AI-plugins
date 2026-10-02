@@ -88,6 +88,20 @@ test('buildModel (2.0): components and roles pass through unmodified', () => {
   assert.ok(catalogue.components.includes('CatalogueList'))
 })
 
+test('buildModel (2.0): states[] passes through unmodified (Station 4 forwards the full page object)', () => {
+  const model = buildModel(fm(fixture2x))
+  const catalogue = model.pages.find((p) => p.spec_id === 'SCR-001')
+  assert.deepEqual(catalogue.states, ['loading', 'empty', 'error', 'success'])
+})
+
+test('buildModel (2.0): a screen with multiple named components keeps every one, in spec order', () => {
+  const model = buildModel(fm(fixture2x))
+  const detail = model.pages.find((p) => p.spec_id === 'SCR-003')
+  assert.deepEqual(detail.components, [
+    'ListingDetailHeader', 'RequestThisItemForm', 'RetireListingConfirmModal',
+  ], 'screen-generator relies on this exact list + order to decide what to build (not a generic fallback)')
+})
+
 test('buildModel (2.0): every entity field is kept — no 12-field cap', () => {
   const model = buildModel(fm(fixture2x))
   const listing = model.entities.find((e) => e.name === 'Listing')
@@ -208,6 +222,13 @@ test('delta-pages.mjs: a screen removed from the spec is reported in removed[]',
     node(deltaPagesScript, ['--spec', fixture2x, '--page-map', pageMapPath, '--out', deltaOut])
     const delta = JSON.parse(readFileSync(deltaOut, 'utf8'))
     assert.deepEqual(delta.removed, [{ spec_id: 'SCR-999', id: 'ghost-page' }])
+    // assembly_pages is built from the CURRENT spec's screens only (buildModel()), so a removed
+    // page-map entry is already absent — the orchestrator/assembly-wiring must not need to filter it
+    // out separately (see agents/html-orchestrator.md Append flow step 2.5).
+    assert.ok(
+      !delta.assembly_pages.some((p) => p.id === 'ghost-page'),
+      'assembly_pages excludes a removed screen without any extra filtering step',
+    )
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }

@@ -1,7 +1,7 @@
 {
   "name": "html-generator-kit",
   "displayName": "HTML Generator Kit",
-  "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling; Alpine and Google Fonts load from a CDN). A provided theme, brand, style guide, mockup, or layout is binding; ui-ux-pro-max supplies the design direction only when none is provided. Headless-browser verified before the skill-owned review gate.",
+  "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling and scripting — Alpine.js is vendored; only Google Fonts loads from a CDN). A provided theme, brand, style guide, mockup, or layout is binding; ui-ux-pro-max supplies the design direction only when none is provided. Headless-browser verified before the skill-owned review gate.",
   "version": "0.2.0",
   "author": {
     "name": "Artsiom Murashko"

@@ -1,0 +1,7 @@
+.bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+.bento > * { min-width: 0; }
+.bento-wide { grid-column: span 2; }
+.bento-full { grid-column: 1 / -1; }
+.bento-tall { grid-row: span 2; }
+@media (max-width: 1024px) { .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); } .bento-tall { grid-row: auto; } }
+@media (max-width: 640px)  { .bento { grid-template-columns: 1fr; } .bento-wide { grid-column: auto; } }

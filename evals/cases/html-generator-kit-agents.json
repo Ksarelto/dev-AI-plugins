@@ -16,10 +16,6 @@
       "expect": "design-strategist"
     },
     {
-      "prompt": "Check the generated prototype actually applied the provided theme tokens, fonts and layout",
-      "expect": "qa-validator"
-    },
-    {
       "prompt": "Fill tokens.css base.css and components.css from the brief via design-system-author",
       "expect": "design-system-author"
     },
@@ -36,12 +32,16 @@
       "expect": "assembly-wiring"
     },
     {
-      "prompt": "Run qa-validator read-only for spec coverage HTML quality and accessibility without modifying files",
-      "expect": "qa-validator"
-    },
-    {
       "prompt": "Have modification-router decompose this change request into station re-entry tasks",
       "expect": "modification-router"
+    },
+    {
+      "prompt": "Look at the Station 6.5 screenshots and flag any page that's visibly clipped, overlapping, or has a collapsed layout even though it passed structural QA",
+      "expect": "visual-reviewer"
+    },
+    {
+      "prompt": "Compare the generated dashboard screenshot against the provided mockup image and tell me if the layout actually resembles it",
+      "expect": "visual-reviewer"
     }
   ]
 }

@@ -41,23 +41,27 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `references/design-system-conventions.md` | `design-system-author` (Station 2) | OKLCH token system, CSS conventions |
 | `references/alpine-interaction-patterns.md` | `screen-generator` (Station 4) | Alpine.js x- directives, store calls |
 | `references/interaction-conventions.md` | `screen-generator` (Station 4) | data hook naming for QA + verification |
-| `references/accessibility.md` | `screen-generator` (Station 4), `qa-validator` (Station 6) | a11y requirements and landmark structure |
-| `references/qa-checklist.md` | `qa-validator` (Station 6) | structured pass/fail scoring |
+| `references/accessibility.md` | `screen-generator` (Station 4), `scripts/qa-static.mjs` (Station 6) | a11y requirements and landmark structure |
+| `references/qa-checklist.md` | `scripts/qa-static.mjs` (Station 6) | structured pass/fail scoring |
 | `references/verification-protocol.md` | orchestrator (Station 6.5) | headless-browser verification via `scripts/verify-prototype.mjs` |
-| `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist`, `design-system-author`, `qa-validator` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
+| `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist`, `design-system-author`, `scripts/qa-static.mjs` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
 | `templates/design-brief.md` | `design-strategist` (Station 1.5) | output format for design-brief.md |
-| `templates/modern-signature-css.md` | `design-system-author` (Station 2) | contemporary CSS layer (motion, focus, bento/glass/gradient signatures) |
-| `templates/tokens-css.md` | `design-system-author` (Station 2) | OKLCH tokens starter |
-| `templates/base-css.md` | `design-system-author` (Station 2) | reset + typography foundation |
-| `templates/components-css.md` | `design-system-author` (Station 2) | component class patterns |
-| `templates/app-js.md` | `component-library-author` (Station 3) | Alpine stores: notification, modal, theme |
+| `templates/modern-signature-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/modern-always.css` + `runtime/css/signature/*.css`, what `build-design-system.mjs` appends |
+| `templates/tokens-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/tokens.css`'s slot table, what `build-design-system.mjs` fills from `design-values.json` |
+| `templates/base-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/base.css`'s `⟨FONT_IMPORT⟩` slot |
+| `templates/components-css.md` | human reference only (Phase 4) | describes `templates/runtime/css/components.css` (no slots — copied verbatim, then appended to) |
+| `templates/app-js.md` / `templates/store-js.md` | human reference only (Phase 4) | describe `templates/runtime/app.js` / `runtime/store.js`'s contract; `copy-runtime-assets.mjs` is what actually writes `js/app.js` / `js/store.js` |
 | `templates/mock-data-js.md` | `component-library-author` (Station 3) | entity mock-data pool pattern |
-| `templates/navigation-js.md` | `assembly-wiring` (Station 5) | active-page highlight + breadcrumb helpers |
+| `templates/navigation-js.md` | human reference only | describes `wire-nav.mjs`'s generated `js/navigation.js` contract |
 | `templates/page-shell.md` | `screen-generator` (Station 4) | standalone page HTML structure |
 | `templates/index-shell.md` | `assembly-wiring` (Station 5) | landing app-map structure |
+| `templates/runtime/vendor/README.md` | human reference only | vendored Alpine.js version, source, upgrade instructions |
 | `scripts/collect-design-inputs.mjs` | this skill (Step 2.6, Bash) | finds provided theme/brand/layout sources → `design-inputs.json` |
 | `scripts/spec-model.mjs` | orchestrator (Station 0, Bash) | deterministic SPEC_FILE → `spec-model.json` for a full build; no model call, no truncation |
-| `scripts/delta-pages.mjs` | this skill (Step 2, Bash) | same parser, filtered to new/modified screens for `MODE: append`; shares `scripts/lib/spec-model.mjs` with the above |
+| `scripts/delta-pages.mjs` | this skill (Step 2, Bash) | same parser, filtered to new/modified screens for `MODE: append`; shares `scripts/lib/spec-model.mjs` with the above; also computes `removed[]` — screens dropped from the spec, surfaced to the user as a Delete/Keep choice (Step 2), which becomes `REMOVE_PAGES` on the orchestrator spawn |
+| `scripts/build-design-system.mjs` | `design-system-author` (Station 2, Bash) | fills `css/*.css` + `design-system-ref.md` from `design-values.json` — mechanical substitution + hard-fail validation (Phase 4) |
+| `scripts/copy-runtime-assets.mjs` | `component-library-author` (Station 3, Bash) | byte-for-byte copy of `js/app.js`, `js/store.js`, and vendored Alpine into `js/vendor/` (Phase 4) |
+| `scripts/qa-static.mjs` | orchestrator (Station 6, Bash) | deterministic QA gate — every `qa-checklist.md` row still attributed to `qa-validator` is now a mechanical grep/file-existence check (no model call); replaced the Haiku `qa-validator` agent (Phase 7) |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
 | `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
@@ -138,8 +142,21 @@ Screen-generators receive only the delta screens, including `description`, `doma
 `entity_fields`, `entity_statuses`, and `api_contract`. Assembly receives `assembly_pages`
 (`{ id, title, domain, description }`), not raw page-map pairs. If `entities_changed` is
 non-empty, the orchestrator runs `component-library-author` in update mode before those screens.
-`delta-pages.json` also lists `removed[]` (page-map entries whose spec screen no longer exists) —
-nothing acts on it yet; it's there for a future cleanup step, not a signal to delete files today.
+
+`delta-pages.json` also lists `removed[]` — `{spec_id, id}` pairs for page-map entries whose spec
+screen no longer exists. Read it now. If `removed[]` is non-empty, `AskUserQuestion`:
+
+> "{N} screen(s) no longer exist in the spec: {list of titles/ids}. Delete their pages and remove
+> them from navigation, or keep them for now (they'll stay in the prototype, unlinked from the
+> spec)?"
+
+- **Delete** (default — removed from the source of truth should mean removed from the prototype) —
+  set `REMOVE_PAGES` to the `id` list from `removed[]`. Remember this run's confirmed-removed
+  `removed[]` entries (both `spec_id` and `id`) — Step 5 needs them to drop the matching keys from
+  `page-map.json`.
+- **Keep** — do not set `REMOVE_PAGES` (or pass an empty list) — same effect as before this phase,
+  but now an explicit choice rather than silent default behavior. Note in the final report/README
+  that N orphaned pages were intentionally kept.
 
 Ask user (single AskUserQuestion):
 > "Generating HTML prototype from `{spec-filename}`. Output → `.spec/prototype/{TIMECODE}_{SLUG}/`. Proceed?"
@@ -252,6 +269,7 @@ SLUG:       {slug}
 TITLE:      {title}
 OUTPUT_DIR: .spec/prototype/{TIMECODE}_{SLUG}/
 DELTA_PAGES: {path or omit on a full build}
+REMOVE_PAGES: {ids from removed[] the user chose to delete, or omit — append mode only}
 KIT_DIR:    {resolved plugin root}
 UIUX_DIR:   {resolved path from Step 2.5, or `none`}
 DESIGN_INPUTS: {OUTPUT_DIR}/design-inputs.json   # binding: true → provided reference is mandatory
@@ -332,11 +350,21 @@ Provided reference: {source paths from design-inputs.json | none} · deviations:
 - `design-brief.md` — the chosen direction and why
 - `ux-directives.md` — per-page-type UX rules the screens were built against
 - `design-system-ref.md` — token and component/class reference
+
+{if Step 2's removed-screen question was answered **Keep** this run: add a line here —
+`{N} screen(s) no longer in the spec were kept on request: {ids} — unlinked from the spec, still in
+the prototype.`}
+{if **Delete** was chosen: add a line here — `Removed ({N}): {ids} — no longer in the spec, deleted
+from the prototype and navigation.`}
 ```
 
 Also write `{OUTPUT_DIR}/page-map.json` mapping each page's `spec_id` (`ui-surface.screens[].id`)
 to the HTML page `id`. Skip a page that has no `spec_id` — never use the HTML id as a spec key.
-In append mode, start from the copied `page-map.json` and add the new ids. Do not drop old keys.
+In append mode, start from the copied `page-map.json` and add the new ids. Do not drop old keys —
+**except** the ones this run's Step 2 question confirmed for deletion: drop every `spec_id` from
+this run's remembered `removed[]` entries when the user chose **Delete** (the orchestrator deletes
+the HTML files and excludes them from nav; this skill is the sole owner of `page-map.json`, so it
+alone drops the keys — the orchestrator never writes this file).
 
 ```json
 {

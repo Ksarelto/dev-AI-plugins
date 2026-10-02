@@ -1,5 +1,12 @@
 # Template: components-css.md
 
+**Superseded as a generation template (Phase 4)** — `scripts/build-design-system.mjs` copies
+`templates/runtime/css/components.css` (the same content below, kept in sync) verbatim — it has no
+`⟨SLOT⟩`s — then appends `templates/runtime/css/modern-always.css` and the signature files named in
+`design-values.json`'s `signatureBlocks`. Nothing reads this `.md` file to produce output anymore.
+Source of truth is `templates/runtime/css/components.css` — this file is a description of its
+contract, not the generator.
+
 Shared pattern classes + a small utility layer for `css/components.css`. **CDN-free** — this file
 replaces Tailwind entirely. Every class the page/index templates reference is defined here.
 

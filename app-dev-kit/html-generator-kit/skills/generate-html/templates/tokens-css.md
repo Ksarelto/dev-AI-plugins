@@ -1,5 +1,13 @@
 # Template: tokens-css.md
 
+**Superseded as a generation template (Phase 4)** — `scripts/build-design-system.mjs` fills
+`templates/runtime/css/tokens.css` (the same content below, kept in sync) from
+`design-values.json`, and nothing reads this `.md` file to produce output anymore. This file stays
+as the human-readable slot table for anyone deciding `design-values.json`'s `palette`/`radius`/
+`shadowAlpha`/`fonts`/`density` fields, or reading a generated prototype's `css/tokens.css`. Source
+of truth is `templates/runtime/css/tokens.css` — this file is a description of its contract, not
+the generator.
+
 Design tokens for `css/tokens.css`. **CDN-free** — no Tailwind runtime. Colours are OKLCH
 (shadcn-style). Consumers reference tokens as `var(--token)` directly (NOT `hsl(var(--token))`).
 

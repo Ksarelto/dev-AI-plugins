@@ -2,8 +2,18 @@
 
 The visual contract. `design-system-author` owns the CSS files; every other agent consumes the
 compact `design-system-ref.md` and uses ONLY the class vocabulary below. **CDN-free** — there is no
-Tailwind runtime, so Tailwind utility classes (`p-6`, `w-64`, `flex`, `text-sm`, `bg-card`, …) must
-NOT appear in output. Use the classes defined in `css/components.css`.
+Tailwind runtime (so Tailwind utility classes like `p-6`, `w-64`, `flex`, `text-sm`, `bg-card`, …
+must NOT appear in output) and Alpine.js itself is vendored under `js/vendor/`, not loaded from a
+CDN. Use the classes defined in `css/components.css`.
+
+**How the CSS gets written (Phase 4)**: `design-system-author` no longer retypes
+`templates/tokens-css.md`/`base-css.md`/`components-css.md`/`modern-signature-css.md` by hand. It
+decides the brief's concrete values (palette, fonts, density, motion, which signature blocks) and
+writes them to `design-values.json`; `scripts/build-design-system.mjs` fills the real CSS templates
+under `templates/runtime/css/` from that file, appends the chosen signature blocks, and validates
+mechanically (no leftover `⟨SLOT⟩`, every locked token applied, ≤3 valid signature blocks, required
+motion tokens present). The `.md` files under `templates/` document the slot tables for anyone
+reading them; they are not what gets filled anymore.
 
 ---
 

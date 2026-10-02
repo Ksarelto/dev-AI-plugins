@@ -1,0 +1,11 @@
+.card, .modal, .stat-card {
+  border: none;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 85%, transparent),
+              inset 0 1px 0 color-mix(in oklab, white 55%, transparent),
+              var(--shadow-md);
+}
+.dark .card, .dark .modal, .dark .stat-card {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--border) 90%, transparent),
+              inset 0 1px 0 color-mix(in oklab, white 8%, transparent),
+              var(--shadow-md);
+}

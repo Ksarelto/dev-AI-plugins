@@ -1,7 +1,13 @@
 # Template: app-js.md
 
-Alpine global stores template for `js/app.js`.
-This file is generic — no entity-specific placeholders. Copy as-is.
+**Superseded as a generation template** — `scripts/copy-runtime-assets.mjs` copies
+`templates/runtime/app.js` to `{OUTPUT_DIR}/js/app.js` byte-for-byte now, and nothing reads this
+`.md` file to produce output anymore. This file stays as a human-readable description of the
+generated contract (the three global Alpine stores: `notification`, `modal`, `theme`) for anyone
+reading a generated prototype's `js/app.js`. Source of truth is `templates/runtime/app.js` — this
+file is a description of its contract, not the generator.
+
+This file is generic — no entity-specific placeholders, no `⟨SLOT⟩`s, nothing for an agent to fill.
 
 ---
 

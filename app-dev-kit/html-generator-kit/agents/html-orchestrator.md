@@ -50,6 +50,7 @@ Mode extras:
 | MODE | Extra fields |
 |------|----------------|
 | `revise` | `CHANGE_REQUEST` (free-text user change), `PAGES` (current `pages[]` list) |
+| `append` | `REMOVE_PAGES` (optional — HTML ids the user chose to delete from `delta-pages.json`'s `removed[]`; omitted or empty means nothing to remove this run) |
 
 References resolve as `{KIT_DIR}/skills/generate-html/references/…` and
 `{KIT_DIR}/skills/generate-html/scripts/…`.
@@ -73,15 +74,19 @@ There is no `finalize` mode. The skill writes README after approval (Station 8).
   "errors": [],
   "options": [],
   "pages": [],
+  "removed_pages": [],
   "output_dir": "{OUTPUT_DIR}",
   "spec_file": "{SPEC_FILE}"
 }
 ```
 
+`removed_pages` — HTML ids actually deleted this run (append mode, `REMOVE_PAGES` non-empty only).
+Empty/omitted on a build, revise, or an append run where the user chose Keep.
+
 | type | When | Skill does |
 |------|------|------------|
 | `REVIEW_PACKET` | Stations 0–6.5 finished, render actually ran (`report.browser: true`) and passed | Present `review_packet`; Approve / Request changes / Abort |
-| `ESCALATION_PACKET` | Empty `pages[]`, a hard gate fail, render SKIPPED (no browser available), or QA/render still failing after 1 retry | `AskUserQuestion` with `errors[]` and `options[]`. When `review_packet` is also populated (the render-SKIPPED case), the skill may fold it straight into a `REVIEW_PACKET` on the matching option — see Station 6.5 |
+| `ESCALATION_PACKET` | Empty `pages[]`, a hard gate fail, render SKIPPED (no browser available), or QA/render still failing after its 2-cycle, no-progress-early-stop cap | `AskUserQuestion` with `errors[]` and `options[]`. When `review_packet` is also populated (the render-SKIPPED case), the skill may fold it straight into a `REVIEW_PACKET` on the matching option — see Station 6.5 |
 
 Do **not** continue past a packet. Do **not** ask the user yourself.
 
@@ -103,7 +108,7 @@ In a single message, do both of these simultaneously:
    It reads `SPEC_FILE` itself; never paste spec text into this station. Exit 2 means no pages were
    extracted — the script's stderr already names the cause.
 
-Create task list via TaskCreate: stations 1, 1.5, 2, 3, 4, 5, 6, 6.5.
+Create task list via TaskCreate: stations 1, 1.5, 2, 3, 4, 4.5, 5, 6, 6.5, 6.6.
 
 ### Station 1 — Receive spec model
 
@@ -158,16 +163,22 @@ Delegate to `design-system-author` with ONLY:
 - `OUTPUT_DIR`
 - `UIUX_DIR`
 
-Wait for completion. Verify these 4 files exist:
+Wait for completion. The 4-file existence + non-empty + motion-token + locked-token +
+signature-block checks that this gate used to require the orchestrator to independently verify are
+now `build-design-system.mjs`'s own hard-failure checks (Phase 4) — the script exits non-zero and
+names exactly what's wrong (a missing design value, an unmatched locked token, an invalid or excess
+signature block) instead of writing partial output for the orchestrator to grep. Trust the agent's
+relayed report (`status: "design-system-contract-ready"`) as confirmation the script exited 0; still
+sanity-check that the 4 files exist on disk before Station 3:
 - `{OUTPUT_DIR}/css/tokens.css`
 - `{OUTPUT_DIR}/css/base.css`
 - `{OUTPUT_DIR}/css/components.css`
 - `{OUTPUT_DIR}/design-system-ref.md`
 
-**GATE**: If any file is missing → return `ESCALATION_PACKET` and STOP. The design-system-contract
-gate is hard. No screen generation begins before this gate passes. A non-empty `locked_missing`
-in the agent's report fails this gate the same way: re-run `design-system-author` once naming the
-missing tokens, then `ESCALATION_PACKET`.
+**GATE**: If any file is missing, or the agent reports the script failed → re-run
+`design-system-author` once naming the reported failure reason, then `ESCALATION_PACKET` if it
+fails again. The design-system-contract gate is hard — no screen generation begins before it
+passes.
 
 Read `{OUTPUT_DIR}/design-system-ref.md` (compact ~95 lines). Store as `DESIGN_REF`.
 Note the agent's `signature_emitted` / `signature_skipped` report — if it skipped a block because the
@@ -180,12 +191,14 @@ Mark task 2 complete.
 Delegate to `component-library-author` with ONLY:
 - `DESIGN_REF` content (the compact 60-line reference — not the full CSS files)
 - Per-entity data: `{ name, fields[], statuses[], api_contract }` for each entity
+- `roles` — from `spec-model.json`'s top-level `roles[]`
 - `KIT_DIR`
 - `OUTPUT_DIR`
 
-Wait for completion. Verify these 3 files exist:
+Wait for completion. Verify these 4 files exist:
 - `{OUTPUT_DIR}/js/app.js`
 - `{OUTPUT_DIR}/js/data.js`
+- `{OUTPUT_DIR}/js/store.js`
 - `{OUTPUT_DIR}/component-manifest.md`
 
 **GATE**: If any file missing or `component-manifest.md` is empty → return `ESCALATION_PACKET` and STOP.
@@ -200,10 +213,12 @@ All spawns in one message = all run in parallel.
 
 Per agent, pass ONLY the slice it needs:
 ```
-page:             { id, title, description, type, domain, entity }    ← this page only (type may be absent)
-entity_fields:    fields[] for this page's entity only
-entity_statuses:  statuses[] for this page's entity only
-api_contract:     { field: type } for this page's entity only
+page:             the FULL page object for this page from spec-model.json, as-is — it already
+                  carries everything screen-generator needs:
+                  { id, spec_id, title, description, type, domain, entity, route, roles,
+                    components, states, entity_fields, entity_statuses, api_contract,
+                    transitions, acceptance_criteria, interactions }
+                  (`type` may be `""` for a 1.x spec with no page-type signal)
 design_ref:       DESIGN_REF content  (compact, ~95 lines)
 ux_directives:    UX_DIRECTIVES — the "All pages" + "Do not" sections plus ONLY this page's type section
 component_manifest: COMP_MANIFEST content  (compact, ~40 lines)
@@ -212,9 +227,59 @@ KIT_DIR:          {KIT_DIR}
 output_path:      {OUTPUT_DIR}/pages/{page.id}.html
 ```
 
+Do not separately assemble `entity_fields` / `entity_statuses` / `api_contract` slices — they are
+already nested inside `page`; forward the object from `spec-model.json` unmodified. This is also
+what makes the generated markup traceable: `screen-generator` stamps `page.spec_id` and
+`page.components[]`/`page.interactions[]` names onto the HTML as `data-*` attributes (see
+`agents/screen-generator.md`), so a reviewer (or a future mechanical checker) can match output back
+to the spec. Passing anything less than the full object silently breaks that traceability and
+starves screen-generator of the components/interactions/transitions/acceptance-criteria it needs to
+build what the spec actually asked for instead of falling back to a generic page-type template.
+
 Wait for ALL agents to complete. Collect results.
 If any agent failed: re-spawn only the failed pages (not all).
 Mark task 4 complete.
+
+### Station 4.5 — Incremental per-page verify-and-fix (PARALLEL)
+
+Implements `verification-protocol.md`'s "run this check after ANY station that rewrites files ...
+not only at the end" rule for Station 4 — the one station where a broken page would otherwise waste
+Station 5's assembly/nav-wiring work and a full Station 6.5 browser pass on every OTHER page before
+anyone notices. This is a cheap, early, parallel catch — **not** a new escalation gate (see step 4).
+
+1. In a SINGLE message, run one Bash call per page generated this run (all in that one message —
+   same "every X spawned/run in a single message" convention Station 4 itself follows):
+   ```bash
+   node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs --dir "{OUTPUT_DIR}" --port 4599 --page {page.id}
+   ```
+   No `--model`/`--brief` yet — spec-conformance and locked-token checks need the full assembled
+   prototype (or at least an existing design-brief, which is fine either way); this sub-step is
+   checking render/functionality basics (static gate, render/styled-ness, console/network errors,
+   modal/form/dev-panel flows on that page, mobile overflow), not full spec conformance. Read each
+   page's `{OUTPUT_DIR}/_verify/report.json` (overwritten per invocation — read it immediately after
+   that page's run, before the next page's run overwrites it, or capture Bash stdout per call).
+2. For any page with a critical finding: re-spawn `screen-generator` with `MODE: edit`,
+   `CHANGE_REQUEST` set to the literal critical-issue string(s) from that page's `report.json.critical`
+   (verbatim — not a paraphrase like "fix the broken page"), plus the same full page object slice
+   Station 4 already uses for that page (see Station 4's input table above — `page`, `design_ref`,
+   `ux_directives`, `component_manifest`, `rules_dir`, `KIT_DIR`, `output_path`). `output_path` points
+   at the EXISTING file, same as any other `MODE: edit` call (see `agents/screen-generator.md` §
+   Edit mode). Then re-run `verify-prototype.mjs --dir "{OUTPUT_DIR}" --page {page.id}` on just that
+   page.
+3. **Cap at 2 cycles per page, with no-progress early stop** — before each retry, record that page's
+   `critical[]` set; after the retry's re-run, compare. If the new set is identical to, or a superset
+   of (nothing fixed), the previous one, stop immediately (do not spend the second cycle). See
+   `pipeline-flow.md`'s Loop Guards § No-progress rule — this is the same rule applied here, not a
+   second mechanism.
+4. **Do NOT escalate here.** If a page still has a critical finding after its cycles are exhausted
+   (by the cap or by no-progress), let it proceed to Station 5 as-is. This is deliberate: Station 4.5
+   is an early, cheap catch, not an independent gate with its own `ESCALATION_PACKET` branch — that
+   would duplicate Station 6.5's existing escalation path and confuse the packet contract (two
+   places a human could get asked about the same page). The SAME issue, if still present, resurfaces
+   at Station 6.5's existing gate and goes through that one, well-defined escalation path. A future
+   reader must not "fix" this into a second escalation branch.
+
+Mark task 4.5 complete.
 
 ### Station 5 — Assembly & Wiring
 
@@ -227,23 +292,48 @@ Delegate to `assembly-wiring` with ONLY:
 - `OUTPUT_DIR`
 
 Wait for: `{OUTPUT_DIR}/index.html` and `{OUTPUT_DIR}/js/navigation.js` to exist.
+This station also wires navigation into every page via `wire-nav.mjs` — see
+`agents/assembly-wiring.md`. A reorder or an appended page reaches every page in one pass, including
+ones not regenerated this run. `assembly-wiring` no longer auto-includes an untracked `pages/*.html`
+file into nav (that defensive behavior could silently undo a `REMOVE_PAGES` deletion or any other
+legitimate exclusion) — it reports one as a warning instead. If its report includes
+`untracked_files`, fold that into the review packet's warnings so the human sees it.
 Mark task 5 complete.
 
 ### Station 6 — QA Validation (GATE: qa-pass)
 
-Delegate to `qa-validator` with ONLY:
-- Page IDs list (strings only — not full page objects)
-- `OUTPUT_DIR`
-- `UIUX_DIR`
+Static QA is a deterministic script, not an agent — every row it checks is a mechanical
+grep/file-existence check, not a judgment call. Run it via Bash:
 
-Wait for result `{ passed, critical_issues[], warnings[] }`.
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/qa-static.mjs \
+  --dir "{OUTPUT_DIR}" --model "{OUTPUT_DIR}/spec-model.json" --uiux-dir "{UIUX_DIR}"
+```
 
-If NOT passed:
-1. Log critical issues.
-2. For each critical issue, spawn the appropriate corrective agent (screen-generator for missing/broken pages or a provided layout not followed; assembly-wiring for index/nav issues; design-system-author for a provided token/font not applied or a missing provided-reference block).
-3. Re-run qa-validator once (max 1 retry).
-4. If still failing: return `ESCALATION_PACKET` with `errors: critical_issues`,
-   `options: ["proceed-to-review", "abort"]`, and STOP.
+`--model` always exists (Station 0 writes it). Read `{OUTPUT_DIR}/_qa/report.json` for the
+structured result `{ critical, warnings, passed }`.
+
+If NOT passed (exit 1 / `passed: false`):
+1. Log critical issues (record this set — needed for the no-progress check below).
+2. For each critical issue, spawn the appropriate corrective agent, passing the literal
+   critical-issue string(s) for that specific page/file as `CHANGE_REQUEST`:
+   - A page-scoped issue (missing/broken page content, a provided layout not followed on one page) →
+     `screen-generator` with `MODE: edit`, `CHANGE_REQUEST` = the literal critical string(s) for that
+     page, `output_path` pointing at the existing file, plus the same page object slice / `design_ref`
+     Station 4 already documents passing for that page. Use `MODE: edit` — never a full regeneration
+     — for a single-page fix.
+   - index/nav issues → `assembly-wiring`, same inputs Station 5 documents, naming the literal
+     critical string(s).
+   - A provided token/font not applied, or any issue that is actually a design-system-wide problem
+     (not one page) → `design-system-author`. This is the one case that is NOT `screen-generator`'s
+     `MODE: edit` territory — a design-system fix must cascade to every page via the existing
+     cascade mechanism `agents/modification-router.md` documents, not a single-page edit.
+3. Re-run `qa-static.mjs`. **Cap: 2 cycles, no-progress early stop** — before this retry, the
+   critical set was already recorded in step 1; after the re-run, compare per
+   `pipeline-flow.md`'s Loop Guards § No-progress rule. No progress → stop and escalate now rather
+   than spending the second cycle.
+4. If still failing (cap reached, or no-progress triggered early): return `ESCALATION_PACKET` with
+   `errors: critical_issues`, `options: ["proceed-to-review", "abort"]`, and STOP.
 
 Warnings are included in the review packet but do not block.
 Mark task 6 complete.
@@ -254,8 +344,14 @@ Static QA cannot see whether a page actually renders. Run the render check per
 `{KIT_DIR}/skills/generate-html/references/verification-protocol.md`:
 
 ```bash
-node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599
+node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599 \
+  --model "{OUTPUT_DIR}/spec-model.json" --brief "{OUTPUT_DIR}/design-brief.md"
 ```
+
+`--model` always exists (Station 0 writes it). `--brief` exists only once Station 1.5 has run —
+guard for its absence (append mode before any design pass, or an early revise re-entry) the same way
+the script itself does: pass it when the file exists, omit the flag otherwise. Both flags are
+optional to the script — spec-conformance / locked-token checks simply skip silently without them.
 
 Do **not** `npm i` Playwright, axe-core, or `npx playwright install` a browser binary — those are
 side effects a subagent must not take.
@@ -278,19 +374,80 @@ then STOP. The skill relabels `review_packet` `⚠ UNVERIFIED` and proceeds to r
 something this orchestrator must never do).
 
 **GATE (render-pass)** on exit 1 / `passed: false`:
-- For each `critical[]` entry, route to the owning agent (page render/style →
-  screen-generator; tokens/base/components → design-system-author; index/nav → assembly-wiring),
-  re-run that station, then re-run this verification (max 1 auto-fix cycle). If still failing,
-  return `ESCALATION_PACKET` with the report path + `options: ["proceed-to-review", "abort"]`.
+- Record the current `critical[]` set (needed for the no-progress check below).
+- For each `critical[]` entry, route to the owning agent, passing the literal critical-issue
+  string(s) for the specific page/file as `CHANGE_REQUEST`:
+  - page render/style/functionality/spec-conformance → `screen-generator` with `MODE: edit`,
+    `CHANGE_REQUEST` = the literal critical string(s) naming that page, `output_path` at the
+    existing file, plus the same page object slice / `design_ref` Station 4 documents. Single-page
+    fix → `MODE: edit`, never a full regeneration.
+  - tokens/base/components/locked-token mismatch that is genuinely design-system-wide (not fixable
+    by editing one page) → `design-system-author`, which cascades to every page via the existing
+    `agents/modification-router.md` mechanism — not `screen-generator`'s `MODE: edit` territory.
+  - index/nav → `assembly-wiring`, same inputs Station 5 documents, naming the literal critical
+    string(s).
+  Re-run that station, then re-run this verification. **Cap: 2 cycles, no-progress early stop** —
+  compare the new `critical[]` set to the one recorded above per `pipeline-flow.md`'s Loop Guards §
+  No-progress rule; no progress → stop and escalate now instead of spending the second cycle. If
+  still failing after the cap (or no-progress), return `ESCALATION_PACKET` with the report path +
+  `options: ["proceed-to-review", "abort"]`.
+- A `spec-conformance` critical (missing `data-component`/`data-interaction`/`data-spec-screen`, or
+  an interaction landing on the wrong page) routes to `screen-generator` for that one page, same as
+  any other render-pass critical — same mechanism, not a new one.
 - An axe contrast failure on a colour locked by the brief's `## Binding reference` is **not**
   auto-fixed by changing that colour. Fix the pairing (foreground/text token) if possible;
   otherwise list it under the review packet's reference deviations for the human to decide.
 
 Mark verification complete.
 
+### Station 6.6 — Visual Review
+
+Static QA and the render check can confirm every individual DOM node, class, and computed style is
+correct and still miss a composition that reads as visibly broken, or a page that technically
+implements a provided mockup's structure without actually resembling it. This is a judgment call a
+pixel-level script can't make reliably — delegate it to `visual-reviewer`.
+
+Only run this station when Station 6.5 actually produced screenshots (`report.browser: true`). If
+6.5 was SKIPPED (no browser available) there is nothing to look at — skip Station 6.6 and proceed
+straight to the packet with no `Visual review` findings; do not escalate separately for this.
+
+Delegate to `visual-reviewer` with ONLY:
+- `screenshots_dir`: `{OUTPUT_DIR}/_verify/screenshots/`
+- `design_brief`: `DESIGN_BRIEF` content (already in memory from Station 1.5; re-read from disk if
+  this is a revise/append re-entry that skipped 1.5)
+- `mockup_paths`: the `path` of every entry in `DESIGN_INPUTS`'s `sources[]` where `kind == "image"`
+  (read `DESIGN_INPUTS` if not already in memory; often empty — most runs have no provided mockup)
+- `pages`: the current `pages[]` list as `{id, title}`
+- `OUTPUT_DIR`
+
+Wait for completion. Read the `VISUAL_REVIEW:` block.
+
+**GATE (visual-review)** — same cap-2-cycles-with-no-progress-early-stop shape as Station 6 and 6.5,
+not a new loop:
+- `passed: true` (no `critical` findings) → continue; include any `WARNINGS` in the review packet,
+  non-blocking.
+- `passed: false` (≥1 `critical` finding) → record the current `CRITICAL_ISSUES` set, then route each
+  critical to the owning agent, exactly like a Station 6.5 critical, passing the literal
+  critical-issue string(s) as `CHANGE_REQUEST`:
+  - a finding scoped to one page → `screen-generator` with `MODE: edit`, `CHANGE_REQUEST` = the
+    literal finding text, `output_path` at the existing file, plus that page's object slice /
+    `design_ref`. Single-page fix → `MODE: edit`, never a full regeneration.
+  - a finding that names every/most pages (e.g. "every page's dark mode is illegible") →
+    `design-system-author`, which cascades via the existing `agents/modification-router.md`
+    mechanism — this is genuinely a cascade, not a single-page edit, so `MODE: edit` does not apply.
+  Re-run the corrected station, then re-run Station 6.5 (render/functionality still needs to pass
+  against the new output) and Station 6.6 once more. **Cap: 2 cycles, no-progress early stop** —
+  compare the new `CRITICAL_ISSUES` set to the one recorded above per `pipeline-flow.md`'s Loop
+  Guards § No-progress rule; no progress → stop and escalate now instead of spending the second
+  cycle. If still failing after the cap (or no-progress): return `ESCALATION_PACKET` with
+  `errors: CRITICAL_ISSUES`, `options: ["proceed-to-review", "abort"]`, and STOP.
+
+Mark task 6.6 complete.
+
 ### End of build/revise pass — RETURN the packet (do NOT run human review here)
 
-After Station 6.5, STOP and return a `REVIEW_PACKET` (format below) as your final message.
+After Station 6.6 (or after Station 6.5 if 6.6 was skipped because render was SKIPPED), STOP and
+return a `REVIEW_PACKET` (format below) as your final message.
 Do **not** call `AskUserQuestion` and do **not** write README — the `generate-html` skill owns
 approval and Station 8.
 
@@ -302,7 +459,15 @@ The skill already copied the previous prototype into `OUTPUT_DIR` and wrote `DEL
 Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerates changed screens.
 
 1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md`.
-2. Read `DELTA_PAGES`. If `screens` is empty, skip Station 4 and continue at Station 5.
+2. Read `DELTA_PAGES`. If `screens` is empty, skip Station 4 (and 4.5) and continue at Station 5.
+2.5. If `REMOVE_PAGES` is non-empty: delete `{OUTPUT_DIR}/pages/{id}.html` for each id (Bash
+   `rm -f`) — **before** Station 5 runs, so `assembly-wiring`'s page scan never sees a deleted file.
+   `DELTA_PAGES.assembly_pages` is built by `delta-pages.mjs` from the CURRENT spec's screens only
+   (shared `lib/spec-model.mjs` `buildModel()`), so a removed screen's id is already absent from it
+   — no separate filtering of `assembly_pages` is needed here. Record the deleted ids for the
+   review packet's `removed_pages` and the `Removed (…)` line (see Review packet format below).
+   Never write `{OUTPUT_DIR}/page-map.json` — the `generate-html` skill is its sole owner and drops
+   the corresponding `spec_id` keys at Station 8 (finalize).
 3. Confirm `{OUTPUT_DIR}/design-brief.md`, `css/tokens.css`, and `design-system-ref.md` exist.
    If one is missing, return `ESCALATION_PACKET` and STOP. Do not re-run `design-strategist`
    or `design-system-author` when those files are present.
@@ -310,12 +475,24 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
 5. If `entities_changed` is non-empty, spawn `component-library-author` with `MODE: update`
    and `ENTITIES_CHANGED` before Station 4. It patches only those entities in `js/data.js`.
 6. Station 4: spawn one `screen-generator` per screen in `DELTA_PAGES` only, in one message.
-   Pass `page` (`id`, `title`, `description`, `domain`, `entity`; `type` may be absent),
-   `entity_fields`, `entity_statuses`, `api_contract`, plus the compact design ref and manifest.
-   Do not pass other pages.
+   Pass the FULL page object exactly as `delta-pages.mjs`'s `screens[]` entries carry it — the same
+   shape as a full build's `page` (`id, spec_id, title, description, type, domain, entity, route,
+   roles, components, states, entity_fields, entity_statuses, api_contract, transitions,
+   acceptance_criteria, interactions`; `type` may be absent for a 1.x spec), since `delta-pages.mjs`
+   shares `lib/spec-model.mjs`'s `pageFields()` with the full-build script and has carried this same
+   full shape since Phase 2. Plus the compact design ref and manifest. Do not pass other pages.
+6.5. Station 4.5: run the SAME incremental per-page verify-and-fix described under the full build's
+   Station 4.5 above, scoped to exactly the `DELTA_PAGES` screens — one
+   `verify-prototype.mjs --dir "{OUTPUT_DIR}" --port 4599 --page {id}` Bash call per delta screen, all
+   in one message; fix-and-reverify via `screen-generator MODE: edit` on a critical finding; same
+   2-cycle no-progress-early-stop cap; same "do not escalate here" rule (let it proceed to Station 5,
+   Station 6.5 catches it for real if it's still broken).
 7. Station 5: pass `assembly-wiring` `assembly_pages` from `DELTA_PAGES`
    (`{ id, title, domain, description }` for every spec screen). Do not pass raw page-map pairs.
-8. Station 6 and Station 6.5, then return `REVIEW_PACKET`.
+   `assembly-wiring` re-runs `wire-nav.mjs` against the FULL combined page list (old + new) — this
+   is what keeps old pages' nav in sync with new ones; previously this was broken (old pages never
+   linked to new ones in append mode).
+8. Station 6, Station 6.5, and Station 6.6, then return `REVIEW_PACKET`.
 
 ## Revise flow (MODE == revise)
 
@@ -338,8 +515,21 @@ Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FI
      Pass `OVERRIDE: {CHANGE_REQUEST}` only when the request explicitly changes a provided value
      ("use green instead of our brand blue"); the strategist unlocks only the attributes it names.
    - **Re-run Station 6.5 only** (skill-requested after Playwright install): skip routing; run 6.5.
-3. Re-run Station 6 (QA) then Station 6.5 (render/functionality verification), unless the change
-   was 6.5-only.
+   - **Single-page edits route to `MODE: edit`**: a task whose `station` is 4 and whose `pages:`
+     names exactly one existing page (`modification-router`'s "Single page change" / "Copy on a
+     specific page" / "Add/change interaction on a page" / "Fix missing/broken state on a page"
+     rows) spawns `screen-generator` with `MODE: edit`, `CHANGE_REQUEST: {task.context}` (the
+     router's `context:` text verbatim), and `output_path` pointing at the EXISTING file. The agent
+     edits the file in place with targeted diffs instead of regenerating it from the page object —
+     see `agents/screen-generator.md` § Edit mode. A task whose `pages:` is a brand-new page id (the
+     "Add a new page" row), or any cascading task re-entering Station 1.5/2/3 (which must re-touch
+     multiple/all pages), stays `MODE: create` (the default, full regeneration from the page
+     object) — `screen-generator`'s own create-mode step folds forward any prior per-page edits
+     recorded under `{OUTPUT_DIR}/revisions/{page.id}.md` so a cascade never silently erases a
+     page-level fix applied in an earlier edit cycle.
+3. Re-run Station 6 (QA), Station 6.5 (render/functionality verification), then Station 6.6
+   (visual review), unless the change was 6.5-only (skip routing and re-run 6.5, then still re-run
+   6.6 against the refreshed screenshots).
 4. STOP and return a delta `REVIEW_PACKET` (or `ESCALATION_PACKET` if a gate still fails).
 
 ---
@@ -367,6 +557,8 @@ Design direction: {archetype} · primary {hue} · {font pairing} · {layout arch
 Pages generated ({count}):
 {list: • {id} → {title}}
 
+{Removed ({count}): {ids} — present only in append mode when REMOVE_PAGES was non-empty this run}
+
 QA: {PASSED | N warnings}
 {warnings list if any}
 
@@ -377,11 +569,16 @@ Accessibility (axe): {0 serious | N serious/critical violations}
 Screenshots: {OUTPUT_DIR}/_verify/screenshots/  ({count} PNGs — incl. mobile + dark)
 {render/functionality critical issues, if any}
 
+Visual review: {passed | N warning(s) | SKIPPED — no screenshots (render check SKIPPED)}
+{warnings list if any}
+{critical findings, if any — only present if escalating}
+
 The generate-html skill will ask you to Approve, Request changes, or Abort.
 ```
 
 Also set `pages` to the current `pages[]` list so the skill can write README and re-spawn revise
-without re-interpreting the spec.
+without re-interpreting the spec. Set `removed_pages` to the ids deleted this run (step 2.5 of the
+Append flow), or omit/empty otherwise.
 
 Return this packet as the final message of a `build`/`revise` pass.
 

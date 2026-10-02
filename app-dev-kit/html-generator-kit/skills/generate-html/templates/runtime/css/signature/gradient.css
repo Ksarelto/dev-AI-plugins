@@ -1,0 +1,12 @@
+.text-gradient {
+  background: linear-gradient(100deg, var(--primary), oklch(from var(--primary) l c calc(h + 45)));
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent; -webkit-text-fill-color: transparent;
+}
+@supports not (background-clip: text) { .text-gradient { color: var(--primary); -webkit-text-fill-color: currentColor; } }
+.surface-mesh {
+  background:
+    radial-gradient(60% 80% at 12% 0%, color-mix(in oklab, var(--primary) 16%, transparent), transparent 70%),
+    radial-gradient(50% 70% at 92% 8%, color-mix(in oklab, var(--accent-foreground) 14%, transparent), transparent 72%),
+    var(--card);
+}

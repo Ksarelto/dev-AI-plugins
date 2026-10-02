@@ -1,5 +1,12 @@
 # Template: base-css.md
 
+**Superseded as a generation template (Phase 4)** — `scripts/build-design-system.mjs` fills
+`templates/runtime/css/base.css` (the same content below, kept in sync) from
+`design-values.json`'s `fonts.import`, and nothing reads this `.md` file to produce output anymore.
+This file stays as the human-readable description of that slot, or for reading a generated
+prototype's `css/base.css`. Source of truth is `templates/runtime/css/base.css` — this file is a
+description of its contract, not the generator.
+
 Reset + typography for `css/base.css`. **CDN-free** for the design system (Google Fonts `<link>`
 is allowed — it is not the Tailwind runtime the QA gate forbids).
 

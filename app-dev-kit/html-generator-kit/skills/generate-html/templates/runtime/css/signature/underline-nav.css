@@ -1,0 +1,6 @@
+.tab-row { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--border); }
+.tab { padding: 0.6rem 0.1rem; position: relative; color: var(--muted-foreground); font-weight: 500; background: none; border: none; cursor: pointer; }
+.tab::after { content: ''; position: absolute; inset-inline: 0; bottom: -1px; height: 2px; background: var(--primary); transform: scaleX(0); transform-origin: left; transition: transform var(--dur-base) var(--ease-out); }
+.tab:hover { color: var(--foreground); }
+.tab-active { color: var(--foreground); }
+.tab-active::after { transform: scaleX(1); }
