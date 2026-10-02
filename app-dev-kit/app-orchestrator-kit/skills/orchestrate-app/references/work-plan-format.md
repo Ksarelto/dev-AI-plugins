@@ -7,9 +7,13 @@
 
 Hybrid YAML front matter + append-only Markdown `## Log`.
 
+`work-plan-version` is `"1.1"` when the plan was derived from a spec 2.0 delivery plan (tasks
+carry `slice-ref` and `depends-on`, one `B-*` per slice) and `"1.0"` for a 1.x spec (one `B-*`
+per entity). See `track-decomposition.md`.
+
 ```yaml
 ---
-work-plan-version: "1.0"
+work-plan-version: "1.1"
 spec-ref: ".spec/spec/spec-{tc}_{slug}/spec.md"
 prototype-ref: ".spec/prototype/{proto-tc}_{slug}/"
 generated: "YYYY-MM-DDTHH:mm:ssZ"
@@ -41,7 +45,9 @@ tracks:
 tasks:
   - id: B-001
     track: backend
-    title: Profile
+    title: Access and catalogue  # 1.1: slice title · 1.0: entity name
+    slice-ref: SL-001            # 1.1 only
+    depends-on: []               # 1.1 only — task ids that must be done first
     entity-refs: [Profile]
     api-refs: [API-001]
     tool-refs: []

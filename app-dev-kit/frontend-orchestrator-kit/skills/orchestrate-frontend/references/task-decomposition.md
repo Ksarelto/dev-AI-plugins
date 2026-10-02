@@ -13,7 +13,37 @@ to `/backend-dev` and `/agent-dev`.
 
 ---
 
-## Grouping rule
+## Spec 2.0 — the delivery plan decides (preferred)
+
+When the spec has `delivery-plan.slices` (spec-dev-kit schema 2.0), nothing is guessed:
+
+```
+for each slice SL in delivery-plan.slices, in order:
+  if "frontend" not in SL.tracks: skip            # backend-/agent-only slice
+  feature = { id: F-NNN, title: SL.title, slice-ref: SL.id,
+              depends-on: [feature ids of SL.depends-on that have a frontend feature],
+              story-refs: SL.story-refs, priority: highest story priority }
+  for each screen id S in SL.screen-refs:
+    stories  = S.story-refs ∩ SL.story-refs  (or SL.story-refs when the screen lists none)
+    task     = { id: T-NNN, slice-ref: SL.id, screen-ref: S.id, story-refs: stories,
+                 ac-refs: ACs of those stories plus SL.done-when,
+                 entity-refs: unique(S.primary-entity, SL.entity-refs) that exist on entities[],
+                 api-refs: S.api-refs }
+```
+
+- **Order** is the slice order. `depends-on` only points backwards, so building features top to
+  bottom never starts a feature before its dependency. The script never re-sorts by priority.
+- A screen listed in two slices becomes **two tasks** (one per feature): the second slice extends a
+  page the first one built (e.g. adds a request form to a detail page).
+- **Stable ids**: tasks match prior rows by `slice-ref + screen-ref`; features by `slice-ref`. On a
+  1.x → 2.0 upgrade, prior rows without `slice-ref` are matched by `screen-ref`, so shipped
+  screens keep `done`. `changes.slices.modified` reopens a `done` feature.
+- feature-dev reads `{spec dir}/slices/{slice-ref}.yaml` (the build brief spec-dev-kit writes at
+  publish) through `SLICE_REF` — goal, frontend steps, rules, notifications, done-when ACs.
+
+---
+
+## Spec 1.x — grouping rule (fallback)
 
 A **feature** is one user story that owns UI, plus every screen whose acceptance criteria belong
 to that story. A nested **task** is one screen.
@@ -36,7 +66,7 @@ for each screen S in ui-surface.screens:
                     ac.given/when/then mentions S.id, OR
                     ac.given/when/then shares a keyword (>3 chars) with S.title)
   stories       = unique(acs.map(ac => ac.story-ref))
-  entities      = entities referenced by S.components[] or by acs (best-effort name match)
+  entities      = entities whose name appears in S.components[] (substring match)
 
   task = {
     id:          "T-{NNN}"                 # sequential, stable across re-derivation (see below)
@@ -62,11 +92,11 @@ belong on the backend or agent track, not `/feature-dev`.
 
 ---
 
-## Ordering
+## Ordering (1.x)
 
 1. `priority: must` features first, then `should`, then `could`. `wont` screens are excluded.
-2. Within the same priority, declaration order is kept. Spec-dev-kit lists entities in dependency
-   order already; this script does not build a dependency graph.
+2. Within the same priority, declaration order is kept. A 1.x spec carries no dependency
+   information, so this script builds no dependency graph — that is what 2.0 slices add.
 3. Nested tasks stay in screen declaration order inside their feature.
 
 ---
@@ -96,8 +126,12 @@ Pass:
 REQUEST:        Feature F-001 (sign-in). Nested tasks in CHECKLIST_PATH. Read UPSTREAM_SPEC.
 UPSTREAM_SPEC:  {path to spec.md}
 FEATURE_ID:     F-001
+SLICE_REF:      SL-001                # 2.0 checklists only
 TASK_IDS:       T-001,T-002
 SCREEN_REFS:    SCR-001,SCR-002
+STORY_REFS:     US-001,US-002         # unions of the nested tasks' refs, as approved at Station 2a
+AC_REFS:        AC-001,AC-002,AC-003
+ENTITY_REFS:    Profile
 PROTOTYPE_REF:  {prototype dir or empty}
 CHECKLIST_PATH: {task-checklist.md}   # orchestrator write-back; feature-dev does not edit it
 SLUG_HINT:      kebab feature title

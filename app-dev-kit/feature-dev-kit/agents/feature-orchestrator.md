@@ -83,7 +83,7 @@ If any `## Dependencies` row is `awaiting-human-approval`, set `status: awaiting
 
 ### Station 2 — Build plan
 
-Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. A layer with one slice uses `slice-engineer`. Two or more slices in one layer use that layer's engineer, one slice after another, on the feature branch. Do not use a git worktree and do not merge. Set `status: building`. Rewrite the checkpoint.
+Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. If `## Request` has *Slice steps* (from the spec's delivery plan — a **delivery slice** is a spec unit of work, not an FSD slice), the plan follows them. Every *Rules the UI must surface*, *Permissions*, *Status lifecycle*, and *Notifications (copy)* row under `## API Contract / Data Model` maps to a plan step: the violation copy is shown, controls are hidden or disabled for other roles, status words come from the lifecycle values, and notice copy is used verbatim. Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. A layer with one slice uses `slice-engineer`. Two or more slices in one layer use that layer's engineer, one slice after another, on the feature branch. Do not use a git worktree and do not merge. Set `status: building`. Rewrite the checkpoint.
 
 ### Stations 3–7 — Delegation
 

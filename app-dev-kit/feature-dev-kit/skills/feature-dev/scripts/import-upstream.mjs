@@ -2,7 +2,10 @@
 // Deterministic mapper: spec-dev-kit YAML (+ optional html prototype) → feature blackboard.
 // One feature per run (one screen, or several screens nested under that feature).
 // Usage:
-//   node import-upstream.mjs --spec <spec.md> --out <feature.md> [filters] [--require-scoped] [--changes <changes.json>]
+//   node import-upstream.mjs --spec <spec.md> --out <feature.md> [--slice-ref SL-001] [filters] [--require-scoped] [--changes <changes.json>]
+// Spec 2.0: screens carry story-refs / api-refs / primary-entity. --slice-ref adds the slice goal,
+// frontend steps, rules, notifications, done-when ACs, and the slice's api-refs.
+// Spec 1.x: ACs and entities are matched to screens by keywords and component names.
 // Exit 0 = wrote (or printed). Exit 1 = scoped-import failure. Exit 2 = usage/parse failure.
 
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
@@ -37,6 +40,7 @@ const prototypeRef = flag('prototype-ref') === true ? '' : (flag('prototype-ref'
 const storyRefsArg = listFlag('story-refs')
 const acRefsArg = listFlag('ac-refs')
 const entityRefsArg = listFlag('entity-refs')
+const sliceRef = flag('slice-ref') === true ? '' : (flag('slice-ref') || '')
 const changesArg = flag('changes')
 
 function loadChanges(changesFlag) {
@@ -98,19 +102,29 @@ const interactions = spec['ui-surface']?.interactions ?? []
 const stories = spec['user-stories'] ?? []
 const acs = spec['acceptance-criteria'] ?? []
 const entities = spec.entities ?? []
-const endpoints = [
-  ...(spec['api-surface']?.endpoints ?? []),
-  ...(spec['api-surface']?.mutations ?? []),
-]
+const list = (v) => (Array.isArray(v) ? v : [])
+// One endpoint list; 1.x specs may split reads/writes into endpoints + mutations (dedupe by id).
+const endpoints = [...new Map([
+  ...list(spec['api-surface']?.endpoints),
+  ...list(spec['api-surface']?.mutations),
+].map((e) => [e?.id ?? `${e?.method} ${e?.path}`, e])).values()]
+
+// 2.0 slice: {spec dir}/slices/{SL}.yaml when spec-dev-kit wrote it, else the slice in the spec.
+let slice = null
+if (sliceRef) {
+  const briefPath = join(dirname(specPath), 'slices', `${sliceRef}.yaml`)
+  slice = existsSync(briefPath)
+    ? parse(readFileSync(briefPath, 'utf8'))?.slice
+    : list(spec['delivery-plan']?.slices).find((s) => s?.id === sliceRef)
+  if (!slice) {
+    console.error(`ERROR [SLICE_NOT_FOUND] ${sliceRef} is not in delivery-plan.slices of ${specPath}`)
+    process.exit(1)
+  }
+}
 
 const screenRefs = [...new Set([...screenRefsArg, ...(screenRef ? [screenRef] : [])])]
+if (screenRefs.length === 0 && slice) screenRefs.push(...list(slice['screen-refs']))
 const allTaskIds = [...new Set([...taskIds, ...(taskId ? [taskId] : [])])]
-
-const isApp = spec.type === 'app' || screens.length > 1
-if (requireScoped && isApp && screenRefs.length === 0 && allTaskIds.length === 0 && !featureId) {
-  console.error('ERROR [REQUIRE_SCOPED] type:app (or multiple screens) imported with no FEATURE_ID / SCREEN_REFS — one /feature-dev run is one feature, not the whole app')
-  process.exit(1)
-}
 
 const selectedScreens = []
 for (const ref of screenRefs) {
@@ -123,6 +137,12 @@ for (const ref of screenRefs) {
 }
 if (selectedScreens.length === 0 && screens.length === 1) selectedScreens.push(screens[0])
 const screen = selectedScreens[0] ?? null
+
+const isApp = spec.type === 'app' || screens.length > 1
+if (requireScoped && isApp && selectedScreens.length === 0) {
+  console.error('ERROR [REQUIRE_SCOPED] type:app (or multiple screens) imported with no resolved screens — one /feature-dev run is one feature, not the whole app')
+  process.exit(1)
+}
 
 function titleKeywords(s) {
   return (s.title ?? '')
@@ -156,9 +176,30 @@ function derivedAcs() {
   return merged
 }
 
+// 2.0 screens name their stories; keep the slice's share of them when a slice is given.
+const sliceStories = new Set(list(slice?.['story-refs']))
+const screenStoryIds = [...new Set(selectedScreens.flatMap((s) => list(s['story-refs'])))]
+  .filter((id) => !sliceStories.size || sliceStories.has(id))
+const explicitScreenRefs = selectedScreens.some((s) => Array.isArray(s['story-refs']))
+
 const filteredAcs = acRefsArg.length
   ? acs.filter((a) => acRefsArg.includes(a.id))
-  : derivedAcs()
+  : storyRefsArg.length
+    ? acs.filter((a) => storyRefsArg.includes(a['story-ref']))
+    : explicitScreenRefs
+      ? acs.filter((a) => screenStoryIds.includes(a['story-ref']))
+      : derivedAcs()
+// done-when ACs are tests that must pass even when --ac-refs names a narrower set.
+if (slice) {
+  const have = new Set(filteredAcs.map((a) => a.id))
+  for (const id of list(slice['done-when'])) {
+    if (have.has(id)) continue
+    const ac = acs.find((a) => a.id === id)
+    if (!ac) continue
+    filteredAcs.push(ac)
+    have.add(id)
+  }
+}
 const storyIds = storyRefsArg.length
   ? storyRefsArg
   : [...new Set(filteredAcs.map((a) => a['story-ref']).filter(Boolean))]
@@ -166,6 +207,8 @@ const filteredStories = stories.filter((s) => storyIds.includes(s.id))
 
 function derivedEntities() {
   if (entityRefsArg.length) return entityRefsArg
+  const primary = selectedScreens.map((s) => s['primary-entity']).filter(Boolean)
+  if (primary.length) return [...new Set(primary)]
   const names = entities.map((e) => e.name)
   return names.filter((name) =>
     selectedScreens.some((s) => s.components?.some((c) => String(c).includes(name))),
@@ -177,9 +220,24 @@ const filteredEntities = entities.filter((e) => entityNames.includes(e.name))
 function mentionsEntity(blob, name) {
   return JSON.stringify(blob).includes(name)
 }
-const filteredEndpoints = endpoints.filter((ep) =>
-  entityNames.length === 0 ? false : entityNames.some((n) => mentionsEntity(ep, n)),
-)
+const screenApiIds = new Set(selectedScreens.flatMap((s) => list(s['api-refs'])))
+const sliceApiIds = new Set(list(slice?.['api-refs']))
+const filteredEndpoints = selectedScreens.some((s) => Array.isArray(s['api-refs'])) || sliceApiIds.size
+  ? endpoints.filter((ep) => screenApiIds.has(ep.id) || sliceApiIds.has(ep.id))
+  : endpoints.filter((ep) =>
+    entityNames.length === 0 ? false : entityNames.some((n) => mentionsEntity(ep, n)),
+  )
+
+// What the UI must surface: rule violation copy, status words, who sees which control, notices.
+const keptIds = new Set([...entityNames, ...filteredEndpoints.map((e) => e.id), ...selectedScreens.map((s) => s.id)])
+const touches = (refs) => list(refs).some((r) => keptIds.has(r))
+const uiRules = list(spec['business-rules']).filter((b) => touches(b['applies-to']) || list(slice?.['rule-refs']).includes(b.id))
+const uiMachines = list(spec['state-machines']).filter((m) => entityNames.includes(m.entity))
+const uiPermissions = list(spec.permissions).filter((p) => touches(p.refs))
+const effectIds = new Set(uiMachines.flatMap((m) => list(m.transitions).flatMap((t) => list(t.effects))))
+const uiNotifications = list(spec.notifications).filter((n) => effectIds.has(n.id) || list(slice?.['notification-refs']).includes(n.id))
+const glossary = list(spec.glossary)
+const frontendSteps = list(slice?.steps).filter((s) => s.track === 'frontend')
 
 function kebab(s) {
   return String(s ?? '')
@@ -246,13 +304,18 @@ function acLine(ac) {
 }
 
 const requestLines = [
+  slice ? `Slice ${slice.id} — ${slice.title}: ${slice.goal ?? ''}` : '',
   selectedScreens.length
     ? selectedScreens.map((s) => `${s.title} (${s.route}).`).join('\n')
     : (spec.metadata?.title ?? ''),
-  spec.context?.goal ? `Goal: ${spec.context.goal}` : '',
+  !slice && spec.context?.goal ? `Goal: ${spec.context.goal}` : '',
   filteredStories.length
     ? 'User stories:\n' + filteredStories.map((s) => `- As a ${s.as}, I want ${s['i-want']}, so that ${s['so-that']}.`).join('\n')
     : '',
+  frontendSteps.length
+    ? 'Slice steps (frontend, from the spec delivery plan):\n' + frontendSteps.map((s, i) => `${i + 1}. ${s.do}${list(s.refs).length ? ` (${s.refs.join(', ')})` : ''}`).join('\n')
+    : '',
+  list(slice?.['done-when']).length ? `Done when: ${slice['done-when'].join(', ')} pass.` : '',
 ].filter(Boolean).join('\n\n')
 
 const acMarkdown = filteredAcs.length
@@ -266,6 +329,9 @@ function screenBlock(s) {
     `- screen-ref: ${s.id}`,
     `- title: ${s.title}`,
     `- route: ${s.route}`,
+    s['page-type'] ? `- page-type: ${s['page-type']}` : '',
+    s['primary-entity'] ? `- primary-entity: ${s['primary-entity']}` : '',
+    list(s.roles).length ? `- roles: ${s.roles.join(', ')}` : '',
     `- states: ${(s.states ?? []).join(', ')}`,
     `- components: ${(s.components ?? []).join(', ')}`,
     s.notes ? `- notes: ${s.notes}` : '',
@@ -281,14 +347,38 @@ const uiMarkdown = selectedScreens.length
   : '<standalone feature — no ui-surface.screens[] row imported>'
 
 function entityBlock(e) {
-  const fields = (e.fields ?? []).slice(0, 12).map((f) => `${f.name}: ${f.type}`).join(', ')
+  const fields = (e.fields ?? []).slice(0, 12).map((f) => {
+    const values = list(f.values).length ? ` /* ${f.values.join(' | ')} */` : ''
+    return `${f.name}${f.required ? '' : '?'}: ${f.type}${values}${f.derived ? ' /* derived, read-only */' : ''}`
+  }).join(', ')
   return `### ${e.name}\n${e.description ?? ''}\n\n\`${e.name}: { ${fields} }\``
+}
+
+function endpointLine(ep) {
+  const errors = list(ep.response?.errors).map((x) => `${x.status}${x.code ? ` ${x.code}` : ''}: "${x.message ?? ''}"`)
+  return `- ${ep.method} ${ep.path} (${ep.id})${list(ep.roles).length ? ` [${ep.roles.join(', ')}]` : ''} — ${ep.description ?? ''}`
+    + (errors.length ? `\n  - errors: ${errors.join('; ')}` : '')
 }
 
 const apiMarkdown = [
   filteredEntities.map(entityBlock).join('\n\n'),
   filteredEndpoints.length
-    ? '### Endpoints\n' + filteredEndpoints.map((ep) => `- ${ep.method} ${ep.path} (${ep.id}) — ${ep.description ?? ''}`).join('\n')
+    ? '### Endpoints\n' + filteredEndpoints.map(endpointLine).join('\n')
+    : '',
+  uiMachines.length
+    ? '### Status lifecycle\n' + uiMachines.map((m) => `- ${m.entity}.${m.field ?? 'status'} (${m.id}): ${list(m.transitions).map((t) => `${t.from}→${t.to} on "${t.trigger}"`).join('; ')}`).join('\n')
+    : '',
+  uiRules.length
+    ? '### Rules the UI must surface\n' + uiRules.map((b) => `- ${b.id}: ${b.rule}${b['on-violation'] ? ` — show: ${b['on-violation']}` : ''}`).join('\n')
+    : '',
+  uiPermissions.length
+    ? '### Permissions (hide or disable controls for other roles)\n' + uiPermissions.map((p) => `- ${p.id} ${p.action}: ${list(p.allow).join(', ') || '—'}${Object.entries(p.conditional ?? {}).map(([r, c]) => `; ${r} if ${c}`).join('')}`).join('\n')
+    : '',
+  uiNotifications.length
+    ? '### Notifications (copy)\n' + uiNotifications.map((n) => `- ${n.id} ${n.event} → ${list(n.recipients).join(', ')}: "${n.copy ?? ''}"`).join('\n')
+    : '',
+  glossary.length
+    ? '### Glossary (use these words in copy)\n' + glossary.map((g) => `- ${g.term}: ${g.meaning}`).join('\n')
     : '',
 ].filter(Boolean).join('\n\n') || '<no entities mapped to this screen-task>'
 
@@ -297,6 +387,7 @@ const compact = [
   `TITLE: ${title}`,
   `FEATURE_ID: ${featureId || '(none)'}`,
   `TASK_ID: ${allTaskIds.join(', ') || '(none)'}`,
+  `SLICE_REF: ${sliceRef || '(none)'}`,
   `SCREEN_REF: ${selectedScreens.map((s) => s.id).join(', ') || '(none)'}`,
   `PROTOTYPE_PAGE: ${selectedScreens.map((s) => resolvePrototypePage(protoDir, s, s.id)).filter(Boolean).join(', ') || '(none)'}`,
   `STORIES: ${filteredStories.map((s) => s.id).join(', ') || '(none)'}`,
@@ -351,6 +442,7 @@ replaceFm('upstream-spec', specPath)
 replaceFm('feature-id', featureId || 'none')
 replaceFm('task-id', allTaskIds.join(',') || 'none')
 replaceFm('screen-ref', selectedScreens.map((s) => s.id).join(',') || 'none')
+replaceFm('slice-ref', sliceRef || 'none')
 replaceFm('prototype-ref', protoDir || 'none')
 board = board.replace(/# Feature: <name>/, `# Feature: ${title}`)
 board = board.replace(/<feature-slug>/g, slug)

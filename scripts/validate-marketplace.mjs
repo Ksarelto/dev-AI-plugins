@@ -1,5 +1,5 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { join, dirname, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
@@ -56,13 +56,25 @@ function asPaths(value) {
   return Array.isArray(value) ? value : [value];
 }
 
+function pathExists(abs) {
+  if (!abs.includes("*")) return existsSync(abs);
+  const dir = join(abs, "..");
+  const pattern = basename(abs).replace(/\./g, "\\.").replace(/\*/g, ".*");
+  const re = new RegExp(`^${pattern}$`);
+  try {
+    return readdirSync(dir).some((f) => re.test(f));
+  } catch {
+    return false;
+  }
+}
+
 function checkComponentPaths(sourcePath, manifest, label, pluginName) {
   let ok = true;
 
   for (const field of ["skills", "agents", "rules", "commands"]) {
     for (const rel of asPaths(manifest[field])) {
       const abs = join(sourcePath, rel);
-      if (!existsSync(abs)) {
+      if (!pathExists(abs)) {
         console.error(`FAIL: [${label}] ${pluginName} ${field} path missing: ${rel}`);
         ok = false;
         continue;

@@ -3,8 +3,21 @@
   "source": "./app-dev-kit/spec-dev-kit",
   "component": "skills",
   "cases": [
-    { "prompt": "Turn these raw requirements into an approved YAML and Markdown spec", "expect": "generate-spec" },
-    { "prompt": "Run intake, gap analysis, and human review to publish a new feature spec", "expect": "generate-spec" },
-    { "prompt": "Continue the last app spec from the new context files and keep the story and screen ids", "expect": "generate-spec" }
+    {
+      "prompt": "Turn these raw requirements into an approved YAML and Markdown spec",
+      "expect": "generate-spec"
+    },
+    {
+      "prompt": "Run intake, gap analysis, and human review to publish a new feature spec",
+      "expect": "generate-spec"
+    },
+    {
+      "prompt": "Continue the last app spec from the new context files and keep the story and screen ids",
+      "expect": "generate-spec"
+    },
+    {
+      "prompt": "Write a requirements spec with a step-by-step delivery plan and per-slice build briefs for the backend and frontend kits",
+      "expect": "generate-spec"
+    }
   ]
 }

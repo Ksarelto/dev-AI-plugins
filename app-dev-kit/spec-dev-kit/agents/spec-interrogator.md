@@ -33,18 +33,19 @@ Load `references/clarification-protocol.md` to understand question budgets, form
 
 **Step 2 — Select candidate gaps for questions**
 
-From `analysis_report`:
-1. Filter only `status: open` gaps and open conflicts.
+The orchestrator passes `ASK_GAPS` — the `askable_gaps` and `open_conflicts` ids from
+`scripts/gate-check.mjs`. Ask about exactly those:
+1. Take every id in `ASK_GAPS` from `analysis_report` (`gaps[]`, `conflicts[]`, `cross_story_conflicts[]`).
 2. **Collapse by root-cause group** — for each `root_cause_groups[]`, generate ONE root-question that unlocks all `member_gaps`. Do not ask N questions for N gaps in the same group.
 3. Sort by priority (see `references/clarification-protocol.md` → Question Priority Ranking).
-4. Filter out gaps with `can_assume_default: true` — those will be handled by `spec-enricher`.
-5. Include ALL `status: open` conflicts + `cross_story_conflicts[]`.
-6. Include `unstated_dependencies[]` marked as blocking.
+4. A gap that has a `default_if_assumed` (high + `blocks_synthesis` gaps are askable even with a
+   default) becomes **Propose + Confirm**: the default is the first option, labelled `(Recommended)`.
+5. Gaps not in `ASK_GAPS` are the enricher's — do not ask about them.
 
 **Step 3 — Apply question budget**
 
 Based on `ROUND` parameter:
-- Round 1: max 5 questions (was 7 — lower is better; force ruthless prioritization)
+- Round 1: max 5 questions (force ruthless prioritization)
 - Round 2: max 4 questions
 - Round 3: max 2 questions (blocking gaps only)
 
@@ -78,6 +79,10 @@ Build a `questions[]` array. Each question is a fully-formed `AskUserQuestion` q
 ```
 
 If a gap genuinely has no discrete answer options, omit `options` and mark it as open-ended so the orchestrator knows to render a free-text prompt.
+
+`gap_refs` lists **every** gap / conflict / group the answer settles, so re-analysis can resolve
+them all. A root-cause group may take two questions when one would be compound — say so in
+`questions_dropped_by_preflight`.
 
 **Step 6 — Pre-Flight Quality Gate**
 
@@ -128,7 +133,7 @@ Return a structured payload to `spec-orchestrator`. The orchestrator wraps it in
   "questions": [
     {
       "question_id": "Q1",
-      "gap_ref": "GAP-001 | CONFLICT-C-001 | RC-001",
+      "gap_refs": ["C-001", "GAP-001", "XSC-001"],
       "format_used": "conflict_resolution | propose_confirm | root_goal | boundary | edge_case",
       "question": "Full question text ending with a question mark",
       "header": "Auth model",

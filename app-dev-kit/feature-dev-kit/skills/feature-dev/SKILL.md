@@ -141,7 +141,7 @@ Do not read `pipeline-flow.md` into this conversation. The tier table below is t
      to `prototype_ref` when those fields are non-empty.
    - Then read `.spec/app/task-checklist.md`. If a **feature** matches the request
      (title, slug-hint, or a nested task `screen-ref`), adopt that feature's `FEATURE_ID`,
-     nested `TASK_IDS` / `SCREEN_REFS`. A `done` feature is not rebuilt unless that feature,
+     `SLICE_REF` (2.0 checklists), and nested `TASK_IDS` / `SCREEN_REFS`. A `done` feature is not rebuilt unless that feature,
      or one of its tasks, is `pending` with `blocked-reason: spec changed`. If nothing matches,
      standalone feature — no whole-app dump. Do not glob `.spec/spec/spec-*/spec.md` or `.spec/app/spec-*/spec.md`.
 
@@ -177,6 +177,7 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
   --feature-id {FEATURE_ID} \
   --task-ids {TASK_IDS} \
   --screen-refs {SCREEN_REFS} \
+  --slice-ref {SLICE_REF or omit} \
   --story-refs {comma-separated or omit} \
   --ac-refs {comma-separated or omit} \
   --entity-refs {comma-separated or omit} \

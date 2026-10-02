@@ -2,7 +2,7 @@
 
 **Entry point**: `/generate-html [spec-slug]` → `skills/generate-html/SKILL.md`
 
-Transforms a validated YAML spec from `.spec/app/` into a **clickable multi-page HTML prototype**
+Transforms a validated YAML spec (`.spec/app/current.json` → `spec_path`, under `.spec/spec/`) into a **clickable multi-page HTML prototype**
 in `.spec/prototype/{TIMECODE}_{SLUG}/`. Styling is CDN-free (no Tailwind); Alpine.js and Google Fonts load from a CDN. Headless-browser verified.
 
 If you provide a theme — brand colours, fonts, a style guide, `tokens.css`, screenshots/mockups, or
@@ -73,7 +73,7 @@ Or add the marketplace in Agent chat:
    ```
    `/generate-html` also detects it and offers to install it at Step 2.5 (using `--ai cursor` when
    `.cursor/` is present, otherwise `--ai claude`), so you can skip this.
-2. Run `/generate-spec` to produce a spec in `.spec/app/`.
+2. Run `/generate-spec`. The published spec is the `spec_path` in `.spec/app/current.json` (under `.spec/spec/`).
 3. Optional: put your theme / brand / mockups in `.spec/design/`.
 4. Run `/generate-html` (or `/generate-html my-feature-slug`).
 5. Approve at the review gate (skill-owned).
@@ -102,7 +102,7 @@ When it is unavailable, the pipeline still completes and the review packet says
 ```
 .spec/prototype/{TIMECODE}_{SLUG}/
 ├── index.html                  # Landing page / app map
-├── pages/{screen-id}.html      # One standalone HTML per screen
+├── pages/{page-id}.html       # One HTML file per spec screen. page-id is page-map.json's value, else the route kebab — never SCR-*
 ├── css/
 │   ├── tokens.css              # shadcn OKLCH tokens (light + dark)
 │   ├── base.css                # Reset + typography

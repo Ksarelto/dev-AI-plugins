@@ -22,28 +22,29 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
   --feature-id {FEATURE_ID} \
   --task-ids {TASK_IDS} \
   --screen-refs {SCREEN_REFS} \
-  --story-refs {STORY_REFS} \
-  --ac-refs {AC_REFS} \
-  --entity-refs {ENTITY_REFS} \
-  --prototype-ref {PROTOTYPE_REF} \
+  --slice-ref {SLICE_REF or omit} \
+  --story-refs {STORY_REFS or omit} \
+  --ac-refs {AC_REFS or omit} \
+  --entity-refs {ENTITY_REFS or omit} \
+  --prototype-ref {PROTOTYPE_REF or omit} \
   --require-scoped
 ```
 
-If `SPEC_PATH` must not be written yet, add `--stdout-only` and omit `--out`.
+If `SPEC_PATH` must not be written yet, add `--stdout-only` and omit `--out`. Omit a flag whose value is empty. Do not drop `--slice-ref` when `SLICE_REF` is set — a re-run without it overwrites the slice steps, `done-when` criteria, and slice endpoints.
 
-YAML front matter is the source of truth — same keys as html-generator-kit `spec-interpreter`
+YAML front matter is the source of truth — same keys as html-generator-kit `scripts/lib/spec-model.mjs`
 (`entities[]`, `ui-surface.screens[]`, `api-surface`, `acceptance-criteria[]`). Do not look for a
 `## UI Surface` heading in the app spec.
 
 ## Inputs
 
 - `UPSTREAM_SPEC` — path to `spec.md` (read the file; ignore any pasted `SPEC_CONTENT`)
-- `FEATURE_ID`, `TASK_IDS`, `SCREEN_REFS` (`--task-id` / `--screen-ref` still select one screen)
+- `FEATURE_ID`, `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS` (`--task-id` / `--screen-ref` still select one screen)
 - `PROTOTYPE_REF` — directory or empty
 - `SPEC_PATH`, `SLUG`, `KIT_DIR`
 
-If `type: app` (or more than one screen) and no `FEATURE_ID` / `SCREEN_REFS` / `TASK_IDS`, return a
-failure string `REQUIRE_SCOPED` — do not dump every screen.
+If `type: app` (or more than one screen) and no screen was resolved, return a failure string
+`REQUIRE_SCOPED` — a `FEATURE_ID` alone is not a scoped feature. Do not dump every screen.
 
 ## Handoff
 

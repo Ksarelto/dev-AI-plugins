@@ -137,7 +137,9 @@ Read `work-plan.md` YAML `tracks[]` (id, needed, confidence, task counts). Prese
 
 Skip if track `backend` is not `needed` or is `skipped`/`done`.
 
-For each `tasks[]` with `track: backend` that is not `done`/`skipped`:
+For each `tasks[]` with `track: backend` that is not `done`/`skipped`, in work-plan order (a 1.1
+work-plan follows the spec's delivery slices; a task's `depends-on` ids must be `done` first —
+otherwise ask once whether to build the dependency first or skip):
 
 1. Dirty tree → commit / stash / abort-task. Never spawn dirty.
 2. Set task `in-progress`. Set track `in-progress`.
@@ -147,6 +149,7 @@ For each `tasks[]` with `track: backend` that is not `done`/`skipped`:
    REQUEST:        Backend-task {id} ({slug-hint}). Read UPSTREAM_SPEC.
    UPSTREAM_SPEC:  {SPEC_PATH}
    TASK_ID:        {id}
+   SLICE_REF:      {slice-ref, or omit on a 1.0 work-plan}
    ENTITY_REFS:    {entity-refs}
    API_REFS:       {api-refs}
    STORY_REFS:     {story-refs}
@@ -170,7 +173,7 @@ When all `B-*` tasks are `done` or `skipped`, set track `done` and `result` to t
 
 Same as Station 3 for `track: agent` → `agent-dev-kit:agent-dev`.
 
-Also pass `AGENT_REF: {agent-ref}`.
+Also pass `AGENT_REF: {agent-ref}` (and `SLICE_REF`, as in Station 3).
 
 If a task’s `embed` (from the spec, which the callee reads) is `backend-route` and
 `src/http/create-app.ts` is missing, the callee STOPs. Do not invent a second HTTP stack;

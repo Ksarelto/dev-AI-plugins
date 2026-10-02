@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Deterministic UI checklist builder for frontend-orchestrator-kit.
-// Reads a spec-dev-kit spec.md, builds one task per screen, groups those tasks under
-// the highest-priority user story that owns them, and writes task-checklist.md.
-// One feature = one later /feature-dev call. Screen-less API/agent stories are omitted.
+// Reads a spec-dev-kit spec.md and writes task-checklist.md. One feature = one later /feature-dev call.
+// Spec 2.0 (delivery-plan.slices present): one feature per slice with a frontend track, in slice
+//   order, one task per slice screen; refs come from the slice and screen, never guessed.
+// Spec 1.x: one task per screen, grouped under the highest-priority user story that owns them
+//   (AC ↔ screen matched by keywords). Screen-less API/agent stories are omitted.
 // Usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>]
 // Exit 0 = written (features.length > 0). Exit 1 = zero buildable tasks. Exit 2 = usage/parse failure.
 // Algorithm of record: ../references/task-decomposition.md
@@ -62,6 +64,7 @@ const modifiedScreens = new Set(changes?.screens?.modified ?? [])
 const modifiedEntities = new Set(changes?.entities?.modified ?? [])
 const modifiedStories = new Set(changes?.['user-stories']?.modified ?? [])
 const modifiedAcs = new Set(changes?.['acceptance-criteria']?.modified ?? [])
+const modifiedSlices = new Set(changes?.slices?.modified ?? [])
 function checklistPathFor(specFile) {
   const runDir = dirname(specFile)
   const parent = dirname(runDir)
@@ -83,7 +86,8 @@ function priorTasks(doc) {
 }
 
 const priorTaskRows = priorTasks(existing)
-const existingByScreen = new Map(priorTaskRows.map((t) => [t['screen-ref'] || t.id, t]))
+const taskKey = (t) => (t['slice-ref'] ? `${t['slice-ref']}|${t['screen-ref']}` : (t['screen-ref'] || t.id))
+const existingByScreen = new Map(priorTaskRows.map((t) => [taskKey(t), t]))
 const existingFeatures = existing?.features ?? []
 
 const PRIORITY_RANK = { must: 0, should: 1, could: 2, wont: 3 }
@@ -157,97 +161,184 @@ const usedTaskIds = new Set()
 const usedFeatureIds = new Set()
 
 const tasks = []
+const features = []
+const slices = (spec['delivery-plan']?.slices ?? []).filter((s) => s?.id)
+const sliceMode = slices.length > 0
+const claimedPrior = new Set()
 
-for (const screen of screens) {
-  const { storyIds, acIds } = storyRefsForScreen(screen)
-  const priority = maxPriority(storyIds)
-  if (priority === 'wont') continue
-
-  const prior = existingByScreen.get(screen.id)
-  const entityRefs = entityRefsForScreen(screen)
+function reopenedTask(prior, screenId, entityRefs, storyIds, acIds, sliceId) {
   const priorStoryHit = (prior?.['story-refs'] ?? []).some((id) => modifiedStories.has(id))
     || (prior?.['ac-refs'] ?? []).some((id) => modifiedAcs.has(id))
-  const reopened = prior?.status === 'done' && (
-    modifiedScreens.has(screen.id)
+  return prior?.status === 'done' && (
+    modifiedScreens.has(screenId)
     || entityRefs.some((name) => modifiedEntities.has(name))
     || storyIds.some((id) => modifiedStories.has(id))
     || acIds.some((id) => modifiedAcs.has(id))
+    || (sliceId && modifiedSlices.has(sliceId))
     || priorStoryHit
   )
-  tasks.push({
-    id: allocateId('T', usedTaskIds, prior?.id),
-    title: screen.title,
-    'screen-ref': screen.id,
-    'story-refs': storyIds,
-    'ac-refs': acIds,
-    'entity-refs': entityRefs,
-    status: reopened ? 'pending' : (prior?.status ?? 'pending'),
-    'blocked-reason': reopened ? 'spec changed' : (prior?.['blocked-reason'] ?? ''),
-    _priority: priority,
-  })
 }
 
-function owningStory(task) {
-  const ranked = (task['story-refs'] ?? [])
-    .map((id) => stories.find((s) => s.id === id))
-    .filter((s) => s && s.priority !== 'wont')
-    .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
-  return ranked[0] ?? null
-}
+function buildFromStories() {
+  for (const screen of screens) {
+    const { storyIds, acIds } = storyRefsForScreen(screen)
+    const priority = maxPriority(storyIds)
+    if (priority === 'wont') continue
 
-const groups = new Map()
-for (const task of tasks) {
-  const story = owningStory(task)
-  const key = story ? `story:${story.id}` : `screen:${task['screen-ref']}`
-  if (!groups.has(key)) groups.set(key, { story, tasks: [] })
-  groups.get(key).tasks.push(task)
-}
-
-function findExistingFeature(story, groupTasks) {
-  if (story) {
-    const hit = existingFeatures.find((f) => (f['story-refs'] ?? []).includes(story.id))
-    if (hit) return hit
+    const prior = existingByScreen.get(screen.id)
+    const entityRefs = entityRefsForScreen(screen)
+    const reopened = reopenedTask(prior, screen.id, entityRefs, storyIds, acIds, '')
+    tasks.push({
+      id: allocateId('T', usedTaskIds, prior?.id),
+      title: screen.title,
+      'screen-ref': screen.id,
+      'story-refs': storyIds,
+      'ac-refs': acIds,
+      'entity-refs': entityRefs,
+      status: reopened ? 'pending' : (prior?.status ?? 'pending'),
+      'blocked-reason': reopened ? 'spec changed' : (prior?.['blocked-reason'] ?? ''),
+      _priority: priority,
+    })
   }
-  const screensInGroup = new Set(groupTasks.map((t) => t['screen-ref']))
-  return existingFeatures.find((f) =>
-    (f.tasks ?? []).some((t) => screensInGroup.has(t['screen-ref'])),
-  ) ?? null
+
+  function owningStory(task) {
+    const ranked = (task['story-refs'] ?? [])
+      .map((id) => stories.find((s) => s.id === id))
+      .filter((s) => s && s.priority !== 'wont')
+      .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])
+    return ranked[0] ?? null
+  }
+
+  const groups = new Map()
+  for (const task of tasks) {
+    const story = owningStory(task)
+    const key = story ? `story:${story.id}` : `screen:${task['screen-ref']}`
+    if (!groups.has(key)) groups.set(key, { story, tasks: [] })
+    groups.get(key).tasks.push(task)
+  }
+
+  function findExistingFeature(story, groupTasks) {
+    if (story) {
+      const hit = existingFeatures.find((f) => (f['story-refs'] ?? []).includes(story.id))
+      if (hit) return hit
+    }
+    const screensInGroup = new Set(groupTasks.map((t) => t['screen-ref']))
+    return existingFeatures.find((f) =>
+      (f.tasks ?? []).some((t) => screensInGroup.has(t['screen-ref'])),
+    ) ?? null
+  }
+
+  for (const { story, tasks: groupTasks } of groups.values()) {
+    const priorFeature = findExistingFeature(story, groupTasks)
+    const priority = story?.priority ?? groupTasks[0]?._priority ?? 'should'
+    const title = groupTasks.length === 1
+      ? groupTasks[0].title
+      : (story?.['i-want'] || groupTasks[0].title)
+    const nested = groupTasks.map((task) => {
+      const { _priority, ...rest } = task
+      return rest
+    })
+    const reopenFeature = priorFeature?.status === 'done' && (
+      nested.some((task) => task.status === 'pending' && task['blocked-reason'] === 'spec changed')
+      || (story && modifiedStories.has(story.id))
+    )
+    features.push({
+      id: allocateId('F', usedFeatureIds, priorFeature?.id),
+      title,
+      'slug-hint': kebab(title) || kebab(story?.id) || kebab(groupTasks[0]['screen-ref']),
+      'story-refs': story ? [story.id] : [],
+      priority,
+      status: reopenFeature ? 'pending' : (priorFeature?.status ?? 'pending'),
+      slug: priorFeature?.slug ?? '',
+      branch: priorFeature?.branch ?? '',
+      'parent-branch': priorFeature?.['parent-branch'] ?? '',
+      'blocked-reason': reopenFeature ? 'spec changed' : (priorFeature?.['blocked-reason'] ?? ''),
+      tasks: nested,
+    })
+  }
 }
 
-const features = []
-for (const { story, tasks: groupTasks } of groups.values()) {
-  const priorFeature = findExistingFeature(story, groupTasks)
-  const priority = story?.priority ?? groupTasks[0]?._priority ?? 'should'
-  const title = groupTasks.length === 1
-    ? groupTasks[0].title
-    : (story?.['i-want'] || groupTasks[0].title)
-  const nested = groupTasks.map((task) => {
-    const { _priority, ...rest } = task
-    return rest
-  })
-  const reopenFeature = priorFeature?.status === 'done' && (
-    nested.some((task) => task.status === 'pending' && task['blocked-reason'] === 'spec changed')
-    || (story && modifiedStories.has(story.id))
-  )
-  features.push({
-    id: allocateId('F', usedFeatureIds, priorFeature?.id),
-    title,
-    'slug-hint': kebab(title) || kebab(story?.id) || kebab(groupTasks[0]['screen-ref']),
-    'story-refs': story ? [story.id] : [],
-    priority,
-    status: reopenFeature ? 'pending' : (priorFeature?.status ?? 'pending'),
-    slug: priorFeature?.slug ?? '',
-    branch: priorFeature?.branch ?? '',
-    'parent-branch': priorFeature?.['parent-branch'] ?? '',
-    'blocked-reason': reopenFeature ? 'spec changed' : (priorFeature?.['blocked-reason'] ?? ''),
-    tasks: nested,
-  })
+// 2.0: the delivery plan decides grouping and order. Prior rows are matched by slice + screen,
+// then (for a 1.x → 2.0 upgrade) by screen alone, so shipped screens keep their done state.
+function buildFromSlices() {
+  const priorFor = (sliceId, screenId) => {
+    const exact = existingByScreen.get(`${sliceId}|${screenId}`)
+    if (exact && !claimedPrior.has(exact)) return exact
+    const loose = priorTaskRows.find((t) => !t['slice-ref'] && t['screen-ref'] === screenId && !claimedPrior.has(t))
+    return loose ?? null
+  }
+  const featureIdBySlice = new Map()
+  for (const slice of slices) {
+    if (!(slice.tracks ?? []).includes('frontend')) continue
+    const sliceStories = new Set(slice['story-refs'] ?? [])
+    const nested = []
+    for (const screenId of slice['screen-refs'] ?? []) {
+      const screen = screens.find((s) => s.id === screenId)
+      if (!screen) continue
+      const own = (screen['story-refs'] ?? []).filter((id) => sliceStories.has(id))
+      const storyIds = own.length ? own : [...sliceStories]
+      const knownEntities = new Set(entities.map((e) => e.name))
+      const acIds = [...new Set([
+        ...acs.filter((ac) => storyIds.includes(ac['story-ref'])).map((ac) => ac.id),
+        ...(slice['done-when'] ?? []),
+      ])]
+      const entityRefs = [...new Set([
+        ...(screen['primary-entity'] ? [screen['primary-entity']] : []),
+        ...(slice['entity-refs'] ?? []),
+      ])].filter((name) => knownEntities.has(name))
+      const prior = priorFor(slice.id, screenId)
+      if (prior) claimedPrior.add(prior)
+      const reopened = reopenedTask(prior, screenId, entityRefs, storyIds, acIds, slice.id)
+      const task = {
+        id: allocateId('T', usedTaskIds, prior?.id),
+        title: screen.title,
+        'slice-ref': slice.id,
+        'screen-ref': screenId,
+        'story-refs': storyIds,
+        'ac-refs': acIds,
+        'entity-refs': entityRefs,
+        'api-refs': screen['api-refs'] ?? [],
+        status: reopened ? 'pending' : (prior?.status ?? 'pending'),
+        'blocked-reason': reopened ? 'spec changed' : (prior?.['blocked-reason'] ?? ''),
+      }
+      tasks.push(task)
+      nested.push(task)
+    }
+    if (!nested.length) continue
+    const priorFeature = existingFeatures.find((f) => f['slice-ref'] === slice.id)
+      ?? existingFeatures.find((f) => !f['slice-ref'] && (f.tasks ?? []).some((t) => nested.some((n) => n.id === t.id)))
+    const reopenFeature = priorFeature?.status === 'done' && (
+      nested.some((task) => task.status === 'pending' && task['blocked-reason'] === 'spec changed')
+      || modifiedSlices.has(slice.id)
+    )
+    const id = allocateId('F', usedFeatureIds, priorFeature?.id)
+    featureIdBySlice.set(slice.id, id)
+    features.push({
+      id,
+      title: slice.title,
+      'slug-hint': kebab(slice.title) || kebab(slice.id),
+      'slice-ref': slice.id,
+      'depends-on': (slice['depends-on'] ?? []).map((dep) => featureIdBySlice.get(dep)).filter(Boolean),
+      'story-refs': [...sliceStories],
+      priority: maxPriority([...sliceStories]),
+      status: reopenFeature ? 'pending' : (priorFeature?.status ?? 'pending'),
+      slug: priorFeature?.slug ?? '',
+      branch: priorFeature?.branch ?? '',
+      'parent-branch': priorFeature?.['parent-branch'] ?? '',
+      'blocked-reason': reopenFeature ? 'spec changed' : (priorFeature?.['blocked-reason'] ?? ''),
+      tasks: nested,
+    })
+  }
 }
 
-const currentRefs = new Set(tasks.map((t) => t['screen-ref']).filter(Boolean))
+if (sliceMode) buildFromSlices()
+else buildFromStories()
+
+const currentKeys = new Set(tasks.map(taskKey))
 for (const prior of priorTaskRows) {
   if (!prior['screen-ref']) continue
-  if (currentRefs.has(prior['screen-ref']) || prior.status === 'skipped') continue
+  if (claimedPrior.has(prior)) continue
+  if (currentKeys.has(taskKey(prior)) || prior.status === 'skipped') continue
   if (features.some((f) => f.tasks.some((t) => t.id === prior.id))) continue
   const removing = prior.status === 'done'
   const host = features.find((f) => f.id === prior._feature?.id)
@@ -255,6 +346,7 @@ for (const prior of priorTaskRows) {
   const blockedTask = {
     id: prior.id,
     title: prior.title,
+    ...(prior['slice-ref'] ? { 'slice-ref': prior['slice-ref'] } : {}),
     'screen-ref': prior['screen-ref'],
     'story-refs': prior['story-refs'] ?? [],
     'ac-refs': prior['ac-refs'] ?? [],
@@ -286,7 +378,8 @@ for (const prior of priorTaskRows) {
   }
 }
 
-features.sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))
+// 1.x: priority order. 2.0: the delivery plan's order is the build order — never re-sort it.
+if (!sliceMode) features.sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))
 
 const taskCount = features.reduce((n, f) => n + f.tasks.length, 0)
 if (taskCount === 0) {
@@ -296,7 +389,7 @@ if (taskCount === 0) {
 
 const now = new Date().toISOString()
 const front = {
-  'checklist-version': '1.1',
+  'checklist-version': sliceMode ? '1.2' : '1.1',
   'spec-ref': specPath,
   'prototype-ref': prototypeRef || existing?.['prototype-ref'] || '',
   generated: existing?.generated ?? now,

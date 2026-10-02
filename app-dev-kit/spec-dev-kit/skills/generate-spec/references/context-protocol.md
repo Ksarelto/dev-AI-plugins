@@ -61,6 +61,31 @@ For each file, the `generate-spec` skill extracts:
 
 ---
 
+## Atomic Extraction Rules
+
+`raw_requirements[]` is the register every later station is checked against (Station 5 fidelity,
+Station 7 `REQUIREMENT_UNCOVERED`). Extract **one testable statement per entry**:
+
+- Every MUST / MUST NOT / "may" / "cannot" sentence → one entry. Split "A and B" into two.
+- Every **table row** (roles × actions matrix, "who is told" table, edge-case table, status list)
+  → one entry quoting the whole row (a row maps to one structured item later: one permission row,
+  one notification, one edge-case AC). Do not split a row into cells.
+- Every **number** — limits, timers, windows, retention, sizes, counts — is kept verbatim in the
+  entry text (`"at most three active borrows"`, `"lapses after 24 hours"`).
+- Glossary rows → `glossary[]` (also one entry each when they define behaviour).
+- "Decisions already made" lists → entries, with their ids in `decisions_already_made[]`. If a
+  decision only repeats a rule already extracted, list that rule's id instead of a new entry.
+- Success measures → entries with `kind_hint: metric`, ids in `success_metrics[]`.
+- Narrative (pain points, background) is not a requirement — it feeds `context.problem` only.
+- Lists ("payments, invoices, claims") split into one entry per item; "A or B" stays one entry.
+- Out-of-scope lists → entries with `scope_hint: non-goal`.
+- Copy / voice examples ("Good: …", "Bad: …") → `copy_examples[]`.
+
+Do not summarise and do not merge near-duplicates across sections — the analyst deduplicates with
+both source lines kept. A long structured PRD legitimately yields hundreds of entries.
+
+---
+
 ## Intake Report Structure
 
 After processing all files, the skill writes `artifacts/intake.json`:
@@ -73,26 +98,34 @@ After processing all files, the skill writes `artifacts/intake.json`:
   "type_hint": "feature | app",
   "raw_requirements": [
     {
+      "id": "R-001",                      // stable; later stations reference this, never the array index
       "text": "...",
       "source_file": "file1.md",
       "source_line": 12,
+      "section": "10.1 When a request is allowed",
+      "kind_hint": "rule | behavior | constraint | nfr | data | copy | metric",
+      "role_hint": "authoritative | discussion",     // per source file; analyst weights conflicts
+      "scope_hint": "in | non-goal",
       "confidence": "high | medium | low"
     }
   ],
-  "source_map": {
-    "requirement-text": {
-      "file": "file1.md",
-      "line": 12
-    }
-  },
-  "consolidated_entities": [],
-  "consolidated_user_roles": [],
-  "raw_constraints": [],
-  "raw_open_questions": [],
-  "raw_ui_hints": [],
-  "raw_api_hints": [],
-  "raw_nfr_hints": []
+  "glossary": [{ "term": "...", "meaning": "...", "source_line": 0 }],
+  "decisions_already_made": ["R-090"],          // ids of raw_requirements entries
+  "success_metrics": ["R-003"],                 // ids (kind_hint: metric)
+  "copy_examples": [{ "good": "...", "bad": "...", "source_line": 0 }],
+  "consolidated_entities": [{ "name": "Session", "salience": "primary | secondary", "source_lines": [40] }],
+  "consolidated_user_roles": [{ "role": "Patient", "definition": "...", "source_lines": [28] }],
+  "potential_conflicts": [{ "conflict_id": "C-001", "statement_a": "...", "lines_a": [84], "statement_b": "...", "lines_b": [85], "severity": "high" }],
+  "terminology_drift": [{ "concept": "...", "terms": ["move", "reschedule"], "source_lines": [55, 66] }],
+  "context_starved_categories": ["Observability"]   // completeness categories with zero signal in the source
+  "raw_open_questions": ["…"]       // TBD / "?" / unclear statements, verbatim
 }
+```
+
+Hints (UI, API, NFR, constraint) are not separate arrays — they are `kind_hint` values on the
+requirement itself, so nothing is stored twice.
+
+```
 ```
 
 ---
@@ -126,7 +159,8 @@ Every requirement extracted MUST carry:
 - `source_file` — which `.spec/context/` file it came from
 - `source_line` — approximate line number (for reference)
 
-This traceability is preserved through all pipeline stages and appears in the final spec's `traceability.source-requirements[]` YAML field.
+This traceability is preserved through all pipeline stages and appears in the final spec as
+`requirements[].source-ref` (`file#Lline`).
 
 **Rule**: If a requirement cannot be traced to a source file, it MUST be marked as an `assumption` (added by `spec-enricher`), NOT as a source requirement.
 

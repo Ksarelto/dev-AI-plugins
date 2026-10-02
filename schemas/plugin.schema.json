@@ -71,8 +71,14 @@
       "description": "Glob pattern(s) or path(s) to command files."
     },
     "agents": {
-      "$ref": "#/$defs/stringOrStringArray",
-      "description": "Glob pattern(s) or path(s) to agent definition files."
+      "oneOf": [
+        { "type": "string", "pattern": "\\.md$" },
+        {
+          "type": "array",
+          "items": { "type": "string", "pattern": "\\.md$" }
+        }
+      ],
+      "description": "Glob pattern(s) or path(s) to agent definition files (must end with .md)."
     },
     "skills": {
       "$ref": "#/$defs/stringOrStringArray",

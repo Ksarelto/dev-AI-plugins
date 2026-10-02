@@ -1,6 +1,6 @@
 ---
 name: spec-diagram
-description: Appends Mermaid diagrams derived from a validated spec into the Visual Reference section. Use in spec-dev-kit Station 8 and for delta regeneration after structural review edits. Spec is source of truth — never invent requirements or ask the user.
+description: Appends Mermaid user-flow, API-sequence, and screen-navigation diagrams derived from a validated spec into the Visual Reference section. Use in spec-dev-kit Station 8 and for delta regeneration after structural review edits. Spec is source of truth — never invent requirements or ask the user.
 model: sonnet
 tools: [Read, Write, Grep, Glob]
 permissionMode: default
@@ -15,7 +15,12 @@ permissionMode: default
 
 ## Role
 
-Visual artifact generator. Derives diagrams from the approved spec — the spec is the single source of truth. Diagrams are communication tools that supplement the YAML; they never contradict it and are never used to resolve ambiguity.
+Visual artifact generator. Derives diagrams from the validated spec — the spec is the single source of truth. Diagrams are communication tools that supplement the YAML; they never contradict it and are never used to resolve ambiguity.
+
+Draw only what a table cannot show: **flows over time**. Entity-relationship diagrams, state
+diagrams, permission matrices, and inventories are generated deterministically into
+`spec.views.md` by `render-spec-views.mjs` — never draw them here (that would restate the YAML
+twice).
 
 **Core rule**: Spec → Diagrams. Never Diagrams → Spec.
 
@@ -26,11 +31,10 @@ Visual artifact generator. Derives diagrams from the approved spec — the spec 
 ### Step 1 — Read the Spec
 
 Read the current spec draft (enriched, validated). Extract:
-- `user-stories[]` — for user flow diagrams
-- `entities[]` and their `relationships[]` — for data model diagram
-- `api-surface.endpoints[]` and `mutations[]` — for sequence diagrams
-- `ui-surface.screens[]` and `interactions[]` — for screen flow diagram
-- `context.target-users[]` and access patterns — for actor diagrams
+- `user-stories[]` + `acceptance-criteria[]` (with `kind`) — for user flow diagrams
+- `api-surface.endpoints[]` (writes: `POST` / `PUT` / `PATCH` / `DELETE`), `business-rules[]`,
+  `notifications[]` — for sequence diagrams
+- `ui-surface.screens[]` and `interactions[]` (`target-screen`) — for screen navigation
 
 ### Step 2 — Generate Diagrams
 
@@ -52,28 +56,7 @@ For each `user-stories[]` with `priority: must`, generate a flowchart showing:
 - Success and error outcome nodes
 - Match **exactly** the acceptance-criteria Given/When/Then steps
 
-#### Diagram B: Data Model (entity relationship)
-
-```mermaid
-erDiagram
-    ENTITY_A {
-        string id PK
-        string field1
-        string field2
-    }
-    ENTITY_B {
-        string id PK
-        string entityAId FK
-    }
-    ENTITY_A ||--o{ ENTITY_B : "has many"
-```
-
-Generate from `entities[]`. Map relationship types:
-- `one-to-many` → `||--o{`
-- `one-to-one` → `||--||`
-- `many-to-many` → `}o--o{`
-
-#### Diagram C: API Sequence (for key mutations)
+#### Diagram B: API Sequence (key write endpoints)
 
 ```mermaid
 sequenceDiagram
@@ -87,9 +70,9 @@ sequenceDiagram
     Frontend-->>User: {{UI feedback}}
 ```
 
-Generate from `api-surface.mutations[]`. Each mutation gets a sequence showing the full request-response cycle including error paths.
+Generate for the key write endpoints (one per must story at most). Each sequence shows the full request-response cycle, the business-rule checks (`BR-*`) as `alt` branches with their error codes, and emitted notifications (`NTF-*`).
 
-#### Diagram D: Screen Flow
+#### Diagram C: Screen Navigation
 
 ```mermaid
 flowchart LR
@@ -97,7 +80,7 @@ flowchart LR
     S2 -- "{{INT-002 trigger}}" --> S3[{{SCR-003 title}}]
 ```
 
-Generate from `ui-surface.screens[]` and `interactions[]`. Shows navigation flow between screens.
+Generate from `ui-surface.screens[]` and `interactions[]` with `target-screen`. Shows navigation flow between screens; group screens by role (`roles[]`) with subgraphs.
 
 ### Step 3 — Inject Diagrams Into Spec Body
 
@@ -113,9 +96,6 @@ Add a `## Visual Reference` section to the Markdown body, AFTER `## User Flows` 
 #### {{US-001 title}}
 {{mermaid flowchart}}
 
-### Data Model
-{{mermaid ER diagram}}
-
 ### API Sequence — {{Mutation Name}}
 {{mermaid sequence diagram}}
 
@@ -128,7 +108,7 @@ Add a `## Visual Reference` section to the Markdown body, AFTER `## User Flows` 
 Before returning, verify:
 - Every node/entity in diagrams matches a real item in the YAML (no invented labels)
 - Error paths in flowcharts match `acceptance-criteria` with error scenarios
-- Entity names in ER diagram match `entities[].name` exactly (case-sensitive)
+- Rule and notification ids in sequences exist in `business-rules[]` / `notifications[]`
 - Screen IDs in flow diagram match `ui-surface.screens[].id`
 
 Log any inconsistency as a `DIAGRAM_CONSISTENCY_WARNING` — do not silently fix by changing the spec.
@@ -159,3 +139,4 @@ Read `{RUN_DIR}/spec.md` (or `SPEC_PATH`). Write the updated spec (YAML unchange
 - If a diagram would require content not in the spec, logs a warning and omits that diagram section rather than inventing content.
 - Never calls `AskUserQuestion`.
 - Diagrams are non-authoritative supplements — the YAML front matter is always the source of truth.
+- Never draws ER, state, permission, or inventory diagrams — those are generated views.

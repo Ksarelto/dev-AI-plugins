@@ -31,7 +31,7 @@ Two habits sharpen every question and keep the pipeline honest:
    narrative and the number aligned.
 
 **Reconciliation with batching (important):** `interview-me` asks strictly one question at a time so
-the user can react to each guess. This pipeline instead **batches 3–7 questions per round** — a
+the user can react to each guess. This pipeline instead **batches up to 5 questions per round** — a
 deliberate trade to cut round-trips on a longer, structured elicitation. We keep the guess-attachment
 and confidence tracking, but adapt them to a batch: each batched question still carries its own
 recommended-first option. Do **not** "fix" this back to one-at-a-time; the batch is intentional (see
@@ -82,11 +82,15 @@ standard patterns → `false`; anything that could be a dealbreaker → `true` +
 
 | Round | Max Questions | Focus |
 |-------|--------------|-------|
-| 1 | 5–7 | Highest-impact gaps + hard conflicts |
-| 2 | 3–5 | Remaining critical gaps from round 1 answers |
-| 3 | 2–3 | Only blocking unknowns (anything else → assumption) |
+| 1 | 5 | Highest-impact gaps + hard conflicts |
+| 2 | 4 | Remaining critical gaps from round 1 answers |
+| 3 | 2 | Only blocking unknowns (anything else → assumption + blocking open question) |
+| completeness loop | 4 | Missing categories / unmapped source requirements |
 
-**Never ask more than 7 questions in a single round.** Batching all questions into one `AskUserQuestion` call is mandatory — never send one question at a time.
+Batching all questions into one `AskUserQuestion` call is mandatory — never send one question at a
+time. **Which gaps are asked** is decided by `scripts/gate-check.mjs` (`askable_gaps`), not by
+preference: a gap with no safe default, or any high + `blocks_synthesis` gap (confirm its default
+as the Recommended option). Assumable gaps never force a round.
 
 ---
 
@@ -158,22 +162,15 @@ Rank all candidate questions before selecting the batch. Send highest-priority f
 
 ## Assumption Trigger (No Question Needed)
 
-These gaps **do not require questions** — `spec-enricher` fills them as assumptions:
+UI-state gaps (loading, empty, network error, destructive-action confirmation, validation timing,
+WCAG 2.2 AA baseline) do not need questions — `spec-enricher` fills them from its domain-aware
+default table (`agents/spec-enricher.md` Step 3), **only when the source is silent and the default
+fits the domain**. Auth model, performance targets, pagination, and data formats are derived from
+the source's own words or asked — never filled with a generic web-app default.
 
-| Gap | Default Assumption |
-|-----|-------------------|
-| No auth mentioned | Bearer token required, standard OIDC |
-| No perf SLA mentioned | "List loads < 500ms at p95" |
-| No a11y standard mentioned | WCAG 2.2 AA |
-| No error state described | Standard error message + retry action |
-| No empty state described | Empty state with icon + CTA |
-| No loading state described | Skeleton loader |
-| No pagination strategy | Paginated, 20 items per page |
-| No sort order | Default: created_at descending |
-
-All defaults are logged in `assumptions[]`, tiered per **Assumption Tiering** above — high-confidence
-standard patterns (the table below) are `requires-confirmation: false`; anything dealbreaking is
-`true` and mirrored into `open-questions[]`.
+All defaults are logged in `assumptions[]` (one claim each), tiered per **Assumption Tiering**
+above: high-confidence standard patterns are `requires-confirmation: false`; anything dealbreaking
+is `true` and mirrored into `open-questions[]` with `blocking: true`.
 
 ---
 
@@ -181,8 +178,9 @@ standard patterns (the table below) are `requires-confirmation: false`; anything
 
 After user answers are received:
 
-1. Map each answer to its corresponding gap in the analysis report.
-2. Update `gap_score`: subtract resolved gap weight from total.
+1. Map each answer to its corresponding gap in the analysis report (`status: resolved`,
+   `resolved_by: user_answer`).
+2. Let `gate-check.mjs` recompute the score — never edit `gap_score` by hand.
 3. Mark resolved conflicts as `resolved` in `conflicts[]`.
 4. Extract new requirements from answers (user often reveals additional scope).
 5. Check if answers introduced new gaps (e.g., user says "and it should also integrate with X").
@@ -197,7 +195,7 @@ After user answers are received:
 
 | ❌ Avoid | ✅ Instead |
 |----------|-----------|
-| One question per turn | Batch 3–7 questions in one `AskUserQuestion` |
+| One question per turn | Batch up to the round budget in one `AskUserQuestion` |
 | "What are your requirements?" | Ask targeted, specific questions |
 | Asking about low-priority gaps first | Prioritize conflicts and blocking gaps |
 | Asking the same question twice | Mark as assumption after first miss |

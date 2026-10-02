@@ -35,6 +35,7 @@ upstream-spec: .spec/spec/spec-{tc}_{slug}/spec.md  # or none
 feature-id: F-001                                  # or none
 task-id: T-001,T-002                               # comma-separated, or none
 screen-ref: SCR-001,SCR-002                        # comma-separated, or none
+slice-ref: SL-001                                  # delivery slice (spec 2.0), or none
 prototype-ref: .spec/prototype/{tc}_{slug}/        # or none
 ```
 
