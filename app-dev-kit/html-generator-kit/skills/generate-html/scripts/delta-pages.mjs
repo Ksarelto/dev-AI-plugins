@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-// Screens that are new, modified, or show a modified entity.
+// Screens that are new, modified, or show a modified entity — for MODE: append.
+// Shares the page-id / page-type / entity / status / api-contract rules with spec-model.mjs
+// (lib/spec-model.mjs) so build and append never disagree on a page's id, domain, or type.
+//
 // Usage: node delta-pages.mjs --spec <spec.md> --page-map <page-map.json> --out <delta-pages.json> [--changes <changes.json>] [--root <dir>]
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { buildModel, entityFor, parseFrontmatter } from './lib/spec-model.mjs'
 
 const args = process.argv.slice(2)
 function flag(name) {
@@ -39,13 +43,19 @@ if (typeof parse !== 'function') {
   process.exit(2)
 }
 
-const raw = readFileSync(specPath, 'utf8')
-const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
-if (!match) {
-  console.error(`FATAL: no YAML front matter in ${specPath}`)
+if (!existsSync(specPath)) {
+  console.error(`FATAL: spec not found: ${specPath}`)
   process.exit(2)
 }
-const fm = parse(match[1])
+
+let fm
+try {
+  fm = parseFrontmatter(readFileSync(specPath, 'utf8'), parse)
+} catch (e) {
+  console.error(`FATAL: ${specPath}: ${e.message}`)
+  process.exit(2)
+}
+
 const mapped = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {}
 const changesArg = flag('changes')
 const changesPath = changesArg && changesArg !== true
@@ -58,104 +68,38 @@ if (changesPath && !existsSync(changesPath)) {
 const changes = changesPath ? JSON.parse(readFileSync(changesPath, 'utf8')) : null
 const modifiedScreens = new Set(changes?.screens?.modified ?? [])
 const modifiedEntities = new Set([...(changes?.entities?.modified ?? []), ...(changes?.entities?.added ?? [])])
-const have = new Set(Object.keys(mapped))
+
+const model = buildModel(fm, mapped)
 const entities = fm.entities ?? []
-const endpoints = [
-  ...(fm['api-surface']?.endpoints ?? []),
-  ...(fm['api-surface']?.mutations ?? []),
-]
+const have = new Set(Object.keys(mapped))
+const specScreenIds = new Set((fm['ui-surface']?.screens ?? []).filter((s) => s.id).map((s) => s.id))
 
-function kebab(value) {
-  return String(value ?? '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 40)
+function rawScreenFor(page) {
+  return (fm['ui-surface']?.screens ?? []).find((s) => s.id === page.spec_id)
 }
 
-function pageId(screen) {
-  const route = String(screen.route ?? '')
-  const fromRoute = route === '/' ? '' : kebab(route.replace(/^\//, ''))
-  return fromRoute || kebab(screen.title) || kebab(screen.id)
-}
-
-function htmlId(screen) {
-  const mappedId = mapped[screen.id]
-  return typeof mappedId === 'string' && mappedId ? mappedId : pageId(screen)
-}
-
-function pathSegments(path) {
-  return String(path ?? '').split('/').filter((part) => part && !part.startsWith('{') && !/^v\d+$/i.test(part))
-}
-
-function segmentMatches(name, segment) {
-  const key = kebab(name)
-  if (!key || !segment) return false
-  if (segment === key || segment === `${key}s`) return true
-  return key.endsWith('y') && segment === `${key.slice(0, -1)}ies`
-}
-
-function entityFor(screen) {
-  const text = `${screen.title ?? ''} ${screen.notes ?? ''} ${(screen.components ?? []).join(' ')}`
-  return entities.find((entity) => entity.name && text.includes(entity.name)) ?? null
-}
-
-function statusesOf(entity) {
-  const field = (entity?.fields ?? []).find((item) => /status/i.test(`${item?.name ?? ''} ${item?.type ?? ''}`))
-  if (!field) return []
-  if (Array.isArray(field.enum)) return field.enum.map(String)
-  return [...new Set(`${field.description ?? ''}`.match(/[A-Z][A-Z0-9_]{1,}/g) ?? [])]
-}
-
-function apiContract(entity) {
-  const contract = {}
-  if (!entity) return contract
-  const owned = endpoints.length === 0 || endpoints.some((endpoint) => (
-    pathSegments(endpoint.path).some((segment) => segmentMatches(entity.name, segment))
-  ))
-  if (!owned) return contract
-  for (const field of (entity.fields ?? []).slice(0, 12)) {
-    if (field?.name) contract[field.name] = field.type ?? 'string'
-  }
-  return contract
-}
-
-function pageFields(screen) {
-  const entity = entityFor(screen)
-  return {
-    id: htmlId(screen),
-    spec_id: screen.id,
-    title: screen.title ?? '',
-    description: screen.notes ?? '',
-    domain: kebab(entity?.name || screen.title || screen.id),
-    entity: entity?.name ?? '',
-    route: screen.route ?? '',
-    notes: screen.notes ?? '',
-    components: screen.components ?? [],
-    entity_fields: (entity?.fields ?? []).slice(0, 12).map((field) => ({ name: field.name, type: field.type ?? 'string' })),
-    entity_statuses: statusesOf(entity),
-    api_contract: apiContract(entity),
-  }
-}
-
-const allScreens = (fm['ui-surface']?.screens ?? []).filter((screen) => screen.id)
-const screens = allScreens
-  .filter((screen) => {
-    const entity = entityFor(screen)
-    const showsModifiedEntity = Boolean(entity && modifiedEntities.has(entity.name))
-      || (screen.components ?? []).some((component) =>
-        [...modifiedEntities].some((name) => String(component).includes(name)),
-      )
-    return !have.has(screen.id) || modifiedScreens.has(screen.id) || showsModifiedEntity
-  })
-  .map(pageFields)
-
-const assembly_pages = allScreens.map((screen) => {
-  const page = pageFields(screen)
-  return { id: page.id, title: page.title, domain: page.domain, description: page.description }
+const screens = model.pages.filter((page) => {
+  const screen = rawScreenFor(page)
+  const entity = entityFor(screen, entities)
+  const showsModifiedEntity = Boolean(entity && modifiedEntities.has(entity.name))
+    || (screen?.components ?? []).some((component) =>
+      [...modifiedEntities].some((name) => String(component).includes(name)),
+    )
+  return !have.has(page.spec_id) || modifiedScreens.has(page.spec_id) || showsModifiedEntity
 })
+
+const assembly_pages = model.pages.map((page) => (
+  { id: page.id, title: page.title, domain: page.domain, description: page.description }
+))
+
+// Spec ids on disk (page-map) that no longer exist in the spec — the orchestrator/skill decides
+// whether to delete those HTML files or keep them (see SKILL.md Step 2).
+const removed = Object.entries(mapped)
+  .filter(([specId]) => !specScreenIds.has(specId))
+  .map(([specId, htmlId]) => ({ spec_id: specId, id: htmlId }))
+
 const entities_changed = [...new Set([...(changes?.entities?.added ?? []), ...(changes?.entities?.modified ?? [])])]
 
 mkdirSync(dirname(outPath), { recursive: true })
-writeFileSync(outPath, `${JSON.stringify({ screens, assembly_pages, entities_changed }, null, 2)}\n`)
-console.log(`OK: ${screens.length} screen(s) → ${outArg}`)
+writeFileSync(outPath, `${JSON.stringify({ screens, assembly_pages, entities_changed, removed }, null, 2)}\n`)
+console.log(`OK: ${screens.length} screen(s), ${removed.length} removed → ${outArg}`)

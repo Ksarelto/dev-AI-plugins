@@ -21,9 +21,9 @@ Step 2.6     collect-design-inputs.mjs → design-inputs.json (binding: true = p
 
 ── orchestrator subagent (MODE: build) ──────────────────────────
 Station 0    Setup
-  PARALLEL: spawn spec-interpreter (background, SPEC_FILE path) + read this file
+  PARALLEL: run scripts/spec-model.mjs (SPEC_FILE path → spec-model.json) + read this file
       ↓
-Station 1    Receive spec-interpreter output
+Station 1    Receive spec-model.json
       ↓
 Station 1.5  Design Direction (design-strategist, reads design-inputs.json; ui-ux-pro-max only for open slots or when nothing is binding)
              → design-brief.md + ux-directives.md   ← GATE: design-brief
@@ -71,7 +71,7 @@ question.
 | `design-system-contract` | 2→3 | `css/tokens.css`, `css/base.css`, `css/components.css`, `design-system-ref.md` all exist and non-empty; motion tokens + reduced-motion guard present; no `locked_missing` tokens | `ESCALATION_PACKET` |
 | `component-ready` | 3→4 | `js/app.js`, `js/data.js`, `component-manifest.md` all exist and non-empty | `ESCALATION_PACKET` |
 | `qa-pass` | 6→6.5 | `critical_issues` list is empty from `qa-validator` | Auto-fix attempt (max 1 retry), then `ESCALATION_PACKET` |
-| `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 (`passed: true`) | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. Playwright missing → `SKIPPED` warning on `REVIEW_PACKET`, not a hard fail |
+| `render-pass` | 6.5→7 | `verify-prototype.mjs` exits 0 with `report.browser: true` | Route each critical to owning agent, re-run station, re-verify (max 1 cycle), then `ESCALATION_PACKET`. No browser available (`report.browser: false`) → `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never folded into a plain `REVIEW_PACKET` |
 
 ## Append mode
 
@@ -106,7 +106,7 @@ cycle re-spawns the orchestrator in `MODE: revise`; approval is Station 8 in the
 
 The orchestrator MUST perform both of these in the same message:
 1. Read `pipeline-flow.md` (this file)
-2. Spawn `spec-interpreter` with `run_in_background: true` and `SPEC_FILE` (path only)
+2. Bash: run `scripts/spec-model.mjs --spec {SPEC_FILE} --out {OUTPUT_DIR}/spec-model.json`
 
 ### Station 4 (always parallel)
 
@@ -131,11 +131,11 @@ Do NOT attempt to overlap:
 See also `references/context-budget.md`.
 
 **Each agent receives ONLY the context slice it needs.** Never pass the full spec content to the
-orchestrator or to downstream agents. `spec-interpreter` **Reads** `SPEC_FILE`.
+orchestrator or to downstream agents. `scripts/spec-model.mjs` **Reads** `SPEC_FILE` directly — no
+model call, no truncation (it replaced the old `spec-interpreter` agent).
 
 | Agent | Receives |
 |-------|----------|
-| `spec-interpreter` | `SPEC_FILE` path (it Reads the file) |
 | `html-orchestrator` | `SPEC_FILE` path, identity fields, `KIT_DIR`, `OUTPUT_DIR`, `UIUX_DIR` — **not** spec body |
 | `design-strategist` | TITLE + domain(s) + entity names + distinct page types + 1–3 sentence purpose/audience + KIT_DIR + OUTPUT_DIR + UIUX_DIR + DESIGN_INPUTS path (it reads the sources itself) |
 | `design-system-author` | design-brief.md content + entity names (strings) + KIT_DIR + OUTPUT_DIR + UIUX_DIR |

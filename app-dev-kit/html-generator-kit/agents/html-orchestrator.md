@@ -43,7 +43,7 @@ Always:
 - `DESIGN_INPUTS` — path to `{OUTPUT_DIR}/design-inputs.json` (the skill's Step 2.6). `binding: true`
   means the user supplied a theme/brand/layout reference and it is **mandatory**, not advisory.
 
-Do **not** accept `SPEC_CONTENT`. If the skill sent it, ignore it. `spec-interpreter` reads `SPEC_FILE`.
+Do **not** accept `SPEC_CONTENT`. If the skill sent it, ignore it. `spec-model.mjs` reads `SPEC_FILE`.
 
 Mode extras:
 
@@ -57,7 +57,7 @@ References resolve as `{KIT_DIR}/skills/generate-html/references/…` and
 ### Mode dispatch (do this first)
 
 - `MODE == revise` → skip to **Revise flow** below.
-- `MODE == append` → **Append flow** below. Do not spawn `spec-interpreter`. Do not re-run design.
+- `MODE == append` → **Append flow** below. Do not run `spec-model.mjs`. Do not re-run design.
 - else (`build`) → start at **Station 0**.
 
 There is no `finalize` mode. The skill writes README after approval (Station 8).
@@ -80,8 +80,8 @@ There is no `finalize` mode. The skill writes README after approval (Station 8).
 
 | type | When | Skill does |
 |------|------|------------|
-| `REVIEW_PACKET` | Stations 0–6.5 finished (render PASS or SKIPPED) | Present `review_packet`; Approve / Request changes / Abort |
-| `ESCALATION_PACKET` | Empty `pages[]`, a hard gate fail, or QA/render still failing after 1 retry | `AskUserQuestion` with `errors[]` and `options[]` |
+| `REVIEW_PACKET` | Stations 0–6.5 finished, render actually ran (`report.browser: true`) and passed | Present `review_packet`; Approve / Request changes / Abort |
+| `ESCALATION_PACKET` | Empty `pages[]`, a hard gate fail, render SKIPPED (no browser available), or QA/render still failing after 1 retry | `AskUserQuestion` with `errors[]` and `options[]`. When `review_packet` is also populated (the render-SKIPPED case), the skill may fold it straight into a `REVIEW_PACKET` on the matching option — see Station 6.5 |
 
 Do **not** continue past a packet. Do **not** ask the user yourself.
 
@@ -94,25 +94,31 @@ Do **not** continue past a packet. Do **not** ask the user yourself.
 In a single message, do both of these simultaneously:
 1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md` and
    `{KIT_DIR}/skills/generate-html/references/context-budget.md`
-2. Spawn `spec-interpreter` agent in background (`run_in_background: true`) with:
-   - `SPEC_FILE` (path only)
-   - Instruction to **Read** that file and return the compact summary
-   - Do not paste spec text into the spawn prompt
+2. Bash:
+   ```bash
+   node {KIT_DIR}/skills/generate-html/scripts/spec-model.mjs \
+     --spec "{SPEC_FILE}" --out "{OUTPUT_DIR}/spec-model.json"
+   ```
+   This is a deterministic parser (no model call) — it replaces the old `spec-interpreter` agent.
+   It reads `SPEC_FILE` itself; never paste spec text into this station. Exit 2 means no pages were
+   extracted — the script's stderr already names the cause.
 
 Create task list via TaskCreate: stations 1, 1.5, 2, 3, 4, 5, 6, 6.5.
 
-### Station 1 — Receive spec summary
+### Station 1 — Receive spec model
 
-Collect `spec-interpreter` result. Extract and store:
+On exit 2 from Station 0's script: return `ESCALATION_PACKET` with `errors: [the script's stderr
+line]` and `options: ["abort"]`. Then STOP.
+
+Otherwise, Read `{OUTPUT_DIR}/spec-model.json`. Extract and store:
 - `purpose` — the 1–3 sentence purpose/audience summary (feeds `design-strategist` at Station 1.5)
-- `pages[]` — list of `{ id, spec_id, title, description, type, domain, entity }` (`type` may be absent; `spec_id` is `screens[].id`)
+- `pages[]` — `{ id, spec_id, title, description, type, domain, entity, roles, components, states,
+  entity_fields[], entity_statuses[], api_contract, transitions[], acceptance_criteria[],
+  interactions[] }` per screen (`spec_id` is `screens[].id`; `type` may be `""` for a 1.x spec with
+  no page-type signal — screen-generator falls back to its own heuristic)
 - `entities[]` — `{ name, fields[], statuses[] }` per domain entity
 - `nav_structure` — domain → page ID groups
 - `api_contracts` — `{ EntityName: { field: type } }` per entity
-
-Validate: at least 1 page exists. If pages is empty: return `ESCALATION_PACKET` with
-`errors: ["No pages extracted. Check ui-surface.screens[] (or ## Screen Inventory) in SPEC_FILE."]`
-and `options: ["abort"]`. Then STOP.
 
 Mark task 1 complete.
 
@@ -123,7 +129,7 @@ Delegate to `design-strategist` with ONLY:
 - `domain`(s) present in `pages[]`
 - Entity names list (array of names only — not fields)
 - Distinct page types present in `pages[]` (e.g. `["dashboard", "list", "form"]`)
-- `purpose` — the 1–3 sentence purpose/audience summary stored at Station 1 (from spec-interpreter)
+- `purpose` — the 1–3 sentence purpose/audience summary stored at Station 1 (from spec-model.json)
 - `KIT_DIR`
 - `OUTPUT_DIR`
 - `UIUX_DIR`
@@ -214,7 +220,7 @@ Mark task 4 complete.
 
 Delegate to `assembly-wiring` with ONLY:
 - `pages[]` as `{ id, title, domain, description }` (no entity details)
-- `nav_structure` from spec-interpreter
+- `nav_structure` from `spec-model.json`
 - `TITLE`
 - `design_ref`: `DESIGN_REF` content (carries any provided layout / nav order)
 - `KIT_DIR`
@@ -251,11 +257,25 @@ Static QA cannot see whether a page actually renders. Run the render check per
 node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599
 ```
 
-Do **not** `npm i` Playwright or axe-core. If the script reports "Playwright not installed" or
-exit 2: static gate still applies; record render check as `SKIPPED` and continue to the
-`REVIEW_PACKET` (warning, not a hard fail). The skill may install Playwright if the human asks.
+Do **not** `npm i` Playwright, axe-core, or `npx playwright install` a browser binary — those are
+side effects a subagent must not take.
 
 Read `{OUTPUT_DIR}/_verify/report.json` when it exists. Store screenshot paths for the review packet.
+
+**GATE (render-pass), SKIPPED case** — exit 0 with `report.browser: false` (Playwright not
+installed, or installed but no browser binary / system Chrome was found): the static gate already
+passed, but render + functionality were never checked. This is **not** folded into a plain
+`REVIEW_PACKET` — return `type: ESCALATION_PACKET` with:
+- `review_packet` built the same as a normal review packet (format below) so nothing is lost if the
+  human proceeds anyway,
+- `errors: ["Render check SKIPPED — no browser available; static checks passed."]`,
+- `options: ["install-browser", "proceed-unverified", "abort"]`,
+
+then STOP. The skill relabels `review_packet` `⚠ UNVERIFIED` and proceeds to review directly on
+`proceed-unverified` — no re-spawn needed, since this orchestrator already built it. Only
+`install-browser` re-enters this orchestrator, via `MODE: revise` with
+`CHANGE_REQUEST: re-run Station 6.5 only` (the skill installs Playwright/a browser first —
+something this orchestrator must never do).
 
 **GATE (render-pass)** on exit 1 / `passed: false`:
 - For each `critical[]` entry, route to the owning agent (page render/style →
@@ -329,7 +349,8 @@ Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FI
 Put this markdown in `review_packet` on a `REVIEW_PACKET`:
 
 ```
-HTML Prototype — review required
+HTML Prototype — review required{ · ⚠ UNVERIFIED — no browser ever opened these pages, if the
+human chose proceed-unverified at the render-check escalation}
 --------------------------------
 Spec:    {spec-filename}
 Output:  .spec/prototype/{TIMECODE}_{SLUG}/
@@ -349,7 +370,7 @@ Pages generated ({count}):
 QA: {PASSED | N warnings}
 {warnings list if any}
 
-Render check: {PASS | SKIPPED (no Playwright) | FAILED}
+Render check: {PASS | SKIPPED — human chose proceed-unverified}
 Functionality ({passed}/{total} flows): {nav · modals · forms}
 {failed flows list, if any}
 Accessibility (axe): {0 serious | N serious/critical violations}

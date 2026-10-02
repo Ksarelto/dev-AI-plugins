@@ -130,7 +130,6 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
   README.md                                  ← you are here
   agents/
     html-orchestrator.md                     ← opus | returns packets; no AskUserQuestion; no Write
-    spec-interpreter.md                      ← haiku | Reads SPEC_FILE; compact summary
     design-strategist.md                     ← sonnet | binding design-inputs.json, else ui-ux-pro-max → design-brief.md + ux-directives.md
     design-system-author.md                  ← sonnet | fills brief into css/ + design-system-ref
     component-library-author.md              ← sonnet | Alpine stores, mock data, component-manifest
@@ -157,7 +156,10 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
         tokens-css.md  base-css.md  components-css.md
         app-js.md  mock-data-js.md  navigation-js.md
         page-shell.md  index-shell.md
-      scripts/                               ← collect-design-inputs.mjs (Step 2.6) and the rest under `scripts/`
+      scripts/
+        spec-model.mjs                        ← deterministic spec → model parser (Station 0, full build)
+        delta-pages.mjs                        ← append-mode delta, shares lib/spec-model.mjs with the above
+        collect-design-inputs.mjs (Step 2.6) and the rest
 ```
 
 `KIT_DIR` is the plugin root (this directory when installed). Scripts are
@@ -177,8 +179,8 @@ generate-html skill: resolve KIT_DIR, Step 2.5 ui-ux-pro-max → UIUX_DIR,
                      Step 2.6 collect-design-inputs.mjs → design-inputs.json
       │
 generate-html skill → spawn html-orchestrator (MODE: build, SPEC_FILE path only)
-  Station 0: setup — spec-interpreter (bg, Reads SPEC_FILE) + read pipeline-flow.md
-  Station 1: receive spec-interpreter compact summary
+  Station 0: setup — scripts/spec-model.mjs (Reads SPEC_FILE → spec-model.json) + read pipeline-flow.md
+  Station 1: receive spec-model.json
   Station 1.5: design-strategist → design-brief.md + ux-directives.md   ↓ GATE: design-brief
   Station 2: design-system-author → css/ (+ signature layer) + design-system-ref
   Station 3: component-library-author → app.js + data.js + manifest

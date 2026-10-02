@@ -31,11 +31,15 @@
 //
 // Optional env: PLAYWRIGHT_MODULE=/abs/path/to/playwright/index.js
 //               AXE_MODULE=/abs/path/to/axe-core/axe.min.js  (else tries ./node_modules)
+//               VERIFY_SKIP_BROWSER=1  (force the static-only path even if Playwright is installed)
 
 import http from 'node:http';
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
-import { join, extname, relative } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { createRequire } from 'node:module';
+import { dirname, join, extname, relative } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+const scriptDir = dirname(fileURLToPath(import.meta.url));
 
 const args = process.argv.slice(2);
 const dir = args.find((a) => !a.startsWith('--'));
@@ -107,10 +111,15 @@ const shotsDir = join(verifyDir, 'screenshots');
 mkdirSync(shotsDir, { recursive: true });
 
 async function loadPlaywright() {
+  // Explicit opt-out for a fast, deterministic static-only run (CI pipelines that only want the
+  // static gate, or tests that need the "no browser" path regardless of what's installed locally).
+  if (process.env.VERIFY_SKIP_BROWSER) return null;
+
   // A CJS module imported via ESM exposes named exports on the namespace OR on .default,
   // depending on how it was resolved — check both.
   const pick = (m) => (m && (m.chromium || (m.default && m.default.chromium))) || null;
-  // Explicit escape hatch for isolated installs: PLAYWRIGHT_MODULE=/abs/path/to/playwright/index.js
+
+  // 1. Explicit escape hatch for isolated installs: PLAYWRIGHT_MODULE=/abs/path/to/playwright/index.js
   // (ESM dynamic import() does not honour NODE_PATH, so a bare specifier only resolves a
   //  project-local install — this env var lets CI point at a separate copy.)
   const explicit = process.env.PLAYWRIGHT_MODULE;
@@ -121,9 +130,58 @@ async function loadPlaywright() {
       if (c) return c;
     } catch (e) { console.error('PLAYWRIGHT_MODULE import failed:', e.message); }
   }
+
+  // 2. The kit's own node_modules (this script's location, NOT process.cwd() — a bare
+  //    `import('playwright')` below resolves relative to the SCRIPT, which is the plugin
+  //    directory when installed as a plugin, so this covers `npm install` run in the kit).
+  for (const name of ['playwright', 'playwright-core']) {
+    try {
+      const req = createRequire(join(scriptDir, 'noop.cjs'));
+      const resolved = req.resolve(name);
+      const c = pick(await import(pathToFileURL(resolved).href));
+      if (c) return c;
+    } catch {}
+  }
+
+  // 3. The consumer repo (process.cwd()) — covers `npm i -D playwright` run there, which is how
+  //    verification-protocol.md historically told the human to install it.
+  try {
+    const req = createRequire(join(process.cwd(), 'noop.cjs'));
+    for (const name of ['playwright', 'playwright-core']) {
+      try {
+        const resolved = req.resolve(name);
+        const c = pick(await import(pathToFileURL(resolved).href));
+        if (c) return c;
+      } catch {}
+    }
+  } catch {}
+
+  // 4. Last resort: a bare specifier import, in case Node's default resolution (relative to this
+  //    script) finds something steps 1-3 missed (e.g. a symlinked global install).
   try { const c = pick(await import('playwright')); if (c) return c; } catch {}
   try { const c = pick(await import('playwright-core')); if (c) return c; } catch {}
   return null;
+}
+
+// A resolved chromium export may still fail to launch if no browser binary was downloaded
+// (`npx playwright install chromium`). Try the bundled browser first, then an installed system
+// Chrome/Chromium via the `chrome` channel — this lets verification run without a Playwright-
+// managed browser download in environments where one is already present.
+//
+// `launch()` does NOT fail fast when the executable is simply missing — it can take close to its
+// full internal timeout (~30s) before rejecting. Check `executablePath()` on disk first (near-
+// instant) and always pass an explicit short `timeout` as a safety net against any other hang.
+const LAUNCH_TIMEOUT_MS = 5000;
+async function launchChromium(chromium) {
+  let bundledExists = false;
+  try { bundledExists = existsSync(chromium.executablePath()); } catch {}
+
+  if (bundledExists) {
+    try {
+      return { browser: await chromium.launch({ timeout: LAUNCH_TIMEOUT_MS }), channel: 'chromium' };
+    } catch { /* fall through to the system-Chrome channel below */ }
+  }
+  return { browser: await chromium.launch({ channel: 'chrome', timeout: LAUNCH_TIMEOUT_MS }), channel: 'chrome' };
 }
 
 function loadAxeSource() {
@@ -146,13 +204,25 @@ async function main() {
   const base = `http://localhost:${port}`;
   const chromium = await loadPlaywright();
   const axeSource = loadAxeSource();
-  const report = { dir, port, pages: pages.length, browser: !!chromium, axe: !!axeSource, checks: [], flows, critical, warnings };
+  let browser = null;
+  let launchChannel = null;
+  if (chromium) {
+    try {
+      const launched = await launchChromium(chromium);
+      browser = launched.browser;
+      launchChannel = launched.channel;
+    } catch (e) {
+      pushW(`Playwright module resolved but no browser could be launched (${String(e).split('\n')[0]}) — browser render + functionality check skipped (static checks only). Install a browser with: npx playwright install chromium`);
+    }
+  }
+  const report = { dir, port, pages: pages.length, browser: !!browser, browserChannel: launchChannel, axe: !!axeSource, checks: [], flows, critical, warnings };
 
   if (!chromium) {
     pushW('Playwright not installed — browser render + functionality check skipped (static checks only). Install with: npx playwright install chromium && npm i -D playwright');
+  } else if (!browser) {
+    // launch() failed; the specific warning was already pushed above.
   } else {
     if (!axeSource) pushW('axe-core not found — accessibility audit skipped. Install with: npm i -D axe-core (or set AXE_MODULE).');
-    const browser = await chromium.launch();
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     const rel = (f) => relative(dir, f).replaceAll('\\', '/');
     for (const f of pages) {
@@ -344,7 +414,7 @@ async function main() {
   const flowCount = (s) => flows.filter((x) => x.status === s).length;
   console.log(`\n── Prototype verification ──`);
   console.log(`dir:      ${dir}`);
-  console.log(`pages:    ${pages.length}   browser: ${chromium ? 'chromium' : 'SKIPPED (no playwright)'}   axe: ${axeSource ? 'on' : 'off'}`);
+  console.log(`pages:    ${pages.length}   browser: ${browser ? launchChannel : (chromium ? 'SKIPPED (no browser binary)' : 'SKIPPED (no playwright)')}   axe: ${axeSource ? 'on' : 'off'}`);
   console.log(`screenshots: ${report.checks.filter((c) => c.screenshot).length} screens ×3 (desktop/mobile/dark) → ${relative(process.cwd(), shotsDir)}`);
   if (flows.length) {
     console.log(`\nFLOWS: ${flowCount('pass')} pass · ${flowCount('fail')} fail · ${flowCount('skip')} skip`);

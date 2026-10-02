@@ -62,31 +62,56 @@ Exit code: `0` pass, `1` critical issues, `2` setup error.
 
 ## Enabling the browser check
 
-The **orchestrator must not install** Playwright or axe-core (`npm i` in the consumer repo is a
-side effect a subagent must not take). If the script reports "Playwright not installed":
+The script resolves Playwright in this order, so it works whether the kit is used as an installed
+plugin or checked out as a consumer-repo copy:
 
-- Static gate still runs.
-- Render check is `SKIPPED` (warning on `REVIEW_PACKET`, not a hard fail).
-- The **generate-html skill** may offer to install, then re-spawn `MODE: revise` with
-  `CHANGE_REQUEST: re-run Station 6.5 only`.
+1. `PLAYWRIGHT_MODULE` (explicit override, see below)
+2. **the kit's own `node_modules`** — `playwright-core` is a kit dependency (`package.json`); the
+   `SessionStart` hook installs it automatically, so most installs need nothing further here
+3. the consumer repo's `node_modules` (`process.cwd()`)
+4. a bare-specifier import, as a last resort
 
-Skill-owned install (only after the user agrees):
+Module resolution only gets you the Playwright **API** — the browser **binary** is a separate,
+larger download that nothing installs automatically (not the hook, not the orchestrator: a
+multi-hundred-MB download is not a side effect a subagent, or a `SessionStart` hook, may take
+silently). If no browser binary is present, `launch()` fails fast (within ~5s, checked via
+`executablePath()` before attempting it) rather than hanging, then falls back to an installed
+system Chrome/Chromium via the `chrome` channel. If that also fails, the render check is `SKIPPED`.
+
+The **orchestrator must not install** Playwright, axe-core, or a browser binary (a side effect a
+subagent must not take). If the script reports "Playwright not installed" or no browser binary /
+system Chrome was found:
+
+- Static gate still runs — a broken prototype still fails on dead links, missing assets, Tailwind,
+  inline scripts, etc.
+- Render check is `SKIPPED`. This is **not** a silent warning: Station 6.5 returns an
+  `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` so a human
+  explicitly decides, rather than the prototype drifting to review unverified by default.
+- On `install-browser`, the **generate-html skill** (not the orchestrator) runs the install below,
+  then re-spawns `MODE: revise` with `CHANGE_REQUEST: re-run Station 6.5 only`.
+- On `proceed-unverified`, the review packet is headed `⚠ UNVERIFIED` so the human reviewer knows
+  no browser ever opened the pages.
+
+Skill-owned install (only after the user agrees to `install-browser`):
 
 ```bash
-npm i -D playwright >/dev/null 2>&1 || true
-npx --yes playwright install chromium
-npm i -D axe-core >/dev/null 2>&1 || true   # optional: enables the accessibility audit
+npx --yes playwright install chromium   # browser binary only — playwright-core is already a kit dep
 node {KIT_DIR}/skills/generate-html/scripts/verify-prototype.mjs "{OUTPUT_DIR}" --port 4599
 ```
 
 The accessibility audit is optional — if `axe-core` is not importable (and `AXE_MODULE` is unset),
 axe is skipped with a warning and the render + functionality gates still apply.
 
+### Force a static-only run (`VERIFY_SKIP_BROWSER`)
+
+Set `VERIFY_SKIP_BROWSER=1` to skip the browser entirely regardless of what's installed — useful
+for a fast CI pass that only wants the static gate, or to reproduce the SKIPPED path deterministically.
+
 ### Isolated Playwright installs (`PLAYWRIGHT_MODULE`)
 
-If the project's own `npm i -D playwright` conflicts with existing peer deps (ERESOLVE), the **skill**
-(not the orchestrator) may install Playwright in a throwaway dir and point the script at it — ESM
-`import()` ignores `NODE_PATH`, so pass the module entry explicitly:
+If the project's own Playwright install conflicts with existing peer deps (ERESOLVE), or you want to
+point at a separate copy of Playwright entirely, set `PLAYWRIGHT_MODULE` to its module entry — ESM
+`import()` ignores `NODE_PATH`, so a bare specifier alone cannot reach an arbitrary install location:
 
 ```bash
 mkdir -p /tmp/pwlib && (cd /tmp/pwlib && npm i playwright)
@@ -99,7 +124,8 @@ PLAYWRIGHT_MODULE=/tmp/pwlib/node_modules/playwright/index.js \
 
 | Result | Meaning | Orchestrator action |
 |--------|---------|---------------------|
-| PASS (exit 0) | No critical issues | Return `REVIEW_PACKET` with screenshots |
+| PASS (exit 0), `report.browser: true` | No critical issues, browser ran | Return `REVIEW_PACKET` with screenshots |
+| PASS (exit 0), `report.browser: false` | Static gate passed, but no browser ever opened the pages | Return `ESCALATION_PACKET` with `options: ["install-browser", "proceed-unverified", "abort"]` — never fold into a plain `REVIEW_PACKET` |
 | FAIL (exit 1) | ≥1 critical issue | Route each issue to the owning agent (screen-generator / design-system-author / assembly-wiring), re-run affected station, then re-verify (max 1 auto-fix cycle) before `ESCALATION_PACKET` |
 | SETUP ERROR (exit 2) | Bad dir/port | Fix invocation and retry |
 

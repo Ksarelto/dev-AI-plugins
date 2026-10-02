@@ -66,8 +66,9 @@ utility classes (`p-6`, `w-64`, `flex`, `text-sm`, `bg-card`, `grid-cols-3`, `ho
 
 ### 2. Determine page type
 
-If `page.type` is provided, **use it directly** — the spec-interpreter derived it from the spec's
-screen notes, so trust it over any guess. Only when `page.type` is absent, fall back to matching
+If `page.type` is provided, **use it directly** — it is the spec's own `page-type` (2.0) or was
+derived deterministically from the screen notes (1.x), so trust it over any guess. Only when
+`page.type` is absent, fall back to matching
 `page.description` against this heuristic:
 
 | Heuristic | Page type | Primary pattern |
