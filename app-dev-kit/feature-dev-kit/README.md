@@ -91,7 +91,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
   base.md                                    ← historical (2026-07 boilerplate); see pipeline-flow.md
   mcp.json                                   ← shadcn (stdio) + context7 (HTTP, CONTEXT7_API_KEY)
   .claude-plugin/plugin.json
-  .cursor-plugin/plugin.json                 ← same fields and paths as Claude
+  .cursor-plugin/plugin.json                 ← same fields as Claude; agents is ./agents/
   agents/                                    # 15 pipeline agents
     feature-orchestrator.md                  ← opus | sequences stations 1–11; packets only; blackboard + context Write; never src/
     architecture-auditor.md                  ← sonnet | Stations 1.5 / 9.5 REPORT_ONLY; no Write; preloads architecture-audit

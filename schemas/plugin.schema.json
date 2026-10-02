@@ -71,14 +71,8 @@
       "description": "Glob pattern(s) or path(s) to command files."
     },
     "agents": {
-      "oneOf": [
-        { "type": "string", "pattern": "\\.md$" },
-        {
-          "type": "array",
-          "items": { "type": "string", "pattern": "\\.md$" }
-        }
-      ],
-      "description": "Glob pattern(s) or path(s) to agent definition files (must end with .md)."
+      "$ref": "#/$defs/stringOrStringArray",
+      "description": "Agent files or a directory. Claude Code: ./agents/*.md (a directory is rejected). Cursor: ./agents/ (a glob is not expanded and loads nothing)."
     },
     "skills": {
       "$ref": "#/$defs/stringOrStringArray",
