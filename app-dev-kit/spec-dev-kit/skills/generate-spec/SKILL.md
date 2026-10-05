@@ -49,7 +49,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-spec/…`. Never h
 
 | Path | Loaded by | When |
 |------|-----------|------|
-| `references/pipeline-flow.md` | this skill, orchestrator, every agent | before starting — station order, loop guards, ownership |
+| `references/pipeline-flow.md` | this skill, orchestrator | before starting — station order, loop guards, ownership |
 | `references/spec-schema.md` | synthesizer (Station 6), validator (Station 7) | schema 2.0, rule codes |
 | `references/consumer-contract.md` | downstream kits, review | how build kits use the spec and briefs |
 | `references/completeness-checklist.md` | `spec-completeness` (Station 5) | completeness scoring |
@@ -62,11 +62,15 @@ All script and reference paths are `{KIT_DIR}/skills/generate-spec/…`. Never h
 | `fixtures/example-spec.md` | synthesizer (Station 6) | a complete valid 2.0 spec — the level of detail to match |
 | `scripts/gate-check.mjs` | orchestrator (Stations 2–3, Bash) | deterministic clarification-loop decision |
 | `scripts/validate-spec.mjs` | orchestrator (Station 7, Bash) | structure, contract quality, coverage, delivery plan |
-| `scripts/render-spec-views.mjs` | orchestrator (Station 9), publish | `spec.views.md` human tables + state diagrams |
+| `scripts/render-spec-views.mjs` | orchestrator (Station 9), publish | `spec.views.md` human tables + all Mermaid diagrams |
 | `scripts/write-slice-briefs.mjs` | publish | `slices/SL-NNN.yaml` build briefs |
 | `scripts/lookup-spec.mjs` | orchestrator (continue runs), humans | items by id, or `--slice SL-NNN` brief |
 | `scripts/publish-spec.mjs` | this skill (Station 10, Bash) | set `approved`, re-validate, write views + briefs; revert to `reviewing` on failure |
 | `scripts/continue-spec.mjs` | this skill (Station 0, Bash) | timecode freeze + run-folder scaffold |
+| `scripts/extract-intake.mjs` | this skill (Stations 0–1, Bash) | slug hint; atomic `raw_requirements` split into `intake.json` |
+| `scripts/build-enriched.mjs` | orchestrator (Stations 4–5, Bash) | seed one REQ per intake entry; merge enricher patches into `enriched.json` |
+| `scripts/score-completeness.mjs` | orchestrator (Station 5, Bash) | fidelity + weighted score → `completeness.json` |
+| `scripts/compose-review.mjs` | orchestrator (Station 9, Bash) | review packet text → `artifacts/review-packet.md` |
 | `scripts/write-kit-result.mjs` | this skill (publish or abort) | `{RUN_DIR}/kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
 ---
@@ -92,6 +96,10 @@ screenshot-to-text transcriptions, email/Slack transcripts.
 |----------|----------|-------------|
 | `[feature-name]` | Optional | Hint for the spec slug. If omitted, slug is derived from context files per `references/artifact-naming.md`. |
 
+Parents (`orchestrate-frontend`, `orchestrate-app`) also pass `RESULT_OUT: .spec/app/results/generate-spec.json`.
+Every envelope write (`approved`, `aborted`, `error`) uses `--also {RESULT_OUT}` so the parent can
+read `outcome` without treating `current.json` as an envelope.
+
 ```
 /generate-spec
 /generate-spec profile-management
@@ -113,7 +121,8 @@ Read `{KIT_DIR}/skills/generate-spec/references/pipeline-flow.md` before Station
 ### Step 2 — Scaffold Run (Station 0)
 
 1. Read `references/artifact-naming.md`.
-2. Derive `slug` from `[feature-name]` (normalized) or from context file signals.
+2. Derive `slug` from `[feature-name]` (normalized), else
+   `node {KIT_DIR}/skills/generate-spec/scripts/extract-intake.mjs --context .spec/context --slug-hint`.
 3. Scaffold from the shared pointer (`.spec/app/current.json`), not from older context files.
    `.spec/processed/` is archive, not input. See `references/app-state.md`.
 
@@ -127,15 +136,19 @@ Use `APP_SLUG` as the app slug from here on (`MODE=continue` keeps the existing 
 
 ### Step 3 — Intake (Station 1)
 
-Read and normalize context files per `references/context-protocol.md`:
-- Glob `.spec/context/*.md`, sort by modification time descending.
-- For each file: extract **atomic** `raw_requirements` (one testable statement each, with
-  `source_line`; every row of a roles / notifications / edge-case table is its own entry; every
-  number — limit, timer, retention — is kept verbatim; each entry gets a stable `R-NNN` id), the source's glossary,
-  decisions it says are already made, slug/type hints, and surface conflicts.
-- A long, structured PRD yields hundreds of entries — that is expected. Do not summarise.
-- Write `intake_report` to `{RUN_DIR}/artifacts/intake.json`.
-- Ensure `{RUN_DIR}/artifacts/qa-log.md` exists (empty file is fine).
+1. Split the context files (`references/context-protocol.md` § Atomic Extraction Rules):
+
+```bash
+node {KIT_DIR}/skills/generate-spec/scripts/extract-intake.mjs --context .spec/context \
+  --out {RUN_DIR}/artifacts/intake.json --timecode {TIMECODE}
+```
+
+   It writes every `raw_requirements` entry (`R-NNN`, `source_line`, keyword hints), the glossary,
+   decisions, success metrics, copy examples, and open questions. Do not re-extract or summarise.
+2. Read `intake.json` and the context files once, then fill **only** the judgement fields with one
+   edit: `type_hint`, `consolidated_entities`, `consolidated_user_roles`, `potential_conflicts`,
+   `terminology_drift`.
+3. Ensure `{RUN_DIR}/artifacts/qa-log.md` exists (empty file is fine).
 
 ### Step 4 — Drive the orchestrator until publish
 
@@ -151,37 +164,22 @@ INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json
 
 Read {KIT_DIR}/skills/generate-spec/references/pipeline-flow.md before any station.
 Do NOT call AskUserQuestion. Do NOT inline base.spec.md or prior context files.
-Return one packet and STOP.
-PULSE:        {RUN_DIR}/watch/spec-orchestrator.json
-PULSE_SCRIPT: {PULSE_SCRIPT argument, or the resolved check-pulse.mjs}
-WATCH:        .spec/app/watch/current.json
+Return one packet as your final message and STOP.
 ```
 
-Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
+Spawn the orchestrator in the foreground and wait for the Agent call to return. No background
+spawn, no status checks. Its final message is the packet JSON — handle it in the table below.
+If the call errors or returns without a packet, re-spawn it once from `RUN_DIR` (the artifacts on
+disk are the checkpoint; do not paste the old transcript). If the retry also fails, write
+`{RUN_DIR}/kit-result.json` with `--outcome error --reason agent-failed` (and `--also {RESULT_OUT}`
+when the caller passed it) and stop.
 
-### Liveness — poll the orchestrator
-
-Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
-
-`PULSE` is `{RUN_DIR}/watch/spec-orchestrator.json`. Write the pointer before the spawn (this is Station 1's watch file — `RUN_DIR` did not exist when `/orchestrate-frontend` started):
-
-```bash
-node {PULSE_SCRIPT} --watch .spec/app/watch/current.json --station 1 --pulse {PULSE}
-```
-
-1. Record `agent_id`. Touch `--role spec-orchestrator --status working --station start`.
-2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. Do not end the turn while `status` is `working`.
-3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table below. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write `{RUN_DIR}/kit-result.json` with `--outcome error --reason stale-agent` and stop.
-4. `awaiting-human` is healthy. Never resume or rebuild across it.
-
-If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
-
-Re-spawns (`MODE: resume` or `revise`) use this same loop.
+Re-spawns (`MODE: resume` or `revise`) work the same way.
 
 | Packet `type` | This skill |
 |---------------|------------|
 | `CLARIFY_PACKET` | `AskUserQuestion(questions[])` (one batched call). Append `## Round {n}` (or `## Completeness Round {n}`) plus verbatim Q&A to `{RUN_DIR}/artifacts/qa-log.md`, each question headed with its `gap_refs`. Re-spawn `MODE: resume` with `RESUME_AT`, `NEW_ANSWERS`, and the packet's round counters. |
-| `REVIEW_PACKET` | `AskUserQuestion(review_packet)`. On **explicit** approval → Step 5. On changes → re-spawn `MODE: revise` with `CHANGE_REQUEST` and `REVIEW_CYCLES`. Ambiguous "sounds good" is not approval — re-ask (see clarification-protocol § Restate & Confirm). |
+| `REVIEW_PACKET` | Read `review_packet_path` and `AskUserQuestion` with its text. On **explicit** approval → Step 5. On changes → re-spawn `MODE: revise` with `CHANGE_REQUEST` and `REVIEW_CYCLES`. Ambiguous "sounds good" is not approval — re-ask (see clarification-protocol § Restate & Confirm). |
 | `ESCALATION_PACKET` | `AskUserQuestion` with the packet errors/options. Apply the user's choice (`resume` with answers, approve-as-is → Step 5, or STOP after writing an aborted `kit-result.json`). |
 | `READY_TO_PUBLISH` | Step 5. |
 
@@ -253,6 +251,8 @@ node {KIT_DIR}/skills/generate-spec/scripts/write-kit-result.mjs \
   --reason "{short reason}"
 ```
 
+If the caller passed `RESULT_OUT`, add `--also {RESULT_OUT}` (same as the approved write).
+
 ---
 
 ## Validation
@@ -272,16 +272,7 @@ orchestrator returns `ESCALATION_PACKET`. `WARN` lines surface in the Station 9 
 
 ## Expected Duration
 
-| Phase | Typical Duration |
-|-------|-----------------|
-| Intake + Analysis | ~30 s |
-| Per clarification round | ~2 min (user response time varies) |
-| Enrichment + Completeness | ~45 s |
-| Synthesis | ~60 s |
-| Validation + Diagrams | ~30 s |
-| Review | ~1–3 min (user response time varies) |
-| **Total (0 clarification rounds)** | ~3 min |
-| **Total (2 clarification rounds)** | ~7–10 min |
+Wall-clock is unmeasured. Do not quote a 3–10 minute total; observed runs have taken hours.
 
 ---
 

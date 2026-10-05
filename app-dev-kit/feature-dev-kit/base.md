@@ -244,7 +244,6 @@ None exist today (`.claude/agents/` is empty). Format: markdown + YAML frontmatt
 | Agent | Role / boundary | Model | Tools | Skills/Rules it applies |
 |-------|-----------------|-------|-------|--------------------------|
 | `spec-analyst` | Request → structured spec + acceptance criteria; return CLARIFY_PACKET | `opus`/`sonnet` | `Read`,`Grep`,`Glob`,`Write` (no AskUserQuestion) | `generate-feature-spec` skill, `feature-spec-format` |
-| `upstream-interpreter` | Scoped YAML + prototype → compact slice | `haiku` | `Read`,`Bash` | `import-upstream.mjs` |
 | `slice-engineer` | Small-scope LAYER+SLICE builder | `sonnet` | build tools | matching `create-*` skills |
 | `code-explorer` | Map reuse candidates + affected slices; browse the shadcn registry for existing primitives before anything is authored; **read-only** | `sonnet`/`haiku` | read-only + shadcn MCP (browse) | `fsd-architecture.md` |
 | `research-analyst` | Investigate unfamiliar requirements; evaluate & **propose** new packages using **context7 MCP**; **never installs**; never AskUserQuestion | `opus`/`sonnet` | context7 MCP tools, `WebSearch`, `WebFetch`, `Read`, `Grep`, `Glob` | `investigation-protocol.md` |
@@ -252,9 +251,8 @@ None exist today (`.claude/agents/` is empty). Format: markdown + YAML frontmatt
 | `entities-engineer` | Build entity slices (`model`+`api`+`ui`) | `sonnet` | build tools, shadcn MCP (ui segment) | `create-entity` skill, `api-patterns.md`, `fsd-architecture.md` |
 | `features-engineer` | Build feature (interaction) slices | `sonnet` | build tools, shadcn MCP (ui segment) | `create-feature` skill, `react-coding-principles.md` |
 | `composition-engineer` | Build widgets + pages (compose lower layers); **assembles shadcn blocks via shadcn MCP** | `sonnet` | build tools, **shadcn MCP** | `create-widget`, `create-page` skills |
-| `app-engineer` | App layer: routes, navigation, providers | `sonnet` | `Read`,`Write`,`Edit`,`Glob`,`Grep` | `add-route`, `wire-navigation` skills |
+| `app-engineer` | App layer: routes, navigation, providers | `haiku` | `Read`,`Write`,`Edit`,`Glob`,`Grep` | `add-route`, `wire-navigation` skills |
 | `test-engineer` | Write/fix tests to threshold | `sonnet` | build tools | `testing` skill, `testing-patterns.md` |
-| `quality-gate-runner` | Run all gates; return **only** failures | `haiku` | `Bash`,`Read`,`Grep` | `run-quality-gates` skill |
 | `code-reviewer` | Review branch vs `main`; severity-tagged report | `opus`/`sonnet` | read-only + `Bash` | `code-review` skill + all coding-principle + FSD rules |
 
 **Removed**: ~~`integrator`~~ — shipping is now a separate human-invoked command (`/create-pr`), not an autonomous agent. No agent has git-push/PR authority.
@@ -262,7 +260,7 @@ None exist today (`.claude/agents/` is empty). Format: markdown + YAML frontmatt
 **Design notes**
 - Build workers (`shared` / `entities` / `features` / `composition`) run on the feature branch, one slice after another. Do not use `isolation: worktree`.
 - **Consolidation option**: `entities/features/composition` can collapse into one parametrized `slice-engineer` (told which layer/slice to build) to cut spawn count on small features — decide via the complexity heuristic in `orchestration-protocol.md`.
-- **`maxTurns`** guard on `quality-gate-runner` to prevent runaway loops.
+- No agent for mechanical steps: `import-upstream.mjs` (intake slice) and `run-gates.sh --spec` (gates + Gate Log) run via Bash.
 - Build an agent only when we need *context isolation, tool restriction, or a distinct model*; otherwise the orchestrator invokes the **skill** directly in-context.
 
 ---
@@ -331,7 +329,7 @@ This deliberately decouples "produce a reviewable feature" (automated) from "pub
 
 ## 9. Quality Gates (deterministic safeguards)
 
-Run by `quality-gate-runner` between stations; the orchestrator **blocks progression** on failure and routes to the fix loop.
+Run by the orchestrator via `run-gates.sh` (Bash, no agent) between stations; the orchestrator **blocks progression** on failure and routes to the fix loop.
 
 | Gate | Command | Pass condition |
 |------|---------|----------------|
@@ -384,7 +382,7 @@ RETURN:     summary + files changed; update your spec section
 | Over-spawning agents | §2 principle 4 + worker-count heuristics + optional consolidated `slice-engineer` |
 | Information loss across handoffs | Blackboard spec file (§5); persist + pass lightweight refs |
 | Vague delegation → duplicated/wrong work | Delegation template (§10) with objective, target slice, boundary |
-| Context flooding | Context isolation (§2.1); summaries only; gate noise stays in gate-runner |
+| Context flooding | Context isolation (§2.1); summaries only; gate noise stays in `.spec/.gate-log` |
 | Cross-layer import violations | FSD-boundary lint gate (§9) blocks them deterministically |
 | Runaway loops | `maxTurns` + N-iteration escalation to human |
 | Automation ships something wrong | **Human gate (station 12) + PR as a separate manual command** — no agent can publish |

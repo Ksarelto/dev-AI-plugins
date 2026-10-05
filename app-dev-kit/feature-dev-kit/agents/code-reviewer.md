@@ -2,6 +2,7 @@
 name: code-reviewer
 description: Reviews the feature branch against the integration branch (station 10) and returns a severity-tagged report — [CRITICAL]/[IMPORTANT]/[MINOR] — covering conventions, acceptance-criteria coverage, and test quality. Read-only. FSD architecture is Station 9.5 architecture-audit, not this agent.
 model: sonnet
+effort: high
 tools: [Read, Grep, Glob, Bash, Write]
 permissionMode: default
 ---

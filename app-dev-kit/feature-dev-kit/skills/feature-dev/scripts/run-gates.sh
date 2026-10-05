@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # Run the deterministic quality-gate sequence and emit one JSON object.
-# Used by quality-gate-runner so gate results are a fact, not a judgement.
+# Run by feature-orchestrator via Bash so gate results are a fact, not a judgement.
 # Gate order and thresholds are owned by ../references/quality-gates.md.
 #
 # Usage:   run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>] [--base <ref>]
+#                       [--spec <blackboard.md> --station <label>]
 #   --from   start at this gate, skipping earlier ones (default: types)
 #   --until  stop after this gate, even when it passed (layer profile: --until fsd)
 #   --only   run exactly one gate (cannot combine with --from or --until)
 #   --log    write full output of failing gates here (default: .spec/.gate-log)
 #   --base   integration ref; the conventions gate also checks files changed since it
+#   --spec   append one row to the blackboard's `## Gate Log` table (--station labels it)
 #
 # Gates, in order: types · lint · fsd · conventions · build · coverage
 # `conventions` runs the sibling check-conventions.mjs (no package.json script needed).
@@ -71,6 +73,8 @@ until=""
 only=""
 log=".spec/.gate-log"
 base_ref=""
+spec=""
+station=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -79,7 +83,9 @@ while [[ $# -gt 0 ]]; do
     --only) only="${2:-}"; shift 2 ;;
     --log)  log="${2:-}";  shift 2 ;;
     --base) base_ref="${2:-}"; shift 2 ;;
-    *) echo "usage: run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>] [--base <ref>]" >&2; exit 2 ;;
+    --spec) spec="${2:-}"; shift 2 ;;
+    --station) station="${2:-}"; shift 2 ;;
+    *) echo "usage: run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>] [--base <ref>] [--spec <md> --station <label>]" >&2; exit 2 ;;
   esac
 done
 
@@ -99,6 +105,8 @@ mkdir -p "$(dirname "$log")"
 : > "$log"
 
 results=()
+ran=()
+failed_gate=""
 overall=0
 started=false
 
@@ -125,8 +133,10 @@ for gate in "${GATES[@]}"; do
 
   duration=$(( SECONDS - start ))
   results+=("{\"gate\":\"${gate}\",\"command\":\"${command//\"/\\\"}\",\"status\":\"${status}\",\"duration_s\":${duration}}")
+  ran+=("$gate")
 
   if [[ "$status" == fail ]]; then
+    failed_gate="$gate"
     {
       echo "===== GATE FAILED: ${gate} (${command}) ====="
       echo "$output"
@@ -140,6 +150,25 @@ for gate in "${GATES[@]}"; do
     break
   fi
 done
+
+if [[ -n "$spec" ]]; then
+  printf -v joined '%s, ' ${ran[@]+"${ran[@]}"}
+  row="| $(date -u +%Y-%m-%dT%H:%M:%SZ) | ${station:-—} | ${joined%, } | $([[ $overall -eq 0 ]] && echo PASS || echo FAIL) | ${failed_gate:+${failed_gate} failed — see ${log}} |"
+  node --input-type=module -e '
+    import { existsSync, readFileSync, writeFileSync } from "node:fs"
+    const [spec, row] = process.argv.slice(1)
+    let s = existsSync(spec) ? readFileSync(spec, "utf8") : ""
+    const i = s.indexOf("\n## Gate Log")
+    if (i < 0) {
+      s = s.replace(/\s*$/, "\n\n## Gate Log\n\n| Timestamp | Station | Gate | Result | Note |\n|-----------|---------|------|--------|------|\n" + row + "\n")
+    } else {
+      const next = s.indexOf("\n## ", i + 1)
+      const end = next < 0 ? s.length : next
+      s = s.slice(0, end).replace(/\s*$/, "") + "\n" + row + "\n" + s.slice(end)
+    }
+    writeFileSync(spec, s)
+  ' "$spec" "$row"
+fi
 
 printf '{"passed":%s,"log":"%s","gates":[%s]}\n' \
   "$([[ $overall -eq 0 ]] && echo true || echo false)" \

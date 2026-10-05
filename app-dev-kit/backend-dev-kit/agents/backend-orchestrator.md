@@ -16,22 +16,18 @@ Also read `packets.md` and `context-budget.md`.
 Coordinator, not author. Blackboard: `.spec/backend/<slug>.md`. `Write`/`Edit` only on that file and `.spec/backend/<slug>.context/`.
 Never `AskUserQuestion`. Never `/create-pr`. Never write `src/`.
 
-## Liveness
+## Spawning
 
-Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`.
+Spawn every worker in the foreground and wait for the Agent call to return. Do not background it, sleep, or poll. The worker's final message is its HANDOFF / CONTAINS lines.
 
-`PULSE` is `.spec/backend/<slug>.context/pulse.json` unless the spawn payload passed another path. `PULSE_SCRIPT` is the argument, else the path resolved in `agent-liveness.md` (sibling `frontend-orchestrator-kit`). Procedure, exits, and the one-resume then two-fresh-spawn cap: that file's "Nested orchestrator" section. If the file is missing, the defaults are the same: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy.
+If an Agent call errors or returns without a result, retry it once from the blackboard path. Do not paste the old transcript. If the retry also fails, return `ESCALATION_PACKET` with reason `agent-failed`.
 
-On each poll, touch this orchestrator's own pulse (`--role backend-orchestrator`, current `--station`) so the parent skill sees it alive. A worker `--touch --worker {role}` does not do that. Pass `PULSE` and `PULSE_SCRIPT` on every spawn. The worker touches `--worker {its role}` on start and after each file it writes.
-
-Before any packet, touch `--status awaiting-human` with `--packet-json` set to that packet (paths only). Then STOP.
+Your own final message is the packet (paths only). Then STOP.
 
 ## Inputs
 
 - `MODE` — `build` | `revise`
 - `SLUG`, `SPEC_PATH` (blackboard), `KIT_DIR`, `UPSTREAM_SPEC` (app spec path, do not inline)
-- `PULSE` — `.spec/backend/<slug>.context/pulse.json` unless the skill passed another path
-- `PULSE_SCRIPT` — `check-pulse.mjs`, when frontend-orchestrator-kit is installed
 
 ## Stations
 
@@ -55,10 +51,4 @@ If the blackboard has `## Change request`, edit the existing router, table, and 
 
 ## Delegation
 
-Every spawn includes `OBJECTIVE`, `KIT_DIR`, `SPEC_PATH`, `BOUNDARY`, `RETURN`, `PULSE`, `PULSE_SCRIPT`. Pass paths, not blobs. Background the spawn and ping that worker (Liveness). Do not block on the Agent call. The worker runs:
-
-```bash
-node {PULSE_SCRIPT} --touch --pulse {PULSE} --worker {role} --role {role} --station {n} --artifact {handoff}
-```
-
-on start and after each file it writes.
+Every spawn includes `OBJECTIVE`, `KIT_DIR`, `SPEC_PATH`, `BOUNDARY`, `RETURN`. Pass paths, not blobs. Spawn in the foreground (Spawning above).

@@ -66,6 +66,10 @@ model: sonnet                 # sonnet | opus | haiku
 Agent system prompt...
 ```
 
+spec-dev-kit, html-generator-kit, and feature-dev-kit point their Cursor manifest at `cursor-agents/`,
+generated from `agents/` with Cursor model ids (`scripts/model-tiers.json`). After editing an agent,
+run `npm run build:cursor-agents`; `npm run validate` fails while the copies are stale.
+
 ## Adding a plugin
 
 1. Create `<plugin-name>/` at repo root, or under `app-dev-kit/` for the spec → prototype → build family. Marketplace `source` must match that directory (e.g. `./app-dev-kit/spec-dev-kit`).
@@ -101,9 +105,9 @@ npm run install:cursor-local
 | `pptx-dev-kit` | `pptx-dev-kit/` | Skills + Agents: create a 16:9 `.pptx` via design schema → outline → `deck.json` → checked-in layout renderer; or edit an existing deck via OOXML unpack/replace/pack | `evals/cases/pptx-dev-kit.json`, `pptx-dev-kit-agents.json` |
 | `backend-dev-kit` | `app-dev-kit/backend-dev-kit/` | Rules + Skills + Agents + MCP: Node 22/TS Express 5 APIs with Drizzle, Zod, and Vitest; `/backend-dev` consumes a spec and optional prototype | `evals/cases/backend-dev-kit.json`, `backend-dev-kit-agents.json` |
 | `agent-dev-kit` | `app-dev-kit/agent-dev-kit/` | Rules + Skills + Agents + MCP: TypeScript/Node agents and RAG with the OpenAI SDK via OpenRouter (`@openai/agents` or LangGraph.js); `/agent-dev` consumes a spec and optional prototype | `evals/cases/agent-dev-kit.json`, `agent-dev-kit-agents.json` |
-| `spec-dev-kit` | `app-dev-kit/spec-dev-kit/` | Skills + 8 agents: `.spec/context/` → approved hybrid YAML+Markdown spec, read by html-generator-kit, feature-dev-kit, backend-dev-kit, and agent-dev-kit | `evals/cases/spec-dev-kit.json`, `spec-dev-kit-agents.json` |
-| `html-generator-kit` | `app-dev-kit/html-generator-kit/` | Skills + 9 agents: approved spec → Alpine.js multi-page HTML prototype (CDN-free styling; Alpine and Google Fonts from a CDN). A provided theme, brand, mockup, or layout is binding | `evals/cases/html-generator-kit.json`, `html-generator-kit-agents.json` |
-| `feature-dev-kit` | `app-dev-kit/feature-dev-kit/` | Skills + 15 agents + rules (`ui-quality`, `git-workflow`) + `mcp.json`: one FSD feature per run (nested screen-tasks share the branch and commit). Requires `frontend-dev-kit`. Hub-and-spoke, architecture-audit, human review; never a PR | `evals/cases/feature-dev-kit.json`, `feature-dev-kit-agents.json` |
+| `spec-dev-kit` | `app-dev-kit/spec-dev-kit/` | Skills + 7 agents + mechanical scripts: `.spec/context/` → approved hybrid YAML+Markdown spec, read by html-generator-kit, feature-dev-kit, backend-dev-kit, and agent-dev-kit | `evals/cases/spec-dev-kit.json`, `spec-dev-kit-agents.json` |
+| `html-generator-kit` | `app-dev-kit/html-generator-kit/` | Skills + 5 agents + station scripts (CSS, assembly, QA, README): approved spec → Alpine.js multi-page HTML prototype (CDN-free styling; Alpine and Google Fonts from a CDN). A provided theme, brand, mockup, or layout is binding | `evals/cases/html-generator-kit.json`, `html-generator-kit-agents.json` |
+| `feature-dev-kit` | `app-dev-kit/feature-dev-kit/` | Skills + 13 agents + rules (`ui-quality`, `git-workflow`) + `mcp.json`: one FSD feature per run (nested screen-tasks share the branch and commit). Requires `frontend-dev-kit`. Hub-and-spoke, architecture-audit, human review; never a PR | `evals/cases/feature-dev-kit.json`, `feature-dev-kit-agents.json` |
 | `frontend-orchestrator-kit` | `app-dev-kit/frontend-orchestrator-kit/` | Skills only: spec → html-generator → feature-dev once per feature (nested screen-tasks share that call), against a persisted checklist | `evals/cases/frontend-orchestrator-kit.json` (skills only) |
 | `app-orchestrator-kit` | `app-dev-kit/app-orchestrator-kit/` | Skills only: analyze spec + prototype, then dispatch backend / agent / frontend tracks against a persisted work-plan | `evals/cases/app-orchestrator-kit.json` (skills only) |
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Render human-readable tables from the spec YAML into spec.views.md (next to spec.md).
-// These views replace hand-written body tables: they are regenerated, never edited.
+// Render human-readable tables and Mermaid diagrams (state machines, screen navigation, API
+// sequences, user flows) from the spec YAML into spec.views.md (next to spec.md).
+// These views replace hand-written body tables and diagrams: they are regenerated, never edited.
 // Usage: node render-spec-views.mjs <spec.md> [--out <file>]
 
 import { writeFileSync } from 'node:fs'
@@ -95,6 +96,73 @@ for (const m of list(fm['state-machines'])) {
     ['From', 'To', 'Trigger', 'Actor', 'After', 'Guard', 'Effects', 'ACs'],
     list(m.transitions).map((t) => [t.from, t.to, t.trigger, t.actor, t.after, t.guard, t.effects, t['ac-refs']]),
   ), '')
+}
+
+// Flow diagrams (deterministic Mermaid): screen navigation, write-endpoint sequences, must-story flows
+const node = (id) => String(id).replace(/[^A-Za-z0-9_]/g, '_')
+const lbl = (s) => `"${String(s ?? '').replace(/"/g, '#quot;').replace(/\s+/g, ' ').trim()}"`
+const msg = (s) => String(s ?? '').replace(/[;#]/g, ',').replace(/\s+/g, ' ').trim()
+const screens = list(fm['ui-surface']?.screens)
+const navs = list(fm['ui-surface']?.interactions).filter((i) => i['target-screen'])
+out.push('## Screen navigation', '')
+if (navs.length) {
+  out.push('```mermaid', 'flowchart LR')
+  const byRole = new Map()
+  for (const s of screens) {
+    const role = list(s.roles)[0] ?? 'Any role'
+    byRole.set(role, [...(byRole.get(role) ?? []), s])
+  }
+  for (const [role, group] of byRole) {
+    out.push(`  subgraph ${node(`role_${role}`)}[${lbl(role)}]`)
+    for (const s of group) out.push(`    ${node(s.id)}[${lbl(`${s.id} ${s.title ?? ''}`)}]`)
+    out.push('  end')
+  }
+  for (const i of navs) out.push(`  ${node(i['screen-ref'])} -- ${lbl(`${i.id} ${i.trigger ?? ''}`)} --> ${node(i['target-screen'])}`)
+  out.push('```', '')
+} else out.push('_No navigating interactions._', '')
+
+const stories = list(fm['user-stories'])
+const rules = list(fm['business-rules'])
+const machines = list(fm['state-machines'])
+const ntfById = new Map(list(fm.notifications).map((n) => [n.id, n]))
+const writes = endpointsOf(fm).filter((e) => ['POST', 'PUT', 'PATCH', 'DELETE'].includes(String(e.method).toUpperCase()))
+out.push('## API sequences', '')
+if (!writes.length) out.push('_No write endpoints._', '')
+for (const e of writes) {
+  const story = stories.find((s) => list(e['story-refs']).includes(s.id))
+  const actor = msg(list(e.roles)[0] ?? 'User')
+  out.push(`### ${e.id} — ${e.method} ${e.path}`, '', '```mermaid', 'sequenceDiagram', `  actor User as ${actor}`, '  participant Frontend', '  participant API')
+  out.push(`  User->>Frontend: ${msg(story?.['i-want'] ?? e.description)}`, `  Frontend->>API: ${e.method} ${msg(e.path)}`)
+  const errors = list(e.response?.errors)
+  const checks = rules.filter((b) => list(b['applies-to']).includes(e.id))
+  if (errors.length) {
+    out.push(`  alt ${msg(errors[0].when ?? `${errors[0].status}`)}`, `    API-->>Frontend: ${errors[0].status} ${msg(errors[0].code ?? '')}`, `    Frontend-->>User: ${msg(errors[0].message ?? 'error')}`)
+    for (const x of errors.slice(1)) out.push(`  else ${msg(x.when ?? `${x.status}`)}`, `    API-->>Frontend: ${x.status} ${msg(x.code ?? '')}`, `    Frontend-->>User: ${msg(x.message ?? 'error')}`)
+    out.push('  else success')
+  }
+  const pad = errors.length ? '    ' : '  '
+  for (const b of checks) out.push(`${pad}Note over API: ${b.id} ${msg(b.name ?? b.rule)}`)
+  out.push(`${pad}API-->>Frontend: ${e.response?.success?.status ?? 200} ${msg(e.response?.success?.schema ?? '')}`, `${pad}Frontend-->>User: ${msg(e.description)}`)
+  const effects = machines.flatMap((m) => list(m.transitions)).filter((t) => t['api-ref'] === e.id).flatMap((t) => list(t.effects))
+  for (const id of new Set(effects)) {
+    const n = ntfById.get(id)
+    if (n) out.push(`${pad}Note over API: ${id} notify ${msg(list(n.recipients).join(', '))} - ${msg(n.event)}`)
+  }
+  if (errors.length) out.push('  end')
+  out.push('```', '')
+}
+
+out.push('## User flows', '')
+const mustStories = stories.filter((s) => s.priority === 'must')
+if (!mustStories.length) out.push('_No must stories._', '')
+for (const s of mustStories) {
+  const own = acs.filter((a) => a['story-ref'] === s.id)
+  out.push(`### ${s.id} — ${s.title ?? s['i-want'] ?? ''}`, '', '```mermaid', 'flowchart TD', `  ${node(s.id)}[${lbl(`${s.as}: ${s['i-want'] ?? ''}`)}]`)
+  for (const a of own) {
+    out.push(`  ${node(s.id)} --> ${node(a.id)}{${lbl(`${a.id} ${a.kind ?? ''}: ${a.when ?? ''}`)}}`)
+    out.push(`  ${node(a.id)} --> ${node(`${a.id}_then`)}[${lbl(a.then)}]`)
+  }
+  out.push('```', '')
 }
 
 // Notifications

@@ -12,13 +12,17 @@ Companion schema: `result-envelope.md`.
 1. **Never inline** an app `spec.md`, prototype HTML/CSS/JS, `page-map.json` body, feature /
    backend / agent blackboards, `REVIEW_PACKET` markdown, `qa-log.md`, or `intake.json` into
    this skill’s prompts or into a Skill-tool spawn.
-2. After a delegated skill returns, read that kit’s `kit-result.json` and, when a pulse
-   was passed, the pulse file’s status (`check-pulse.mjs --check` or the JSON `status` /
-   `updated_at` / `station` / `artifact`). Do not read the callee transcript.
+2. After a delegated skill returns, read that kit’s envelope (`result-envelope.md`):
+   generate-spec → `.spec/app/results/generate-spec.json` (fallback `{dirname(spec_path)}/kit-result.json`);
+   generate-html → `{dirname(SPEC_PATH)}/html-kit-result.json`;
+   backend-dev / agent-dev → `RESULT_OUT` then `{kit}/{slug}.kit-result.json`;
+   orchestrate-frontend → `{dirname(SPEC_PATH)}/frontend-kit-result.json`.
+   `current.json` is a pointer, not an envelope. Do not read the
+   callee transcript.
    Progress otherwise lives in `work-plan.md`.
 3. Skill-tool arguments are structured **paths and ids**: `SPEC_PATH`, `TASK_ID`,
    `ENTITY_REFS`, `API_REFS`, `STORY_REFS`, `AC_REFS`, `PROTOTYPE_REF`,
-   `SLUG_HINT`, `RESULT_OUT`, `SKIP_UPSTREAM`, `PULSE`, `PULSE_SCRIPT`, `WATCH`.
+   `SLUG_HINT`, `RESULT_OUT`, `SKIP_UPSTREAM`.
    Not file contents.
 4. `analyze-capabilities.mjs` reads `spec.md` from disk. This skill does not parse YAML
    stories into chat in order to pick tracks.
@@ -36,7 +40,6 @@ Companion schema: `result-envelope.md`.
 | `PROTOTYPE_REF` | path to prototype dir, or `""` |
 | Current track id and task id | `backend`, `B-001` |
 | Envelope `outcome` / `slug` / `branch` / `reason` | from `kit-result.json` |
-| Pulse label | `fresh` / `awaiting-human` / `not-responding` / `missing` / `stalled` |
 
 ## What this skill must not hold
 

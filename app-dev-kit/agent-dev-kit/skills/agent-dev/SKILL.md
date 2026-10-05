@@ -87,7 +87,7 @@ node {KIT_DIR}/skills/agent-dev/scripts/import-upstream.mjs \
 
 Pass `--changes` only when that file exists. A reopened board has `## Change request`. When `CHANGE=remove`, delete the existing agent module for that ref. Do not scaffold a replacement.
 
-Spawn `agent-interpreter`, then `agent-analyst`, each with `run_in_background: true` and the Liveness parent loop below (`--check --worker {role}`). Pass paths only, plus `PULSE` and `PULSE_SCRIPT`. Each worker touches `--worker {its role}` on start and after each file it writes. `CLARIFY_PACKET` → this skill asks. Exit 2 on that worker is the packet in `{dirname(PULSE)}/packet.json`.
+Spawn `agent-interpreter`, then `agent-analyst`, each in the foreground per Spawning below. Pass paths only. `CLARIFY_PACKET` → this skill asks. The packet is `agent-analyst`'s final message.
 
 ### Station 0.5
 
@@ -103,30 +103,17 @@ SLUG:          {slug}
 SPEC_PATH:     .spec/agents/{slug}.md
 KIT_DIR:       {resolved plugin root}
 UPSTREAM_SPEC: {path only}
-PULSE:         .spec/agents/{slug}.context/pulse.json
-PULSE_SCRIPT:  {PULSE_SCRIPT argument, or the resolved check-pulse.mjs}
 ```
 
-Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
+Spawn that orchestrator in the foreground per Spawning below.
 
-It runs `agent-architect` (design onto the blackboard), then `scaffold-agent` or `embed-agent`, `agent-builder` / `langgraph-agent`, optional `rag-builder`, `agent-eval`, `quality-gate-runner`, review. Returns one packet. `MODE: revise` uses the same loop and the same `PULSE` / `PULSE_SCRIPT`.
+It runs `agent-architect` (design onto the blackboard), then `scaffold-agent` or `embed-agent`, `agent-builder` / `langgraph-agent`, optional `rag-builder`, `agent-eval`, `quality-gate-runner`, review. Returns one packet. `MODE: revise` is spawned the same way.
 
-### Liveness — poll the agent
+### Spawning
 
-Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
+Spawn every agent in the foreground and wait for the Agent call to return. Do not background it, sleep, or poll. The orchestrator's final message is its packet — handle it with the packet table in `references/packets.md`. A worker's final message is its HANDOFF / CONTAINS lines.
 
-`PULSE` is `.spec/agents/{slug}.context/pulse.json`. If the real slug differs from a passed `SLUG_HINT` path, use the real path. When `WATCH` was passed, write the pointer before the first spawn:
-
-```bash
-node {PULSE_SCRIPT} --watch {WATCH} --station 4 --pulse {PULSE}
-```
-
-1. Record `agent_id`. Touch `--role agent-dev-orchestrator --status working --station start`. Station 0 workers: `--role agent-dev --station 0`, then `--check --worker {role}`.
-2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. A Station 0 worker adds `--worker {role}`. Do not end the turn while `status` is `working`.
-3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table in `references/packets.md`. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write the envelope `--outcome error --reason stale-agent` and stop.
-4. `awaiting-human` is healthy. Never resume or rebuild across it.
-
-If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
+If an Agent call errors or returns without a result, retry it once from the blackboard path (`.spec/agents/{slug}.md`). Do not paste the old transcript. If the retry also fails, write the envelope `--outcome error --reason agent-failed` and stop.
 
 ### Station 12
 

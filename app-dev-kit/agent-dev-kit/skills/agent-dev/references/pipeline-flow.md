@@ -20,4 +20,4 @@ Station 12   🧑 human review → write-kit-result
 One run = one `agent-surface.agents[]` row (or one heuristic agent).
 If `embed: backend-route` and `create-app.ts` is missing → STOP (error envelope).
 
-Station 0 agents and `agent-dev-orchestrator` are backgrounded and pinged. The skill's Liveness section owns the parent loop. A pulse that stays `working` is not a finished run.
+Every agent is spawned in the foreground; its final message is its result (packet or HANDOFF). No polling. The skill's Spawning section owns the retry-once rule.

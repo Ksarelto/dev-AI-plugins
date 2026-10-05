@@ -17,23 +17,19 @@ Coordinator, not author. Reads `.spec/features/<slug>.md` and `.spec/features/<s
 
 This agent is spawned as a subagent. Never call `AskUserQuestion`. Never run `/create-pr`. Never `git push`. Never write files under `src/`. `Write`/`Edit` are allowed only on `.spec/features/<slug>.md` and `.spec/features/<slug>.context/`.
 
-## Liveness
+## Spawning
 
-Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`.
+Spawn every worker in the foreground and wait for the Agent call to return. Do not background it, sleep, or poll. The worker's final message is its HANDOFF / CONTAINS lines.
 
-`PULSE` is `.spec/features/<slug>.context/pulse.json` unless the spawn payload passed another path. `PULSE_SCRIPT` is the argument, else the path resolved in `agent-liveness.md` (sibling `frontend-orchestrator-kit`). Procedure, exits, and the one-resume then two-fresh-spawn cap: that file's "Nested orchestrator" section. If the file is missing, the defaults are the same: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy.
+If an Agent call errors or returns without a result, retry it once from the checkpoint path. Do not paste the old transcript. If the retry also fails, return `ESCALATION_PACKET` with reason `agent-failed`.
 
-On each poll, touch this orchestrator's own pulse (`--role feature-orchestrator`, current `--station`) so the parent skill sees it alive. A worker `--touch --worker {role}` does not do that. Pass `PULSE` and `PULSE_SCRIPT` in every delegation (`templates/delegation-message.md`). The worker touches `--worker {its role}` on start and after each file it writes.
-
-Before any packet, touch `--status awaiting-human` with `--packet-json` set to that packet (paths only). Then STOP.
+Your own final message is the packet (paths only). Then STOP.
 
 ## Inputs
 
 - `MODE` — `build` | `revise` (default `build`)
 - `TIER` — `standard` | `full` (patch does not spawn this agent)
 - `SLUG`, `SPEC_PATH`, `BRANCH`, `PARENT` (the branch this one was cut from — the conventions `--base`), `KIT_DIR`
-- `PULSE` — `.spec/features/<slug>.context/pulse.json` unless the skill passed another path
-- `PULSE_SCRIPT` — `check-pulse.mjs`, when frontend-orchestrator-kit is installed
 - `revise` also gets `CHANGE_REQUEST` and, when it exists, `session.md`
 
 Do not accept an inlined upstream spec body or a worker report. Workers return a handoff path.
@@ -99,7 +95,7 @@ Confirm `status` is `approved` (or continuing after dep approval). Write `## Bui
 
 ### Stations 3–7 — Delegation
 
-Spawn workers with `templates/delegation-message.md` and the Liveness ping (background, then poll). `APPLY` is one skill. Slices in one layer run one after another on the feature branch. Do not spawn them in parallel and do not use a git worktree. After each layer, spawn `quality-gate-runner` with `PROFILE: layer` (`run-gates.sh --until fsd`). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
+Spawn workers in the foreground with `templates/delegation-message.md`. `APPLY` is one skill. Slices in one layer run one after another on the feature branch. Do not spawn them in parallel and do not use a git worktree. After each layer, run the layer gate yourself via Bash — no agent: `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd --spec {SPEC_PATH} --station "Station N"`. It appends the Gate Log row and prints one JSON line; read only that line (and the log, for the failed gate). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
 
 Station 6 parity: when `.spec/features/<slug>.context/prototype-inventory.md` exists, pass its path to `composition-engineer` (and to any slice owner that renders a row). After Station 6, run `node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check <that path>`. Exit 1 → re-delegate the listed rows to the owning engineer before Station 7. Do not mark rows `n/a` yourself.
 
@@ -109,7 +105,7 @@ Always spawn `test-engineer`, once per layer group that has new or changed execu
 
 ### Station 9 — Full gate sweep
 
-Spawn `quality-gate-runner` with `PROFILE: full` and `BASE: {PARENT}` (it passes `--base`, so every file changed on the branch is checked by `conventions`). It appends `## Gate Log` and writes a handoff. The transcript stays in `.spec/.gate-log`. A red `conventions` gate lists each finding; route findings by path to the owning engineer (`missing-test` → `test-engineer`).
+Run `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --base {PARENT} --spec {SPEC_PATH} --station "Station 9"` (`--base` makes `conventions` check every file changed on the branch). It appends `## Gate Log`; the transcript stays in `.spec/.gate-log` — read only the failed gate's block. A patch run uses `--until conventions`; a fix re-run uses `--only types`, then `--only <failed gate>`. A red `conventions` gate lists each finding; route findings by path to the owning engineer (`missing-test` → `test-engineer`).
 
 ### Station 9.5 — Architecture-audit on the diff (REPORT_ONLY)
 

@@ -15,7 +15,7 @@ Copy this file into `{OUTPUT_DIR}/css/components.css` **with two adjustments fro
    picks one). Never delete a layout block the shell might reference.
 
 Everything else is structural and stays as-is. Class vocabulary is authoritative: templates,
-screen-generator and assembly-wiring must use ONLY these class names (no Tailwind utilities, no
+screen-generator and the assembly script must use ONLY these class names (no Tailwind utilities, no
 slashed/colon class names).
 
 ---

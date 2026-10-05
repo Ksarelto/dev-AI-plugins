@@ -59,21 +59,18 @@ Page IDs must be:
 | `design-inputs.json`, `design-request.md` | `generate-html` skill (Step 2.6) | `generate-html` skill | all agents (read-only) |
 | `design-brief.md` | `design-strategist` | `design-strategist` (only on a look-and-feel change request) | all other agents |
 | `ux-directives.md` | `design-strategist` | `design-strategist` | all other agents |
-| `css/tokens.css` | `design-system-author` | `design-system-author` (only on full redesign) | all other agents |
-| `css/base.css` | `design-system-author` | `design-system-author` | all other agents |
-| `css/components.css` | `design-system-author` | `design-system-author` | all other agents |
-| `design-system-ref.md` | `design-system-author` | `design-system-author` | all other agents |
+| `spec-summary.json` | orchestrator (`delta-pages.mjs`, Station 0) | orchestrator (append refresh) | all agents |
+| `css/tokens.css`, `css/base.css`, `css/components.css`, `design-system-ref.md` | `apply-design-brief.mjs` (Station 2) | re-run of that script after a brief `## Slots` change | all agents |
 | `js/app.js` | `component-library-author` | `component-library-author` | all other agents |
 | `js/data.js` | `component-library-author` | `component-library-author` | all other agents |
 | `component-manifest.md` | `component-library-author` | `component-library-author` | all other agents |
 | `pages/{id}.html` | `screen-generator` | `screen-generator` (full rewrite on change) | all other agents |
-| `index.html` | `assembly-wiring` | `assembly-wiring` | all other agents |
-| `js/navigation.js` | `assembly-wiring` | `assembly-wiring` | all other agents |
-| `README.md` | `generate-html` skill (Station 8) | `generate-html` skill | all agents |
-| `page-map.json` | `generate-html` skill (Station 8) | `generate-html` skill | all agents |
+| `index.html`, `js/navigation.js` | `assemble-prototype.mjs` (Station 5) | re-run of that script | all agents |
+| `_verify/qa.json` | `qa-prototype.mjs` (Station 6) | re-run | all agents |
+| `README.md`, `page-map.json` | `finalize-prototype.mjs` (`generate-html` Step 5) | re-run | all agents |
 
 **Cross-agent file modification is forbidden.** `screen-generator` never touches CSS or JS files.
-`assembly-wiring` never touches page files. `design-system-author` never touches pages or scripts.
+Scripted files are never hand-edited — change their input (brief Slots, pages) and re-run.
 
 ---
 

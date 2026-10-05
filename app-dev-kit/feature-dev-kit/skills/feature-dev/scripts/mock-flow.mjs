@@ -29,13 +29,13 @@ const EXTERNAL_SKILLS = new Set(['testing', 'code-review', 'architecture-audit']
 const HUMAN_ONLY = new Set(['create-pr'])
 const PACKET_TYPES = ['CLARIFY_PACKET', 'DEP_PACKET', 'REVIEW_PACKET', 'ESCALATION_PACKET']
 const STATION_NEEDLES = [
-  'Station 0', 'upstream-interpreter', 'spec-analyst', 'Station 0.5',
+  'Station 0', 'import-upstream.mjs', 'spec-analyst', 'Station 0.5',
   'Station 1', 'code-explorer', 'Station 1.5', 'architecture-auditor',
   'Station 1a', 'research-analyst', 'Station 1b', 'DEP_PACKET',
   'Station 2', 'Station 3', 'shared-engineer', 'Station 4', 'entities-engineer',
   'Station 5', 'features-engineer', 'Station 6', 'composition-engineer',
   'Station 7', 'app-engineer', 'Station 8', 'test-engineer',
-  'Station 9', 'quality-gate-runner', 'Station 9.5', 'Station 10', 'code-reviewer',
+  'Station 9', 'run-gates.sh', 'Station 9.5', 'Station 10', 'code-reviewer',
   'Station 11', 'Station 12', 'slice-engineer', 'REVIEW_PACKET',
 ]
 
@@ -123,7 +123,7 @@ const localSkillNames = new Set(
 )
 
 const agentFiles = readdirSync(agentsDir).filter((f) => f.endsWith('.md'))
-if (agentFiles.length < 15) fail(`expected ≥15 agents, found ${agentFiles.length}`)
+if (agentFiles.length < 13) fail(`expected ≥13 agents, found ${agentFiles.length}`)
 else pass(`${agentFiles.length} agent files`)
 
 for (const file of agentFiles) {

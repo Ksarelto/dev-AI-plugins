@@ -1,6 +1,6 @@
 # Verification Protocol — html-generator-kit
 
-Static QA (`qa-validator`) greps text and cannot see whether a page actually *renders*. This protocol
+Static QA (`qa-prototype.mjs`) greps text and cannot see whether a page actually *renders*. This protocol
 adds a real render + functionality check between QA (Station 6) and human review (Station 7), so a
 blank or unstyled page can never pass silently. Owned by `html-orchestrator` (Station 6.5).
 
@@ -105,7 +105,7 @@ PLAYWRIGHT_MODULE=/tmp/pwlib/node_modules/playwright/index.js \
 | Result | Meaning | Orchestrator action |
 |--------|---------|---------------------|
 | PASS (exit 0) | No critical issues | Return `REVIEW_PACKET` with screenshots |
-| FAIL (exit 1) | ≥1 critical issue | Route each issue to the owning agent (screen-generator / design-system-author / assembly-wiring), re-run affected station, then re-verify (max 1 auto-fix cycle) before `ESCALATION_PACKET` |
+| FAIL (exit 1) | ≥1 critical issue | Route each issue to its owner (screen-generator for a page; strategist `FIX:` + Station 2 script for CSS; Station 5 script for index/nav), re-run affected station, then re-verify (max 1 auto-fix cycle) before `ESCALATION_PACKET` |
 | SETUP ERROR (exit 2) | Bad dir/port | Fix invocation and retry |
 
 Run this once, at Station 6.5, after screens, assembly, and QA are done. Do not run it after each

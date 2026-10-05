@@ -5,12 +5,12 @@
   "description": "Plugin marketplace with reusable skills, rules, commands, and agents for Claude Code and Cursor",
   "type": "module",
   "scripts": {
-    "validate": "node scripts/validate-marketplace.mjs",
+    "validate": "node scripts/validate-marketplace.mjs && node scripts/build-cursor-agents.mjs --check",
+    "build:cursor-agents": "node scripts/build-cursor-agents.mjs",
     "eval": "node evals/runner.mjs",
     "mock-flow:feature-dev": "node app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/mock-flow.mjs",
     "install:cursor-local": "node scripts/install-cursor-local.mjs",
-    "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall",
-    "test:frontend-orchestrator": "node --test app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/"
+    "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

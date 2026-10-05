@@ -16,7 +16,7 @@ itself — it delegates to worker agents and reads the spec blackboard to decide
 
 | # | Station | Agent | Gate / Checkpoint |
 |---|---------|-------|-------------------|
-| 0 | Intake + clarify | upstream-interpreter + spec-analyst | Spec status: `draft` → `awaiting-clarification`; skill sets `approved` |
+| 0 | Intake + clarify | import-upstream.mjs + spec-analyst | Spec status: `draft` → `awaiting-clarification`; skill sets `approved` |
 | 1 | Discovery | code-explorer | FSD impact + reuse map written to spec |
 | 1.5 | Baseline architecture | architecture-auditor | REPORT_ONLY → `## Architecture Baseline` |
 | 1a | Investigation (conditional) | research-analyst | Triggered when unfamiliar capability detected; outputs to spec "Tech investigation" |
@@ -28,7 +28,7 @@ itself — it delegates to worker agents and reads the spec blackboard to decide
 | 6 | Build widgets + pages | composition-engineer | `widgets/` and `pages/` segments built and gated |
 | 7 | Wire app | app-engineer | Providers, routing wired; integration verified |
 | 8 | Tests | test-engineer | Coverage thresholds met |
-| 9 | Quality gates | quality-gate-runner | All gates green (see quality-gates.md) |
+| 9 | Quality gates | run-gates.sh (orchestrator, Bash) | All gates green (see quality-gates.md) |
 | 9.5 | Architecture audit | architecture-auditor | Zero hard violations on changed paths |
 | 10 | Auto-review | code-reviewer | No [CRITICAL], no unresolved [IMPORTANT] |
 | 11 | Fix loop | Appropriate engineer | Iterates until gates pass or escalation threshold hit |
@@ -50,9 +50,7 @@ SPEC: .spec/features/<slug>.md — read sections: <list sections>; write to sect
 TARGET: <fsd-layer>/<slice>/<segment(s)>
 APPLY: skill: <one skill name>
 BOUNDARY: only touch files under <path>; do not modify <excluded paths>
-PULSE: .spec/features/<slug>.context/pulse.json
-PULSE_SCRIPT: <check-pulse.mjs>   # omit only when frontend-orchestrator-kit is not installed
-RETURN: HANDOFF path + one CONTAINS line. Touch --worker <role> on start and after each write.
+RETURN: HANDOFF path + one CONTAINS line, as the final message.
 ```
 
 Example:

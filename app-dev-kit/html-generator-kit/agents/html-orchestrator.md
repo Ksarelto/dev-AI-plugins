@@ -25,17 +25,17 @@ installs npm packages (`playwright`, `axe-core`, `ui-ux-pro-max`). Never re-reso
 
 Workers persist their own artifacts. This agent only reads those files and decides the next station.
 
-## Liveness
+## Spawning workers
 
-Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`. This agent has no `Write` tool — touch the pulse only with `PULSE_SCRIPT`.
+Spawn every worker in the foreground and wait for the Agent call to return. No background spawn,
+no status checks. The worker's final message is its result. If a call errors or returns without a
+result, re-spawn that worker once from the files in `OUTPUT_DIR` (do not paste the old
+transcript). If the retry also fails, return `ESCALATION_PACKET` with `reason: agent-failed`.
 
-`PULSE` is the spawn argument, else `{dirname(SPEC_FILE)}/watch/html-orchestrator.json`. Procedure and exits: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` ("Nested orchestrator"). If that file is missing: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy. One `resume`, then at most two fresh spawns of that worker, then `ESCALATION_PACKET` with `reason: stale-agent`.
+Station 4's parallel batch is one message of foreground calls. Re-spawn only the failed pages. The
+existing cap of 2 fix cycles per page still applies.
 
-On each poll, `--touch --role html-orchestrator --station {current}` so the parent skill sees this agent alive. Pass `PULSE` and `PULSE_SCRIPT` to every worker. The worker touches `--worker {its role}` on start and after each file it writes.
-
-Station 4's parallel batch is one poll over every page worker. Rebuild only the stale or failed pages. The existing cap of 2 fix cycles per page still applies.
-
-Before any packet, `--touch --status awaiting-human --packet-json '{...}'` (paths and packet fields only). Then STOP.
+Your final message is the packet JSON (below) — nothing after it. Then STOP.
 
 ---
 
@@ -54,16 +54,14 @@ Always:
 - `UIUX_DIR` — resolved path to `ui-ux-pro-max`, or the literal `none`
 - `DESIGN_INPUTS` — path to `{OUTPUT_DIR}/design-inputs.json` (the skill's Step 2.6). `binding: true`
   means the user supplied a theme/brand/layout reference and it is **mandatory**, not advisory.
-- `PULSE` — `{dirname(SPEC_FILE)}/watch/html-orchestrator.json` unless the skill passed another path
-- `PULSE_SCRIPT` — `check-pulse.mjs`. Touch the pulse only through this script. This agent has no `Write` tool.
 
-Do **not** accept `SPEC_CONTENT`. If the skill sent it, ignore it. `spec-interpreter` reads `SPEC_FILE`.
+Do **not** accept `SPEC_CONTENT`. If the skill sent it, ignore it. `delta-pages.mjs` reads `SPEC_FILE`.
 
 Mode extras:
 
 | MODE | Extra fields |
 |------|----------------|
-| `revise` | `CHANGE_REQUEST` (free-text user change), `PAGES` (current `pages[]` list) |
+| `revise` | `CHANGE_REQUEST` (free-text user change), `PAGES` (the last packet's `pages` = `assembly_pages`) |
 
 References resolve as `{KIT_DIR}/skills/generate-html/references/…` and
 `{KIT_DIR}/skills/generate-html/scripts/…`.
@@ -71,7 +69,7 @@ References resolve as `{KIT_DIR}/skills/generate-html/references/…` and
 ### Mode dispatch (do this first)
 
 - `MODE == revise` → skip to **Revise flow** below.
-- `MODE == append` → **Append flow** below. Do not spawn `spec-interpreter`. Do not re-run design.
+- `MODE == append` → **Append flow** below. Do not re-run Station 0 or design.
 - else (`build`) → start at **Station 0**.
 
 There is no `finalize` mode. The skill writes README after approval (Station 8).
@@ -95,7 +93,7 @@ There is no `finalize` mode. The skill writes README after approval (Station 8).
 | type | When | Skill does |
 |------|------|------------|
 | `REVIEW_PACKET` | Stations 0–6.5 finished (render PASS or SKIPPED) | Present `review_packet`; Approve / Request changes / Abort |
-| `ESCALATION_PACKET` | Empty `pages[]`, a hard gate fail, or QA/render still failing after 1 retry | `AskUserQuestion` with `errors[]` and `options[]` |
+| `ESCALATION_PACKET` | Empty `screens[]`, a hard gate fail, or QA/render still failing after 1 retry | `AskUserQuestion` with `errors[]` and `options[]` |
 
 Do **not** continue past a packet. Do **not** ask the user yourself.
 
@@ -103,28 +101,29 @@ Do **not** continue past a packet. Do **not** ask the user yourself.
 
 ## Pipeline
 
-### Station 0 — Setup (PARALLEL)
+`S` below = `{KIT_DIR}/skills/generate-html/scripts`.
 
-In a single message, do both of these simultaneously:
-1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md` and
-   `{KIT_DIR}/skills/generate-html/references/context-budget.md`
-2. Spawn `spec-interpreter` agent in background (`run_in_background: true`) with:
-   - `SPEC_FILE` (path only)
-   - Instruction to **Read** that file and return the compact summary
-   - Do not paste spec text into the spawn prompt
+### Station 0 — Setup
+
+Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md` and
+`{KIT_DIR}/skills/generate-html/references/context-budget.md`, then:
+
+```bash
+node S/delta-pages.mjs --spec "{SPEC_FILE}" --out "{OUTPUT_DIR}/spec-summary.json"
+```
 
 Create task list via TaskCreate: stations 1, 1.5, 2, 3, 4, 5, 6, 6.5.
 
-### Station 1 — Receive spec summary
+### Station 1 — Read spec summary
 
-Collect `spec-interpreter` result. Extract and store:
-- `purpose` — the 1–3 sentence purpose/audience summary (feeds `design-strategist` at Station 1.5)
-- `pages[]` — list of `{ id, spec_id, title, description, type, domain, entity }` (`type` may be absent; `spec_id` is `screens[].id`)
-- `entities[]` — `{ name, fields[], statuses[] }` per domain entity
+Read `{OUTPUT_DIR}/spec-summary.json`:
+- `purpose` — purpose/audience summary (feeds `design-strategist` at Station 1.5)
+- `screens[]` — the pages: `{ id, spec_id, title, description, type, domain, entity, entity_fields, entity_statuses, api_contract }` (`type` may be empty)
+- `entities[]` — `{ name, fields[], statuses[], api_contract }`
 - `nav_structure` — domain → page ID groups
-- `api_contracts` — `{ EntityName: { field: type } }` per entity
+- `assembly_pages[]` — `{ id, spec_id, title, domain, description }` for Stations 5 and 8
 
-Validate: at least 1 page exists. If pages is empty: return `ESCALATION_PACKET` with
+Validate: at least 1 screen exists. If `screens` is empty: return `ESCALATION_PACKET` with
 `errors: ["No pages extracted. Check ui-surface.screens[] (or ## Screen Inventory) in SPEC_FILE."]`
 and `options: ["abort"]`. Then STOP.
 
@@ -134,10 +133,10 @@ Mark task 1 complete.
 
 Delegate to `design-strategist` with ONLY:
 - `TITLE` (app title)
-- `domain`(s) present in `pages[]`
+- `domain`(s) present in `screens[]`
 - Entity names list (array of names only — not fields)
-- Distinct page types present in `pages[]` (e.g. `["dashboard", "list", "form"]`)
-- `purpose` — the 1–3 sentence purpose/audience summary stored at Station 1 (from spec-interpreter)
+- Distinct page types present in `screens[]` (e.g. `["dashboard", "list", "form"]`)
+- `purpose` — from `spec-summary.json`
 - `KIT_DIR`
 - `OUTPUT_DIR`
 - `UIUX_DIR`
@@ -146,9 +145,9 @@ Delegate to `design-strategist` with ONLY:
 Wait for completion. Verify `{OUTPUT_DIR}/design-brief.md` and `{OUTPUT_DIR}/ux-directives.md` exist
 and are non-empty.
 
-**GATE (design-brief)**: Either file missing, or `DESIGN_INPUTS` has `binding: true` and the brief
-has no `## Binding reference` section → re-run `design-strategist` once, naming the missing file or
-section. Still failing → return `ESCALATION_PACKET` and STOP. No CSS is authored before a brief
+**GATE (design-brief)**: Either file missing, the brief has no `## Slots` JSON block, or
+`DESIGN_INPUTS` has `binding: true` and the brief has no `## Binding reference` section → re-run
+`design-strategist` once, naming the missing file or section. Still failing → return `ESCALATION_PACKET` and STOP. No CSS is authored before a brief
 exists — this is what prevents every prototype defaulting to the same indigo/sidebar look.
 
 Read both files. Store as `DESIGN_BRIEF` and `UX_DIRECTIVES`. Store the agent's reported
@@ -157,30 +156,22 @@ Mark task 1.5 complete.
 
 ### Station 2 — Design System (GATE: design-system-contract)
 
-Delegate to `design-system-author` with ONLY:
-- `DESIGN_BRIEF` content (the chosen direction — hues, fonts, radius, density, layout archetype,
-  signature layer, motion spec, composition patterns)
-- `TITLE` (app title)
-- Entity names list (array of names only — not fields)
-- `KIT_DIR`
-- `OUTPUT_DIR`
-- `UIUX_DIR`
+```bash
+node S/apply-design-brief.mjs "{OUTPUT_DIR}"
+```
 
-Wait for completion. Verify these 4 files exist:
-- `{OUTPUT_DIR}/css/tokens.css`
-- `{OUTPUT_DIR}/css/base.css`
-- `{OUTPUT_DIR}/css/components.css`
-- `{OUTPUT_DIR}/design-system-ref.md`
+It fills `css/tokens.css`, `css/base.css`, `css/components.css`, and `design-system-ref.md` from
+the brief's `## Slots` block and prints `{ status, locked_missing, signature_emitted,
+signature_skipped, errors? }`.
 
-**GATE**: If any file is missing → return `ESCALATION_PACKET` and STOP. The design-system-contract
-gate is hard. No screen generation begins before this gate passes. A non-empty `locked_missing`
-in the agent's report fails this gate the same way: re-run `design-system-author` once naming the
-missing tokens, then `ESCALATION_PACKET`.
+**GATE**: exit 1 (invalid slots, an unfilled slot, or `locked_missing` non-empty) → re-run
+`design-strategist` once with `FIX: {errors or locked_missing}` so it corrects the `## Slots`
+block, then re-run the script. Still failing → `ESCALATION_PACKET` and STOP. No screen generation
+begins before this gate passes.
 
 Read `{OUTPUT_DIR}/design-system-ref.md` (compact ~95 lines). Store as `DESIGN_REF`.
-Note the agent's `signature_emitted` / `signature_skipped` report — if it skipped a block because the
-brief named one that does not exist in `modern-signature-css.md`, include that as a warning in the
-review packet.
+A non-empty `signature_skipped` (the brief named a block that does not exist) is a review-packet
+warning.
 Mark task 2 complete.
 
 ### Station 3 — Component Library (GATE: component-ready)
@@ -191,7 +182,7 @@ Delegate to `component-library-author` with ONLY:
 - `KIT_DIR`
 - `OUTPUT_DIR`
 
-Ping that worker (Liveness), then verify these 3 files exist:
+Wait for completion. Verify these 3 files exist:
 - `{OUTPUT_DIR}/js/app.js`
 - `{OUTPUT_DIR}/js/data.js`
 - `{OUTPUT_DIR}/component-manifest.md`
@@ -203,7 +194,7 @@ Mark task 3 complete.
 
 ### Station 4 — Screen Generation (PARALLEL)
 
-In a SINGLE message, spawn one `screen-generator` agent per page in `pages[]`.
+In a SINGLE message, spawn one `screen-generator` agent per entry in `screens[]`.
 All spawns in one message = all run in parallel.
 
 Per agent, pass ONLY the slice it needs:
@@ -218,43 +209,36 @@ component_manifest: COMP_MANIFEST content  (compact, ~40 lines)
 rules_dir:        {KIT_DIR}/skills/generate-html/references/
 KIT_DIR:          {KIT_DIR}
 output_path:      {OUTPUT_DIR}/pages/{page.id}.html
-PULSE:            {PULSE}
-PULSE_SCRIPT:     {PULSE_SCRIPT}
 ```
 
-On start and after each write, the worker runs `node {PULSE_SCRIPT} --touch --pulse {PULSE} --worker screen-generator --role screen-generator --station 4 --artifact {output_path}`. Background every page agent in that one message (`run_in_background: true`).
-
-Wait for ALL agents via the Liveness ping (background the batch, poll each page worker). Do not block on the Agent calls.
-If any agent failed or its worker pulse is not-responding, stalled, or missing: re-spawn only those pages (not all), still inside the Liveness cap.
+Wait for ALL agents to return.
+If any agent failed or returned without its page: re-spawn only those pages (not all), once (Spawning workers).
 Mark task 4 complete.
 
 ### Station 5 — Assembly & Wiring
 
-Delegate to `assembly-wiring` with ONLY:
-- `pages[]` as `{ id, title, domain, description }` (no entity details)
-- `nav_structure` from spec-interpreter
-- `TITLE`
-- `design_ref`: `DESIGN_REF` content (carries any provided layout / nav order)
-- `KIT_DIR`
-- `OUTPUT_DIR`
+```bash
+node S/assemble-prototype.mjs "{OUTPUT_DIR}" --pages "{OUTPUT_DIR}/spec-summary.json" --title "{TITLE}"
+```
 
-Wait for: `{OUTPUT_DIR}/index.html` and `{OUTPUT_DIR}/js/navigation.js` to exist.
+`index.html` reuses a generated page's sidebar/topnav, so a provided layout and nav order carry
+over. Exit 1 lists `missing_pages` → re-spawn `screen-generator` for those pages once, re-run.
 Mark task 5 complete.
 
 ### Station 6 — QA Validation (GATE: qa-pass)
 
-Delegate to `qa-validator` with ONLY:
-- Page IDs list (strings only — not full page objects)
-- `OUTPUT_DIR`
-- `UIUX_DIR`
+```bash
+node S/qa-prototype.mjs "{OUTPUT_DIR}" --pages {comma-separated screens[].id}
+```
 
-Wait for result `{ passed, critical_issues[], warnings[] }`.
+Prints `{ passed, critical_issues[], warnings[] }` (also `_verify/qa.json`).
 
 If NOT passed:
-1. Log critical issues.
-2. For each critical issue, spawn the appropriate corrective agent (screen-generator for missing/broken pages or a provided layout not followed; assembly-wiring for index/nav issues; design-system-author for a provided token/font not applied or a missing provided-reference block).
-3. Re-run qa-validator once (max 1 retry).
-4. If still failing: return `ESCALATION_PACKET` with `errors: critical_issues`,
+1. Route each critical issue: a page file, page structure, or provided layout → `screen-generator`
+   for that page; index/nav → re-run Station 5; tokens, slot markers, or provided-reference
+   block → `design-strategist` with `FIX:` then Station 2.
+2. Re-run the QA script once (max 1 retry).
+3. If still failing: return `ESCALATION_PACKET` with `errors: critical_issues`,
    `options: ["proceed-to-review", "abort"]`, and STOP.
 
 Warnings are included in the review packet but do not block.
@@ -282,8 +266,8 @@ exit 2: static gate still applies; record render check as `SKIPPED` and continue
 Read `{OUTPUT_DIR}/_verify/report.json` when it exists. Store screenshot paths for the review packet.
 
 **GATE (render-pass)** on exit 1 / `passed: false`:
-- For each `critical[]` entry, route to the owning agent (page render/style →
-  screen-generator; tokens/base/components → design-system-author; index/nav → assembly-wiring),
+- For each `critical[]` entry, route to the owner (page render/style → screen-generator;
+  tokens/base/components → design-strategist `FIX:` + Station 2; index/nav → Station 5),
   re-run that station, then re-run this verification (max 1 auto-fix cycle). If still failing,
   return `ESCALATION_PACKET` with the report path + `options: ["proceed-to-review", "abort"]`.
 - An axe contrast failure on a colour locked by the brief's `## Binding reference` is **not**
@@ -305,11 +289,12 @@ approval and Station 8.
 The skill already copied the previous prototype into `OUTPUT_DIR` and wrote `DELTA_PAGES`.
 Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerates changed screens.
 
-1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md`.
+1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md`. Refresh the full summary
+   (Stations 5 and 8 use it): `node S/delta-pages.mjs --spec "{SPEC_FILE}" --out "{OUTPUT_DIR}/spec-summary.json"`.
 2. Read `DELTA_PAGES`. If `screens` is empty, skip Station 4 and continue at Station 5.
 3. Confirm `{OUTPUT_DIR}/design-brief.md`, `css/tokens.css`, and `design-system-ref.md` exist.
    If one is missing, return `ESCALATION_PACKET` and STOP. Do not re-run `design-strategist`
-   or `design-system-author` when those files are present.
+   or Station 2 when those files are present.
 4. Read `design-system-ref.md` and `component-manifest.md` from `OUTPUT_DIR`.
 5. If `entities_changed` is non-empty, spawn `component-library-author` with `MODE: update`
    and `ENTITIES_CHANGED` before Station 4. It patches only those entities in `js/data.js`.
@@ -317,9 +302,8 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
    Pass `page` (`id`, `title`, `description`, `domain`, `entity`; `type` may be absent),
    `entity_fields`, `entity_statuses`, `api_contract`, plus the compact design ref and manifest.
    Do not pass other pages.
-7. Station 5: pass `assembly-wiring` `assembly_pages` from `DELTA_PAGES`
-   (`{ id, title, domain, description }` for every spec screen). Do not pass raw page-map pairs.
-8. Station 6 and Station 6.5, then return `REVIEW_PACKET`.
+7. Station 5 as in a build (`--pages "{OUTPUT_DIR}/spec-summary.json"`).
+8. Station 6 (`--pages` = every `assembly_pages[].id`) and Station 6.5, then return `REVIEW_PACKET`.
 
 ## Revise flow (MODE == revise)
 
@@ -332,8 +316,8 @@ Inputs: `CHANGE_REQUEST`, `PAGES`, `OUTPUT_DIR`, `KIT_DIR`, `UIUX_DIR`, `SPEC_FI
    never the full pipeline for a scoped change.
    - **Brief caching**: do NOT re-run `design-strategist` unless the change explicitly asks for a
      new visual direction. Reuse the existing `{OUTPUT_DIR}/design-brief.md` so unrelated edits
-     don't reshuffle the palette. If a design-system change is requested, `design-system-author`
-     re-fills the SAME brief unless the user asked to change hue/font/density/layout.
+     don't reshuffle the palette. A scoped design-system change (one token, radius, density) is
+     an edit to the brief's `## Slots` block by `design-strategist` with `FIX:`, then Station 2.
    - **Look-and-feel requests DO re-run the strategist**: "make it more modern", "feels dated",
      "too plain", "different vibe", "change the palette/fonts" → re-run `design-strategist` (it
      re-queries `ui-ux-pro-max` and may pick different signature blocks), then cascade through
@@ -383,8 +367,8 @@ Screenshots: {OUTPUT_DIR}/_verify/screenshots/  ({count} PNGs — incl. mobile +
 The generate-html skill will ask you to Approve, Request changes, or Abort.
 ```
 
-Also set `pages` to the current `pages[]` list so the skill can write README and re-spawn revise
-without re-interpreting the spec.
+Also set `pages` to the current `assembly_pages[]` list so the skill can re-spawn revise without
+re-reading the spec.
 
 Return this packet as the final message of a `build`/`revise` pass.
 

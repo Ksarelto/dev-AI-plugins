@@ -64,7 +64,15 @@ For each file, the `generate-spec` skill extracts:
 ## Atomic Extraction Rules
 
 `raw_requirements[]` is the register every later station is checked against (Station 5 fidelity,
-Station 7 `REQUIREMENT_UNCOVERED`). Extract **one testable statement per entry**:
+Station 7 `REQUIREMENT_UNCOVERED`). `scripts/extract-intake.mjs` applies these rules — the skill
+does not copy requirements by hand. It emits one entry per table row, bullet (lead-in bullets
+ending in `:` prefix their children), and requirement-bearing sentence, routes sections by heading
+(glossary, decisions, success measures, out of scope, copy, open questions, narrative), and sets
+`kind_hint` / `role_hint` / `scope_hint` / `confidence` by keyword. The skill then fills only
+`type_hint`, `consolidated_entities`, `consolidated_user_roles`, `potential_conflicts`, and
+`terminology_drift`. Compound statements ("A and B") stay one entry; the enricher splits them.
+
+The rules the script implements:
 
 - Every MUST / MUST NOT / "may" / "cannot" sentence → one entry. Split "A and B" into two.
 - Every **table row** (roles × actions matrix, "who is told" table, edge-case table, status list)

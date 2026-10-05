@@ -2,7 +2,6 @@
 name: spec-interrogator
 description: Builds a batched questions[] packet from open spec gaps and conflicts. Use in spec-dev-kit Station 2a and the completeness loop when clarification questions are needed. Never calls AskUserQuestion and never writes spec.md.
 model: sonnet
-effort: xhigh
 tools: [Read, Grep, Glob]
 permissionMode: default
 ---

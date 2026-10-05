@@ -89,7 +89,7 @@ Or add the marketplace in Agent chat:
 | Required? | **Optional but strongly recommended.** Without it the pipeline designs from model priors and prototypes drift back toward generic |
 | Needs | Node (for the installer) + **Python 3.x** (the search engine; stdlib only, no network calls) |
 | Where it lands | `.claude/skills/ui-ux-pro-max/` · `~/.claude/skills/…` · `.cursor/skills/…` — the kit resolves all of these |
-| Used by | `design-strategist` (palette/type/style/UX/motion queries), `design-system-author` (stack notes), `qa-validator` (pro-rules checklist) |
+| Used by | `design-strategist` (palette/type/style/UX/motion queries) |
 | Contract | [`skills/generate-html/references/ui-ux-pro-max.md`](skills/generate-html/references/ui-ux-pro-max.md) — queries, hex→OKLCH mapping, conflict priority, degradation |
 
 When it is unavailable, the pipeline still completes and the review packet says
@@ -130,14 +130,10 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
   README.md                                  ← you are here
   agents/
     html-orchestrator.md                     ← opus | returns packets; no AskUserQuestion; no Write
-    spec-interpreter.md                      ← haiku | Reads SPEC_FILE; compact summary
-    design-strategist.md                     ← sonnet | binding design-inputs.json, else ui-ux-pro-max → design-brief.md + ux-directives.md
-    design-system-author.md                  ← sonnet | fills brief into css/ + design-system-ref
+    design-strategist.md                     ← sonnet | binding design-inputs.json, else ui-ux-pro-max → design-brief.md (+ Slots) + ux-directives.md
     component-library-author.md              ← sonnet | Alpine stores, mock data, component-manifest
     screen-generator.md                      ← sonnet | one page HTML (N parallel instances)
-    assembly-wiring.md                       ← sonnet | index.html + navigation.js
-    qa-validator.md                          ← haiku | spec coverage + HTML quality + a11y
-    modification-router.md                   ← sonnet | decomposes change requests
+    modification-router.md                   ← haiku | decomposes change requests
   skills/
     generate-html/
       SKILL.md                               ← entry point: locate spec, HITL, Station 8 README
@@ -156,8 +152,18 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
         design-brief.md  modern-signature-css.md
         tokens-css.md  base-css.md  components-css.md
         app-js.md  mock-data-js.md  navigation-js.md
-        page-shell.md  index-shell.md
-      scripts/                               ← collect-design-inputs.mjs (Step 2.6) and the rest under `scripts/`
+        page-shell.md  index-shell.md  design-system-ref.md
+      scripts/                               ← mechanical stations (no agent, no tokens):
+        collect-design-inputs.mjs            ← Step 2.6 → design-inputs.json
+        delta-pages.mjs                      ← Station 0 → spec-summary.json (append: delta-pages.json)
+        apply-design-brief.mjs               ← Station 2: brief Slots → css/ + design-system-ref.md
+        assemble-prototype.mjs               ← Station 5: index.html + navigation.js
+        qa-prototype.mjs                     ← Station 6: static QA checklist
+        verify-prototype.mjs                 ← Station 6.5: render + axe
+        finalize-prototype.mjs               ← Station 8: README.md + page-map.json
+        clone-prototype.mjs                  ← Step 2 append: copy prior prototype dir
+        record-prototype.mjs                 ← Step 5: write prototype_ref into current.json
+        write-kit-result.mjs                 ← html-kit-result.json envelope
 ```
 
 `KIT_DIR` is the plugin root (this directory when installed). Scripts are
@@ -177,19 +183,19 @@ generate-html skill: resolve KIT_DIR, Step 2.5 ui-ux-pro-max → UIUX_DIR,
                      Step 2.6 collect-design-inputs.mjs → design-inputs.json
       │
 generate-html skill → spawn html-orchestrator (MODE: build, SPEC_FILE path only)
-  Station 0: setup — spec-interpreter (bg, Reads SPEC_FILE) + read pipeline-flow.md
-  Station 1: receive spec-interpreter compact summary
-  Station 1.5: design-strategist → design-brief.md + ux-directives.md   ↓ GATE: design-brief
-  Station 2: design-system-author → css/ (+ signature layer) + design-system-ref
+  Station 0: delta-pages.mjs → spec-summary.json
+  Station 1: read spec-summary.json
+  Station 1.5: design-strategist → design-brief.md (+ Slots) + ux-directives.md   ↓ GATE: design-brief
+  Station 2: apply-design-brief.mjs → css/ (+ signature layer) + design-system-ref
   Station 3: component-library-author → app.js + data.js + manifest
   Station 4: screen-generator × N (PARALLEL) → pages/{id}.html
-  Station 5: assembly-wiring → index.html + navigation.js
-  Station 6: qa-validator → pass/fail                   ↓ GATE: qa-pass
+  Station 5: assemble-prototype.mjs → index.html + navigation.js
+  Station 6: qa-prototype.mjs → pass/fail               ↓ GATE: qa-pass
   Station 6.5: verify-prototype.mjs (render + axe)      ↓ GATE: render-pass
   → RETURN REVIEW_PACKET or ESCALATION_PACKET
       │
 generate-html skill: human review gate (max 3 cycles)
-  Approve → skill writes README.md + page-map.json (Station 8)
+  Approve → finalize-prototype.mjs → README.md + page-map.json (Station 8)
   Changes → orchestrator MODE: revise → modification-router
   Abort   → stop
 ```

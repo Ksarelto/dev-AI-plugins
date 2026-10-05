@@ -2,6 +2,7 @@
 name: architecture-auditor
 description: Read-only FSD architecture-audit at Stations 1.5 and 9.5. Returns a REPORT_ONLY layer/slice/segment report and never edits src/. Use when the feature-orchestrator needs a baseline or changed-path architecture report — not to fix findings, not for conventions/AC review (that is code-reviewer).
 model: sonnet
+effort: high
 tools: [Read, Grep, Glob, Bash, Write]
 skills: [architecture-audit]
 permissionMode: default

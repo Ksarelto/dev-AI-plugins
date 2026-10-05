@@ -1,8 +1,8 @@
 # Template: design-brief.md
 
 The design direction for ONE prototype, written by `design-strategist` to
-`{OUTPUT_DIR}/design-brief.md`. It is the single source of visual identity — `design-system-author`
-fills every token/font/layout/signature slot from this file, and `screen-generator` reads the tone
+`{OUTPUT_DIR}/design-brief.md`. It is the single source of visual identity — `apply-design-brief.mjs`
+fills every token/font/layout/signature slot from its `## Slots` block, and `screen-generator` reads the tone
 notes and layout patterns to keep copy, emphasis, and composition on-brand.
 
 Commit to ONE direction. Do not hedge with alternatives. Every value below must be concrete enough
@@ -19,7 +19,7 @@ Values should come from a `ui-ux-pro-max` query wherever the § Provenance block
 
 ---
 
-```markdown
+````markdown
 # Design Brief — {App title}
 
 ## Provenance
@@ -98,7 +98,7 @@ Values should come from a `ui-ux-pro-max` query wherever the § Provenance block
   marketing-adjacent, or wide dashboards → top-nav}
 
 ## Signature layer (the contemporary look — pick 1–3, no more)
-Named blocks from `templates/modern-signature-css.md`. `design-system-author` emits ONLY these.
+Named blocks from `templates/modern-signature-css.md`. The Station 2 script emits ONLY these.
 With a binding reference, pick only blocks that do not contradict it (no `gradient` on a flat
 brand, no `glass` when the reference shows opaque chrome). `none` is allowed only then.
 - Selected: {1–3 of: `bento` · `glass` · `gradient` · `edge-accent` · `soft-depth` · `editorial` ·
@@ -127,7 +127,29 @@ Only describe the page types this app actually has.
 - Voice: {e.g. terse & professional | friendly & encouraging}
 - Emphasis: {what the UI should make prominent — e.g. status/amounts | primary CTA | search}
 - Microcopy: {empty-state line, primary CTA label, error line — write the actual strings}
+
+## Slots
+(machine-read by `scripts/apply-design-brief.mjs` — must match the prose above)
+```json
+{
+  "neutral_hue": 70, "neutral_chroma": 0.01,
+  "primary": [0.55, 0.15, 165], "accent_h": 165, "primary_foreground": "light | dark",
+  "font_body": "'Inter'", "font_display": "'Fraunces'",
+  "font_import": "https://fonts.googleapis.com/css2?family=...&display=swap  (\"\" for system-only)",
+  "radius": "0.625rem", "shadow_alpha": 0.08,
+  "density": "compact | comfortable", "layout": "sidebar | top-nav",
+  "signature": ["bento", "soft-depth"],
+  "motion": { "feel": "responsive", "fast": "140ms", "base": "220ms", "slow": "360ms", "lift": "-2px", "places": "card hover, KPI reveal" },
+  "locked_tokens": { "--primary": "#0A3D62" },
+  "provided_structure": ["Layout: sidebar (provided)", "Nav: Dashboard, Orders, Settings"],
+  "archetype": "data-dense fintech", "intent": "one-line design intent",
+  "composition": { "dashboard": "...", "list": "..." },
+  "voice": "terse & professional", "emphasis": "status/amounts"
+}
 ```
+`locked_tokens`: every `--token: value` row of `## Binding reference`, verbatim (`{}` when none).
+`provided_structure`: every structure row of it, one line each (`[]` when none).
+````
 
 ## Guidance for choosing values
 

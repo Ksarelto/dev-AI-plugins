@@ -29,7 +29,7 @@ count, new package, new route). Do not read the upstream app spec to classify.
 ```
 ── feature-dev skill (main loop — owns every human gate) ──────────
 Resolve KIT_DIR
-Station 0    Intake — upstream-interpreter (scoped YAML) then spec-analyst
+Station 0    Intake — import-upstream.mjs (scoped YAML) then spec-analyst
              → .spec/features/<slug>.md  (CLARIFY_PACKET if gaps)
              → <slug>.context/prototype-inventory.md when a prototype page is bound
       ↓
@@ -63,7 +63,7 @@ Station 7    app/         (app-engineer)                ← GATE: layer-green
       ↓
 Station 8    Tests (test-engineer × layer group)        ← always spawned: every new executable file
       ↓
-Station 9    Full gate sweep (quality-gate-runner)      ← GATE: all-green (conventions + build + coverage once)
+Station 9    Full gate sweep (run-gates.sh, orchestrator Bash) ← GATE: all-green (conventions + build + coverage once)
       ↓
 Station 9.5  Architecture-audit changed paths (architecture-auditor, REPORT_ONLY, DIFF_SCOPE)
       ↓
@@ -123,6 +123,10 @@ or `test:auto`. Layer gates stop at `fsd` because tests arrive at Station 8.
 Station 1.5 is full tier only. Scope is the paths in `## FSD Impact` plus their importers, not `src/`.
 Hard violations on those paths escalate. Unrelated legacy issues stay as notes.
 
+Gates are never an agent: the orchestrator (or the skill, on patch) runs
+`run-gates.sh … --spec {SPEC_PATH} --station "Station N"` via Bash; the script appends the
+`## Gate Log` row. Layer: `--until fsd`. Patch: `--until conventions`. Station 9: `--base {PARENT}`.
+
 After a fix, re-run the **failed** gate plus `types`. Re-run `fsd` only if the fix touched imports.
 Re-run `coverage` only if the fix touched tests. Do not rebuild after a type error.
 
@@ -163,8 +167,7 @@ Spokes return a handoff path, not a report. See `context-budget.md`.
 
 | Agent | Receives |
 |-------|----------|
-| `upstream-interpreter` | `UPSTREAM_SPEC` path + ids — never spec body |
-| `spec-analyst` | Compact slice path, or the standalone request |
+| `spec-analyst` | `SPEC_PATH` (already holds the imported slice), or the standalone request |
 | `code-explorer` | Acceptance criteria + Request section paths |
 | `research-analyst` | The capability gap only |
 | `shared-engineer` | Checkpoint path + its build-plan rows |
@@ -174,7 +177,6 @@ Spokes return a handoff path, not a report. See `context-budget.md`.
 | `app-engineer` | Checkpoint path + the app row |
 | `slice-engineer` | The one `LAYER` + `SLICE` |
 | `test-engineer` | Acceptance criteria path + `SLICE_PATHS` for one layer group |
-| `quality-gate-runner` | `PROFILE: layer` (`--until fsd`), `PROFILE: patch` (`--until conventions`), or `PROFILE: full` + `BASE: {PARENT}` (`--base`) |
 | `architecture-auditor` | `MODE` + `SCOPE`. Diff mode also gets `DIFF_SCOPE` and `TOPICS` |
 | `code-reviewer` | Changed-file **list** + `prototype-inventory.md` path when present. It reads diffs per file |
 

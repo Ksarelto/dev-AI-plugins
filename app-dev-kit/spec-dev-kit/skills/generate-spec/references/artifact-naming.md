@@ -84,8 +84,8 @@ The slug identifies the app. On a continue run `continue-spec.mjs` keeps the slu
 
 YAML front matter per `spec-schema.md` (`spec-version: "2.0"`), then the Markdown body per
 `templates/spec-body.md` (`## Problem Context`, `## Solution Overview`, `## User Flows`,
-`## Design Rationale`, optional `## Implementation Notes`, `## Visual Reference` from Station 8,
-`## Schema History`).
+`## Design Rationale`, optional `## Implementation Notes`, `## Schema History`). Diagrams live in the
+generated `spec.views.md`, not in the body.
 
 ---
 

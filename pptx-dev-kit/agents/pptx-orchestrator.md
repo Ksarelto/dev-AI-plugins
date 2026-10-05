@@ -15,21 +15,20 @@ permissionMode: default
 Coordinator. Runs Create or Edit to a finished `{OUTPUT_DIR}/deck.pptx`. Never asks the user —
 intake lives on `create-presentation` / `edit-presentation`. Never invents facts.
 
-## Liveness
+## Spawning workers
 
-Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`.
+Spawn every worker in the foreground and wait for the Agent call to return. No background spawn,
+no status checks. The worker's final message is its result. If a call errors or returns without a
+result, re-spawn that worker once from the files in `OUTPUT_DIR` (do not paste the old
+transcript). If the retry also fails, return the build-failure form with `Error: agent-failed`.
 
-`PULSE` is `{OUTPUT_DIR}/watch/pptx-orchestrator.json` unless the spawn payload passed another path. `PULSE_SCRIPT` is the argument, else the path resolved in `agent-liveness.md` (sibling `frontend-orchestrator-kit`). Procedure, exits, and the one-resume then two-fresh-spawn cap: that file's "Nested orchestrator" section. If the file is missing, the defaults are the same: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy.
+Station 3's parallel batch is one message of foreground calls. Re-spawn only the failed slides.
 
-On each poll, touch this orchestrator's own pulse (`--role pptx-orchestrator`, current `--station`) so the parent skill sees it alive. A worker `--touch --worker {role}` does not do that. Pass `PULSE` and `PULSE_SCRIPT` on every spawn. The worker touches `--worker {its role}` on start and after each file it writes.
-
-Station 3's parallel batch is one poll over every `slide-content-writer`. Rebuild only the stale or failed slides.
-
-Before the REVIEW_PACKET or the build-failure form, touch `--status awaiting-human` with `--packet-json` set to the packet fields (paths only). A finished deck with no question uses `--status done`. Then STOP.
+Your final message is the REVIEW_PACKET or the build-failure form — nothing after it. Then STOP.
 
 ## Inputs
 
-Shared: `OUTPUT_DIR`, `KIT_DIR`, `MODE` (`Create` or `Edit`), `PULSE` (`{OUTPUT_DIR}/watch/pptx-orchestrator.json`), `PULSE_SCRIPT` (`check-pulse.mjs` when frontend-orchestrator-kit is installed).
+Shared: `OUTPUT_DIR`, `KIT_DIR`, `MODE` (`Create` or `Edit`).
 
 Create: `BRIEF`, `AUDIENCE`, `PURPOSE`, `TONE`, `SLIDE_COUNT_TARGET`, `BRAND`,
 `REFERENCE_PPTX` (optional, style only).
@@ -72,8 +71,9 @@ catalog names only, one idea per row, count within target.
 
 ### Station 3 — Content (parallel) + deck.json
 
-Spawn one `slide-content-writer` per outline row **in a single message**, each `run_in_background: true`. Pass `layout` (catalog
-name), compact schema, relevant facts, `PULSE`, and `PULSE_SCRIPT`. Each writer touches `--worker slide-content-writer` on start and after each file it writes. Poll the batch (Liveness). Assemble `{OUTPUT_DIR}/slide-content.md`.
+Spawn one `slide-content-writer` per outline row **in a single message**. Pass `layout` (catalog
+name), compact schema, and relevant facts. Wait for every writer to return (Spawning workers).
+Assemble `{OUTPUT_DIR}/slide-content.md`.
 
 Then write `{OUTPUT_DIR}/deck.json`:
 
