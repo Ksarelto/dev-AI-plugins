@@ -7,8 +7,8 @@ Design tokens for `css/tokens.css`. **CDN-free** — no Tailwind runtime. Colour
 
 `tokens.css` is where a prototype's visual identity lives — so it must be **generated from
 `design-brief.md`, not copied verbatim**. Copying verbatim is exactly what made every prototype
-look identical (one indigo hue, one font). The design-system-author substitutes every `⟨SLOT⟩`
-below with a concrete value derived from the brief.
+look identical (one indigo hue, one font). `scripts/apply-design-brief.mjs` substitutes every
+`⟨SLOT⟩` below with the matching value from the brief's `## Slots` JSON.
 
 ### Slots (all come from `design-brief.md`)
 
@@ -158,5 +158,3 @@ Rules:
 ```
 
 > **Note on `calc()` inside `oklch()`**: modern Chromium (used by the render check) supports it.
-> If the design-system-author prefers, it may pre-compute the lightness arithmetic and emit literal
-> values instead of `calc(...)` — either is acceptable as long as the hues/chroma come from the brief.

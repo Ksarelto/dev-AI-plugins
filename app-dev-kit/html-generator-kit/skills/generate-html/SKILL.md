@@ -37,33 +37,37 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 |------|-----------|------|
 | `references/pipeline-flow.md` | this skill, orchestrator | before starting — single source of truth for station sequence, gates, and invariants |
 | `references/context-budget.md` | orchestrator | payload contracts — paths and slices, not the full spec on the hub |
-| `references/artifact-structure.md` | orchestrator, all agents | file ownership and output directory layout |
-| `references/design-system-conventions.md` | `design-system-author` (Station 2) | OKLCH token system, CSS conventions |
+| `references/artifact-structure.md` | documentation | output directory layout — do not load into agents |
+| `references/design-system-conventions.md` | `design-strategist`, `screen-generator` | OKLCH token system, CSS conventions |
 | `references/alpine-interaction-patterns.md` | `screen-generator` (Station 4) | Alpine.js x- directives, store calls |
 | `references/interaction-conventions.md` | `screen-generator` (Station 4) | data hook naming for QA + verification |
-| `references/accessibility.md` | `screen-generator` (Station 4), `qa-validator` (Station 6) | a11y requirements and landmark structure |
-| `references/qa-checklist.md` | `qa-validator` (Station 6) | structured pass/fail scoring |
+| `references/accessibility.md` | `screen-generator` (Station 4) | a11y requirements and landmark structure |
+| `references/qa-checklist.md` | `qa-prototype.mjs` (Station 6) | structured pass/fail scoring (script doc, not an agent read) |
 | `references/verification-protocol.md` | orchestrator (Station 6.5) | headless-browser verification via `scripts/verify-prototype.mjs` |
-| `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist`, `design-system-author`, `qa-validator` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
-| `templates/design-brief.md` | `design-strategist` (Station 1.5) | output format for design-brief.md |
-| `templates/modern-signature-css.md` | `design-system-author` (Station 2) | contemporary CSS layer (motion, focus, bento/glass/gradient signatures) |
-| `templates/tokens-css.md` | `design-system-author` (Station 2) | OKLCH tokens starter |
-| `templates/base-css.md` | `design-system-author` (Station 2) | reset + typography foundation |
-| `templates/components-css.md` | `design-system-author` (Station 2) | component class patterns |
+| `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
+| `templates/design-brief.md` | `design-strategist` (Station 1.5) | output format for design-brief.md, incl. the `## Slots` JSON |
+| `templates/{tokens,base,components}-css.md`, `modern-signature-css.md`, `design-system-ref.md` | `apply-design-brief.mjs` (Station 2) | CSS + reference templates the script fills |
 | `templates/app-js.md` | `component-library-author` (Station 3) | Alpine stores: notification, modal, theme |
 | `templates/mock-data-js.md` | `component-library-author` (Station 3) | entity mock-data pool pattern |
-| `templates/navigation-js.md` | `assembly-wiring` (Station 5) | active-page highlight + breadcrumb helpers |
 | `templates/page-shell.md` | `screen-generator` (Station 4) | standalone page HTML structure |
-| `templates/index-shell.md` | `assembly-wiring` (Station 5) | landing app-map structure |
+| `templates/navigation-js.md`, `index-shell.md` | `assemble-prototype.mjs` (Station 5) | nav helper + landing app map |
 | `scripts/collect-design-inputs.mjs` | this skill (Step 2.6, Bash) | finds provided theme/brand/layout sources → `design-inputs.json` |
+| `scripts/delta-pages.mjs` | orchestrator (Station 0) → `spec-summary.json`; this skill (append) → `delta-pages.json` | pages, entities, nav groups, API contracts from the spec front matter |
+| `scripts/apply-design-brief.mjs` | orchestrator (Station 2, Bash) | brief `## Slots` → `css/*.css` + `design-system-ref.md` |
+| `scripts/assemble-prototype.mjs` | orchestrator (Station 5, Bash) | `index.html` + `js/navigation.js` |
+| `scripts/qa-prototype.mjs` | orchestrator (Station 6, Bash) | static QA → `{passed, critical_issues, warnings}` |
+| `scripts/finalize-prototype.mjs` | this skill (Step 5, Bash) | `README.md` + `page-map.json` |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
 | `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
+| `scripts/clone-prototype.mjs` | this skill (Step 2, append) | copy prior prototype dir before adding screens |
+| `scripts/record-prototype.mjs` | this skill (Step 5) | write `prototype_ref` into `.spec/app/current.json` |
 
 ---
 
 ## Prerequisites
 
-- A validated spec must exist in `.spec/app/`. Run `/generate-spec` first if none exists.
+- An approved spec at `.spec/app/current.json` → `spec_path` (a file under `.spec/spec/`).
+  Run `/generate-spec` first if none exists. Do not glob for the newest spec.
 - **Optional design reference** — to make the prototype follow an existing theme, drop brand
   guides, `tokens.css`, colour/font notes, or screenshots/mockups into `.spec/design/`, or name
   their paths when invoking. Theme statements in the spec's context files are picked up too.
@@ -82,25 +86,22 @@ Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md` before Step 1.
 ### Step 1 — Locate spec
 
 If a structured field `SPEC_PATH` is set and that file exists, use it as `SPEC_FILE`. Do **not**
-re-glob “most recent”.
+glob for another spec.
 
 Else if the argument is a path that exists and ends with `spec.md`, use it as `SPEC_FILE`.
 
 Else read `.spec/app/current.json` and use `spec_path` when that file exists. A fresh session
-starts here. Do not choose a spec by newest timecode when the pointer exists.
+starts here. Do not glob for the newest spec.
 
-If `current.json` is missing, Glob `.spec/spec/spec-*/spec.md` and then `.spec/app/spec-*/spec.md`:
-
-- Filter by argument slug if provided (substring match against folder name).
-- If multiple match or no argument: sort by the timecode segment in the folder name **descending** and take the most recent.
-- If nothing found: `"No spec found. Run /generate-spec first."` → STOP (no envelope).
+If there is no `SPEC_PATH`, no `spec.md` argument, and no `current.json` `spec_path`:
+`"No spec found. Run /generate-spec first. Pointer: .spec/app/current.json."` → STOP (no envelope).
 
 Read the selected `spec.md` **only to extract identity** (do not pass the full file to the orchestrator or back to `orchestrate-frontend` / `orchestrate-app`):
 - `metadata.slug` (or derive from folder name: part after `_`)
 - `metadata.title` (or fallback: slug with hyphens → spaces)
 - `status` from the front matter. If it is not `approved`, STOP: `"Spec is not approved (status: {status}). Finish /generate-spec first."` Write the aborted envelope — `SPEC_FILE` is known.
 
-Keep `SPEC_FILE` as the path. On a full build, `spec-interpreter` reads the file itself. Append mode does not call it.
+Keep `SPEC_FILE` as the path. The orchestrator's `delta-pages.mjs` run reads the file itself.
 
 On any STOP after `SPEC_FILE` is known (Step 2 decline, Step 2.5 Abort, review Abort, escalation
 abort), write `{dirname(SPEC_FILE)}/html-kit-result.json` with `outcome: aborted` before returning
@@ -252,33 +253,17 @@ UIUX_DIR:   {resolved path from Step 2.5, or `none`}
 DESIGN_INPUTS: {OUTPUT_DIR}/design-inputs.json   # binding: true → provided reference is mandatory
 
 Read {KIT_DIR}/skills/generate-html/references/pipeline-flow.md before any station.
-Do NOT call AskUserQuestion. Do NOT write prototype files. Return one packet and STOP.
-Do NOT pass SPEC_CONTENT — spec-interpreter reads SPEC_FILE.
-PULSE:        {dirname(SPEC_FILE)}/watch/html-orchestrator.json
-PULSE_SCRIPT: {PULSE_SCRIPT argument, or the resolved check-pulse.mjs}
-WATCH:        .spec/app/watch/current.json
+Do NOT call AskUserQuestion. Do NOT write prototype files. Return one packet as your final message and STOP.
+Do NOT pass SPEC_CONTENT — the orchestrator's scripts read SPEC_FILE.
 ```
 
-Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
+Spawn the orchestrator in the foreground and wait for the Agent call to return. No background
+spawn, no status checks. Its final message is the packet JSON — handle it in the table below.
+If the call errors or returns without a packet, re-spawn it once from `OUTPUT_DIR` (the files on
+disk are the checkpoint; do not paste the old transcript). If the retry also fails, write
+`html-kit-result.json` with `--outcome error --reason agent-failed` and stop.
 
-### Liveness — poll the orchestrator
-
-Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
-
-`PULSE` is `{dirname(SPEC_FILE)}/watch/html-orchestrator.json`. When `WATCH` was passed, or the script exists, write the pointer before the spawn:
-
-```bash
-node {PULSE_SCRIPT} --watch .spec/app/watch/current.json --station 2 --pulse {PULSE}
-```
-
-1. Record `agent_id`. Touch `--role html-orchestrator --status working --station start`.
-2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. Do not end the turn while `status` is `working`.
-3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table below. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write `html-kit-result.json` with `--outcome error --reason stale-agent` and stop.
-4. `awaiting-human` is healthy. Never resume or rebuild across it.
-
-If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
-
-Re-spawns (`MODE: revise`) use this same loop.
+Re-spawns (`MODE: revise`) work the same way.
 
 | Packet `type` | This skill |
 |---------------|------------|
@@ -304,7 +289,7 @@ Do not inline the spec file into the spawn prompt.
    MODE:           revise
    CHANGE_REQUEST: {user's change text}
    PAGES:          {current pages[] list from the last packet}
-   TIMECODE / SLUG / TITLE / OUTPUT_DIR / KIT_DIR / UIUX_DIR / SPEC_FILE / DESIGN_INPUTS / PULSE / PULSE_SCRIPT: (same as build)
+   TIMECODE / SLUG / TITLE / OUTPUT_DIR / KIT_DIR / UIUX_DIR / SPEC_FILE / DESIGN_INPUTS: (same as build)
    ```
    After 3 change cycles without approval: ask (AskUserQuestion) finalize-as-is or abort.
 4. On **ESCALATION_PACKET**: ask with the listed options. If the user chooses proceed-to-review,
@@ -312,47 +297,16 @@ Do not inline the spec file into the spawn prompt.
 
 ### Step 5 — Finalize (this skill writes README — Station 8)
 
-Do **not** re-spawn the orchestrator to write README. Write `{OUTPUT_DIR}/README.md`:
+Do **not** re-spawn the orchestrator to write README. One script writes `{OUTPUT_DIR}/README.md`
+(serve command, pages, design direction/authority/deviations from the brief and design-inputs) and
+merges `{OUTPUT_DIR}/page-map.json` (`spec_id` → HTML page id; old keys kept in append mode):
 
-```markdown
-# {TITLE} — HTML Prototype
-
-Generated: {TIMECODE}
-Spec: {SPEC_FILE}
-
-## Serve
-
-npx serve .spec/prototype/{TIMECODE}_{SLUG}
-Open http://localhost:3000
-
-## Pages ({count})
-
-{for each page: - {id}: {title} — {description}}
-
-## Design System
-
-Direction: {archetype} · primary {hue} · {fonts} · {layout} · signature: {emitted blocks}
-Design authority: {provided reference + ui-ux-pro-max | provided reference + first-principles | ui-ux-pro-max | first-principles}
-Provided reference: {source paths from design-inputs.json | none} · deviations: {none | list}
-
-- `design-brief.md` — the chosen direction and why
-- `ux-directives.md` — per-page-type UX rules the screens were built against
-- `design-system-ref.md` — token and component/class reference
+```bash
+node {KIT_DIR}/skills/generate-html/scripts/finalize-prototype.mjs {OUTPUT_DIR} \
+  --pages {OUTPUT_DIR}/spec-summary.json --spec {SPEC_FILE} --title "{TITLE}" --timecode {TIMECODE}
 ```
 
-Also write `{OUTPUT_DIR}/page-map.json` mapping each page's `spec_id` (`ui-surface.screens[].id`)
-to the HTML page `id`. Skip a page that has no `spec_id` — never use the HTML id as a spec key.
-In append mode, start from the copied `page-map.json` and add the new ids. Do not drop old keys.
-
-```json
-{
-  "SCR-001": "sign-in",
-  "SCR-004": "building-catalogue"
-}
-```
-
-Fill identity fields from the last `REVIEW_PACKET` (and `pages[]` on that packet). Then write the
-path-only envelope (parent orchestrators read this, not the HTML):
+Then write the path-only envelope (parent orchestrators read this, not the HTML):
 
 ```bash
 node {KIT_DIR}/skills/generate-html/scripts/write-kit-result.mjs \

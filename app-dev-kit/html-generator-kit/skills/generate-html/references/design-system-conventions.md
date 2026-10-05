@@ -1,6 +1,6 @@
 # Design System Conventions — html-generator-kit
 
-The visual contract. `design-system-author` owns the CSS files; every other agent consumes the
+The visual contract. `scripts/apply-design-brief.mjs` writes the CSS files from the brief; every other agent consumes the
 compact `design-system-ref.md` and uses ONLY the class vocabulary below. **CDN-free** — there is no
 Tailwind runtime, so Tailwind utility classes (`p-6`, `w-64`, `flex`, `text-sm`, `bg-card`, …) must
 NOT appear in output. Use the classes defined in `css/components.css`.

@@ -34,12 +34,7 @@ use the first that exists:
 
 All script and reference paths are `{KIT_DIR}/skills/orchestrate-app/…`.
 
-Resolve `PULSE_SCRIPT` in this order; use the first that exists:
-
-1. `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`
-2. `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` under the workspace root.
-
-Pass that path as `PULSE_SCRIPT` on every delegated skill. `WATCH` is `.spec/app/watch/current.json`. After a callee returns, run the post-return check in `agent-liveness.md` (sibling `frontend-orchestrator-kit`) before trusting the envelope. `reason: stale-agent` sets the task or track `blocked` with `blocked-reason: stale-agent`, asks once, and does not start the next task. A missing envelope whose pulse exits 3, 4, or 5 rebuilds that call once, then blocks the same way.
+Invoke each delegated skill and wait for it to return — no liveness polling. Then Read its `kit-result.json`. A missing envelope leaves the task or track `in-progress` and re-runs that call once from its checkpoint. A second missing envelope sets `blocked` with `blocked-reason: agent-failed`, asks once, and does not start the next task.
 
 ---
 
@@ -54,7 +49,6 @@ Pass that path as `PULSE_SCRIPT` on every delegated skill. `WATCH` is `.spec/app
 | `references/work-plan-format.md` | reading/writing `work-plan.md` |
 | `scripts/analyze-capabilities.mjs` | Station 2a |
 | `scripts/write-kit-result.mjs` | Station 6 or abort |
-| sibling `frontend-orchestrator-kit` `references/agent-liveness.md` | after every delegated Skill returns |
 
 This kit has **no agents of its own**.
 
@@ -100,6 +94,9 @@ Read `.spec/app/current.json` and `.spec/app/work-plan.md`. If the argument matc
   **Re-derive work-plan** · **Resume as-is** · **Abort**.
 - Else jump to the first track whose `status` is not `done` or `skipped` (and, for backend/agent,
   the first unfinished `B-*` / `A-*` task).
+- An `in-progress` task: its `kit-result.json` exists → apply the outcome table in
+  `result-envelope.md`. Absent → offer to resume it from its checkpoint (the
+  `.spec/backend/{slug}.md` / `.spec/agents/{slug}.md` blackboard). Never mark it `done`.
 - Report: `"Resuming {slug} — tracks {done}/{needed}."`
 
 Otherwise continue to Station 1.
@@ -112,14 +109,13 @@ Read `.spec/app/current.json`. If `spec_path` exists and that spec's `status` is
 If none:
 
 1. Empty `.spec/context/` → STOP without invoking generate-spec.
-2. Invoke `spec-dev-kit:generate-spec` with the slug/app name only, plus:
-
-   ```
-   WATCH:        .spec/app/watch/current.json
-   PULSE_SCRIPT: {PULSE_SCRIPT}
-   ```
-
-3. After it returns, run the post-return check in `agent-liveness.md` on the pulse in `.spec/app/watch/current.json`. Then read `.spec/app/current.json`. `spec_path` set and the envelope `approved` → `SPEC_PATH` = that path. Envelope `error` with `reason: stale-agent`, or a missing envelope whose pulse is still exit 3, 4, or 5 after one rebuild → STOP. Ask once. Else if the pointer is missing or the envelope is `aborted` / `error` → STOP.
+2. Invoke `spec-dev-kit:generate-spec` with the slug/app name only plus
+   `RESULT_OUT: .spec/app/results/generate-spec.json`. Wait for it to return.
+3. Read `RESULT_OUT` (fallback `{dirname(spec_path)}/kit-result.json` only when
+   `current.json` `spec_path` is set). `current.json` is a pointer, not the envelope.
+   `outcome: approved` → `SPEC_PATH` = envelope `spec_path`. Envelope missing → re-run
+   generate-spec once; still missing → STOP with `agent-failed`. Ask once.
+   `aborted` / `error`, or no envelope path → STOP.
 
 Do not Read `spec.md` body.
 
@@ -131,12 +127,9 @@ On **Yes**: invoke `html-generator-kit:generate-html` with:
 
 ```
 SPEC_PATH:    {SPEC_PATH}
-PULSE:        {dirname(SPEC_PATH)}/watch/html-orchestrator.json
-PULSE_SCRIPT: {PULSE_SCRIPT}
-WATCH:        .spec/app/watch/current.json
 ```
 
-After return, run the post-return check in `agent-liveness.md`, then Read `{dirname(SPEC_PATH)}/html-kit-result.json`. `approved` → `PROTOTYPE_REF` = `prototype_ref`. `error` with `reason: stale-agent`, or a missing envelope whose pulse is still exit 3, 4, or 5 after one rebuild → ask once: **Continue without prototype** or **Stop**. Do not treat a stale run as a finished prototype. Other `aborted` / `error` / missing → `PROTOTYPE_REF = ""`.
+After return, Read `{dirname(SPEC_PATH)}/html-kit-result.json`. `approved` → `PROTOTYPE_REF` = `prototype_ref`. Envelope missing → re-run generate-html once from its checkpoint; still missing (`agent-failed`) → ask once: **Continue without prototype** or **Stop**. Do not treat a run without an envelope as a finished prototype. `aborted` / `error` → `PROTOTYPE_REF = ""`.
 
 On **Skip**: `PROTOTYPE_REF = ""`. Never Read prototype HTML.
 
@@ -177,16 +170,13 @@ otherwise ask once whether to build the dependency first or skip):
    AC_REFS:        {ac-refs}
    PROTOTYPE_REF:  {PROTOTYPE_REF}
    SLUG_HINT:      {slug-hint}
-   CHANGE:         remove
    RESULT_OUT:     .spec/app/results/{id}.json
-   PULSE:          .spec/backend/{slug-hint}.context/pulse.json
-   PULSE_SCRIPT:   {PULSE_SCRIPT}
-   WATCH:          .spec/app/watch/current.json
    ```
 
-   Pass `CHANGE=remove` only when the task `change` is `remove`. Station 4 does the same.
+   If the task `change` is `remove`, also pass `CHANGE: remove`. Do not pass `CHANGE` otherwise.
+   Station 4 does the same.
 
-4. Run the post-return check in `agent-liveness.md` on `.spec/backend/{slug-hint}.context/pulse.json` (the callee rewrites `WATCH` when the real slug differs). Then Read `RESULT_OUT` (fallback `.spec/backend/{slug}.kit-result.json`). Apply the outcome table in `result-envelope.md`. `reason: stale-agent` blocks this task and does not start the next one.
+4. After it returns, Read `RESULT_OUT` (fallback `.spec/backend/{slug}.kit-result.json`). Apply the outcome table in `result-envelope.md`. Missing envelope → re-run this task once from its checkpoint (`.spec/backend/{slug}.md`); still missing → `blocked` / `agent-failed`, ask once, and do not start the next task.
 5. If tasks remain: continue / pause / abort. Never auto-run the next increment.
 
 When all `B-*` tasks are `done` or `skipped`, set track `done` and `result` to the last envelope
@@ -196,15 +186,9 @@ When all `B-*` tasks are `done` or `skipped`, set track `done` and `result` to t
 
 Same as Station 3 for `track: agent` → `agent-dev-kit:agent-dev`.
 
-Also pass `AGENT_REF: {agent-ref}` (and `SLICE_REF`, as in Station 3), plus:
-
-```
-PULSE:         .spec/agents/{slug-hint}.context/pulse.json
-PULSE_SCRIPT:  {PULSE_SCRIPT}
-WATCH:         .spec/app/watch/current.json
-```
-
-The callee writes that watch pointer with `--station 4`. After return, run the same post-return check as Station 3 on this pulse. `reason: stale-agent` blocks this task and does not start the next one.
+Also pass `AGENT_REF: {agent-ref}` (and `SLICE_REF`, as in Station 3). After return, handle the
+envelope as in Station 3 (fallback `.spec/agents/{slug}.kit-result.json`, checkpoint
+`.spec/agents/{slug}.md`).
 
 If a task’s `embed` (from the spec, which the callee reads) is `backend-route` and
 `src/http/create-app.ts` is missing, the callee STOPs. Do not invent a second HTTP stack;
@@ -223,13 +207,9 @@ SPEC_PATH:      {SPEC_PATH}
 PROTOTYPE_REF:  {PROTOTYPE_REF}
 SKIP_UPSTREAM:  true
 RESULT_OUT:     .spec/app/results/frontend.json
-PULSE_SCRIPT:   {PULSE_SCRIPT}
-WATCH:          .spec/app/watch/current.json
 ```
 
-That kit owns its own pulse files and the post-return check. After it returns, a frontend envelope `reason: stale-agent` blocks the frontend track. Ask once. Do not mark the track `done`.
-
-Read `{dirname(SPEC_PATH)}/frontend-kit-result.json` (or `RESULT_OUT`). Apply the outcome table
+Wait for it to return; it handles missing feature-dev envelopes itself. Then Read `{dirname(SPEC_PATH)}/frontend-kit-result.json` (or `RESULT_OUT`). Apply the outcome table
 to the **frontend track** (not individual `T-*` rows — that kit owns `task-checklist.md`).
 
 ### Station 6 — Report

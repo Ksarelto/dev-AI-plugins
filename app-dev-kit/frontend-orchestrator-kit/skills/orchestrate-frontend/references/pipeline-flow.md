@@ -17,10 +17,10 @@
 | # | Station | Delegate to | Notes |
 |---|---------|-------------|-------|
 | 0 | Resume check | this skill *(inline)* | Read `.spec/app/current.json`, then `.spec/app/task-checklist.md`; if spec is newer, offer Station 2a re-derive before Station 3 |
-| 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` or an `approved` spec already matches. Requires `.spec/context/*.md`. Callee writes the watch pointer once `RUN_DIR` exists and polls `spec-orchestrator` |
-| 2 | Prototype | `html-generator-kit:generate-html` | Optional. Skip when `SKIP_UPSTREAM`. Pass `SPEC_PATH`, `PULSE`, `PULSE_SCRIPT`. Capture `{dirname(SPEC_PATH)}/html-kit-result.json` |
+| 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` (go to 2a) or an `approved` spec already matches (go to 2). Pass `RESULT_OUT: .spec/app/results/generate-spec.json`. Requires `.spec/context/*.md` |
+| 2 | Prototype | `html-generator-kit:generate-html` | Optional. Skip when `SKIP_UPSTREAM`. Pass `SPEC_PATH`. Capture `{dirname(SPEC_PATH)}/html-kit-result.json` |
 | 2a | Checklist derivation | `scripts/build-checklist.mjs` + this skill | **UI screens only.** Script reads `spec.md` from disk. Human confirms the list |
-| 3 | Task loop | `feature-dev-kit:feature-dev` (once per feature) | Paths + ids + `PULSE`. Clean git tree required. Envelope → `done` / `pending` / `blocked` / leave `in-progress`. Stale pulse rebuilds once |
+| 3 | Task loop | `feature-dev-kit:feature-dev` (once per feature) | Paths + ids. Clean git tree required. Envelope → `done` / `pending` / `blocked` / leave `in-progress`. Missing envelope re-runs once |
 | 4 | Report | this skill *(inline)* | Write `frontend-kit-result.json`; paths + checklist counts; remind `/create-pr` |
 
 ---
@@ -46,11 +46,10 @@
 | `approved` | `done` (record `slug` / `branch`) |
 | `aborted` (human declined) | `pending` |
 | `error` (structural: rejected dep, missing scoped import, …) | `blocked` + `blocked-reason` |
-| missing envelope (crash mid-station) | leave `in-progress`; resume re-offers it |
-| pulse exit 3, 4, or 5, envelope missing | leave `in-progress` and rebuild that station once; then `blocked` + `blocked-reason: stale-agent` |
-| envelope `error` with `reason: stale-agent` | `blocked` + `blocked-reason: stale-agent`; ask once; do not start the next feature |
+| missing envelope after return | leave `in-progress` and re-run that station once from its checkpoint |
+| missing envelope after that re-run | `blocked` + `blocked-reason: agent-failed`; ask once; do not start the next feature |
 
-Do **not** use a second mapping. `SKILL.md` and this file must match. A fresh pulse is not `approved`.
+Do **not** use a second mapping. `SKILL.md` and this file must match. Only an envelope is `approved`.
 
 ---
 
@@ -80,23 +79,20 @@ for feature in features (in file order):
     CHECKLIST_PATH: {task-checklist.md path}
     SLUG_HINT:      feature.slug-hint
     PARENT_BRANCH:  current HEAD when it is feature/*; empty on the first feature
-    CHANGE:         remove                       # only when a nested task change is remove
     RESULT_OUT:     {checklist dir}/results/{feature.id}.json
-    PULSE:          .spec/features/{slug-hint}.context/pulse.json
-    PULSE_SCRIPT:   {PULSE_SCRIPT}
-    WATCH:          .spec/app/watch/current.json
     (never inline spec body, stories, or ACs)
+    (CHANGE=remove only if a nested task change is remove; omit otherwise)
 
-  envelope = Read(RESULT_OUT)   # fallback feature kit-result.json
-  # before that, check-pulse.mjs --check on WATCH.pulse — see agent-liveness.md
-  copy slug, branch, parent_branch onto the feature; mark nested tasks done on approved
-  persist checklist
-
-  if more features remain:
-    AskUserQuestion — continue (checkout -b the next feature on this HEAD) / pause / abort
+  wait for it to return
+  run update-checklist.mjs --result RESULT_OUT --fallback feature kit-result.json
+  follow printed next:
+    continue → if more features remain: AskUserQuestion continue / pause / abort
+    rerun    → re-invoke this feature once from its checkpoint
+    ask      → ask once; do not start the next feature
+    stop     → STOP (envelope aborted); do not start the next feature
 ```
 
-**No second feature starts until that question is answered.**
+**No second feature starts on `next: continue` until that question is answered. `stop` / `ask` / `rerun` do not start the next feature.**
 
 Git: `new-feature.sh` refuses a dirty tree and prints `PARENT` as the branch it was cut from.
 `git checkout -b` for the next feature is from **current HEAD** (the previous `feature/*` branch).
@@ -114,6 +110,5 @@ Do not retarget that parent to `develop` / `main` / `master`. Independent PRs re
 | `html-generator-kit` declined or envelope aborted | `PROTOTYPE_REF = ""`; continue to Station 2a |
 | `build-checklist.mjs` produces zero features | Surface `SPEC_PATH` and stop |
 | Dirty tree at Station 3 | Do not spawn; commit/stash/block |
-| feature-dev envelope missing | Leave `in-progress`; never mark `done`. If the pulse is exit 3, 4, or 5, rebuild once, then `blocked` / `stale-agent` |
-| Pulse not responding or stalled | Follow `agent-liveness.md`. Do not end the turn while status is `working` |
+| feature-dev envelope missing | Leave `in-progress`; never mark `done`. Re-run once from its checkpoint, then `blocked` / `agent-failed` |
 | Checklist file corrupted / unparsable | STOP — human fixes or deletes it |

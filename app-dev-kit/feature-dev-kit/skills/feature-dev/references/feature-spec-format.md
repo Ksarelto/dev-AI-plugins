@@ -56,7 +56,7 @@ prototype-ref: .spec/prototype/{tc}_{slug}/        # or none
 | `## Tech Investigation` | research-analyst | Findings from context7/web research | Free prose + links |
 | `## Dependencies` | research-analyst | Proposed new packages with proposal table | See investigation-protocol.md |
 | `## Build Plan` | Orchestrator (station 2) | Station-by-station task list with assigned slices | Numbered steps with checkboxes |
-| `## Gate Log` | quality-gate-runner | Result of each quality gate run | Table: gate, result, notes |
+| `## Gate Log` | run-gates.sh `--spec` | Result of each quality gate run | Table: gate, result, notes |
 | `## Human Review` | Orchestrator (end of 11) | Review packet emitted to human | See packets.md + review-packet.md |
 | `## Decisions & Open Questions` | Any agent | Architectural decisions made; unresolved items | Bullet list with owner |
 

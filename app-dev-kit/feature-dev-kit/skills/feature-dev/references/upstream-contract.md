@@ -44,7 +44,7 @@ import identity + `context.*` only, never every screen.
 
 ## YAML fields to import (filtered)
 
-`upstream-interpreter` and `scripts/import-upstream.mjs` parse **YAML front matter first**.
+`scripts/import-upstream.mjs` parses **YAML front matter first**.
 Do not look for a `## UI Surface` heading in the app spec — it does not exist there.
 
 | Spec field | Blackboard destination | Filter |

@@ -38,14 +38,14 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 |------|-----------|------|
 | `references/pipeline-flow.md` | orchestrator, once | canonical station order, tiers, gates, loop guards. This skill does not load it into the main chat |
 | `references/development-cycle.md` | this skill, orchestrator, build engineers | outer + inner implement loops |
-| `references/upstream-contract.md` | this skill, `upstream-interpreter`, `spec-analyst` | spawn payload and YAML field map |
+| `references/upstream-contract.md` | this skill, `spec-analyst` | spawn payload and YAML field map |
 | `references/packets.md` | this skill, orchestrator, spec-analyst, research-analyst | packet types the hub may return |
 | `references/orchestration-protocol.md` | orchestrator | delegation format, handoff-via-spec, retry/escalation |
 | `references/feature-spec-format.md` | `spec-analyst` (Station 0), all workers | the blackboard schema every section must satisfy |
 | `references/fsd-architecture.md` | every build engineer | layers, slices, segments, where code belongs |
-| `references/fsd-import-boundaries.md` | build engineers, `quality-gate-runner` | the import matrix + boundary lint config |
+| `references/fsd-import-boundaries.md` | build engineers | the import matrix + boundary lint config |
 | `references/investigation-protocol.md` | `research-analyst` (Station 1a) | context7 flow, dependency proposal format |
-| `references/quality-gates.md` | `quality-gate-runner` (Stations 3–9) | gate commands, thresholds, per-failure remediation |
+| `references/quality-gates.md` | orchestrator / this skill on a red gate (Stations 3–9) | gate commands, thresholds, per-failure remediation |
 | `references/definition-of-done.md` | orchestrator (Station 11), `code-reviewer` | the standing bar every increment clears |
 | `references/increment-protocol.md` | every build engineer | thin-slice discipline inside one slice |
 | `references/human-review-protocol.md` | this skill (Station 12) | what the human is shown and which decisions are offered |
@@ -59,7 +59,7 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 | `scripts/new-feature.sh` | this skill (Station 0, Bash) | slug + branch + spec scaffold |
 | `scripts/import-upstream.mjs` | this skill (Station 0, Bash) | scoped YAML + prototype → blackboard |
 | `scripts/validate-feature-spec.mjs` | this skill (Station 0.5, Bash) | deterministic blackboard validation |
-| `scripts/run-gates.sh` | `quality-gate-runner` (Bash) | runs the gate sequence, emits JSON |
+| `scripts/run-gates.sh` | orchestrator, this skill on patch (Bash) | runs the gate sequence, emits JSON; `--spec` appends the Gate Log row |
 | `scripts/write-kit-result.mjs` | this skill (Station 12 approve or abort) | `.spec/features/{slug}.kit-result.json` path-only envelope |
 
 `{KIT_DIR}/rules/` holds only `ui-quality` and `git-workflow`. Do not name rule files in `APPLY`.
@@ -111,9 +111,11 @@ Tell the user to reload the window. If `architecture-audit` still does not resol
 | `[feature-slug or request]` | Optional | An existing slug in `.spec/features/` resumes that feature. Free text starts a new one. Omitted → this skill asks for the request. |
 
 Structured fields (from frontend-orchestrator-kit or the human) may accompany the argument: `UPSTREAM_SPEC`,
-`FEATURE_ID`, `TASK_IDS`, `SCREEN_REFS`, `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`,
-`PARENT_BRANCH`, `RESULT_OUT`. `REQUEST` may be a one-line pointer when `UPSTREAM_SPEC` + `FEATURE_ID`
-are set — do not expect an inlined spec body. See `references/upstream-contract.md`.
+`FEATURE_ID`, `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`,
+`PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`.
+`REQUEST` may be a one-line pointer when `UPSTREAM_SPEC` + `FEATURE_ID` are set — do not expect
+an inlined spec body. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
+See `references/upstream-contract.md`.
 
 ```
 /feature-dev
@@ -197,8 +199,8 @@ node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --spec
 
 It writes `.spec/features/{slug}.context/prototype-inventory.md` — every string, control, field, state, and dialog on the prototype page. Station 6 fills its React target / Status columns. See `references/upstream-contract.md` § Prototype inventory. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement.
 
-Then spawn `upstream-interpreter` with **paths and ids only** (it may re-run the same script).
-Pass its `HANDOFF` path to `spec-analyst` together with `SPEC_PATH`. Do not paste the slice.
+Then spawn `spec-analyst` with `SPEC_PATH` — the import already wrote the scoped slice (screens,
+stories, ACs, entities, prototype page) into the blackboard. Do not paste the slice.
 If `REQUEST` is more than one line of ids/paths, ignore the extra — the blackboard already has stories/ACs from import.
 `spec-analyst` fills remaining gaps and returns a **CLARIFY_PACKET** — it does not ask the human
 and it never sets `status: approved`.
@@ -229,7 +231,7 @@ Classify from the approved blackboard only (slice count, new package, new route)
 
 | Tier | When | What this skill does |
 |------|------|----------------------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) in the background and run the Liveness parent loop below. Pass `LAYER`, `SLICE`, and one `create-*` skill. Then Station 8 (walk new executable files and spawn `test-engineer` for any without a test — same loop) and `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions`. If UI changed, run the browser check below. Then Step 5. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) in the foreground per Spawning below. Pass `LAYER`, `SLICE`, and one `create-*` skill. Then Station 8 (walk new executable files and spawn `test-engineer` for any without a test — same rule) and `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions --spec {SPEC_PATH} --station patch`. If UI changed, run the browser check below. Then Step 5. |
 | **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. |
 | **full** | Six or more slices, or a new route plus a new entity | Spawn `feature-orchestrator` with `TIER: full`. |
 
@@ -250,28 +252,17 @@ Return one packet per references/packets.md (paths only) and STOP.
 Do NOT ask the user anything. Do NOT run /create-pr, push, or merge.
 Do NOT write files under src/.
 Do NOT pass the upstream spec body or any worker report — spokes return a HANDOFF path.
-PULSE:       .spec/features/{slug}.context/pulse.json
-PULSE_SCRIPT: {resolved check-pulse.mjs, or the PULSE_SCRIPT argument}
 ```
 
-Spawn that orchestrator with `run_in_background: true`, then run the parent loop. Do not block on the Agent call.
+### Spawning
 
-### Liveness — poll the orchestrator
+Spawn every agent (orchestrator, `slice-engineer`, `test-engineer`) in the foreground and wait for the Agent call to return. Do not background it, sleep, or poll. The orchestrator's final message is its packet; a worker's final message is its HANDOFF / CONTAINS lines.
 
-Canonical procedure: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` when that file exists. It wins if this section disagrees. Resolve `PULSE_SCRIPT` in order: the argument, `app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs` from the workspace root, then `{KIT_DIR}/../frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/check-pulse.mjs`.
-
-`PULSE` defaults to `.spec/features/{slug}.context/pulse.json`. If the real slug differs from a passed `slug-hint` path, touch the real path and rewrite `WATCH` (`.spec/app/watch/current.json`) with `--station 3 --feature-id` when `WATCH` was passed.
-
-1. Record `agent_id`. Touch `--role feature-orchestrator --status working --station start`. Patch: `--role slice-engineer` (or `test-engineer`).
-2. Every 60 seconds, `sleep 60` once, then `node {PULSE_SCRIPT} --check --pulse {PULSE}`. Do not end the turn while `status` is `working`.
-3. Exit 0: keep waiting. Exit 2: Read `{dirname(PULSE)}/packet.json` and handle it in the packet table below. Exit 3, 4, or 5: `resume` the same id once ("Update the pulse and continue from the checkpoint"). If that does not move `updated_at` within 60 seconds, abandon it (`interrupt: true` only when it is still running) and fresh-spawn from the checkpoint path. At most two fresh spawns. Then write the envelope `--outcome error --reason stale-agent` and stop.
-4. `awaiting-human` is healthy. Never resume or rebuild across it.
-
-If the script is missing, Read the pulse JSON and apply the same rules: `working` and `updated_at` older than 3 minutes → not responding; `station` and `artifact` unchanged for 15 minutes → stalled; `awaiting-human` → healthy; no file → missing.
+If an Agent call errors or returns without a result, retry it once from the checkpoint path (`.spec/features/{slug}.context/orchestrator-checkpoint.md`, or the blackboard). Do not paste the old transcript. If the retry also fails, write the envelope `--outcome error --reason agent-failed` and stop.
 
 If this conversation is near its limit (several clarify rounds, a revise cycle, or a packet plus a long spec), write `.spec/features/{slug}.context/session.md` first (status, pending packet path, links only) and pass that path. Do not replay the prior conversation into the spawn.
 
-Loop on `type`. Every re-spawn uses the same background parent loop.
+Loop on the returned packet's `type`. Every re-spawn follows Spawning above.
 
 | Packet | This skill |
 |--------|------------|
@@ -311,7 +302,7 @@ On fail, re-spawn `MODE: revise` with the browser-check path as `CHANGE_REQUEST`
      TIER:           standard | full
      CHANGE_REQUEST: {user's text}
      SESSION:        .spec/features/{slug}.context/session.md
-     SLUG / SPEC_PATH / BRANCH / KIT_DIR / PULSE / PULSE_SCRIPT: (same as build)
+     SLUG / SPEC_PATH / BRANCH / KIT_DIR: (same as build)
      ```
      The orchestrator re-enters at the lowest affected station, replays Stations 9–10 (including 9.5), and returns a fresh packet.
    - **Abort** → do not commit. Leave the index as it is. Write kit-result `aborted` and stop.

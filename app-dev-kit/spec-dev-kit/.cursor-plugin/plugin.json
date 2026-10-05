@@ -16,5 +16,5 @@
   ],
   "category": "productivity",
   "skills": "./skills/",
-  "agents": "./agents/"
+  "agents": "./cursor-agents/"
 }

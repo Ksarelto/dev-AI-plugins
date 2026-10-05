@@ -26,13 +26,20 @@ invention; thin sources need careful defaults. Either way:
 
 ---
 
-## Step 1 — Carry the source over (fidelity)
+## Step 1 — Fix up the seeded register (fidelity)
 
-Read `INTAKE_REPORT_PATH`. For **every** `raw_requirements[]` entry, write one `requirements[]`
-entry (`source: stated`, `source_file`, `source_line`) — split compound statements so each entry is
-one testable statement. Keep the source's words. Record the intake ids you came from
-(`intake_refs: ["R-012"]`) so Station 5 can prove nothing was dropped. Every requirement is
-`stated` or `answered` — **never write a requirement for an inference**; that is an assumption.
+`build-enriched.mjs` already wrote one `stated` REQ per intake entry to `SEED_PATH`
+(`artifacts/requirements.seed.json`, with `source_ref`, `intake_refs`, `priority`, `scope`). **Do
+not copy it.** Read it and write only `requirement_edits`:
+
+- `modify` — `{ id, text?, type?, priority?, scope? }` where the seed's type/priority/scope is
+  wrong or a lead-in needs rewording. Keep the source's words.
+- `add` with `split_from` — `{ id, split_from, text }` for each extra part of a compound
+  statement (and `modify` the original to the first part). Source fields are copied for you.
+- `add` without `split_from` — `source: answered` requirements (Step 2).
+
+Number additions from the seed's `next`. Every requirement is `stated` or `answered` — **never
+write a requirement for an inference**; that is an assumption.
 
 Then structure what the source already provides — do not re-derive it:
 
@@ -99,18 +106,21 @@ measurable perf, accessibility, and security constraint. Prototype readiness: ev
 screen has a full field list with types; every screen has a named primary entity, a page type,
 and specific components.
 
-## Step 5 — Write `enriched.json`
+## Step 5 — Write `enriched.patch.json`
+
+Everything except `requirements`; the orchestrator runs `build-enriched.mjs` to merge it with the
+seed into `enriched.json`.
 
 ```json
 {
   "type_hint": "app",
-  "requirements": [
-    { "id": "REQ-001", "type": "behavior | rule | constraint | nfr | data | copy",
-      "text": "...", "source": "stated | answered",
-      "source_file": "requirements.md", "source_line": 264, "source_ref": "requirements.md#L264",
-      "priority": "must | should | could | wont", "scope": "in | non-goal | deferred",
-      "intake_refs": ["R-012"] }
-  ],
+  "requirement_edits": {
+    "modify": [{ "id": "REQ-004", "text": "...", "type": "behavior | rule | constraint | nfr | data | copy", "priority": "must | should | could | wont", "scope": "in | non-goal | deferred" }],
+    "add": [
+      { "id": "REQ-031", "split_from": "REQ-004", "text": "..." },
+      { "id": "REQ-032", "text": "...", "type": "rule", "source": "answered", "source_ref": "qa-log Round 1 Q2", "priority": "must", "scope": "in" }
+    ]
+  },
   "roles": [{ "name": "Resident", "description": "..." }],
   "permissions": [{ "id": "PERM-001", "action": "...", "allow": [], "conditional": {}, "denied_behavior": "" }],
   "entities": [
@@ -137,16 +147,17 @@ and specific components.
 
 ## Update Pass (Called from Completeness Loop)
 
-When called with `NEW_ANSWERS`: integrate them exactly as in Step 2, add any
-`unmapped_source_requirements` named by `completeness.json` (Step 1 rules), and overwrite
-`enriched.json`. Skip Step 3 for gaps already resolved.
+When called with `NEW_ANSWERS`: integrate them exactly as in Step 2 and write **only the delta** to
+`artifacts/enriched.patch.<round>.json` — new or changed entries (same id replaces), new
+`requirement_edits`. Number additions after the highest REQ in `enriched.json`. Skip Step 3 for
+gaps already resolved.
 
 ---
 
 ## Persistence
 
-Write `{RUN_DIR}/artifacts/enriched.json` before returning (overwrite on the update pass). Read
-`ANALYSIS_PATH`, `QA_LOG_PATH`, and `INTAKE_REPORT_PATH` from disk.
+Write `PATCH_OUT_PATH` (`artifacts/enriched.patch.json`; update pass `enriched.patch.<round>.json`)
+before returning. With `FIX_ERRORS`, rewrite the same patch so each listed error is gone. Read `SEED_PATH`, `ANALYSIS_PATH`, `QA_LOG_PATH`, and `INTAKE_REPORT_PATH` from disk.
 
 When `PRIOR_ITEMS` is passed, read it. A `change_intents` entry with `op: modified` must be written
 as the prior object plus the change. Keep every field and relationship the prior object still has.
@@ -162,4 +173,4 @@ as the prior object plus the change. Keep every field and relationship the prior
 - Never invents requirements not derivable from the source or a default that fits it.
 - May use `WebSearch` to look up a standard (e.g. a WCAG criterion) for a known gap — never to
   expand scope.
-- Writes only `{RUN_DIR}/artifacts/enriched.json`. Does not write `spec.md`.
+- Writes only its patch file. Does not write `enriched.json` or `spec.md`.

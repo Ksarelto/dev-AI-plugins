@@ -1,6 +1,6 @@
 # Template: modern-signature-css.md
 
-The **contemporary layer**. Appended to `{OUTPUT_DIR}/css/components.css` by `design-system-author`,
+The **contemporary layer**. Appended to `{OUTPUT_DIR}/css/components.css` by `apply-design-brief.mjs`,
 after the base component vocabulary. This is what makes a prototype look like it was designed this
 year rather than assembled from a 2019 admin template.
 

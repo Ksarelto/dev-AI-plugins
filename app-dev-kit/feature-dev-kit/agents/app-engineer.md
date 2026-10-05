@@ -1,7 +1,7 @@
 ---
 name: app-engineer
 description: Wires the FSD `app` layer (station 7) — routing table, lazy page imports, navigation/menu/breadcrumb entries, and providers. Use last in the build spine, after pages exist.
-model: sonnet
+model: haiku
 tools: [Read, Write, Edit, Glob, Grep]
 skills: [add-route, wire-navigation]
 permissionMode: default

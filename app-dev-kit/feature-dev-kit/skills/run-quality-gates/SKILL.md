@@ -10,7 +10,7 @@ allowed-tools: [Bash, Read, Grep]
 
 ## When to use
 
-Station 9 runs the full sweep. After each layer, stop at FSD (`--until fsd`). A patch run stops at conventions (`--until conventions`) after its Station 8 walk. A fix re-runs the failed gate plus types. Used by `quality-gate-runner`. This skill reports only — it never fixes. Write the result to the handoff file. Do not paste the transcript.
+Station 9 runs the full sweep. After each layer, stop at FSD (`--until fsd`). A patch run stops at conventions (`--until conventions`) after its Station 8 walk. A fix re-runs the failed gate plus types. The orchestrator runs the fast path directly via Bash. This skill reports only — it never fixes. Do not paste the transcript.
 
 ## Fast path
 
@@ -25,7 +25,9 @@ bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --from lint
 ```
 
 It emits one JSON line (`{"passed":…,"log":…,"gates":[…]}`) and writes the failing gate's full
-output to the log file — read the log only for the gate that failed. Fall back to the manual steps
+output to the log file — read the log only for the gate that failed. Add
+`--spec <blackboard.md> --station "Station N"` and the script appends the `## Gate Log` row itself
+(step 8 is then done). Fall back to the manual steps
 below when the script is unavailable. Gate table of record:
 `{KIT_DIR}/skills/feature-dev/references/quality-gates.md`. Architecture-audit is **not** this
 script — Stations 1.5 / 9.5 spawn `architecture-auditor`.

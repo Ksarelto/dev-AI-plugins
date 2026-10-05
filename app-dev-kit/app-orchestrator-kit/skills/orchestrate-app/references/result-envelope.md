@@ -14,7 +14,7 @@ Schema version: `app-dev-kit/kit-result/v1`
 
 | Kit | File | When |
 |-----|------|------|
-| `generate-spec` | `{RUN_DIR}/kit-result.json` | After publish, or abort once `RUN_DIR` exists |
+| `generate-spec` | `{RUN_DIR}/kit-result.json` | After publish, or abort once `RUN_DIR` exists. Parent also passes `RESULT_OUT: .spec/app/results/generate-spec.json` |
 | `generate-html` | `{dirname(SPEC_FILE)}/html-kit-result.json` | Always after a spec was located. On approve, also `{OUTPUT_DIR}/kit-result.json` |
 | `feature-dev` | `.spec/features/{slug}.kit-result.json` | After Station 12 approve, or abort once a slug exists. Optional `RESULT_OUT` |
 | `backend-dev` | `.spec/backend/{slug}.kit-result.json` | After Station 12 approve, or abort once a slug exists. Optional `RESULT_OUT` |
@@ -77,15 +77,15 @@ Empty string means “not applicable”, never `null`. Additive fields may be `"
 | `approved` | `done` (record `slug` / `branch`) |
 | `aborted` | `pending` |
 | `error` | `blocked` + `blocked-reason` |
-| `error` with `reason: stale-agent` | `blocked` + `blocked-reason: stale-agent`. Ask once. Do not start the next feature or the next work-plan task |
-| missing envelope | leave `in-progress`; resume re-offers it |
-| missing envelope, pulse exit 3, 4, or 5 | leave `in-progress` and rebuild that call once; then `blocked` + `blocked-reason: stale-agent` |
+| missing envelope after return | leave `in-progress` and re-run that call once from its checkpoint |
+| missing envelope after that re-run | `blocked` + `blocked-reason: agent-failed`. Ask once. Do not start the next feature or the next work-plan task |
 
 ---
 
 ## Parent rules after a Skill returns
 
 1. `Read` the envelope path above. Do not scrape the callee’s chat transcript for paths.
-2. If the file is missing → treat as `error`, `reason: "no kit-result.json"`.
+2. If the file is missing → apply the two missing-envelope rows above (re-run once, then
+   `agent-failed`).
 3. Keep in working memory **only** the fields in this file (plus work-plan / checklist ids).
 4. Discard callee HITL transcripts from further spawns. The artifacts on disk are the record.

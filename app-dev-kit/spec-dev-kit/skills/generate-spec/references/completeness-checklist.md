@@ -1,6 +1,10 @@
 # Completeness Checklist — Source Fidelity + 10 Categories
 
-**Used by**: `spec-completeness` (Station 5 gate), `spec-analyst` (gap detection), `spec-interrogator` (targeted questions)
+**Used by**: `spec-completeness` (Station 5 category credits), `scripts/score-completeness.mjs`
+(fidelity, score, gate), `spec-analyst` (gap detection), `spec-interrogator` (targeted questions)
+
+Part 1 and the score formula are computed by `score-completeness.mjs`. The agent only judges each
+category's credit level into `artifacts/completeness-credits.json`.
 
 The gate has two parts. **Both** must pass:
 
@@ -21,8 +25,6 @@ it in `intake_refs`. Any id with no entry goes to `unmapped_source_requirements[
 
 Also check, and list under `fidelity_warnings[]`:
 
-- a source table (roles matrix, notification table, edge-case table) whose row count is larger than
-  the structured items it produced;
 - a stated number (limit, timer, retention) that is in no `business_rules[].params` or entity `retention`;
 - an assumption whose text matches a stated requirement (it should be the requirement);
 - more than ~60 assumptions (conventions or over-splitting — see the enricher's limits).

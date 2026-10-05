@@ -80,8 +80,6 @@ All invocations are `python3 "{UIUX_DIR}/scripts/search.py" …`. Output is ASCI
 | 4 | 1.5 `design-strategist` | `"<page-type> <domain>" --domain ux -f markdown` (once per distinct page type) | `ux-directives.md` |
 | 5 | 1.5 `design-strategist` | `"<mood> micro-interactions" --domain animation -f markdown` | motion spec in the brief |
 | 6 | 1.5 `design-strategist` | `"dashboard <domain> metrics" --domain chart -f markdown` (only if a dashboard page exists) | chart guidance in `ux-directives.md` |
-| 7 | 2 `design-system-author` | `"<archetype> component styling" --stack html-tailwind -f markdown` | implementation notes |
-
 Notes on the dials (they tune recommendations without changing the query string):
 
 - `--variance` 1 = minimal/safe → 10 = asymmetric/expressive. Pick from the brief's mood:
@@ -141,8 +139,8 @@ The database ranks rule categories 1–10. This kit resolves conflicts in this o
 ## Pre-delivery checklist
 
 `{UIUX_DIR}/references/pro-rules.md` is the upstream pre-launch checklist (icons, interaction
-feedback, contrast, safe areas, a11y). `qa-validator` reads it when `UIUX_DIR != none` and reports
-misses as warnings — the kit's own `qa-checklist.md` remains the blocking gate.
+feedback, contrast, safe areas, a11y). `design-strategist` folds the relevant rows into
+`ux-directives.md`; the kit's own `qa-checklist.md` (run by `qa-prototype.mjs`) is the blocking gate.
 
 ---
 

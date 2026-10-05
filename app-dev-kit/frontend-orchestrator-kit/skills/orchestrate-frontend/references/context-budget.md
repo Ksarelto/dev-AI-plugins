@@ -14,13 +14,15 @@ Companion schema: `result-envelope.md` (canonical copy lives in
 1. **Never inline** an app `spec.md`, prototype HTML/CSS/JS, `page-map.json` body, feature
    blackboard, `REVIEW_PACKET` markdown, `qa-log.md`, or `intake.json` into this skill’s
    prompts or into a Skill-tool spawn.
-2. After a delegated skill returns, the parent reads that kit’s `kit-result.json`
-   (see `result-envelope.md`) and the pulse status from `agent-liveness.md`. Do not read
-   the callee transcript. Progress otherwise lives in `task-checklist.md`.
+2. After a delegated skill returns, the parent reads that kit’s envelope (`result-envelope.md`):
+   generate-spec → `.spec/app/results/generate-spec.json` (fallback `{dirname(spec_path)}/kit-result.json`);
+   generate-html → `{dirname(SPEC_PATH)}/html-kit-result.json`;
+   feature-dev → `{checklist dir}/results/{feature.id}.json` (fallback `.spec/features/{slug}.kit-result.json`).
+   Do not treat `current.json` as an envelope — it has no `outcome`. Do not read the callee
+   transcript. Progress otherwise lives in `task-checklist.md`.
 3. Skill-tool arguments are structured **paths and ids**: `SPEC_PATH`, `FEATURE_ID`,
    `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`,
-   `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`,
-   `PULSE`, `PULSE_SCRIPT`, `WATCH`.
+   `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`.
    Not file contents. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
 4. `REQUEST` to feature-dev is at most **one line** naming the task id and the files to read.
    `import-upstream.mjs` already writes stories/ACs onto the blackboard from `UPSTREAM_SPEC`.
@@ -42,7 +44,6 @@ Companion schema: `result-envelope.md` (canonical copy lives in
 | `CHECKLIST_PATH` | path to `task-checklist.md` |
 | Current `task.id` and its id-lists | `T-001`, `SCR-001`, `US-…`, `AC-…` |
 | Envelope `outcome` / `slug` / `branch` / `reason` | from `kit-result.json` |
-| Pulse label | `fresh` / `awaiting-human` / `not-responding` / `missing` / `stalled` |
 
 ## What this skill must not hold
 

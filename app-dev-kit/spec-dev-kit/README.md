@@ -71,12 +71,11 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
   agents/
     spec-orchestrator.md                   ← opus | returns packets; no AskUserQuestion; no Write
     spec-analyst.md                        ← sonnet xhigh | writes artifacts/analysis.json
-    spec-interrogator.md                   ← sonnet xhigh | questions[] packet; never asks
+    spec-interrogator.md                   ← sonnet | questions[] packet; never asks
     spec-enricher.md                       ← sonnet xhigh | writes artifacts/enriched.json
-    spec-completeness.md                   ← haiku | writes artifacts/completeness.json
+    spec-completeness.md                   ← haiku | category credits → completeness-credits.json
     spec-synthesizer.md                    ← sonnet xhigh | writes spec.md (status: reviewing)
-    spec-review-facilitator.md             ← sonnet | REVIEW_PACKET; apply-pass edits spec.md
-    spec-diagram.md                        ← sonnet | Mermaid into ## Visual Reference
+    spec-review-facilitator.md             ← sonnet | apply pass only: edits spec.md, review-changes.json
   skills/
     generate-spec/
       SKILL.md                             ← entry point; owns HITL + Station 0/1/10
@@ -97,10 +96,14 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
         example-spec.md                    ← complete valid 2.0 spec (exemplar + test fixture)
       scripts/
         continue-spec.mjs                  ← Station 0 scaffold + prior index
+        extract-intake.mjs                 ← Station 0 slug hint, Station 1 atomic split → intake.json
         gate-check.mjs                     ← Stations 2–3 loop decision
+        build-enriched.mjs                 ← Station 4 REQ seed + merge of enricher patches
+        score-completeness.mjs             ← Station 5 fidelity + score + gate
+        compose-review.mjs                 ← Station 9 review packet (summary / delta)
         validate-spec.mjs                  ← Station 7 + publish gate
         merge-spec.mjs / lookup-spec.mjs   ← continue runs
-        render-spec-views.mjs              ← spec.views.md
+        render-spec-views.mjs              ← spec.views.md: tables + all Mermaid diagrams (Station 8)
         write-slice-briefs.mjs             ← slices/SL-NNN.yaml
         publish-spec.mjs / archive-context.mjs / write-kit-result.mjs / revert-increment.mjs
 ```
@@ -116,14 +119,14 @@ not the only path.
 ```
 .spec/context/*.md
       │
-      ▼ Station 0–1: skill (naming + intake.json)
+      ▼ Station 0–1: skill + extract-intake.mjs (naming + intake.json)
       ▼ Station 2/2a/2b: analyst + interrogator; skill asks on CLARIFY_PACKET
       ▼ Station 3: pre-enrich gate (orchestrator)
-      ▼ Station 4: enricher → enriched.json
+      ▼ Station 4: build-enriched.mjs seed → enricher patch → build-enriched.mjs merge → enriched.json
       ▼ Station 5: completeness; may CLARIFY_PACKET again
       ▼ Station 6: synthesizer → spec.md (reviewing) incl. delivery plan
       ▼ Station 7: validate-spec.mjs
-      ▼ Station 8: diagrams
+      ▼ Station 8: diagrams (script, rendered with the Station 9 views)
       ▼ Station 9: review — HARD STOP (skill asks)
       ▼ Station 10: skill sets status: approved; views + slice briefs written
       │

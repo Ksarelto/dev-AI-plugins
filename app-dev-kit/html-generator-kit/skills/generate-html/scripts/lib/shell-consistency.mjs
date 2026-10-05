@@ -47,6 +47,7 @@ export function normalizeShell(html) {
     if (!id) return tag;
     return tag.replace(/\bhref="[^"]*"/, `href="#${id[1]}"`);
   });
+  s = s.replace(/\b(href|src)="(?:\.\.\/|\.\/|pages\/)+/g, '$1="');
   s = s.replace(/\bnav-item-active\b/g, '').replace(/\s*aria-current="page"/g, '');
   return s.replace(/\s+/g, ' ').replace(/"\s+/g, '"').replace(/\s+"/g, '"').trim();
 }

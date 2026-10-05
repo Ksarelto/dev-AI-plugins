@@ -45,7 +45,7 @@ import { shellMismatches } from './lib/shell-consistency.mjs';
 
 const args = process.argv.slice(2);
 const dir = args.find((a) => !a.startsWith('--'));
-const port = Number((args.find((a) => a.startsWith('--port')) || '').split('=')[1] || args[args.indexOf('--port') + 1] || 4599);
+const port = Number((args.find((a) => a.startsWith('--port=')) || '').split('=')[1] || (args.includes('--port') ? args[args.indexOf('--port') + 1] : 0) || 4599);
 if (!dir || !existsSync(dir)) {
   console.error('verify-prototype: PROTOTYPE_DIR not found. Usage: node verify-prototype.mjs <dir> [--port N]');
   process.exit(2);

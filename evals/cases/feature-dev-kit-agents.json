@@ -12,10 +12,6 @@
       "expect": "architecture-auditor"
     },
     {
-      "prompt": "Run upstream-interpreter as a read-only YAML parser so one feature's nested screen-tasks come back compact from SPEC_FILE",
-      "expect": "upstream-interpreter"
-    },
-    {
       "prompt": "Use spec-analyst at intake to draft acceptance criteria and return a CLARIFY_PACKET without asking the user",
       "expect": "spec-analyst"
     },
@@ -54,10 +50,6 @@
     {
       "prompt": "Have test-engineer write colocated Vitest RTL tests to the coverage threshold per layer group",
       "expect": "test-engineer"
-    },
-    {
-      "prompt": "Run quality-gate-runner mechanically and return only typecheck lint boundary build coverage failures",
-      "expect": "quality-gate-runner"
     },
     {
       "prompt": "Have code-reviewer emit a severity-tagged report of conventions and acceptance coverage not the architecture-audit",

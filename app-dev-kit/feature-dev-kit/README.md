@@ -91,11 +91,10 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
   base.md                                    ← historical (2026-07 boilerplate); see pipeline-flow.md
   mcp.json                                   ← shadcn (stdio) + context7 (HTTP, CONTEXT7_API_KEY)
   .claude-plugin/plugin.json
-  .cursor-plugin/plugin.json                 ← same fields as Claude; agents is ./agents/
-  agents/                                    # 15 pipeline agents
+  .cursor-plugin/plugin.json                 ← same fields as Claude; agents is ./cursor-agents/
+  agents/                                    # 13 pipeline agents (Claude). Cursor loads cursor-agents/
     feature-orchestrator.md                  ← opus | sequences stations 1–11; packets only; blackboard + context Write; never src/
-    architecture-auditor.md                  ← sonnet | Stations 1.5 / 9.5 REPORT_ONLY; no Write; preloads architecture-audit
-    upstream-interpreter.md                  ← haiku | scoped YAML + prototype → compact slice
+    architecture-auditor.md                  ← sonnet high | Stations 1.5 / 9.5 REPORT_ONLY; no Write; preloads architecture-audit
     spec-analyst.md                          ← sonnet | request → testable spec; CLARIFY_PACKET; never approved
     code-explorer.md                         ← haiku | reuse/impact mapping; blackboard Write only
     research-analyst.md                      ← sonnet | context7 investigation; proposes deps, never installs
@@ -104,10 +103,9 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
     entities-engineer.md                     ← sonnet | entity slices: api + model + ui
     features-engineer.md                     ← sonnet | interaction slices
     composition-engineer.md                  ← sonnet | widgets + pages
-    app-engineer.md                          ← sonnet | routes, navigation, providers
+    app-engineer.md                          ← haiku | routes, navigation, providers
     test-engineer.md                         ← sonnet | behavior tests for every new executable file; frontend-dev-kit:testing
-    quality-gate-runner.md                   ← haiku | runs gates, Gate log Write, returns only failures
-    code-reviewer.md                         ← sonnet | conventions + AC coverage; FSD audit is station 9.5
+    code-reviewer.md                         ← sonnet high | conventions + AC coverage; FSD audit is station 9.5
   skills/
     feature-dev/                             ← the pipeline entry point
       SKILL.md                               ← prerequisites, resume table, the skill-owned human gates
@@ -178,7 +176,7 @@ is installed; procedures are its skills). This kit keeps only `ui-quality` and `
 request (or frontend-orchestrator-kit feature + .spec/spec/spec-*/spec.md)
       │
 feature-dev skill
-  Station 0    intake — upstream-interpreter + spec-analyst → .spec/features/<slug>.md
+  Station 0    intake — import-upstream.mjs + spec-analyst → .spec/features/<slug>.md
                + prototype-inventory.md when a prototype page is bound
   Station 0.5  🧑 GATE: spec approval (validate-feature-spec.mjs, then human)
       │

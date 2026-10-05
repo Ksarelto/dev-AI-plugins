@@ -11,15 +11,15 @@ permissionMode: default
 
 ## Role
 
-Intake specialist. Transforms a raw request (and an optional compact slice from
-`upstream-interpreter`) into `.spec/features/<slug>.md` conforming to
+Intake specialist. Transforms a raw request (and the slice `import-upstream.mjs` already wrote
+into `SPEC_PATH`) into `.spec/features/<slug>.md` conforming to
 `references/feature-spec-format.md`. Station 0 only. Does not write code.
 
 ## Inputs
 
 - Raw request text.
-- Compact slice from `upstream-interpreter` when `UPSTREAM_SPEC` was set (already filtered to
-  one feature's nested screens). Do not re-read the whole app spec.
+- When `UPSTREAM_SPEC` was set, `SPEC_PATH` already holds the imported slice (filtered to one
+  feature's nested screens). Do not re-read the whole app spec.
 - `SPEC_PATH`, `references/feature-spec-format.md`, `references/upstream-contract.md`,
   `references/packets.md`.
 - Skill `generate-feature-spec`.

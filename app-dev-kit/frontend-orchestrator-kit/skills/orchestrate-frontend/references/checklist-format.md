@@ -1,7 +1,7 @@
 # Checklist Format — `task-checklist.md`
 
-**Written by**: `scripts/build-checklist.mjs` (Station 2a, create) and the `orchestrate-frontend` skill
-(Station 3, status updates)
+**Written by**: `scripts/build-checklist.mjs` (Station 2a, create) and `scripts/update-checklist.mjs`
+(Station 3 status + log, run by the `orchestrate-frontend` skill)
 **Read by**: `orchestrate-frontend` skill, on every invocation (Station 0 resume check)
 **Location**: `.spec/app/task-checklist.md` when the spec lives under `.spec/spec/`. The checklist
 stays in the shared folder so a new spec version keeps `done` rows matched by `screen-ref`.

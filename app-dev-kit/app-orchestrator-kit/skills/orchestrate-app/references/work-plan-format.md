@@ -70,5 +70,5 @@ lists `B-*` and `A-*` increment tasks plus track-level frontend status.
 ## Status lifecycle
 
 Same as the frontend checklist: `pending` → `in-progress` → `done` / `pending` (abort) /
-`blocked` (error, including `blocked-reason: stale-agent`) / leave `in-progress` (missing
-envelope; a stale pulse rebuilds once, then blocks). Only a human writes `skipped`.
+`blocked` (error, or `blocked-reason: agent-failed`) / leave `in-progress` (missing envelope;
+re-run once from its checkpoint, then blocks). Only a human writes `skipped`.

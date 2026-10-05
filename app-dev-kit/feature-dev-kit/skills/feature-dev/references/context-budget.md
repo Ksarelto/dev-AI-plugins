@@ -78,7 +78,6 @@ Workers open the spec sections they were named, and never scan sections outside 
 
 | Worker | read sections | write sections |
 |--------|--------------|----------------|
-| `upstream-interpreter` | (reads `UPSTREAM_SPEC` file, not the blackboard) | none — writes a compact slice handoff |
 | `spec-analyst` | Request, Clarifications, Acceptance criteria, UI surface, API contract | those same sections; never status `approved` |
 | `code-explorer` | Request, Acceptance criteria, UI surface | FSD Impact, Reuse map, UI surface (refine), Decisions |
 | `research-analyst` | FSD Impact, API contract, UI surface | Tech Investigation, Dependencies |
@@ -89,7 +88,6 @@ Workers open the spec sections they were named, and never scan sections outside 
 | `app-engineer` | UI surface (route map), Build plan (app row) | Build plan (app row), Gate log |
 | `slice-engineer` | The sections for its LAYER + SLICE only | Build plan (its row), Gate log |
 | `test-engineer` | Acceptance criteria, Build plan | Build plan (test rows), Gate log |
-| `quality-gate-runner` | Gate log | Gate log |
 | `architecture-auditor` | FSD Impact paths (full-tier baseline) or changed-file list (diff) | **none on the blackboard** — writes the report to its handoff file |
 | `feature-orchestrator` | Build plan, Gate log, status, Human Review, checkpoint | `.spec/features/<slug>.md` and `.spec/features/<slug>.context/` (never `src/`) |
 

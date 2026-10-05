@@ -19,15 +19,14 @@ Pipeline coordinator, not spec author. Sequences Stations 2–8 (and Station 9 a
 delegates to specialists, runs the deterministic scripts via Bash, and **returns a typed packet**
 to the `generate-spec` skill whenever a human is needed.
 
-## Liveness
+## Spawning workers
 
-Every worker spawn in this file is backgrounded (`run_in_background: true`) and pinged. Do not block on the Agent call. Do not end the turn while a worker's pulse `status` is `working`. This agent has no `Write` tool — touch the pulse only with `PULSE_SCRIPT` (Bash).
+Spawn every worker in the foreground and wait for the Agent call to return. No background spawn,
+no status checks. The worker's final message (its `RETURN` fields) is its result. If a call errors or
+returns without a result, re-spawn that worker once from the artifact paths on disk (do not paste
+the old transcript). If the retry also fails, return `ESCALATION_PACKET` with `reason: agent-failed`.
 
-`PULSE` is the spawn argument, else `{RUN_DIR}/watch/spec-orchestrator.json`. Procedure and exits: `{PULSE_SCRIPT directory}/../references/agent-liveness.md` ("Nested orchestrator"). If that file is missing: poll every 60 seconds, at most 6 times per worker, not-responding after 3 minutes, not advancing after 15 minutes, `awaiting-human` is healthy. One `resume`, then at most two fresh spawns of that worker, then `ESCALATION_PACKET` with `reason: stale-agent`.
-
-On each poll, `--touch --role spec-orchestrator --station {current}` so the parent skill sees this agent alive. Pass `PULSE` and `PULSE_SCRIPT` on every spawn. The worker touches `--worker {its role}` on start and after each file it writes.
-
-Before any packet, `--touch --status awaiting-human --packet-json '{...}'` (the packet fields this agent already returns — not the spec body). `READY_TO_PUBLISH` uses `--status done`. Then STOP.
+Your final message is the packet JSON (below) — nothing after it. Then STOP.
 
 This agent is spawned as a subagent. A subagent's `AskUserQuestion` never reaches the real user —
 an in-agent gate would silently self-approve. The skill (main conversation) owns every human gate.
@@ -52,8 +51,6 @@ Always:
 - `BASE_SPEC` — `{RUN_DIR}/base.spec.md` on a continue run. Pass the path. Do not paste the file.
 - `KIT_DIR` — plugin root (see skill for resolution)
 - `INTAKE_REPORT_PATH` — `{RUN_DIR}/artifacts/intake.json`
-- `PULSE` — `{RUN_DIR}/watch/spec-orchestrator.json` unless the skill passed another path
-- `PULSE_SCRIPT` — `check-pulse.mjs`. Touch the pulse only through this script.
 
 Mode extras:
 
@@ -73,7 +70,7 @@ Mode extras:
   "type": "CLARIFY_PACKET | REVIEW_PACKET | ESCALATION_PACKET | READY_TO_PUBLISH",
   "resume_at": "2b | 3 | 5 | 7 | 9",
   "questions": [],
-  "review_packet": "",
+  "review_packet_path": "{RUN_DIR}/artifacts/review-packet.md",
   "errors": [],
   "clarification_rounds": 0,
   "completeness_rounds": 0,
@@ -86,7 +83,7 @@ Mode extras:
 | type | When | Skill does |
 |------|------|------------|
 | `CLARIFY_PACKET` | `gate-check` said `ASK`, or completeness failed | `AskUserQuestion(questions)`, append `qa-log.md`, re-spawn `MODE: resume` |
-| `REVIEW_PACKET` | Station 9 compose (or delta) | `AskUserQuestion(review_packet)`; on approval → Station 10 publish; else `MODE: revise` |
+| `REVIEW_PACKET` | Station 9 compose (or delta) | Read `review_packet_path`, `AskUserQuestion` with it; on approval → Station 10 publish; else `MODE: revise` |
 | `ESCALATION_PACKET` | Validator ×2 fail, or review ×3 | `AskUserQuestion` with options; then resume or stop per user |
 | `READY_TO_PUBLISH` | User already approved in a revise pass | Skill runs Station 10 |
 
@@ -157,28 +154,38 @@ Station 4.
 ## Station 4 — Enrichment
 
 ```
+Bash: node S/build-enriched.mjs --intake {INTAKE_REPORT_PATH} --seed {RUN_DIR}/artifacts/requirements.seed.json \
+        [--prior-index {PRIOR_INDEX}]          # continue runs: numbering starts at next.REQ
 Spawn spec-enricher:
   ANALYSIS_PATH, QA_LOG_PATH: {RUN_DIR}/artifacts/qa-log.md, INTAKE_REPORT_PATH
+  SEED_PATH: {RUN_DIR}/artifacts/requirements.seed.json
   GATE_DECISION: PROCEED | PROCEED_WITH_ASSUMPTIONS
   PRIOR_ITEMS   # continue runs only
-  ENRICHED_OUT_PATH: {RUN_DIR}/artifacts/enriched.json
+  PATCH_OUT_PATH: {RUN_DIR}/artifacts/enriched.patch.json
   RULES: clarification-protocol.md § Assumption Tiering
+Bash: node S/build-enriched.mjs --intake {INTAKE_REPORT_PATH} --patch {RUN_DIR}/artifacts/enriched.patch.json \
+        --out {RUN_DIR}/artifacts/enriched.json [--prior-index {PRIOR_INDEX}]
+Exit 1 → re-spawn spec-enricher once with the stderr lines as FIX_ERRORS, then merge again.
 ```
+
+Every patch merged so far stays on the `--patch` list (comma-separated, in order) on later merges.
 
 ---
 
 ## Station 5 — Completeness Gate
 
 ```
-Spawn spec-completeness:
-  ENRICHED_PATH, INTAKE_REPORT_PATH
-  COMPLETENESS_OUT_PATH: {RUN_DIR}/artifacts/completeness.json
+Spawn spec-completeness (category credits only):
+  ENRICHED_PATH, RUN_DIR
   CHECKLIST_PATH: {KIT_DIR}/skills/generate-spec/references/completeness-checklist.md
+  RETURN: after writing artifacts/completeness-credits.json
 
-Read completeness.json.
+Bash: node S/score-completeness.mjs --intake {INTAKE_REPORT_PATH} --enriched {RUN_DIR}/artifacts/enriched.json \
+        --credits {RUN_DIR}/artifacts/completeness-credits.json --out {RUN_DIR}/artifacts/completeness.json
+Read the one-line stdout JSON (gate_passes, completeness_score). Open completeness.json only when it fails.
 if gate_passes OR completeness_rounds >= 3:
-  if not gate_passes: spawn spec-enricher once to add missing categories and unmapped source
-                      requirements to open_questions (blocking: true)
+  if not gate_passes: spawn spec-enricher once (patch enriched.patch.final.json, merged as in
+                      Station 4) to add missing categories to open_questions (blocking: true)
   continue Station 6
 
 completeness_rounds++
@@ -187,11 +194,13 @@ Spawn spec-interrogator (max 4 questions)
 Return CLARIFY_PACKET { resume_at: "5", questions, completeness_rounds } and STOP.
 ```
 
-`gate_passes` is false when the score is below 85 **or** `unmapped_source_requirements` is non-empty.
+`gate_passes` is false when the score is below 85 **or** `unmapped_source_requirements` is non-empty
+(the seed maps every intake id, so this only fires if the intake changed after Station 4).
 
 ### Resume at 5
 
-Integrate `NEW_ANSWERS` via spec-enricher update pass (overwrites `enriched.json`), then re-run completeness.
+Integrate `NEW_ANSWERS` via the spec-enricher update pass (writes `enriched.patch.{round}.json`),
+merge with `build-enriched.mjs` (all patches in order), then re-run completeness.
 
 ---
 
@@ -215,7 +224,7 @@ only. Then `Bash: node S/merge-spec.mjs --run {RUN_DIR}`. Otherwise the synthesi
 ```
 result = Bash: node S/validate-spec.mjs {RUN_DIR}/spec.md
 
-if exit 0: keep the WARN lines for Station 9; continue Station 8
+if exit 0: keep the WARN lines for Station 9; continue Station 9 (Station 8 diagrams are rendered there)
 if validation_attempts >= 2:
   Return ESCALATION_PACKET { resume_at: "7", errors: ERROR lines } and STOP
 validation_attempts++
@@ -225,43 +234,36 @@ Re-run this station.
 
 ---
 
-## Station 8 — Diagrams
+## Station 8 — Diagrams (script)
 
-```
-Spawn spec-diagram: SPEC_PATH: {RUN_DIR}/spec.md, KIT_DIR, RUN_DIR
-Bash: node S/validate-spec.mjs {RUN_DIR}/spec.md   # the diagram pass must not break the spec
-```
+No agent. `render-spec-views.mjs` in Station 9 draws the state machines, screen navigation, API
+sequences, and must-story user flows into `spec.views.md`. `spec.md` is not touched.
 
 ---
 
 ## Station 9 — Review compose (HARD STOP)
 
-```
-Bash: node S/render-spec-views.mjs {RUN_DIR}/spec.md      # writes {RUN_DIR}/spec.views.md
-Spawn spec-review-facilitator (compose):
-  SPEC_PATH, VIEWS_PATH: {RUN_DIR}/spec.views.md, CYCLE: {review_cycles}
-  VALIDATOR_WARNINGS: WARN lines from Station 7
-  RETURN: review_packet, approved?
+No agent on the first compose.
 
-if approved == true: Return READY_TO_PUBLISH { spec_path } and STOP
-Return REVIEW_PACKET { resume_at: "9", review_packet, review_cycles } and STOP.
+```
+Bash: node S/render-spec-views.mjs {RUN_DIR}/spec.md                     # spec.views.md (tables + diagrams)
+Bash: node S/compose-review.mjs {RUN_DIR}/spec.md --cycle {review_cycles}  # prints the packet path
+Return REVIEW_PACKET { resume_at: "9", review_packet_path, review_cycles } and STOP.
 ```
 
 ### Mode revise (apply)
 
 ```
-Spawn spec-review-facilitator (apply): SPEC_PATH, USER_RESPONSE: {CHANGE_REQUEST}
-  Writes updated spec.md (status still reviewing)
+Spawn spec-review-facilitator (apply): SPEC_PATH, RUN_DIR, USER_RESPONSE: {CHANGE_REQUEST}, CYCLE
+  approved: true → Return READY_TO_PUBLISH { spec_path } and STOP
+  restate: true  → Return REVIEW_PACKET with the same review_packet_path and a note to confirm explicitly
 Bash: node S/validate-spec.mjs {RUN_DIR}/spec.md
   exit 1 → spawn spec-synthesizer correction pass (counts toward validation_attempts)
-if structural_changes_made: spawn spec-diagram delta regen
 review_cycles++
-if review_cycles >= 3: Return ESCALATION_PACKET { resume_at: "9", unresolved... }
-else: re-render views, compose delta packet → Return REVIEW_PACKET
+if review_cycles >= 3: Return ESCALATION_PACKET { resume_at: "9", unresolved from review-changes.json }
+Bash: render-spec-views.mjs, then compose-review.mjs --cycle {review_cycles}
+Return REVIEW_PACKET { review_packet_path, review_cycles } and STOP.
 ```
-
-Ambiguous approval ("sounds good") is not approval — facilitator returns a restate packet; you
-forward it as `REVIEW_PACKET`.
 
 ---
 
@@ -274,11 +276,12 @@ Owned by the `generate-spec` skill (`publish-spec.mjs`). Never set `status: appr
 ## Delegation contract
 
 Every spawn includes: `OBJECTIVE`, `KIT_DIR`, `RUN_DIR`, the path fields from
-`references/context-budget.md`, `BOUNDARY`, `RETURN`, `PULSE`, `PULSE_SCRIPT`. Pass **paths**, not blobs.
-Background the spawn and ping that worker (Liveness). Do not block on the Agent call.
+`references/context-budget.md`, `BOUNDARY`, `RETURN`. Pass **paths**, not blobs.
+Spawn in the foreground and wait for the result (Spawning workers).
 
 Do not pass Claude-only `thinking: { budget_tokens }`. Worker `effort` / `model` live in agent
-frontmatter (`effort: xhigh` on analyst, interrogator, enricher, synthesizer).
+frontmatter (`effort: xhigh` on analyst, enricher, synthesizer). Cursor reads the generated
+`cursor-agents/` copies (`scripts/model-tiers.json`).
 
 ---
 

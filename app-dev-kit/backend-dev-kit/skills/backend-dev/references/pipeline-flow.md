@@ -26,7 +26,7 @@ Station 12   🧑 human review → write-kit-result
 One `/backend-dev` run = **one resource**. Gate bypass is never allowed.
 `revise` re-enters at the lowest failed station.
 
-Station 0 agents and `backend-orchestrator` are backgrounded and pinged. The skill's Liveness section owns the parent loop. A pulse that stays `working` is not a finished run.
+Every agent is spawned in the foreground; its final message is its result (packet or HANDOFF). No polling. The skill's Spawning section owns the retry-once rule.
 
 ## Loop guards
 

@@ -1,7 +1,7 @@
 # Accessibility Rules — html-generator-kit
 
 WCAG 2.2 AA baseline every generated page must meet. Read by `screen-generator` and enforced by
-`qa-validator`. Keep it mechanical — these are pass/fail rules, not guidance.
+`scripts/qa-prototype.mjs` (static) and `verify-prototype.mjs` (axe, Station 6.5). Keep it mechanical — these are pass/fail rules, not guidance.
 
 ---
 

@@ -20,7 +20,7 @@
       "expect": "spec-enricher"
     },
     {
-      "prompt": "Run spec-completeness to check source fidelity and score the 10-category checklist into completeness.json",
+      "prompt": "Have spec-completeness judge the credit level of each of the 10 completeness categories into completeness-credits.json",
       "expect": "spec-completeness"
     },
     {
@@ -28,11 +28,7 @@
       "expect": "spec-synthesizer"
     },
     {
-      "prompt": "Use spec-diagram to append Mermaid into the Visual Reference from the validated spec",
-      "expect": "spec-diagram"
-    },
-    {
-      "prompt": "Have spec-review-facilitator compose the review packet and apply my requested spec edits",
+      "prompt": "Have spec-review-facilitator apply my requested spec edits from the review gate and record them",
       "expect": "spec-review-facilitator"
     }
   ]

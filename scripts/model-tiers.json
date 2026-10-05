@@ -1,0 +1,13 @@
+{
+  "cursor": {
+    "opus": "grok-4.7[effort=high]",
+    "sonnet+effort": "grok-4.7[effort=high]",
+    "sonnet": "grok-4.7[effort=medium]",
+    "haiku": "composer-2.5[fast=false]"
+  },
+  "kits": [
+    "app-dev-kit/spec-dev-kit",
+    "app-dev-kit/html-generator-kit",
+    "app-dev-kit/feature-dev-kit"
+  ]
+}

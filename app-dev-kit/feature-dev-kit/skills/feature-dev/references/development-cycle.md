@@ -27,7 +27,7 @@ The inner loop is specified in `increment-protocol.md`. Name that file only if t
 
 | Step | Station | Who | Done when |
 |------|---------|-----|-----------|
-| 1. Intake | 0 | `upstream-interpreter` + `spec-analyst` | Blackboard exists; scoped to one feature |
+| 1. Intake | 0 | `import-upstream.mjs` + `spec-analyst` | Blackboard exists; scoped to one feature |
 | 2. Spec approval | 0.5 | `feature-dev` skill (human) | `status: approved` |
 | 3. Discover | 1 | `code-explorer` | FSD Impact + Reuse Map written |
 | 4. Baseline architecture | 1.5 | `architecture-auditor` (REPORT_ONLY), **full tier only** | Summary + path on the blackboard; report in the context dir |
@@ -35,7 +35,7 @@ The inner loop is specified in `increment-protocol.md`. Name that file only if t
 | 6. Plan | 2 | orchestrator | Build plan + AC coverage table |
 | 7. Layer cycle | 3–7 | layer engineers, or `slice-engineer` when the layer has one slice | `--until fsd` green before the next layer |
 | 8. Tests | 8 | `test-engineer` — always, every new executable file | Every new executable file has a behavior test |
-| 9. Gate sweep | 9 | `quality-gate-runner` | All mechanical gates green |
+| 9. Gate sweep | 9 | `run-gates.sh` (orchestrator Bash) | All mechanical gates green |
 | 10. Architecture audit | 9.5 | `architecture-auditor` (REPORT_ONLY) | Zero hard violations on changed paths |
 | 11. Auto-review | 10 | `code-reviewer` | No `[CRITICAL]`, no unresolved `[IMPORTANT]` |
 | 12. Fix | 11 | owning engineer | Failed gate or finding cleared; cap 3 |

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Screens that are new, modified, or show a modified entity.
-// Usage: node delta-pages.mjs --spec <spec.md> --page-map <page-map.json> --out <delta-pages.json> [--changes <changes.json>] [--root <dir>]
+// Screens that are new, modified, or show a modified entity — or, without --page-map, every screen
+// (full build: this is the spec summary html-orchestrator works from).
+// Usage: node delta-pages.mjs --spec <spec.md> [--page-map <page-map.json>] --out <delta-pages.json | spec-summary.json> [--changes <changes.json>] [--root <dir>]
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -18,13 +19,13 @@ const root = flag('root') && flag('root') !== true ? String(flag('root')) : proc
 const specArg = String(flag('spec') || '')
 const mapArg = String(flag('page-map') || '')
 const outArg = String(flag('out') || '')
-if (!specArg || !mapArg || !outArg) {
-  console.error('usage: delta-pages.mjs --spec <spec.md> --page-map <page-map.json> --out <delta-pages.json> [--changes <changes.json>]')
+if (!specArg || !outArg) {
+  console.error('usage: delta-pages.mjs --spec <spec.md> [--page-map <page-map.json>] --out <out.json> [--changes <changes.json>]')
   process.exit(2)
 }
 
 const specPath = specArg.startsWith('/') ? specArg : join(root, specArg)
-const mapPath = mapArg.startsWith('/') ? mapArg : join(root, mapArg)
+const mapPath = !mapArg || mapArg === 'true' ? '' : mapArg.startsWith('/') ? mapArg : join(root, mapArg)
 const outPath = outArg.startsWith('/') ? outArg : join(root, outArg)
 
 let parse
@@ -46,7 +47,7 @@ if (!match) {
   process.exit(2)
 }
 const fm = parse(match[1])
-const mapped = existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {}
+const mapped = mapPath && existsSync(mapPath) ? JSON.parse(readFileSync(mapPath, 'utf8')) : {}
 const changesArg = flag('changes')
 const changesPath = changesArg && changesArg !== true
   ? (String(changesArg).startsWith('/') ? String(changesArg) : join(root, String(changesArg)))
@@ -97,12 +98,28 @@ function segmentMatches(name, segment) {
 
 function entityFor(screen) {
   const text = `${screen.title ?? ''} ${screen.notes ?? ''} ${(screen.components ?? []).join(' ')}`
-  return entities.find((entity) => entity.name && text.includes(entity.name)) ?? null
+  return entities.find((entity) => entity.name && entity.name === screen['primary-entity'])
+    ?? entities.find((entity) => entity.name && text.includes(entity.name))
+    ?? null
+}
+
+const PAGE_TYPES = [
+  ['list', /^(list|browse|filter|all\b|search)/i],
+  ['detail', /^(view|detail|manage|single|open)/i],
+  ['form', /^(create|add|new|register|edit|submit)/i],
+  ['dashboard', /^(dashboard|overview|summary)/i],
+  ['settings', /^(settings|configur|preferences)/i],
+]
+function pageType(screen) {
+  if (screen['page-type']) return screen['page-type']
+  const notes = String(screen.notes ?? '').trim()
+  return PAGE_TYPES.find(([, re]) => re.test(notes))?.[0] ?? ''
 }
 
 function statusesOf(entity) {
   const field = (entity?.fields ?? []).find((item) => /status/i.test(`${item?.name ?? ''} ${item?.type ?? ''}`))
   if (!field) return []
+  if (Array.isArray(field.values)) return field.values.map(String)
   if (Array.isArray(field.enum)) return field.enum.map(String)
   return [...new Set(`${field.description ?? ''}`.match(/[A-Z][A-Z0-9_]{1,}/g) ?? [])]
 }
@@ -127,6 +144,7 @@ function pageFields(screen) {
     spec_id: screen.id,
     title: screen.title ?? '',
     description: screen.notes ?? '',
+    type: pageType(screen),
     domain: kebab(entity?.name || screen.title || screen.id),
     entity: entity?.name ?? '',
     route: screen.route ?? '',
@@ -152,10 +170,29 @@ const screens = allScreens
 
 const assembly_pages = allScreens.map((screen) => {
   const page = pageFields(screen)
-  return { id: page.id, title: page.title, domain: page.domain, description: page.description }
+  return { id: page.id, spec_id: page.spec_id, title: page.title, domain: page.domain, description: page.description }
 })
 const entities_changed = [...new Set([...(changes?.entities?.added ?? []), ...(changes?.entities?.modified ?? [])])]
+const nav_structure = {}
+for (const page of assembly_pages) (nav_structure[page.domain] ??= []).push(page.id)
+const context = fm.context ?? {}
+const purpose = [context.problem, context.goal, context['target-users'] && `Used by ${[].concat(context['target-users']).join(', ')}.`]
+  .filter(Boolean).map((part) => String(part).trim()).join(' ')
+const entity_summaries = entities.filter((entity) => entity.name).map((entity) => ({
+  name: entity.name,
+  fields: (entity.fields ?? []).slice(0, 12).map((field) => ({ name: field.name, type: field.type ?? 'string' })),
+  statuses: statusesOf(entity),
+  api_contract: apiContract(entity),
+}))
 
 mkdirSync(dirname(outPath), { recursive: true })
-writeFileSync(outPath, `${JSON.stringify({ screens, assembly_pages, entities_changed }, null, 2)}\n`)
+writeFileSync(outPath, `${JSON.stringify({
+  title: fm.metadata?.title ?? fm.title ?? '',
+  purpose,
+  screens,
+  assembly_pages,
+  nav_structure,
+  entities: entity_summaries,
+  entities_changed,
+}, null, 2)}\n`)
 console.log(`OK: ${screens.length} screen(s) → ${outArg}`)

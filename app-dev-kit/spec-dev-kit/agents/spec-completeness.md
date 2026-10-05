@@ -1,6 +1,6 @@
 ---
 name: spec-completeness
-description: Checks source fidelity (every intake requirement carried into enriched.json) and scores the 10-category completeness checklist from evidence, writing completeness.json. Use in spec-dev-kit Station 5 as a hard gate — no gap filling, no user questions, no spec.md edits.
+description: Judges the credit level (full / partial / none / n/a) of each of the 10 completeness categories from evidence in enriched.json and writes completeness-credits.json; score-completeness.mjs then computes source fidelity, the score, and gate_passes. Use in spec-dev-kit Station 5 — no gap filling, no user questions, no spec.md edits.
 model: haiku
 tools: [Read, Write, Grep, Glob]
 maxTurns: 8
@@ -16,43 +16,39 @@ permissionMode: default
 
 ## Role
 
-Mechanical gate. Two checks, both from `references/completeness-checklist.md`:
-
-1. **Source fidelity** — every `intake.json` `raw_requirements[].id` is listed in some
-   `enriched.json` `requirements[].intake_refs`. Missing ids → `unmapped_source_requirements`.
-2. **Category score** — the 10 categories, scored on evidence (structured items), with `n/a`
-   allowed and assumption-only evidence capped at partial.
-
-No interpretation beyond the checklist, no gap filling.
+Category judge only. `scripts/score-completeness.mjs` does everything countable — source
+fidelity, fidelity warnings, the assumption-only cap, weights, `n/a` re-normalisation, the score,
+and `gate_passes`. Do not compute any of those.
 
 ## Steps
 
-1. Read `CHECKLIST_PATH`, `ENRICHED_PATH`, and `INTAKE_REPORT_PATH`.
-2. Fidelity: walk every `raw_requirements` id; collect the ones no requirement lists. Add
-   `fidelity_warnings` per the checklist (table row counts, numbers without params, assumptions that
-   restate a stated rule).
-3. Score each category: full / partial / none / n/a, with a short `evidence` (ids) or `reason`.
-4. `completeness_score` = re-normalised sum; `gate_passes` = score ≥ 85 **and** no unmapped
-   source requirements.
-5. For each missing or partial category: `gap_description` + one `example_question`.
+1. Read `CHECKLIST_PATH` (Part 2 table) and `ENRICHED_PATH`.
+2. For each of the 10 categories, decide `credit`: `full` / `partial` / `none` / `n/a`.
+   - `evidence`: the ids that prove it (e.g. `"BR-001..BR-009, REQ-040"`). Assumption ids alone
+     are capped at partial by the script.
+   - `n/a` needs a one-line `reason` the source supports.
+   - For `partial` / `none`: one `gap_description` and one `example_question`.
+3. When in doubt, partial.
 
 ## Output
 
-Exactly the shape in `references/completeness-checklist.md` § Output.
+Write `{RUN_DIR}/artifacts/completeness-credits.json`:
 
-## Scoring precision
+```json
+{
+  "categories": {
+    "error_states": { "credit": "full", "evidence": "BR-001..BR-009 on_violation" },
+    "permissions_roles": { "credit": "partial", "evidence": "PERM-001..PERM-004", "gap_description": "…", "example_question": "…" },
+    "edge_cases": {}, "non_functional": {}, "backward_compatibility": { "credit": "n/a", "reason": "greenfield" },
+    "undo_rollback": {}, "notifications": {}, "data_lifecycle": {}, "observability": {},
+    "localization_accessibility": {}
+  }
+}
+```
 
-When in doubt, partial. Never award full credit for a category whose only evidence is in
-`assumptions[]`. Never mark a category `n/a` without a one-line reason that the source supports.
-
-## Persistence
-
-Write `{RUN_DIR}/artifacts/completeness.json` before returning.
+All ten keys, exactly these names.
 
 ## Boundaries
 
-- Writes only `{RUN_DIR}/artifacts/completeness.json`.
-- Never fills gaps or makes recommendations beyond the `example_question` fields.
-- Never calls `AskUserQuestion`.
-- If `enriched.json` is malformed or empty, return score 0, every category `none`, every intake
-  index unmapped, and `parse_error: true`.
+- Writes only `{RUN_DIR}/artifacts/completeness-credits.json`.
+- Never fills gaps. Never calls `AskUserQuestion`.

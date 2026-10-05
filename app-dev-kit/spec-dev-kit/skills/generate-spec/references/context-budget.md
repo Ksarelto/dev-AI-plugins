@@ -20,11 +20,14 @@ enriched requirements.
 
 ```
 .spec/spec/spec-{tc}_{slug}/artifacts/
-  intake.json         ← Station 1 (skill)
+  intake.json         ← extract-intake.mjs + skill judgement fields (Station 1)
   analysis.json       ← spec-analyst (overwritten per round)
-  completeness.json   ← spec-completeness
+  completeness-credits.json ← spec-completeness (category credits)
+  completeness.json   ← score-completeness.mjs
   qa-log.md           ← skill, every AskUserQuestion round, appended (## Round {n})
-  enriched.json       ← spec-enricher
+  requirements.seed.json ← build-enriched.mjs --seed
+  enriched.patch*.json   ← spec-enricher (edits + other sections)
+  enriched.json       ← build-enriched.mjs merge
   prior-index.json    ← continue-spec.mjs
   prior-items.yaml    ← lookup-spec.mjs (modified ids only)
   delta.yaml          ← synthesizer on a continue run
@@ -74,19 +77,21 @@ KIT_DIR, RUN_DIR
 ANALYSIS_PATH: {RUN_DIR}/artifacts/analysis.json
 QA_LOG_PATH:   {RUN_DIR}/artifacts/qa-log.md
 PRIOR_ITEMS:   {RUN_DIR}/artifacts/prior-items.yaml   # continue runs only
-ENRICHED_OUT_PATH: {RUN_DIR}/artifacts/enriched.json
+INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json
+SEED_PATH:     {RUN_DIR}/artifacts/requirements.seed.json   # build-enriched.mjs --seed
+PATCH_OUT_PATH: {RUN_DIR}/artifacts/enriched.patch.json     # build-enriched.mjs merges it
 ```
 
 Do **not** pass a separate `ASSUMPTIONS` field. It is already inside `enriched.json`.
 
-### Station 5 (spec-completeness)
+### Station 5 (spec-completeness, then score-completeness.mjs)
 ```
 KIT_DIR, RUN_DIR
 ENRICHED_PATH: {RUN_DIR}/artifacts/enriched.json
-INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json   # source-fidelity check
-COMPLETENESS_OUT_PATH: {RUN_DIR}/artifacts/completeness.json
 CHECKLIST_PATH: {KIT_DIR}/skills/generate-spec/references/completeness-checklist.md
 ```
+The agent writes `artifacts/completeness-credits.json`; the script reads intake + enriched + credits
+and writes `artifacts/completeness.json`.
 
 ### Station 6 (spec-synthesizer)
 ```
@@ -107,32 +112,24 @@ Bash: node {KIT_DIR}/skills/generate-spec/scripts/validate-spec.mjs {RUN_DIR}/sp
 
 On correction: `VALIDATION_ERRORS` = lines matching `^ERROR` only — not the whole spec.
 
-### Station 8 (spec-diagram)
-```
-KIT_DIR, RUN_DIR
-SPEC_PATH: {RUN_DIR}/spec.md
-```
+### Station 8 (diagrams — no agent)
+Drawn by `render-spec-views.mjs` in Station 9. No payload.
 
-### Station 9 compose (spec-review-facilitator)
+### Station 9 compose (compose-review.mjs — no agent)
 ```
-KIT_DIR, RUN_DIR
-SPEC_PATH: {RUN_DIR}/spec.md
-VIEWS_PATH: {RUN_DIR}/spec.views.md        # render-spec-views.mjs output
-VALIDATOR_WARNINGS: WARN lines from Station 7
-CYCLE: 0 for full summary; 1+ for delta only
+Bash: node {KIT_DIR}/skills/generate-spec/scripts/compose-review.mjs {RUN_DIR}/spec.md --cycle {n}
 ```
+Writes `artifacts/review-packet.md`; cycle 1+ reads `artifacts/review-changes.json`.
 
-### Station 9 apply / cycle 2+
+### Station 9 apply (spec-review-facilitator)
 ```
-SPEC_PATH
-CHANGE_REQUEST / USER_RESPONSE: this cycle only
-PRIOR_APPROVAL_STATE: which sections already approved
-DELTA_SPEC: only sections that changed — never a full re-read
+SPEC_PATH, RUN_DIR, CYCLE
+USER_RESPONSE: this cycle's CHANGE_REQUEST only
 ```
 
 ## Size guards
 
-Before spawning Station 4/6/8/9, estimate serialized payload size (paths do not count as content).
+Before spawning Station 4/6/9, estimate serialized payload size (paths do not count as content).
 
 | Payload | Soft limit | Action on breach |
 |---------|-----------|------------------|

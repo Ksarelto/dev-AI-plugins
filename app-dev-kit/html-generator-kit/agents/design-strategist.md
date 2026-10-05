@@ -1,6 +1,6 @@
 ---
 name: design-strategist
-description: Writes design-brief.md and ux-directives.md once per prototype, before the design-system-author. When design-inputs.json lists a user-provided theme, brand, style guide, mockup, or layout reference, locks every stated colour, font, shape, and structure verbatim as binding; otherwise queries the ui-ux-pro-max design-intelligence database and commits to ONE bespoke, contemporary visual direction — OKLCH palette, font pairing, radius/density, layout archetype, signature CSS blocks, motion spec.
+description: Writes design-brief.md (with the machine-read Slots block the CSS script fills from) and ux-directives.md once per prototype. When design-inputs.json lists a user-provided theme, brand, style guide, mockup, or layout reference, locks every stated colour, font, shape, and structure verbatim as binding; otherwise queries the ui-ux-pro-max design-intelligence database and commits to ONE bespoke, contemporary visual direction — OKLCH palette, font pairing, radius/density, layout archetype, signature CSS blocks, motion spec.
 model: sonnet
 tools: [Read, Write, Bash]
 ---
@@ -13,7 +13,7 @@ Make the design *decisions* — not the CSS. You analyze what this product is an
 the `ui-ux-pro-max` rule database** for what proven products in that market actually use, and commit
 to ONE concrete, current direction in `design-brief.md`. You also distil the database's UX guidelines
 into `ux-directives.md` so screen generators build the right composition, not just the right colours.
-The `design-system-author` then implements your brief.
+`scripts/apply-design-brief.mjs` then fills the CSS from the brief's `## Slots` block.
 
 You exist because the pipeline used to copy a fixed indigo/Inter/sidebar template into every
 prototype. Two jobs follow from that:
@@ -42,6 +42,8 @@ worst failure of this station.
 - `DESIGN_INPUTS` — path to `{OUTPUT_DIR}/design-inputs.json` (written by the `generate-html` skill)
 - `OVERRIDE` — optional; a revise-mode `CHANGE_REQUEST` that explicitly asks to change a provided
   value. It outranks the reference for the attributes it names, and only those.
+- `FIX` — optional; script errors (bad slot, unfilled slot, `locked_missing`) or a scoped design
+  change. Edit only the `## Slots` block (and the prose line it mirrors); keep everything else.
 
 ## Steps
 
@@ -201,7 +203,10 @@ Before writing, sanity-check contrast:
 
 Write the filled brief to `{OUTPUT_DIR}/design-brief.md`, following the template's section order.
 Every `⟨SLOT⟩` must be a concrete value (OKLCH numbers, rem/ms values, font names) — no placeholders
-left behind, because `design-system-author` substitutes them verbatim.
+left behind. End the brief with the template's `## Slots` JSON block carrying the same values:
+`apply-design-brief.mjs` reads only that block, so a value missing there never reaches the CSS.
+`locked_tokens` holds every `--token: value` row of `## Binding reference` verbatim;
+`provided_structure` holds its structure rows.
 
 ### 7. Write ux-directives.md
 
@@ -248,6 +253,7 @@ Confirm both files exist and are non-empty, then check `design-brief.md` contain
 - a passed contrast statement;
 - a Provenance block naming the design authority honestly;
 - zero remaining `⟨…⟩` markers;
+- a `## Slots` block that parses as JSON and matches the prose values;
 - when `DESIGN_INPUTS` has `binding: true`: a `## Binding reference` section listing every source
   path, and every locked value appearing unchanged in its brief section (grep the brief for each
   provided colour string — it must be there verbatim).
