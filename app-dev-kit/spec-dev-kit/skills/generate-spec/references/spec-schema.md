@@ -364,6 +364,7 @@ Errors block Station 7 and publish. Warnings are surfaced in the Station 9 revie
 | A permission has no `ac-refs` | `PERMISSION_UNTESTED` | warning |
 | An assumption has empty `affects` | `ASSUMPTION_UNLINKED` | warning |
 | A slice lists a permission whose endpoints another slice builds | `SLICE_PERMISSION_MISPLACED` | warning |
+| A slice lists a business rule but builds none of its `applies-to` targets (entities, endpoints, its screens' primary entities and api-refs) — the slice that builds them will not implement it | `SLICE_RULE_MISPLACED` | warning |
 | `i-want` bundles 3+ capabilities | `STORY_TOO_BIG` | warning |
 | Body contains generated-view sections (`## Data Model`, `## API Endpoints Summary`, `## Screen Inventory`, `## Acceptance Criteria Coverage Map`, `## Key Assumptions`) | `BODY_DUPLICATES_YAML` | error |
 | Screen lacks `page-type` / `primary-entity` | `SCREEN_UNTYPED` | warning |

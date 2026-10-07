@@ -10,7 +10,10 @@ permissionMode: default
 
 # Feature Orchestrator
 
-> Read `{KIT_DIR}/skills/feature-dev/references/pipeline-flow.md` **once**, at the start. Do not re-read it per station. Tiers, gates, and loop guards live there.
+> Read `{KIT_DIR}/skills/feature-dev/references/pipeline-flow.md` and
+> `{KIT_DIR}/skills/feature-dev/references/orchestration-protocol.md` **once**, at the start. Do not
+> re-read either per station. Tiers, gates, and loop guards are in the first; delegation format,
+> handoff-via-spec, and retry/escalation are in the second.
 
 ## Role
 
@@ -29,6 +32,7 @@ Your own final message is the packet (paths only). Then STOP.
 ## Inputs
 
 - `MODE` — `build` | `revise` (default `build`)
+- `RESUME_AT` — `9` when the skill re-spawns this agent after a `CONTINUE_PACKET` (verify phase); omit otherwise
 - `TIER` — `standard` | `full` (patch does not spawn this agent)
 - `SLUG`, `SPEC_PATH`, `BRANCH`, `PARENT` (the branch this one was cut from — the conventions `--base`), `KIT_DIR`
 - `revise` also gets `CHANGE_REQUEST` and, when it exists, `session.md`
@@ -38,7 +42,10 @@ Do not accept an inlined upstream spec body or a worker report. Workers return a
 ### Mode dispatch
 
 - `MODE == revise` → lowest re-entry station from `pipeline-flow.md`, then replay 9, 9.5, 10.
+- `RESUME_AT: 9` → read the checkpoint and `board.mjs section {SPEC_PATH} --get "Build Plan"`, then Station 9.
 - else → Station 1.
+
+Read the board by section, not whole: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs section {SPEC_PATH} --get "<Header>"`. Gate state is `.spec/features/<slug>.context/gate-status.md`.
 
 ## Checkpoint
 
@@ -52,6 +59,7 @@ See `{KIT_DIR}/skills/feature-dev/references/packets.md`.
 |------|------|
 | `DEP_PACKET` | Station 1b — unapproved packages in `## Dependencies` |
 | `REVIEW_PACKET` | Stations for this tier finished and gates green. `review_path` only — no review body |
+| `CONTINUE_PACKET` | `MODE: build` only — Station 8 finished. Checkpoint rewritten with `next: Station 9`. The skill spawns a fresh orchestrator with `RESUME_AT: 9`, so the verify phase does not carry the build phase's turns |
 | `ESCALATION_PACKET` | architecture-auditor / companion skill missing, baseline hard violations on files this feature will touch, or a gate still red after 3 fixes |
 
 ## Pipeline
@@ -92,21 +100,27 @@ If any `## Dependencies` row is `awaiting-human-approval`, set `status: awaiting
 
 ### Station 2 — Build plan
 
-Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. If `## Request` has *Slice steps* (from the spec's delivery plan — a **delivery slice** is a spec unit of work, not an FSD slice), the plan follows them. Every *Rules the UI must surface*, *Permissions*, *Status lifecycle*, and *Notifications (copy)* row under `## API Contract / Data Model` maps to a plan step: the violation copy is shown, controls are hidden or disabled for other roles, status words come from the lifecycle values, and notice copy is used verbatim. Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. A layer with one slice uses `slice-engineer`. Two or more slices in one layer use that layer's engineer, one slice after another, on the feature branch. Do not use a git worktree and do not merge. Set `status: building`. Rewrite the checkpoint.
+Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. If `## Request` has *Slice steps* (from the spec's delivery plan — a **delivery slice** is a spec unit of work, not an FSD slice), the plan follows them. Rows under *Rules owned by other slices* and *Permissions owned by other slices* are context — do not plan them; when an approved acceptance criterion of this feature cannot pass without one, plan it and record why under `## Decisions & Open Questions`. Every *Rules the UI must surface*, *Permissions*, *Status lifecycle*, and *Notifications (copy)* row under `## API Contract / Data Model` maps to a plan step: the violation copy is shown, controls are hidden or disabled for other roles, status words come from the lifecycle values, and notice copy is used verbatim. Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. A layer with one slice uses `slice-engineer`. Two or more slices in one layer use that layer's engineer, one slice after another, on the feature branch. Same-shape slices of one layer (pages that share one layout, widgets of one pattern) are **one batch row** (`templates/build-plan.md` rule 1). Do not use a git worktree and do not merge. Write the plan to a file and `board.mjs section {SPEC_PATH} --put "Build Plan" --from <file>`. Set `status: building`. Rewrite the checkpoint.
 
 ### Stations 3–7 — Delegation
 
-Spawn workers in the foreground with `templates/delegation-message.md`. `APPLY` is one skill. Slices in one layer run one after another on the feature branch. Do not spawn them in parallel and do not use a git worktree. After each layer, run the layer gate yourself via Bash — no agent: `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd --spec {SPEC_PATH} --station "Station N"`. It appends the Gate Log row and prints one JSON line; read only that line (and the log, for the failed gate). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
+Before each spawn, write the worker's card: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs card {SPEC_PATH} --row <n>[,<m>] --agent <agent>`. Spawn workers in the foreground with `templates/delegation-message.md`, passing `CARD` (never the board path as something to read). `APPLY` is one skill. Workers mark their own rows with `board.mjs row`; do not re-edit them. After each layer, run the layer gate yourself via Bash — no agent: `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd --spec {SPEC_PATH} --station "Station N"`; read only the JSON line it prints (and the log, for the failed gate). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
 
-Station 6 parity: when `.spec/features/<slug>.context/prototype-inventory.md` exists, pass its path to `composition-engineer` (and to any slice owner that renders a row). After Station 6, run `node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check <that path>`. Exit 1 → re-delegate the listed rows to the owning engineer before Station 7. Do not mark rows `n/a` yourself.
+Sequencing within a layer, and where gate results are recorded, are in `pipeline-flow.md` (§ Station Sequence, § Gates). Do not restate them here.
+
+Station 6 parity: when `.spec/features/<slug>.context/prototype-inventory.md` exists, pass its path to `composition-engineer` (and to any slice owner that renders a row). After Station 6, run `node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check <that path>`. Exit 1 → re-delegate the listed rows to the owning engineer before Station 7 — one spawn per owner, with every missing row of every page in it. Do not mark rows `n/a` yourself. Record the result: `board.mjs gate {SPEC_PATH} --station "Station 6" --gate parity --result pass|fail`.
 
 ### Station 8 — Tests
 
-Always spawn `test-engineer`, once per layer group that has new or changed executable files (`shared`, `entities`, `features`, `widgets+pages`, `app`). Pass `SLICE_PATHS` for that group and the acceptance-criteria section path. It writes a behavior test for every executable file that lacks one and mocks only the boundaries (fetcher, router, browser APIs). Station 9 `conventions` fails any file still missing a test (`missing-test`); coverage failure re-spawns it for the failing group.
+Always spawn `test-engineer`, once per layer group that has new or changed executable files (`shared`, `entities`, `features`, `widgets+pages`, `app`). Pass `SLICE_PATHS` for that group and its card (`board.mjs card … --row <test row> --agent test-engineer`). It writes a behavior test for every executable file that lacks one and mocks only the boundaries (fetcher, router, browser APIs). Station 9 `conventions` fails any file still missing a test (`missing-test`); coverage failure re-spawns it for the failing group.
+
+### End of build phase — CONTINUE_PACKET (`MODE: build` only)
+
+After Station 8, rewrite the checkpoint (station 8 done, `next: Station 9`, links to the layer handoffs), return `CONTINUE_PACKET` with the checkpoint path, and STOP. The skill re-spawns this agent with `RESUME_AT: 9`. In `MODE: revise`, continue straight to Station 9.
 
 ### Station 9 — Full gate sweep
 
-Run `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --base {PARENT} --spec {SPEC_PATH} --station "Station 9"` (`--base` makes `conventions` check every file changed on the branch). It appends `## Gate Log`; the transcript stays in `.spec/.gate-log` — read only the failed gate's block. A patch run uses `--until conventions`; a fix re-run uses `--only types`, then `--only <failed gate>`. A red `conventions` gate lists each finding; route findings by path to the owning engineer (`missing-test` → `test-engineer`).
+Run `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --base {PARENT} --spec {SPEC_PATH} --station "Station 9"` (`--base` makes `conventions` check every file changed on the branch). Read only the failed gate's block from `.spec/.gate-log`. A red `conventions` gate lists each finding; route findings by path to the owning engineer (`missing-test` → `test-engineer`). Flag choice per run type is in `pipeline-flow.md` § Gates.
 
 ### Station 9.5 — Architecture-audit on the diff (REPORT_ONLY)
 
@@ -122,15 +136,15 @@ Write the report to .spec/features/<slug>.context/architecture-auditor-9.5.md
 Return only HANDOFF + CONTAINS.
 ```
 
-Missing agent or companion skill → `ESCALATION_PACKET`. Hard violations → Station 11 then re-run 9 and 9.5. Append a Gate Log row `architecture-audit` with the handoff path. Do not copy the report onto the blackboard.
+Missing agent or companion skill → `ESCALATION_PACKET`. Hard violations → Station 11 then re-run 9 and 9.5. Record it: `board.mjs gate {SPEC_PATH} --station "Station 9.5" --gate architecture-audit --result pass|fail --note "<handoff path>"`. Do not copy the report onto the blackboard.
 
 ### Station 10 — Auto-review
 
-Spawn `code-reviewer` with the **file list**, not the raw diff, plus the `prototype-inventory.md` path when it exists. It does not re-run FSD architecture-audit. `[CRITICAL]` / unresolved `[IMPORTANT]` → Station 11.
+Spawn `code-reviewer` with the **file list**, not the raw diff, plus the `prototype-inventory.md` path when it exists. It does not re-run FSD architecture-audit. `[CRITICAL]` / unresolved `[IMPORTANT]` → Station 11. Record it: `board.mjs gate {SPEC_PATH} --station "Station 10" --gate auto-review --result pass|fail --note "<handoff path>"`.
 
 ### Station 11 — Fix loop
 
-Max 3 attempts per gate. Re-run the failed gate plus `types`. Re-run `fsd` only if the fix touched imports. Re-run `conventions` after any source edit. Re-run `coverage` only if the fix touched tests. On exceed: `status: awaiting-human`, `ESCALATION_PACKET`.
+Group every open finding (red gate, architecture-audit, code-review, parity) by owning agent and layer. Write each group to `.spec/features/<slug>.context/fix-batch-<n>.md` — one line per finding: path, rule, what to change — and spawn **one** owning engineer per batch with `FINDINGS: <that path>`, a card for the affected rows, and a `BOUNDARY` listing every affected slice. The same change in N sibling slices is one batch, never N spawns. Then re-run gates per `pipeline-flow.md` § Gates. On exceeding the attempt cap there: `status: awaiting-human`, `ESCALATION_PACKET`.
 
 ### End — REVIEW_PACKET
 

@@ -9,7 +9,8 @@
 //   --base   also include files changed on the branch since <ref> (merge-base diff)
 //   --all    check every file under src/ instead of the changed set
 //   --files  comma-separated paths (relative to --root) instead of the changed set
-//   --ignore comma-separated rule ids to drop (layer self-check before Station 8: missing-test).
+//   --ignore comma-separated rule ids to drop. Worker self-checks: missing-test before Station 8, and
+//            unused-export before Station 7 (later layers and app wiring import those exports).
 //            Never passed by run-gates.sh — the gate always runs every rule.
 //   --json   print one JSON object instead of text lines
 //
@@ -394,14 +395,16 @@ const resolveSpec = (fromFile, spec) => {
   return tries.find((t) => existsSync(t) && statSync(t).isFile()) ?? null
 }
 
-const buildUsage = () => {
+// fromTests: usage by test files only. A segment file's export that only its test imports is fine
+// (the helper is tested directly); a slice's index.ts is its public API, so tests never count there.
+const buildUsage = (fromTests = false) => {
   const usage = new Map()
   const use = (target, name) => {
     if (!target) return
     if (!usage.has(target)) usage.set(target, new Set())
     usage.get(target).add(name)
   }
-  for (const file of walk(SRC).filter((f) => isCode(f) && !isTest(f))) {
+  for (const file of walk(SRC).filter((f) => isCode(f) && isTest(f) === fromTests)) {
     const { sf } = parse(file)
     const namespaces = new Map()
     const visit = (n) => {
@@ -452,11 +455,11 @@ const exportedNames = (sf) => {
   return out
 }
 
-const checkUnusedExports = (files, usage) => {
+const checkUnusedExports = (files, usage, testUsage) => {
   for (const file of files) {
     if (isTest(file) || isStory(file) || inSharedUi(file) || base(file) === 'main') continue
     const { sf } = parse(file)
-    const used = usage.get(file) ?? new Set()
+    const used = new Set([...(usage.get(file) ?? []), ...(base(file) === 'index' ? [] : testUsage.get(file) ?? [])])
     if (used.has('*')) continue
     for (const [name, node] of exportedNames(sf)) {
       if (used.has(name)) continue
@@ -490,7 +493,7 @@ for (const file of codeFiles) {
   checkMissingTest(file, sf)
 }
 for (const file of targets.filter((f) => f.endsWith('.css'))) checkCss(file)
-if (codeFiles.length) checkUnusedExports(codeFiles, buildUsage())
+if (codeFiles.length && !opt.ignore.has('unused-export')) checkUnusedExports(codeFiles, buildUsage(), buildUsage(true))
 
 for (let i = findings.length - 1; i >= 0; i--) if (opt.ignore.has(findings[i].rule)) findings.splice(i, 1)
 

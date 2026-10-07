@@ -20,7 +20,7 @@ Do not load `frontend-dev-kit:code-review` and do not spawn a second pair of rev
 - File list from `git diff --name-only {base}...HEAD`. Read each diff with `git diff {base}...HEAD -- <path>`.
 - `## Acceptance Criteria` (that section only).
 - `.spec/features/<slug>.context/prototype-inventory.md` when a prototype page is bound (the parity checklist), plus `KIT_DIR`.
-- The latest `conventions` entry in the Gate Log — findings the gate already reported do not need re-deriving, but every one must be resolved.
+- The latest `conventions` row in `.spec/features/<slug>.context/gate-status.md` (failure detail: that gate's block in `.spec/.gate-log`) — findings the gate already reported do not need re-deriving, but every one must be resolved.
 - Rules attach by glob when you open a file. Do not `Read` the rule files.
 
 ## Checklist

@@ -14,7 +14,7 @@ Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI bl
 
 ## Steps
 
-1. **Check the shadcn registry first**: browse the shadcn MCP for block-level patterns matching the spec's `## UI Surface` layout (dashboard shells, data table + sidebar, split panels). If a block matches, pull it via MCP and adapt to project conventions before hand-authoring layout. If a primitive (button, dialog, drawer, and the rest) is missing from `shared/ui/<name>`, stop and hand it to `shared-engineer`. Do not author a second copy.
+1. **Check the shadcn registry first**: browse the shadcn MCP for block-level patterns matching the work card's `## UI Surface` layout (dashboard shells, data table + sidebar, split panels). If a block matches, pull it via MCP and adapt to project conventions before hand-authoring layout. If a primitive (button, dialog, drawer, and the rest) is missing from `shared/ui/<name>`, stop and hand it to `shared-engineer`. Do not author a second copy.
 
 2. **Scaffold the slice** using `create-slice` for `widgets/<slice>/` with segment `ui/`.
 
@@ -41,7 +41,7 @@ Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI bl
 
 8. **Self-check** (`{KIT_DIR}/skills/feature-dev/references/ui-build-contract.md` § 7): fix every finding.
 
-9. **Update the spec `## Build Plan`**: mark widget tasks as done, list files created.
+9. **Mark your Build Plan rows done**: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<files — one line>"` (files go in the handoff). Never edit the board directly.
 
 ## Pre-conditions
 

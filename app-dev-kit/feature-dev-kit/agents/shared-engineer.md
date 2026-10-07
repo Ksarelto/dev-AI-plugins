@@ -15,14 +15,20 @@ Owns all additions to the `shared` FSD layer (station 3). Adds UI-kit items to `
 
 ## Inputs
 
-- The `## Build Plan` section of the spec — specifically the tasks assigned to the `shared` layer.
-- The `## Dependencies` section of the spec — only packages with `approved? (y)` may be installed.
-- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:shadcn-usage`, `tailwind-styles`, and `accessibility`.
-- `rules/ui-quality.mdc` — four states, composition over config.
-- `references/ui-build-contract.md` — shadcn fidelity (§ 1) is this agent's core contract.
-- `references/fsd-architecture.md` — what belongs in `shared` and what does not.
+Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
+leading text of every spawn prefix-cacheable.
+
+**Fixed (same every spawn):**
+
+- `references/ui-build-contract.md` — shadcn fidelity (§ 1) is this agent's core contract; § 0 is what belongs in `shared` and what does not (`shared` imports nothing above itself).
 - `references/increment-protocol.md` — thin-slice discipline, simplicity check, and the scope guard.
-- `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
+- `rules/ui-quality.mdc` — four states, composition over config.
+- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:shadcn-usage`, `tailwind-styles`, and `accessibility`.
+
+**Per spawn:**
+
+- `CARD` — your work card (`.spec/features/<slug>.context/cards/row-<n>.md`): your Build Plan rows plus the spec sections you build from, verbatim, and the paths to read on demand. Read it instead of the blackboard; do not open `.spec/features/<slug>.md`.
+- From the card: your `shared` rows, and `## Dependencies` — only packages with `approved? (y)` may be installed.
 
 ## Responsibilities
 
@@ -32,11 +38,11 @@ For every UI component needed in `shared/ui`, first browse the shadcn registry v
 
 ### 2. Hand-authoring shared UI (exception path)
 
-When the shadcn registry has no suitable primitive, hand-author via `frontend-dev-kit:shadcn-usage` and `tailwind-styles`. Log in the spec under "Tech investigation" why the registry had no match.
+When the shadcn registry has no suitable primitive, hand-author via `frontend-dev-kit:shadcn-usage` and `tailwind-styles`. Record why the registry had no match with `board.mjs append … --section "Decisions & Open Questions" --line "- <primitive>: hand-authored — <reason>"`.
 
 ### 3. Approved dependency installation
 
-For each package in the spec's `## Dependencies` section with `approved? (y)`, install `<package>@<version>` with the lockfile's package manager (`pnpm add`, `yarn add`, or `npm install`; add `-D` for dev dependencies). Never install a package that is not in the spec or has `approved? (n)`. After installation, confirm the lockfile is updated and run the project's typecheck to verify the package's types integrate cleanly.
+For each package in the card's `## Dependencies` section with `approved? (y)`, install `<package>@<version>` with the lockfile's package manager (`pnpm add`, `yarn add`, or `npm install`; add `-D` for dev dependencies). Never install a package that is not in the spec or has `approved? (n)`. After installation, confirm the lockfile is updated and run the project's typecheck to verify the package's types integrate cleanly.
 
 ### 4. Shared copy and config additions
 
@@ -50,11 +56,11 @@ After all `shared` work is complete, verify that each `index.ts` exports only wh
 
 - New or modified files under `shared/ui`, `shared/api`, `shared/lib`, and/or `shared/config`.
 - Each segment's `index.ts` exports only the names consumers import.
-- Summary of what was added, what was registry-sourced vs. hand-authored, and what packages were installed — written back into the spec's "Build plan" under the shared tasks.
+- Your rows marked done: Write back with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<one line>"` (what was added, registry-sourced vs. hand-authored, packages installed — one line). Each new import other slices use: `board.mjs append … --section "Reuse Map" --line "| <needed> | <@/shared/… import> | reuse |"`.
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
 
 ```
 HANDOFF: <that path>

@@ -40,13 +40,13 @@ itself — it delegates to worker agents and reads the spec blackboard to decide
 ## Delegation Message Template
 
 Canonical copy with field rules and a worked example: `../templates/delegation-message.md`.
-The `SPEC_SECTIONS` allowlist in `context-budget.md` is a required part of every delegation.
+Stations 0–1b delegations name a `SPEC_SECTIONS` allowlist; Stations 3–8 name a `CARD` (`board.mjs card`) — see `context-budget.md`.
 
 The orchestrator uses this exact format when delegating to a worker agent:
 
 ```
 OBJECTIVE: <one sentence — what the worker must produce>
-SPEC: .spec/features/<slug>.md — read sections: <list sections>; write to sections: <list sections>
+CARD: .spec/features/<slug>.context/cards/row-<n>.md   (board.mjs card — the worker reads this, not the board)
 TARGET: <fsd-layer>/<slice>/<segment(s)>
 APPLY: skill: <one skill name>
 BOUNDARY: only touch files under <path>; do not modify <excluded paths>
@@ -56,7 +56,7 @@ RETURN: HANDOFF path + one CONTAINS line, as the final message.
 Example:
 ```
 OBJECTIVE: Implement the useDeclineProfile mutation hook and its query-key invalidation.
-SPEC: .spec/features/decline-profile.md — read: API contract, Dependencies; write to: Build plan (mark api/ done), Gate log
+CARD: .spec/features/decline-profile.context/cards/row-2.md
 CHECKPOINT: .spec/features/decline-profile.context/orchestrator-checkpoint.md
 TARGET: entities/profile/api/
 APPLY: skill: create-entity
@@ -64,14 +64,18 @@ BOUNDARY: only touch src/entities/profile/api/; do not modify index.ts (orchestr
 RETURN: HANDOFF .spec/features/decline-profile.context/entities-engineer-4.md + one CONTAINS line
 ```
 
-Do not list `development-cycle.md`, `increment-protocol.md`, `fsd-architecture.md`, or rule files in `APPLY`. Rules attach by glob. The worker reads one skill recipe when that skill says to.
+Do not list `development-cycle.md`, `increment-protocol.md`, `fsd-architecture.md`, or rule files in `APPLY`. The card's "Read by path" block names the rule file (Cursor attaches it by glob; Claude does not). The worker reads one skill recipe when that skill says to.
 
 ---
 
 ## Handoff via files
 
-- Workers read the checkpoint and the spec sections named in the delegation.
-- Workers write decisions onto their spec sections, and write the detail to `.spec/features/<slug>.context/<agent>-<station>.md`.
+- Pre-build workers (Stations 0–1b) read and write their named spec sections.
+- Build workers (Stations 3–8) read their work card (`board.mjs card`), never the board. They mark
+  their rows with `board.mjs row --status --note` and add reuse entries / decisions with
+  `board.mjs append`; the detail goes to `.spec/features/<slug>.context/<agent>-<station>.md`.
+- Gate results are never written onto the board: `run-gates.sh --spec` and `board.mjs gate` keep
+  `<slug>.context/gate-status.md` (latest per gate) and `gate-log.jsonl`.
 - The chat return is only `HANDOFF` and `CONTAINS`. The orchestrator does not read `src/` to learn what the worker did.
 - After a layer, the orchestrator rewrites `orchestrator-checkpoint.md` and passes that path to the next spawn.
 - If the orchestrator's own context is near the limit, it refreshes the checkpoint and continues from that file instead of the chat so far.
@@ -82,7 +86,7 @@ Do not list `development-cycle.md`, `increment-protocol.md`, `fsd-architecture.m
 
 Build proceeds bottom-up: `shared` → `entities` → `features` → `widgets`+`pages` → `app`.
 
-After each layer group completes, run `run-gates.sh --until fsd`. If that fails, fix before the next layer. The package build and coverage run once at Station 9.
+After each layer group completes, run `run-gates.sh --until fsd`. If that fails, fix before the next layer. The package build and coverage run once at Station 9. Station 8 ends the build phase: the orchestrator returns `CONTINUE_PACKET`, and a fresh orchestrator runs Stations 9–11 from the checkpoint (`packets.md`).
 
 ---
 
@@ -101,10 +105,14 @@ When a layer has more than one slice, run those slices one after another on the 
 ## Fix Loop
 
 ```
-Gate failure detected
+Gate failure / audit or review findings
        │
        ▼
-Fix engineer receives: failing gate name + error output + relevant spec sections
+Group findings by owning agent + layer → one fix batch per group
+(.spec/features/<slug>.context/fix-batch-<n>.md: finding, path, rule, one line each)
+       │
+       ▼
+One fix engineer per batch receives: the batch file path + a card for the affected rows
        │
        ▼
 Fix engineer applies targeted fix
@@ -123,6 +131,10 @@ pipeline   emit gate log + error output
 ```
 
 After 2–3 failed fix-loop iterations on the same gate, escalate. Do not continue looping indefinitely.
+
+One finding repeated across sibling slices (the same re-export in eight pages, the same missing
+key in five forms) is **one** batch for one spawn, with `BOUNDARY` listing every affected slice —
+never one spawn per slice. Split a batch only when two owners or two layers are involved.
 
 ---
 
@@ -159,7 +171,7 @@ excerpt. Skeleton for orientation:
 ### FSD Impact
 <new/modified slices from spec>
 
-### Gate Log
+### Gates (from <slug>.context/gate-status.md)
 | Gate | Result |
 |------|--------|
 | typecheck | PASS |

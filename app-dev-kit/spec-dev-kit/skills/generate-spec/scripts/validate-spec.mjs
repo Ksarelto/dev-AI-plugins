@@ -407,6 +407,25 @@ if (v2) {
     }
   }
   for (const s of screens) if (!slicedScreens.has(s?.id)) warn('SLICE_COVERAGE_GAP', `${s?.id} ${s?.title} is in no slice`)
+  // A rule is built where what it applies to is built. Build kits implement only their slice's
+  // rule-refs, so a rule listed in a slice that builds none of its targets is never implemented
+  // by the slice that does build them.
+  const builds = (sl) => {
+    const own = arr(sl?.['screen-refs']).map((id) => ids.get(id)?.item).filter(Boolean)
+    return new Set([
+      ...arr(sl?.['entity-refs']), ...arr(sl?.['api-refs']),
+      ...own.map((s) => s?.['primary-entity']).filter(Boolean), ...own.flatMap((s) => arr(s?.['api-refs'])),
+    ])
+  }
+  const built = new Map(slices.map((sl) => [sl?.id, builds(sl)]))
+  for (const sl of slices) {
+    for (const rid of arr(sl?.['rule-refs'])) {
+      const targets = arr(ids.get(rid)?.item?.['applies-to'])
+      if (!targets.length || targets.some((t) => built.get(sl?.id).has(t))) continue
+      const first = slices.find((other) => targets.some((t) => built.get(other?.id).has(t)))
+      warn('SLICE_RULE_MISPLACED', `${sl?.id} lists ${rid}, but builds none of what it applies to (${targets.join(', ')})${first ? `; ${first.id} builds it` : ''}`)
+    }
+  }
 }
 
 // Body must not hand-restate the YAML (views come from render-spec-views.mjs)

@@ -16,16 +16,22 @@ Authors FSD feature (interaction) slices at station 5. A feature slice encapsula
 
 ## Inputs
 
-- The `## Build Plan` section of the spec — feature tasks, including slice names and which segments to build.
-- The `## UI Surface` section of the spec — screens, interaction flows, form fields, validation rules, and loading/empty/error states.
-- The `API contract` section of the spec — any feature-specific endpoints (mutations) not already covered by entity hooks.
-- The public APIs of entity slices consumed by the feature, imported via their `index.ts`.
-- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:rhf-form` for a form and `frontend-dev-kit:react-query-hook` for a feature mutation.
-- `rules/ui-quality.mdc` — the four required states.
-- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, self-check. Mandatory.
-- `PROTOTYPE_INVENTORY` when passed — rows this feature renders (dialogs, fields, validation messages, toasts) are yours to mark.
+Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
+leading text of every spawn prefix-cacheable.
+
+**Fixed (same every spawn):**
+
+- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, self-check. Mandatory. § 0 carries the layer rules: `features` may import `entities` and `shared` only, never another feature.
 - `references/increment-protocol.md` — build order inside the slice; scope discipline.
-- `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
+- `rules/ui-quality.mdc` — the four required states.
+- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:rhf-form` for a form and `frontend-dev-kit:react-query-hook` for a feature mutation.
+
+**Per spawn:**
+
+- `CARD` — your work card (`.spec/features/<slug>.context/cards/row-<n>.md`): your Build Plan rows plus the spec sections you build from, verbatim, and the paths to read on demand. Read it instead of the blackboard; do not open `.spec/features/<slug>.md`.
+- From the card: your feature rows (slice names, segments), `## UI Surface` for your screens (interaction flows, form fields, validation, loading/empty/error states), and `## API Contract / Data Model` (feature-specific mutations not covered by entity hooks; rules and permissions to surface — never the ones listed as owned by other slices).
+- The public APIs of entity slices consumed by the feature, imported via their `index.ts`.
+- `PROTOTYPE_INVENTORY` when passed — rows this feature renders (dialogs, fields, validation messages, toasts) are yours to mark.
 
 ## Responsibilities
 
@@ -47,7 +53,7 @@ The component `index.ts` exports is the boundary: it renders `<ErrorBoundary res
 
 ### 5. Self-check before returning
 
-Run the self-check in `ui-build-contract.md` § 7 on the slice's files. Verify all imports point only to `entities/*` or `shared/*` public APIs. Write the list of created/modified files into the spec's "Build plan" before returning.
+Run the self-check in `ui-build-contract.md` § 7 on the slice's files. Verify all imports point only to `entities/*` or `shared/*` public APIs. List the created/modified files in your handoff, then mark your rows: Write back with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<one line>"`.
 
 ## Outputs
 
@@ -56,11 +62,11 @@ Run the self-check in `ui-build-contract.md` § 7 on the slice's files. Verify a
 - `features/<slice>/ui/` — interaction components (tests arrive at Station 8, or in the same change when you are the only worker).
 - `features/<slice>/locales/` — `en.json` + `keys.ts` for the slice's copy.
 - `features/<slice>/index.ts` — public API; the exported entry component is wrapped in `ErrorBoundary`.
-- Spec "Build plan" updated with files created.
+- Rows marked done with `board.mjs row`; new public exports added to `## Reuse Map` with `board.mjs append`.
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
 
 ```
 HANDOFF: <that path>

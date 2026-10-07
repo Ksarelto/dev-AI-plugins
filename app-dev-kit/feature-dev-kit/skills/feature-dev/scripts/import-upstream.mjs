@@ -3,8 +3,11 @@
 // One feature per run (one screen, or several screens nested under that feature).
 // Usage:
 //   node import-upstream.mjs --spec <spec.md> --out <feature.md> [--slice-ref SL-001] [filters] [--require-scoped] [--changes <changes.json>]
-// Spec 2.0: screens carry story-refs / api-refs / primary-entity. --slice-ref adds the slice goal,
-// frontend steps, rules, notifications, done-when ACs, and the slice's api-refs.
+// Spec 2.0: screens carry story-refs / api-refs / primary-entity. --slice-ref reads the slice brief
+// ({spec dir}/slices/{SL}.yaml; the whole spec when a passed ref is outside it) and adds the slice
+// goal, frontend steps, done-when ACs, and the slice's api-refs. Only the slice's rule-refs and
+// permission-refs are built; others that touch the feature are listed as owned by another slice.
+// The glossary goes to {slug}.context/glossary.md, referenced from the blackboard by path.
 // Spec 1.x: ACs and entities are matched to screens by keywords and component names.
 // Exit 0 = wrote (or printed). Exit 1 = scoped-import failure. Exit 2 = usage/parse failure.
 
@@ -82,45 +85,101 @@ if (typeof parse !== 'function') {
   process.exit(2)
 }
 
-function readFrontmatter(path) {
-  const raw = readFileSync(path, 'utf8')
-  const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
-  if (!match) {
-    console.error(`FATAL: no YAML front matter found in ${path}`)
-    process.exit(2)
-  }
-  return { raw, fm: parse(match[1]), body: raw.slice(match[0].length) }
+const specRaw = readFileSync(specPath, 'utf8')
+const specFront = specRaw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+if (!specFront) {
+  console.error(`FATAL: no YAML front matter found in ${specPath}`)
+  process.exit(2)
 }
-
-const { fm: spec } = readFrontmatter(specPath)
-if (spec.status !== 'approved') {
-  console.error(`ERROR [SPEC_NOT_APPROVED] ${specPath} status is "${spec.status ?? ''}" — publish the spec (status: approved) before /feature-dev`)
+let specCache = null
+const fullSpec = () => (specCache ??= parse(specFront[1]))
+const specStatus = fullSpec().status ?? ''
+if (specStatus !== 'approved') {
+  console.error(`ERROR [SPEC_NOT_APPROVED] ${specPath} status is "${specStatus}" — publish the spec (status: approved) before /feature-dev`)
   process.exit(1)
 }
-const screens = spec['ui-surface']?.screens ?? []
-const interactions = spec['ui-surface']?.interactions ?? []
-const stories = spec['user-stories'] ?? []
-const acs = spec['acceptance-criteria'] ?? []
-const entities = spec.entities ?? []
 const list = (v) => (Array.isArray(v) ? v : [])
-// One endpoint list; 1.x specs may split reads/writes into endpoints + mutations (dedupe by id).
-const endpoints = [...new Map([
-  ...list(spec['api-surface']?.endpoints),
-  ...list(spec['api-surface']?.mutations),
-].map((e) => [e?.id ?? `${e?.method} ${e?.path}`, e])).values()]
 
-// 2.0 slice: {spec dir}/slices/{SL}.yaml when spec-dev-kit wrote it, else the slice in the spec.
+// One endpoint list; 1.x specs may split reads/writes into endpoints + mutations (dedupe by id).
+function sourceFromSpec(spec) {
+  return {
+    kind: 'spec',
+    screens: list(spec['ui-surface']?.screens),
+    interactions: list(spec['ui-surface']?.interactions),
+    stories: list(spec['user-stories']),
+    acs: list(spec['acceptance-criteria']),
+    entities: list(spec.entities),
+    endpoints: [...new Map([
+      ...list(spec['api-surface']?.endpoints),
+      ...list(spec['api-surface']?.mutations),
+    ].map((e) => [e?.id ?? `${e?.method} ${e?.path}`, e])).values()],
+    rules: list(spec['business-rules']),
+    machines: list(spec['state-machines']),
+    permissions: list(spec.permissions),
+    notifications: list(spec.notifications),
+    glossary: list(spec.glossary),
+    slices: list(spec['delivery-plan']?.slices),
+    owners: null,
+    type: spec.type,
+    title: spec.metadata?.title ?? '',
+    slug: spec.metadata?.slug ?? '',
+    goal: spec.context?.goal ?? '',
+  }
+}
+
+function sourceFromBrief(brief) {
+  return {
+    kind: 'brief',
+    screens: list(brief.screens),
+    interactions: list(brief.interactions),
+    stories: list(brief['user-stories']),
+    acs: list(brief['acceptance-criteria']),
+    entities: list(brief.entities),
+    endpoints: list(brief.endpoints),
+    rules: list(brief['business-rules']),
+    machines: list(brief['state-machines']),
+    permissions: list(brief.permissions),
+    notifications: list(brief.notifications),
+    glossary: list(brief.glossary),
+    slices: [],
+    owners: brief.owners ?? null,
+    type: 'app',
+    title: brief.context?.title ?? '',
+    slug: '',
+    goal: brief.context?.goal ?? '',
+  }
+}
+
+// 2.0 slice: {spec dir}/slices/{SL}.yaml is the contract when spec-dev-kit wrote it. When a ref
+// passed here is outside the brief (a human moved a screen into this feature at Station 2a),
+// import from the whole spec instead so nothing is dropped.
 let slice = null
+let src = null
 if (sliceRef) {
   const briefPath = join(dirname(specPath), 'slices', `${sliceRef}.yaml`)
-  slice = existsSync(briefPath)
-    ? parse(readFileSync(briefPath, 'utf8'))?.slice
-    : list(spec['delivery-plan']?.slices).find((s) => s?.id === sliceRef)
+  const brief = existsSync(briefPath) ? parse(readFileSync(briefPath, 'utf8')) : null
+  if (brief?.slice) {
+    const b = sourceFromBrief(brief)
+    const has = (items, key) => new Set(items.map((x) => x?.[key]))
+    const outside = [
+      ...[...screenRefsArg, ...(screenRef ? [screenRef] : [])].filter((id) => !has(b.screens, 'id').has(id)),
+      ...storyRefsArg.filter((id) => !has(b.stories, 'id').has(id)),
+      ...acRefsArg.filter((id) => !has(b.acs, 'id').has(id)),
+      ...entityRefsArg.filter((name) => !has(b.entities, 'name').has(name)),
+    ]
+    if (outside.length) console.error(`WARN [BRIEF_FALLBACK] ${outside.join(', ')} not in ${sliceRef}'s brief — importing from the whole spec`)
+    else src = b
+    slice = brief.slice
+  } else {
+    slice = list(fullSpec()['delivery-plan']?.slices).find((s) => s?.id === sliceRef)
+  }
   if (!slice) {
     console.error(`ERROR [SLICE_NOT_FOUND] ${sliceRef} is not in delivery-plan.slices of ${specPath}`)
     process.exit(1)
   }
 }
+src ??= sourceFromSpec(fullSpec())
+const { screens, interactions, stories, acs, entities, endpoints } = src
 
 const screenRefs = [...new Set([...screenRefsArg, ...(screenRef ? [screenRef] : [])])]
 if (screenRefs.length === 0 && slice) screenRefs.push(...list(slice['screen-refs']))
@@ -138,7 +197,7 @@ for (const ref of screenRefs) {
 if (selectedScreens.length === 0 && screens.length === 1) selectedScreens.push(screens[0])
 const screen = selectedScreens[0] ?? null
 
-const isApp = spec.type === 'app' || screens.length > 1
+const isApp = src.type === 'app' || screens.length > 1
 if (requireScoped && isApp && selectedScreens.length === 0) {
   console.error('ERROR [REQUIRE_SCOPED] type:app (or multiple screens) imported with no resolved screens — one /feature-dev run is one feature, not the whole app')
   process.exit(1)
@@ -176,10 +235,12 @@ function derivedAcs() {
   return merged
 }
 
-// 2.0 screens name their stories; keep the slice's share of them when a slice is given.
+// 2.0 screens name their stories; keep the slice's share of them when a slice is given. A screen
+// that is not one of the slice's screens (moved into this feature) keeps all of its stories.
 const sliceStories = new Set(list(slice?.['story-refs']))
-const screenStoryIds = [...new Set(selectedScreens.flatMap((s) => list(s['story-refs'])))]
-  .filter((id) => !sliceStories.size || sliceStories.has(id))
+const sliceScreens = new Set(list(slice?.['screen-refs']))
+const screenStoryIds = [...new Set(selectedScreens.flatMap((s) => list(s['story-refs'])
+  .filter((id) => !sliceStories.size || !sliceScreens.has(s.id) || sliceStories.has(id))))]
 const explicitScreenRefs = selectedScreens.some((s) => Array.isArray(s['story-refs']))
 
 const filteredAcs = acRefsArg.length
@@ -205,12 +266,14 @@ const storyIds = storyRefsArg.length
   : [...new Set(filteredAcs.map((a) => a['story-ref']).filter(Boolean))]
 const filteredStories = stories.filter((s) => storyIds.includes(s.id))
 
+// Same default as build-checklist.mjs: each screen's primary entity plus the slice's entity-refs.
 function derivedEntities() {
   if (entityRefsArg.length) return entityRefsArg
+  const known = new Set(entities.map((e) => e.name))
   const primary = selectedScreens.map((s) => s['primary-entity']).filter(Boolean)
-  if (primary.length) return [...new Set(primary)]
-  const names = entities.map((e) => e.name)
-  return names.filter((name) =>
+  const scoped = [...new Set([...primary, ...list(slice?.['entity-refs'])])].filter((name) => known.has(name))
+  if (scoped.length) return scoped
+  return entities.map((e) => e.name).filter((name) =>
     selectedScreens.some((s) => s.components?.some((c) => String(c).includes(name))),
   )
 }
@@ -229,14 +292,28 @@ const filteredEndpoints = selectedScreens.some((s) => Array.isArray(s['api-refs'
   )
 
 // What the UI must surface: rule violation copy, status words, who sees which control, notices.
+// With a slice, build only its rule-refs / permission-refs; a rule or permission that reaches this
+// feature through a shared entity or endpoint but is listed by another slice is context only.
 const keptIds = new Set([...entityNames, ...filteredEndpoints.map((e) => e.id), ...selectedScreens.map((s) => s.id)])
 const touches = (refs) => list(refs).some((r) => keptIds.has(r))
-const uiRules = list(spec['business-rules']).filter((b) => touches(b['applies-to']) || list(slice?.['rule-refs']).includes(b.id))
-const uiMachines = list(spec['state-machines']).filter((m) => entityNames.includes(m.entity))
-const uiPermissions = list(spec.permissions).filter((p) => touches(p.refs))
+// Briefs written before `owners` existed: ownership comes from the spec's delivery plan.
+const ownerSlices = () => (src.slices.length ? src.slices : list(fullSpec()['delivery-plan']?.slices))
+const ownerOf = (key, id) => (src.owners && id in src.owners
+  ? src.owners[id]
+  : ownerSlices().find((s) => list(s?.[key]).includes(id))?.id ?? '')
+function split(items, refsKey, sliceKey) {
+  const own = new Set(list(slice?.[sliceKey]))
+  const touching = items.filter((x) => touches(x[refsKey]) || own.has(x.id))
+  if (!slice) return { build: touching, other: [] }
+  const build = touching.filter((x) => own.has(x.id) || !ownerOf(sliceKey, x.id))
+  return { build, other: touching.filter((x) => !build.includes(x)).map((x) => ({ ...x, owner: ownerOf(sliceKey, x.id) })) }
+}
+const { build: uiRules, other: otherRules } = split(src.rules, 'applies-to', 'rule-refs')
+const { build: uiPermissions, other: otherPermissions } = split(src.permissions, 'refs', 'permission-refs')
+const uiMachines = src.machines.filter((m) => entityNames.includes(m.entity))
 const effectIds = new Set(uiMachines.flatMap((m) => list(m.transitions).flatMap((t) => list(t.effects))))
-const uiNotifications = list(spec.notifications).filter((n) => effectIds.has(n.id) || list(slice?.['notification-refs']).includes(n.id))
-const glossary = list(spec.glossary)
+const uiNotifications = src.notifications.filter((n) => effectIds.has(n.id) || list(slice?.['notification-refs']).includes(n.id))
+const glossary = src.glossary
 const frontendSteps = list(slice?.steps).filter((s) => s.track === 'frontend')
 
 function kebab(s) {
@@ -293,10 +370,10 @@ function resolvePrototypePage(protoDir, s, ref) {
 }
 
 const protoDir = prototypeRef || ''
-const slug = slugArg || kebab(screen?.title) || spec.metadata?.slug || 'feature'
+const slug = slugArg || kebab(screen?.title) || src.slug || 'feature'
 const title = selectedScreens.length > 1
   ? selectedScreens.map((s) => s.title).join(', ')
-  : (screen?.title ?? spec.metadata?.title ?? slug)
+  : (screen?.title ?? (src.title || slug))
 const today = new Date().toISOString().slice(0, 10)
 
 function acLine(ac) {
@@ -307,8 +384,8 @@ const requestLines = [
   slice ? `Slice ${slice.id} — ${slice.title}: ${slice.goal ?? ''}` : '',
   selectedScreens.length
     ? selectedScreens.map((s) => `${s.title} (${s.route}).`).join('\n')
-    : (spec.metadata?.title ?? ''),
-  !slice && spec.context?.goal ? `Goal: ${spec.context.goal}` : '',
+    : src.title,
+  !slice && src.goal ? `Goal: ${src.goal}` : '',
   filteredStories.length
     ? 'User stories:\n' + filteredStories.map((s) => `- As a ${s.as}, I want ${s['i-want']}, so that ${s['so-that']}.`).join('\n')
     : '',
@@ -360,6 +437,18 @@ function endpointLine(ep) {
     + (errors.length ? `\n  - errors: ${errors.join('; ')}` : '')
 }
 
+// Rules / permissions another slice owns: one line each, so a worker knows they exist and that
+// this feature does not build them.
+const firstSentence = (t) => {
+  const text = String(t ?? '').trim()
+  const cut = text.match(/^.*?[.!?](\s|$)/)?.[0]?.trim() ?? text
+  return cut.length > 140 ? `${cut.slice(0, 137)}…` : cut
+}
+const ownedLine = (x, text) => `- ${x.id} (${x.owner}): ${text}`
+// The glossary is the same for every feature; workers that write copy read it by path.
+const contextDir = outPath && outPath !== true ? String(outPath).replace(/\.md$/, '.context') : ''
+const glossaryPath = contextDir && glossary.length ? `${contextDir}/glossary.md` : ''
+
 const apiMarkdown = [
   filteredEntities.map(entityBlock).join('\n\n'),
   filteredEndpoints.length
@@ -371,15 +460,23 @@ const apiMarkdown = [
   uiRules.length
     ? '### Rules the UI must surface\n' + uiRules.map((b) => `- ${b.id}: ${b.rule}${b['on-violation'] ? ` — show: ${b['on-violation']}` : ''}`).join('\n')
     : '',
+  otherRules.length
+    ? '### Rules owned by other slices (context — do not build)\n' + otherRules.map((b) => ownedLine(b, firstSentence(b.rule))).join('\n')
+    : '',
   uiPermissions.length
     ? '### Permissions (hide or disable controls for other roles)\n' + uiPermissions.map((p) => `- ${p.id} ${p.action}: ${list(p.allow).join(', ') || '—'}${Object.entries(p.conditional ?? {}).map(([r, c]) => `; ${r} if ${c}`).join('')}`).join('\n')
+    : '',
+  otherPermissions.length
+    ? '### Permissions owned by other slices (context — do not build)\n' + otherPermissions.map((p) => ownedLine(p, p.action ?? '')).join('\n')
     : '',
   uiNotifications.length
     ? '### Notifications (copy)\n' + uiNotifications.map((n) => `- ${n.id} ${n.event} → ${list(n.recipients).join(', ')}: "${n.copy ?? ''}"`).join('\n')
     : '',
-  glossary.length
-    ? '### Glossary (use these words in copy)\n' + glossary.map((g) => `- ${g.term}: ${g.meaning}`).join('\n')
-    : '',
+  glossaryPath
+    ? `### Glossary (use these words in copy)\n${glossary.length} terms: \`${glossaryPath}\` — read it before writing any user-facing text.`
+    : glossary.length
+      ? '### Glossary (use these words in copy)\n' + glossary.map((g) => `- ${g.term}: ${g.meaning}`).join('\n')
+      : '',
 ].filter(Boolean).join('\n\n') || '<no entities mapped to this screen-task>'
 
 const compact = [
@@ -394,6 +491,8 @@ const compact = [
   `ACS: ${filteredAcs.map((a) => a.id).join(', ') || '(none)'}`,
   `ENTITIES: ${filteredEntities.map((e) => e.name).join(', ') || '(none)'}`,
   `SCREENS_IMPORTED: ${selectedScreens.length}`,
+  `SOURCE: ${src.kind === 'brief' ? `brief ${sliceRef}` : 'spec'}`,
+  `RULES: ${uiRules.length} built, ${otherRules.length} owned by other slices`,
 ].join('\n')
 
 if (stdoutOnly && !outPath) {
@@ -478,6 +577,10 @@ if (reopen || (hadBoard && fmValue('prior-branch') && overlap.length > 0)) {
 
 mkdirSync(dirname(outPath), { recursive: true })
 writeFileSync(outPath, board, 'utf8')
+if (glossaryPath) {
+  mkdirSync(contextDir, { recursive: true })
+  writeFileSync(glossaryPath, `# Glossary\n\nUse these words in UI copy.\n\n${glossary.map((g) => `- **${g.term}**: ${g.meaning}`).join('\n')}\n`, 'utf8')
+}
 console.log(`OK: wrote ${outPath}`)
 console.log(compact)
 process.exit(0)

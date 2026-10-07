@@ -44,7 +44,11 @@ Three rules decide every choice:
 4. `INTAKE_REPORT_PATH` — `raw_requirements[].source_line` for `source-ref` values; the ids in
    `decisions_already_made` become `DEC-*` with `source: context`.
 5. `templates/spec-frontmatter.yaml`, `templates/spec-body.md`, `references/spec-schema.md`.
-6. `fixtures/example-spec.md` — a complete valid 2.0 spec. Match its level of detail and shape.
+6. `fixtures/shape-reference.md` — every section a 2.0 spec may carry, with its full field set and
+   cross-references, shown once or twice. Match the **shape** and the level of detail **per entry**.
+   Its entry counts are not a target — a real spec carries every entry its source requires, which
+   for the requirement register is usually hundreds. Do not open `fixtures/example-spec.md`; that is
+   the contract test's golden input, not a better version of this file.
 
 ---
 

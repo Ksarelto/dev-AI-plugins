@@ -49,11 +49,11 @@ Adaptation is **frontend-dev-kit:shadcn-usage**. File layout is **frontend-dev-k
 
 8. **Run `yarn typecheck`**: fix all TypeScript errors.
 
-9. **Update the spec `## Reuse Map`**: document the new shared component under "shadcn primitives" with import `@/shared/ui/<name>`.
+9. **Add it to `## Reuse Map`**: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs append .spec/features/<slug>.md --section "Reuse Map" --line "| <name> (shadcn primitive) | \`@/shared/ui/<name>\` | reuse |"`. Never edit the board directly.
 
 ## Pre-conditions
 
-- The spec's `## UI Surface` identifies which shared UI components are needed.
+- The work card's `## UI Surface` identifies which shared UI components are needed.
 - `shared/lib/cn.ts` exists with the `cn()` merge helper.
 
 ## Outputs

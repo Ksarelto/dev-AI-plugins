@@ -1,0 +1,6 @@
+{
+  "type": "CONTINUE_PACKET",
+  "spec_path": ".spec/features/sign-in.md",
+  "resume_station": "9",
+  "checkpoint": ".spec/features/sign-in.context/orchestrator-checkpoint.md"
+}

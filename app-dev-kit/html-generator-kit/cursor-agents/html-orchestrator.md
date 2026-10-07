@@ -10,8 +10,10 @@ permissionMode: default
 
 # HTML Orchestrator
 
-> **Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md` before starting any station.**
-> It is the single source of truth for station order, gates, loop guards, and context slices.
+> **Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md` and
+> `{KIT_DIR}/skills/generate-html/references/context-budget.md` once, at the start.** Do not re-read
+> either one per station. They are the single source of truth for station order, gates, loop guards,
+> and context slices.
 
 ## Role
 
@@ -104,10 +106,14 @@ Do **not** continue past a packet. Do **not** ask the user yourself.
 
 `S` below = `{KIT_DIR}/skills/generate-html/scripts`.
 
+**Timing.** At the start of each station, put `node S/log-timing.mjs --out "{OUTPUT_DIR}/timings.jsonl" --kit generate-html --station <N> && `
+in front of that station's first Bash command (a station that starts with a spawn gets that line as
+its own Bash call). Before returning any packet, log `--event end` for the station you stop at. The
+file is a measurement, never an input: do not read it.
+
 ### Station 0 — Setup
 
-Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md` and
-`{KIT_DIR}/skills/generate-html/references/context-budget.md`, then:
+Both references are already read (see the header — once per run, not per station).
 
 ```bash
 node S/delta-pages.mjs --spec "{SPEC_FILE}" --out "{OUTPUT_DIR}/spec-summary.json"
@@ -198,19 +204,32 @@ Mark task 3 complete.
 In a SINGLE message, spawn one `screen-generator` agent per entry in `screens[]`.
 All spawns in one message = all run in parallel.
 
-Per agent, pass ONLY the slice it needs:
+Pass the fields **in exactly this order**. The shared block is byte-identical across every spawn in
+this station, so putting it first lets the host serve it from its prompt cache for every page after
+the first — N pages cost one full shared block instead of N. Reordering these fields, or
+personalising the shared block per page, silently throws that away.
+
+Shared block — **identical text in every spawn, first**:
 ```
+rules_dir:        {KIT_DIR}/skills/generate-html/references/
+KIT_DIR:          {KIT_DIR}
+design_ref:       DESIGN_REF content  (compact, ~95 lines)
+component_manifest: COMP_MANIFEST content  (compact, ~40 lines)
+ux_directives:    UX_DIRECTIVES — the "All pages" + "Do not" sections, verbatim
+```
+
+Per-page block — **the only part that varies, last**:
+```
+ux_page_section:  UX_DIRECTIVES — ONLY this page's type section
 page:             { id, title, description, type, domain, entity }    ← this page only (type may be absent)
 entity_fields:    fields[] for this page's entity only
 entity_statuses:  statuses[] for this page's entity only
 api_contract:     { field: type } for this page's entity only
-design_ref:       DESIGN_REF content  (compact, ~95 lines)
-ux_directives:    UX_DIRECTIVES — the "All pages" + "Do not" sections plus ONLY this page's type section
-component_manifest: COMP_MANIFEST content  (compact, ~40 lines)
-rules_dir:        {KIT_DIR}/skills/generate-html/references/
-KIT_DIR:          {KIT_DIR}
 output_path:      {OUTPUT_DIR}/pages/{page.id}.html
 ```
+
+Pass the whole `## All pages` + `## Do not` text in the shared block even when a page looks
+unaffected — trimming it per page makes each prefix unique and costs more than it saves.
 
 Wait for ALL agents to return.
 If any agent failed or returned without its page: re-spawn only those pages (not all), once (Spawning workers).
@@ -300,9 +319,10 @@ Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerate
 5. If `entities_changed` is non-empty, spawn `component-library-author` with `MODE: update`
    and `ENTITIES_CHANGED` before Station 4. It patches only those entities in `js/data.js`.
 6. Station 4: spawn one `screen-generator` per screen in `DELTA_PAGES` only, in one message.
-   Pass `page` (`id`, `title`, `description`, `domain`, `entity`; `type` may be absent),
-   `entity_fields`, `entity_statuses`, `api_contract`, plus the compact design ref and manifest.
-   Do not pass other pages.
+   Use the same shared-block-first field order as a build Station 4 — shared block (`rules_dir`,
+   `KIT_DIR`, design ref, manifest, `ux_directives`) identical in every spawn, then the per-page
+   block (`ux_page_section`, `page`, `entity_fields`, `entity_statuses`, `api_contract`,
+   `output_path`). Do not pass other pages.
 7. Station 5 as in a build (`--pages "{OUTPUT_DIR}/spec-summary.json"`).
 8. Station 6 (`--pages` = every `assembly_pages[].id`) and Station 6.5, then return `REVIEW_PACKET`.
 

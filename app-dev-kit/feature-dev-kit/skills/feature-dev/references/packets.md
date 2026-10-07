@@ -16,10 +16,11 @@ Every packet has `type` and `spec_path`. Extra fields depend on the type.
 |--------|-------------|------------|
 | `CLARIFY_PACKET` | `spec-analyst` (Station 0) | `AskUserQuestion` with `questions[]`; write answers into `## Clarifications`; re-spawn analyst |
 | `DEP_PACKET` | `feature-orchestrator` (Station 1b) | Per-package Approve / Reject-alternative / Abort; write verdicts; re-spawn `MODE: build` from Station 2 |
+| `CONTINUE_PACKET` | `feature-orchestrator` (end of Station 8, `MODE: build`) | No human question. Re-spawn the orchestrator with `MODE: build`, `RESUME_AT: 9`, same `SLUG` / `SPEC_PATH` / `BRANCH` / `PARENT` / `KIT_DIR` |
 | `REVIEW_PACKET` | `feature-orchestrator` (end of 11) | Read `review_path` once; Approve / Request changes / Abort (Station 12) |
 | `ESCALATION_PACKET` | `feature-orchestrator` or a spoke that cannot proceed | `AskUserQuestion` with `errors[]` and `options[]` |
 
-Do not continue past a packet. Do not invent a fifth type.
+Do not continue past a packet. Do not invent a sixth type.
 
 ---
 
@@ -60,6 +61,23 @@ and the skill may run Station 0.5 — the analyst still must **not** set `status
 ```
 
 Returned only when `## Dependencies` has rows still `awaiting-human-approval`.
+
+---
+
+## CONTINUE_PACKET
+
+```json
+{
+  "type": "CONTINUE_PACKET",
+  "spec_path": ".spec/features/<slug>.md",
+  "resume_station": "9",
+  "checkpoint": ".spec/features/<slug>.context/orchestrator-checkpoint.md"
+}
+```
+
+Returned once per build, after Station 8. It splits the run into a build phase (Stations 1–8) and
+a verify phase (Stations 9–11) so one orchestrator context does not carry every build spawn into
+review. The checkpoint holds everything the verify phase needs; pass its path, not the chat.
 
 ---
 

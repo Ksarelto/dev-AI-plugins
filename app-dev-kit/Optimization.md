@@ -47,8 +47,10 @@ attributed station by station — see X-6.
   `scripts/build-cursor-agents.mjs` writes `<kit>/cursor-agents/` and each kit's
   `.cursor-plugin/plugin.json` points there. Claude Code keeps `agents/`. `npm run validate`
   fails when the generated files drift. Tier table in §6.
-- **Not verified:** whether Cursor accepts the `[effort=…]` / `[fast=false]` suffixes on these
-  ids for this account. Check the subagent task card on the first real run.
+- **Verified (pass 2):** `https://cursor.com/docs/context/subagents` documents the bracket syntax —
+  `model: grok-4.7[effort=high]`, `composer-2.5[fast=false]` — so the suffixes are valid, not a
+  guess. `fast` is a Composer-only flag and `fast=false` already selects the non-fast variant; no
+  Grok id in `scripts/model-tiers.json` carries it. Nothing to change.
 
 ### X-2 One-minute polling at two levels — **done (polling removed)**
 
@@ -66,7 +68,7 @@ attributed station by station — see X-6.
 - **Further (S):** resume the same orchestrator by agent id on each packet instead of spawning a
   fresh one (see S-6).
 
-### X-3 The main chat accumulates three kits' worth of context
+### X-3 The main chat accumulates three kits' worth of context — **partly done**
 
 - **Evidence:** `orchestrate-frontend/SKILL.md` Stations 1-3 invoke `generate-spec`,
   `generate-html` and `feature-dev` inline, one after another, in one conversation.
@@ -95,7 +97,7 @@ attributed station by station — see X-6.
 - **Change (S):** keep the procedure in `pipeline-flow.md`; reduce every other copy to a one-line
   pointer.
 
-### X-6 No per-station timing
+### X-6 No per-station timing — **done (timeline only)**
 
 - **Evidence:** nothing records when a station starts or ends (the pulse files that held the
   latest timestamp were removed with X-2).
@@ -367,6 +369,33 @@ feature-dev `quality-gate-runner` (backend-dev-kit and agent-dev-kit keep theirs
 
 ---
 
+## 6b. Measured run — deps-frontend (F-001, F-002), 2026-10-06
+
+Evidence from a real `.spec/` (4 slices, 1,399 requirements, 540 KB `spec.md`). F-001 was a poor
+baseline (a stale-agent rebuild, a revise pass, and agents since deleted), so F-002 is the reference.
+
+| # | Finding | Evidence | Change | Status |
+|---|---------|----------|--------|--------|
+| M-1 | Rule / permission bleed into every feature | F-001 board built 25 rules; its slice lists 9. `import-upstream.mjs` pulled any rule whose `applies-to` hits User / Organisation | Build only `rule-refs` / `permission-refs` (plus unowned ones); others become one-line *owned by SL-00N — do not build* rows. `validate-spec.mjs` warns `SLICE_RULE_MISPLACED` (catches BR-019 assigned to SL-004 but built by SL-001) | **done** |
+| M-2 | Slice briefs carried every requirement text | SL-001 brief 182 KB, 456 requirements; no consumer reads them | `requirement-ids` only + an `owners` map. Briefs 182/241/98/145 KB → 64/57/39/59 KB | **done** |
+| M-3 | Feature import re-filtered the whole spec | `import-upstream.mjs` took only `.slice` from the brief | Brief is the source; whole spec only when a passed ref is outside it (`BRIEF_FALLBACK`). A screen moved into another feature keeps its stories. Zero token effect (script) — one filter instead of two | **done** |
+| M-4 | Blackboard used as a log | F-001 board 119 KB: Gate Log 44 KB + Build Plan 31 KB of appended notes. The Read tool cannot open a section | `board.mjs`: workers read a **work card** (their rows + the sections they build from, UI Surface trimmed to their screens) and write with `row` / `append`. Gate results → `<slug>.context/gate-status.md` + `gate-log.jsonl`. One current Note per row. Card vs board: F-001 page row 40 KB vs 119 KB; F-002 six-page batch 32 KB vs 6 × 52 KB | **done** |
+| M-5 | One spawn per slice for the same change | F-001 Station 11: 8 composition spawns for one re-export; F-002 Station 6: 9 spawns for near-identical empty pages | Batch rows (same-shape slices, one delegation) and fix batches (`fix-batch-<n>.md`, one spawn per owner + layer) | **done** |
+| M-6 | `unused-export` false positives | Four `*-11-unused-export` fixes; usage ignored test files; workers self-checked before later layers imported | Tests count for segment files, never for `index.ts`; self-checks ignore it until Station 7 | **done** |
+| M-7 | Host setup failures as red gates | `.spec/**` not ignored by ESLint, `lint:fsd` missing → two Station 11 spawns | `preflight-host.mjs` (feature-dev-kit and frontend-orchestrator-kit copies): reports, the skill asks once; never edits the host | **done** |
+| M-8 | One orchestrator context for ~70 spawns | `maxTurns: 80`; F-001 log shows a stale-agent rebuild (cause not confirmed) | `CONTINUE_PACKET` after Station 8; a fresh orchestrator runs 9–11 with `RESUME_AT: 9` | **done** |
+| M-9 | Checklist YAML read into chat | 785 lines / 17 KB at Stations 0 and 2a; Station 3 unions computed by the model | `read-checklist.mjs --summary` (~1 KB) and `--payload F-NNN` | **done** |
+| M-10 | Glossary copied into every board | 25 terms, ~4 KB, read by every spawn | `<slug>.context/glossary.md`, named by path in the cards of copy-writing workers | **done** |
+| M-11 | Intermediates in the run folder | `intake.json` + `enriched.json` ≈ 1.1 MB where agents Grep | `archive-context.mjs` moves them to `.spec/processed/{spec-id}/artifacts/` at publish | **done** |
+| M-12 | Requirement register size | 1,399 entries, 320 KB. Only 8 are about the file itself and 12 are exact duplicates — the rest are real atomic facts | Exact duplicates share one REQ (`intake_refs` keeps both ids). Dropping the meta sentences would break source fidelity — not done | **partly** |
+| M-13 | Fresh chat per feature (X-3) | — | orchestrate-frontend offers *Fresh chat (recommended)* between features and after Station 2a | **done** |
+| M-14 | Timing (X-6) | — | feature-dev: `board.mjs` writes `timings.jsonl` on every card and gate (no extra turns); spec-dev / html: `log-timing.mjs` per station. Per-spawn **token** counts still need the host transcript | **done (timeline)** |
+
+Not done here: F-2 builder cards (the five references each builder reads, ~25 KB per spawn — the
+largest per-spawn cost left), and aligning backend-dev-kit's own rule-ownership filter.
+
+---
+
 ## 7. Roadmap
 
 | # | Item | Effort | Expected effect |
@@ -382,4 +411,146 @@ feature-dev `quality-gate-runner` (backend-dev-kit and agent-dev-kit keep theirs
 | 9 | X-4 / F-3 rule scoping | S/M | less always-on text in every turn |
 | 10 | H-1 / H-2 paths not pasted contracts, selective CSS reads | M | ~N× fewer duplicated prototype tokens |
 | 11 | F-1 / F-2 parallel slices, builder cards | M | shorter feature wall clock |
-| 12 | X-5 / S-8 / H-4 de-duplication | S | less text, less drift |
+| 12 | X-5 / S-8 / H-4 de-duplication | done (pass 2) | §8 |
+| 13 | P-1 prefix-cache spawn ordering | done (pass 2) | fan-out spawns reuse one cached prefix |
+| 14 | P-6 register inversion (third register copy) | M | deferred — design in §8 |
+
+---
+
+## 8. Pass 2 — fixed per-spawn context, 2026-10-06
+
+Pass 1 attacked *variable* payload (briefs, boards, checklists). What was left is **fixed** text: the
+references every spawn re-reads and the orchestrator prose that restates its own protocol. That text
+is identical on every spawn, which makes it both the cheapest thing to cut and — where it must stay —
+the best candidate for prefix caching.
+
+### P-1 Spawn prompts were not prefix-cacheable — **done**
+
+Hosts cache on the exact **leading** prefix of a prompt. Both fan-out stations put the variable
+payload first, so every sibling spawn missed the cache on text that was byte-identical.
+
+- **Evidence:** html Station 4 pasted the page slice ahead of `design_ref` + `ux_directives` +
+  `component_manifest` (~960 lines of shared text). A 10-page prototype paid that 10 times. The six
+  feature-dev builders put `CARD` ahead of the fixed contract files.
+- **Change:** shared/fixed text first, variable last, in `html-orchestrator` Station 4,
+  `screen-generator`, and all six builders. `screen-generator`'s Input section is now two tables
+  (Shared block / Per-page block) and `ux_directives` is sliced per page via a new `ux_page_section`
+  field. The ordering rule is written into both kits' `context-budget.md` so it survives an edit.
+- **Effect:** a 10-page prototype goes from 10 × ~960 lines of shared text to 1 × ~960 plus 9 cached
+  prefixes. Cache hits are host-side, so this is inferred from the documented mechanism, not measured.
+
+### P-2 Builders were told to read a file that forbids them — **done**
+
+- **Evidence:** six builder agents listed `references/development-cycle.md`, whose own line 4 reads
+  *"Spokes do not load this file. The delegation station card is enough."* The reading list and the
+  file contradicted each other, and the agent's own instructions won.
+- **Change:** dropped from all six. `fsd-architecture.md` (139) and `fsd-import-boundaries.md` (113)
+  also dropped from the build spokes — what a builder actually needs from them is now **§0 Layer
+  boundaries** inside `ui-build-contract.md`, a file every builder already reads. `code-explorer`
+  keeps `fsd-architecture.md`; it audits structure rather than building in one slice.
+- **Measured (body + mandatory references, per spawn):**
+
+| builder | before | after |
+|---|---|---|
+| composition-engineer | 651 | 355 |
+| entities-engineer | 623 | 327 |
+| shared-engineer | 539 | 357 |
+| app-engineer | 494 | 313 |
+| features-engineer | 378 | 335 |
+| test-engineer | 280 | 209 |
+| slice-engineer | 137 | **179** |
+| **total** | **3,102** | **2,075** (−33%) |
+
+  `slice-engineer` went **up** 42 lines: it reads `ui-build-contract.md` and nothing else, so it pays
+  for the new §0 without having shed anything. Accepted — it is the lightest spoke either way.
+  The §0 section is ~28 lines, not the 8-line matrix first estimated; builders genuinely need the
+  per-segment responsibility list, and 28 still replaces 252.
+
+### P-3 Orchestrators restated their own protocol — **done**
+
+- **Evidence:** `feature-orchestrator.md` re-explained gate re-run policy and station sequencing that
+  `pipeline-flow.md` already carries (~12–18 lines of true overlap — an earlier audit claimed ~90,
+  which was wrong: the station blocks hold unique spawn recipes and were kept).
+  `html-orchestrator.md` said to re-read two references *"before starting any station"*.
+- **Change:** both now read their protocol once at the start; the restatements became pointers.
+  `html-orchestrator` says explicitly *"Do not re-read either one per station"* — a 179-line file was
+  being re-opened up to eight times per run.
+- **Not done:** `spec-orchestrator.md` loop caps. They sit inline in executable pseudocode; replacing
+  them with a pointer would break the control flow being described.
+
+### P-4 Dead reference rows and one dead file — **done**
+
+`generate-html`'s companion table claimed agents load three references. `grep` says otherwise:
+`artifact-structure.md` (152 lines) had **zero** readers and is deleted; `qa-checklist.md` (138) and
+`design-system-conventions.md` (93) have zero agent readers and are now labelled *human
+documentation*. The third was missed by the first audit and found by grepping each row rather than
+trusting the table.
+
+### P-5 Always-on rules loaded outside their stack — **done**
+
+- **Evidence:** `backend-dev-kit/rules/stack.mdc` and `agent-dev-kit/rules/stack.mdc` were
+  `alwaysApply: true` with `globs: **/*.{ts,mts,mdc,md,json}`. Both were present in a frontend-only
+  session's context — observed directly, not inferred.
+- **Change:** `alwaysApply: false` plus narrow source globs (`src/http/**`, `src/db/**`, … and
+  `src/llm/**`, `src/agents/**`, …). They load when the relevant code is open, not always.
+- **Also:** `frontend-dev-kit/rules/honesty.mdc` was 42 always-on lines duplicating
+  `base-dev-kit:honesty`, with a malformed heading. Rewritten to defer the epistemic standards and
+  keep only its unique proactive-feedback constraints; `alwaysApply: false`, `**/*.{ts,tsx}`.
+
+### P-6 The synthesizer fixture was a 897-line spec — **done, via a split**
+
+- **Evidence:** `fixtures/example-spec.md` is 897 lines, read on every `spec-synthesizer` spawn
+  including up to two correction passes.
+- **First attempt was wrong.** Shrinking the file in place broke
+  `scripts/test-spec-contract.mjs`, which uses it as a **golden input**: 16 breakage mutations plus
+  the whole publish → briefs → checklist chain assert on specific ids (`SL-002`, `BR-002`, `SM-003`,
+  `REQ-004`, `AC-015`, `values: [ACTIVE, ENDED]`, `## Design Rationale`, …). Those 897 lines are test
+  coverage, not bloat — the kit README had said so all along: *"exemplar + test fixture"*. One file
+  was doing two jobs with conflicting size requirements.
+- **Change:** split them. `fixtures/example-spec.md` stays at 897 lines and keeps its single reader,
+  the contract test. `fixtures/shape-reference.md` (**347**) is new and is what the synthesizer
+  reads: all 25 sections with complete field sets and cross-references, each shown once or twice.
+  `spec-synthesizer.md` now points there and says explicitly not to open the golden fixture.
+- **Why the wording matters:** a short example teaches the model to under-produce. Both the file
+  header and the agent instruction state that entry **counts** are not a target — match the shape and
+  the per-entry detail, and carry every entry the source requires. Without that line this change
+  would have traded spec accuracy for tokens.
+- **Effect:** the synthesizer's exemplar read drops 897 → 347 lines and the contract test keeps full
+  coverage. Validated: `validate-spec.mjs` → VALID on both files; `test-spec-contract.mjs` green.
+  (Authoring the small one surfaced three real schema defects — a missing enum `values[]`, a slice
+  missing `done-when`, an unreachable state — all fixed.)
+- **Still the high-water mark:** `spec-synthesizer` is the heaviest agent in the repo at **1,654**
+  lines per spawn (265 body + `spec-schema.md` 417 + `spec-frontmatter.yaml` 288 + shape reference
+  348 + body template 76 + `pipeline-flow.md` 260). Two leads for a next pass, both found by the
+  read-budget table and neither attempted here:
+  1. `pipeline-flow.md` is cited as a *"Station reference"* in the header of every spec-dev agent.
+     If spokes do not actually need the hub's flow — and the P-2 finding says they do not — that is
+     260 lines on seven agents, the same bug class as `development-cycle.md`. Needs checking per
+     agent rather than a blanket cut, because some spec spokes do branch on station.
+  2. `spec-schema.md` (417) and the shape reference (348) overlap: one states the rules, the other
+     shows them. Merging them is plausible but touches what the synthesizer is validated against.
+
+### Deferred — register inversion (the register's third copy)
+
+The requirement register exists three times: `enriched.json`, the slice brief, and `spec.md`. M-12
+removed exact duplicates; S-2 removed one copy. The third needs an **inversion**: instead of the
+synthesizer re-emitting 1,399 `covered-by` entries, a script would walk the already-written
+`requirements`/`stories`/`acceptance-criteria` ids and compute `covered-by` from them, so the model
+writes coverage once in one direction. Not attempted here — it changes what lands in the published
+spec, and a bug would silently drop traceability. Needs its own pass with
+`test-spec-contract.mjs` extended first.
+
+### Guardrail — read-budget check in `npm run validate`
+
+The failures above are mechanical and would rot back, so `scripts/validate-marketplace.mjs` now
+checks every agent: each `references/…` / `rules/…` path it names must resolve (across kits, since
+feature-dev workers legitimately read frontend-dev-kit rules); no non-hub agent may be handed a file
+whose text says spokes must not load it; and the per-agent fixed read total is printed highest-first
+and capped at 1,800 lines. The disclaim rule was verified by reintroducing the P-2 bug and watching
+it fail. The printed table makes a regression visible in a CI diff rather than only at the ceiling.
+
+It is a tripwire, not an accounting system. It counts any backticked `references/…` path in an agent
+body, so a file merely *cited* (the `**Station reference**` header line) counts the same as one the
+agent is told to read — which is how lead 1 above was spotted. `do not open \`x.md\`` is excluded, or
+the instruction that keeps a budget down would inflate it. Treat the totals as comparable to each
+other and to their own history, not as exact prompt sizes.

@@ -34,7 +34,7 @@ The orchestrator returns a `DEP_PACKET` when unapproved packages exist. This age
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
 
 ```
 HANDOFF: <that path>

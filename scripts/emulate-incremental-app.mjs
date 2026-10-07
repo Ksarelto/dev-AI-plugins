@@ -99,6 +99,9 @@ try {
   run(join(specScripts, 'continue-spec.mjs'), ['--slug', 'campus', '--timecode', '20260101-000001'])
   const runA = '.spec/spec/spec-20260101-000001_campus'
   write(`${runA}/spec.md`, specA)
+  write(`${runA}/artifacts/intake.json`, '{}\n')
+  write(`${runA}/artifacts/enriched.json`, '{}\n')
+  write(`${runA}/artifacts/changes.json`, '{}\n')
   run(join(specScripts, 'archive-context.mjs'), ['--run', runA])
 
   const currentA = readJson('.spec/app/current.json')
@@ -109,6 +112,9 @@ try {
   assert(existsSync(join(root, `.spec/processed/${currentA.spec_id}/goal.md`)), 'context not archived')
   assert(existsSync(join(root, `.spec/processed/${currentA.spec_id}/stories.md`)), 'stories.md not archived')
   assert(existsSync(join(root, `.spec/processed/${currentA.spec_id}/screens.md`)), 'screens.md not archived')
+  assert(existsSync(join(root, `.spec/processed/${currentA.spec_id}/artifacts/intake.json`)) && !existsSync(join(root, `${runA}/artifacts/intake.json`)), 'intake.json not archived')
+  assert(existsSync(join(root, `.spec/processed/${currentA.spec_id}/artifacts/enriched.json`)), 'enriched.json not archived')
+  assert(existsSync(join(root, `${runA}/artifacts/changes.json`)), 'changes.json must stay in the run folder')
   const incA = readJson(`.spec/app/increments/${currentA.increment_id}.json`)
   assert(incA.added.stories.includes('US-001') && incA.added.screens.includes('SCR-001'), 'increment missing first ids')
 

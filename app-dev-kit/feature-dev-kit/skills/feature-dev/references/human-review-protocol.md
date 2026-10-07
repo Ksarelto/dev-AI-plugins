@@ -40,7 +40,7 @@ Is the change a minor fix (typo, style tweak, missing edge-case handling)?
          re-run gates + architecture-audit + auto-review → new REVIEW_PACKET
 
 Is the change a requirement revision (new AC, different UX, API change)?
-  YES → re-plan: update spec sections (AC, FSD Impact, Build Plan)
+  YES → re-plan: update spec sections (AC, FSD Impact, Build Plan — via board.mjs section --put)
          re-run build from affected station
          re-run gates + architecture-audit + auto-review → new REVIEW_PACKET
 ```

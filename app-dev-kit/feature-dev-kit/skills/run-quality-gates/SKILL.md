@@ -26,8 +26,9 @@ bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --from lint
 
 It emits one JSON line (`{"passed":…,"log":…,"gates":[…]}`) and writes the failing gate's full
 output to the log file — read the log only for the gate that failed. Add
-`--spec <blackboard.md> --station "Station N"` and the script appends the `## Gate Log` row itself
-(step 8 is then done). Fall back to the manual steps
+`--spec <blackboard.md> --station "Station N"` and the script records each gate in
+`<slug>.context/gate-status.md` (latest per gate) and `gate-log.jsonl` itself (step 8 is then done).
+Gate results never go onto the blackboard. Fall back to the manual steps
 below when the script is unavailable. Gate table of record:
 `{KIT_DIR}/skills/feature-dev/references/quality-gates.md`. Architecture-audit is **not** this
 script — Stations 1.5 / 9.5 spawn `architecture-auditor`.
@@ -83,12 +84,9 @@ script — Stations 1.5 / 9.5 spawn `architecture-auditor`.
    Remediation: <hint from references/quality-gates.md>
    ```
 
-8. **Append to spec gate log** at `## Gate Log`:
-   ```
-   [2026-07-09T14:32:00Z] Station 9 — PASSED|FAILED: <gate name>
-     Gates run: typecheck, lint, fsd-boundary, conventions, build, test:auto
-     Result: PASS|FAIL
-     Failures: none | <list>
+8. **Record each gate** (not on the blackboard):
+   ```bash
+   node {KIT_DIR}/skills/feature-dev/scripts/board.mjs gate .spec/features/<slug>.md --station "Station 9" --gate <gate> --result pass|fail --note "<first failure, one line>"
    ```
 
 ## Pre-conditions
@@ -99,7 +97,7 @@ script — Stations 1.5 / 9.5 spawn `architecture-auditor`.
 ## Outputs
 
 - Pass/fail report with trimmed failure details for each failed gate.
-- Timestamped entry appended to the spec's `## Gate Log` section.
+- One entry per gate in `<slug>.context/gate-log.jsonl`; `gate-status.md` shows the latest result per gate.
 
 ## What this skill does NOT do
 

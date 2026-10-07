@@ -71,7 +71,8 @@ Set `CONTEXT7_API_KEY` in the environment (see [`mcp.json`](./mcp.json) and
 ## What it produces
 
 ```
-.spec/features/<slug>.md          # the blackboard: request → criteria → plan → gate log → review
+.spec/features/<slug>.md          # the blackboard: request → criteria → plan → review
+.spec/features/<slug>.context/    # handoffs, work cards, gate-status.md + gate-log.jsonl, glossary.md, timings.jsonl
 src/shared/…                      # shadcn primitives, base api, config (only if the feature needs them)
 src/entities/<entity>/            # api + model + ui segments, public index.ts
 src/features/<slug>/              # the interaction slice
@@ -113,7 +114,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
         pipeline-flow.md                     ← CANONICAL station map (single source of truth)
         development-cycle.md                 ← outer hub loop + inner increment loop
         upstream-contract.md                 ← spawn payload + YAML field map (one feature)
-        packets.md                           ← CLARIFY / DEP / REVIEW / ESCALATION envelopes
+        packets.md                           ← CLARIFY / DEP / CONTINUE / REVIEW / ESCALATION envelopes
         orchestration-protocol.md            ← delegation contract, handoff-via-spec, escalation
         feature-spec-format.md               ← blackboard schema + status lifecycle
         fsd-architecture.md                  ← layers, slices, segments, placement rules
@@ -136,7 +137,9 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
         new-feature.sh                       ← slug guard + branch + spec scaffold
         import-upstream.mjs                  ← scoped YAML + prototype → blackboard
         validate-feature-spec.mjs            ← deterministic blackboard gate (station 0.5)
-        run-gates.sh                         ← gate sequence → JSON; failures to a log, not to context
+        run-gates.sh                         ← gate sequence → JSON; failures to a log, results to <slug>.context/gate-status.md
+        board.mjs                            ← blackboard by section: work cards, row status + one note, appends, gate status, timings
+        preflight-host.mjs                   ← host setup gaps (gate scripts, .spec lint ignore, git-ignored transcripts) before the build
         check-conventions.mjs                ← `conventions` gate: missing tests, comments, copy, exports, JSX, motion
         extract-prototype-inventory.mjs      ← prototype page → parity table; --check fails unbuilt rows/states
         mock-flow.mjs                        ← contract tests (no LLM)
@@ -189,13 +192,15 @@ feature-dev skill
       Station 1a   investigation — research-analyst      ← conditional (context7)
       Station 1b   ⇢ DEP_PACKET                          ← 🧑 GATE: dependency approval
       Station 2    planning                              ↓ GATE: build-plan
-      Station 3–7  layers                                ↓ GATE: --until fsd
+      Station 3–7  layers — each worker reads a work card ↓ GATE: --until fsd
+                   (board.mjs card), never the board; same-shape slices = one batch row
                    Station 6 fills prototype-inventory   ↓ GATE: parity (--check)
       Station 8    test-engineer (always)                 ← every new executable file
+      ⇢ RETURN CONTINUE_PACKET → fresh orchestrator for Stations 9–11 (RESUME_AT: 9)
       Station 9    full sweep — conventions + build + coverage once  ↓ GATE: all-green
       Station 9.5  architecture-auditor DIFF_SCOPE        ↓ GATE: architecture-clean
       Station 10   auto-review — code-reviewer           ↓ GATE: review-clean
-      Station 11   fix loop (failed gate + types, max 3)
+      Station 11   fix loop — one spawn per fix batch (findings grouped by owner + layer), max 3
       ⇢ RETURN REVIEW_PACKET (review_path only)
       │
 feature-dev skill

@@ -1,7 +1,7 @@
 ---
 description: Canonical stack — Node.js, TypeScript, Express 5, Drizzle, Zod, Vitest.
-globs: ["**/*.{ts,mts,mdc,md,json}"]
-alwaysApply: true
+globs: ["src/http/**", "src/db/**", "src/config/**", "src/jobs/**", "drizzle.config.ts"]
+alwaysApply: false
 ---
 
 # Stack

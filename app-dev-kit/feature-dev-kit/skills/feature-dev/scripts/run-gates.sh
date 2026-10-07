@@ -10,7 +10,8 @@
 #   --only   run exactly one gate (cannot combine with --from or --until)
 #   --log    write full output of failing gates here (default: .spec/.gate-log)
 #   --base   integration ref; the conventions gate also checks files changed since it
-#   --spec   append one row to the blackboard's `## Gate Log` table (--station labels it)
+#   --spec   record each gate in <slug>.context/gate-log.jsonl + gate-status.md (--station labels it);
+#            the blackboard itself is not written
 #
 # Gates, in order: types · lint · fsd · conventions · build · coverage
 # `conventions` runs the sibling check-conventions.mjs (no package.json script needed).
@@ -151,28 +152,17 @@ for gate in "${GATES[@]}"; do
   fi
 done
 
-if [[ -n "$spec" ]]; then
-  printf -v joined '%s, ' ${ran[@]+"${ran[@]}"}
-  row="| $(date -u +%Y-%m-%dT%H:%M:%SZ) | ${station:-—} | ${joined%, } | $([[ $overall -eq 0 ]] && echo PASS || echo FAIL) | ${failed_gate:+${failed_gate} failed — see ${log}} |"
-  node --input-type=module -e '
-    import { existsSync, readFileSync, writeFileSync } from "node:fs"
-    const [spec, row] = process.argv.slice(1)
-    let s = existsSync(spec) ? readFileSync(spec, "utf8") : ""
-    const i = s.indexOf("\n## Gate Log")
-    if (i < 0) {
-      s = s.replace(/\s*$/, "\n\n## Gate Log\n\n| Timestamp | Station | Gate | Result | Note |\n|-----------|---------|------|--------|------|\n" + row + "\n")
-    } else {
-      const next = s.indexOf("\n## ", i + 1)
-      const end = next < 0 ? s.length : next
-      s = s.slice(0, end).replace(/\s*$/, "") + "\n" + row + "\n" + s.slice(end)
-    }
-    writeFileSync(spec, s)
-  ' "$spec" "$row"
-fi
-
-printf '{"passed":%s,"log":"%s","gates":[%s]}\n' \
+summary="$(printf '{"passed":%s,"log":"%s","gates":[%s]}' \
   "$([[ $overall -eq 0 ]] && echo true || echo false)" \
   "$log" \
-  "$(IFS=,; echo "${results[*]}")"
+  "$(IFS=,; echo "${results[*]}")")"
+
+# Gate results never go onto the blackboard: board.mjs appends <slug>.context/gate-log.jsonl and
+# rewrites gate-status.md (latest per gate), so agents holding the board never see it change.
+if [[ -n "$spec" ]]; then
+  node "$SCRIPT_DIR/board.mjs" gate "$spec" --station "${station:-—}" --json "$summary" >/dev/null
+fi
+
+echo "$summary"
 
 exit $overall

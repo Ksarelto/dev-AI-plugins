@@ -63,13 +63,15 @@ Station 7    app/         (app-engineer)                ← GATE: layer-green
       ↓
 Station 8    Tests (test-engineer × layer group)        ← always spawned: every new executable file
       ↓
+  ⇢ RETURN CONTINUE_PACKET (build phase done) — the skill spawns a fresh orchestrator at Station 9
+      ↓
 Station 9    Full gate sweep (run-gates.sh, orchestrator Bash) ← GATE: all-green (conventions + build + coverage once)
       ↓
 Station 9.5  Architecture-audit changed paths (architecture-auditor, REPORT_ONLY, DIFF_SCOPE)
       ↓
 Station 10   Auto-review (code-reviewer)                ← GATE: review-clean
       ↓
-Station 11   Fix loop (owning engineer)                 ← max 3 iterations per gate
+Station 11   Fix loop (owning engineer, one spawn per fix batch) ← max 3 iterations per gate
       ↓
   ⇢ RETURN REVIEW_PACKET or ESCALATION_PACKET to the feature-dev skill, then STOP
 ──────────────────────────────────────────────────────────────────
@@ -124,8 +126,11 @@ Station 1.5 is full tier only. Scope is the paths in `## FSD Impact` plus their 
 Hard violations on those paths escalate. Unrelated legacy issues stay as notes.
 
 Gates are never an agent: the orchestrator (or the skill, on patch) runs
-`run-gates.sh … --spec {SPEC_PATH} --station "Station N"` via Bash; the script appends the
-`## Gate Log` row. Layer: `--until fsd`. Patch: `--until conventions`. Station 9: `--base {PARENT}`.
+`run-gates.sh … --spec {SPEC_PATH} --station "Station N"` via Bash; the script records each gate in
+`<slug>.context/gate-status.md` (latest per gate) and `gate-log.jsonl` — never on the blackboard.
+Non-script gates (parity, architecture-audit, auto-review) are recorded with
+`board.mjs gate <board> --station "Station N" --gate <name> --result pass|fail --note "<handoff path>"`.
+Layer: `--until fsd`. Patch: `--until conventions`. Station 9: `--base {PARENT}`.
 
 After a fix, re-run the **failed** gate plus `types`. Re-run `fsd` only if the fix touched imports.
 Re-run `coverage` only if the fix touched tests. Do not rebuild after a type error.
@@ -152,9 +157,11 @@ Same-layer slices run one after another on the feature branch. Do not use a git 
 |---------|------|
 | 4 | one `entities-engineer` per entity slice, in order, when that layer has 2+ slices |
 | 5 | one `features-engineer` per feature slice, in order, when 2+ |
-| 6 | one `composition-engineer` per widget/page, in order, when 2+ |
+| 6 | one `composition-engineer` per widget/page, in order, when 2+ — or one per **batch row** of same-shape pages/widgets |
+| 11 | one owning engineer per **fix batch** (findings grouped by agent + layer), not per finding or per slice |
 
-A single slice in a layer uses `slice-engineer`. Two slices that both edit
+A single slice in a layer uses `slice-engineer`. Same-shape slices of one layer (pages with one
+layout, the same mechanical fix in N slices) are one batch row and one spawn (`build-plan.md` rule 1). Two slices that both edit
 `shared/lib/i18n/locales/common/en.json` are not independent — sequence them.
 
 Stations 1, 1.5, 2, 3, 7, 9, 9.5, and 10 stay sequential.
@@ -170,18 +177,24 @@ Spokes return a handoff path, not a report. See `context-budget.md`.
 | `spec-analyst` | `SPEC_PATH` (already holds the imported slice), or the standalone request |
 | `code-explorer` | Acceptance criteria + Request section paths |
 | `research-analyst` | The capability gap only |
-| `shared-engineer` | Checkpoint path + its build-plan rows |
-| `entities-engineer` | Checkpoint path + its entity rows |
-| `features-engineer` | Checkpoint path + its feature rows |
-| `composition-engineer` | Checkpoint path + its screen rows + `prototype-inventory.md` path when present |
-| `app-engineer` | Checkpoint path + the app row |
+| `shared-engineer` | Checkpoint path + its card (its build-plan rows) |
+| `entities-engineer` | Checkpoint path + its card (its entity rows) |
+| `features-engineer` | Checkpoint path + its card (its feature rows) |
+| `composition-engineer` | Checkpoint path + its card (its screen rows or batch row; names `prototype-inventory.md` when present) |
+| `app-engineer` | Checkpoint path + its card (the app row) |
 | `slice-engineer` | The one `LAYER` + `SLICE` |
 | `test-engineer` | Acceptance criteria path + `SLICE_PATHS` for one layer group |
 | `architecture-auditor` | `MODE` + `SCOPE`. Diff mode also gets `DIFF_SCOPE` and `TOPICS` |
 | `code-reviewer` | Changed-file **list** + `prototype-inventory.md` path when present. It reads diffs per file |
 
+Stations 3–8 workers receive a **work card** instead of the blackboard:
+`board.mjs card <board> --row <n>[,<m>] --agent <name>` writes `<slug>.context/cards/row-<n>.md` with
+the rows plus the sections that agent builds from (UI Surface trimmed to the row's screens), and the
+paths to read on demand (glossary, prototype inventory and page, rule file). Workers write back only
+through `board.mjs row` and `board.mjs append`.
+
 After each layer, the orchestrator rewrites `orchestrator-checkpoint.md` and spawns the next
-worker with that path plus one handoff link. It does not restate earlier spoke chat.
+worker with its card path plus one handoff link. It does not restate earlier spoke chat.
 
 ---
 

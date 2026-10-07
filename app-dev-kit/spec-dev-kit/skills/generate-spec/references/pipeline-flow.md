@@ -206,16 +206,18 @@ Workers (and the skill) persist stage output so later stages read **paths**, not
     delta.yaml                 ← synthesizer, continue runs: add, modify, and removed:
     delta.md                   ← synthesizer, only when the narrative changes
     changes.json               ← merge-spec.mjs
-    intake.json                ← extract-intake.mjs + skill judgement fields (Station 1)
+    intake.json                ← extract-intake.mjs + skill judgement fields (Station 1); archived at publish
     analysis.json              ← spec-analyst (overwritten per round)
     completeness-credits.json  ← spec-completeness (category credits)
     completeness.json          ← score-completeness.mjs
     qa-log.md                  ← skill, every AskUserQuestion round (## Round {n})
     review-packet.md           ← compose-review.mjs (Station 9)
     review-changes.json        ← spec-review-facilitator apply pass
-    requirements.seed.json     ← build-enriched.mjs --seed
-    enriched.patch*.json       ← spec-enricher (edits + other sections)
-    enriched.json              ← build-enriched.mjs merge
+    requirements.seed.json     ← build-enriched.mjs --seed; archived at publish
+    enriched.patch*.json       ← spec-enricher (edits + other sections); archived at publish
+    enriched.json              ← build-enriched.mjs merge; archived at publish
+
+.spec/processed/{spec-id}/artifacts/   ← archive-context.mjs moves the four files above here after approval
 ```
 
 ---

@@ -59,7 +59,8 @@ All script and reference paths are `{KIT_DIR}/skills/generate-spec/…`. Never h
 | `references/context-budget.md` | orchestrator | payload contracts — paths, not blobs |
 | `templates/spec-frontmatter.yaml` | synthesizer (Station 6) | YAML front matter template |
 | `templates/spec-body.md` | synthesizer (Station 6) | Markdown body template (narrative only) |
-| `fixtures/example-spec.md` | synthesizer (Station 6) | a complete valid 2.0 spec — the level of detail to match |
+| `fixtures/shape-reference.md` | synthesizer (Station 6) | every 2.0 section once or twice — the shape and per-entry detail to match, not the entry count |
+| `fixtures/example-spec.md` | nothing — `scripts/test-spec-contract.mjs` golden input | a full 897-line spec whose ids the contract test asserts against |
 | `scripts/gate-check.mjs` | orchestrator (Stations 2–3, Bash) | deterministic clarification-loop decision |
 | `scripts/validate-spec.mjs` | orchestrator (Station 7, Bash) | structure, contract quality, coverage, delivery plan |
 | `scripts/render-spec-views.mjs` | orchestrator (Station 9), publish | `spec.views.md` human tables + all Mermaid diagrams |
@@ -71,6 +72,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-spec/…`. Never h
 | `scripts/build-enriched.mjs` | orchestrator (Stations 4–5, Bash) | seed one REQ per intake entry; merge enricher patches into `enriched.json` |
 | `scripts/score-completeness.mjs` | orchestrator (Station 5, Bash) | fidelity + weighted score → `completeness.json` |
 | `scripts/compose-review.mjs` | orchestrator (Station 9, Bash) | review packet text → `artifacts/review-packet.md` |
+| `scripts/log-timing.mjs` | orchestrator (every station, Bash) | appends `{station, at}` to `{RUN_DIR}/artifacts/timings.jsonl` — a measurement, never read by an agent |
 | `scripts/write-kit-result.mjs` | this skill (publish or abort) | `{RUN_DIR}/kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 
 ---
@@ -201,7 +203,8 @@ node {KIT_DIR}/skills/generate-spec/scripts/publish-spec.mjs {RUN_DIR}/spec.md
 Exit 0: `status` is `approved`. Continue. Exit 1: `status` is `reviewing` again. Show the
 validator errors to the human. Do not archive. Do not write an approved envelope. Stop.
 
-2. Archive the inbox and move the shared pointer. Do this only after exit 0. An abort leaves
+2. Archive the inbox (and the run's `intake.json` / `enriched*.json` / `requirements.seed.json`)
+   and move the shared pointer. Do this only after exit 0. An abort leaves
    `.spec/context/` in place and does not change `current.json`.
 
 ```bash

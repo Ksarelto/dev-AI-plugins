@@ -3,7 +3,7 @@
 // Usage: node mock-flow.mjs
 // Exit 0 = all checks passed. Exit 1 = a check failed.
 
-import { readFileSync, writeFileSync, existsSync, readdirSync, copyFileSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, readdirSync, copyFileSync, cpSync, mkdtempSync, rmSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
@@ -27,7 +27,7 @@ const inventoryScript = join(here, 'extract-prototype-inventory.mjs')
 
 const EXTERNAL_SKILLS = new Set(['testing', 'code-review', 'architecture-audit'])
 const HUMAN_ONLY = new Set(['create-pr'])
-const PACKET_TYPES = ['CLARIFY_PACKET', 'DEP_PACKET', 'REVIEW_PACKET', 'ESCALATION_PACKET']
+const PACKET_TYPES = ['CLARIFY_PACKET', 'DEP_PACKET', 'REVIEW_PACKET', 'ESCALATION_PACKET', 'CONTINUE_PACKET']
 const STATION_NEEDLES = [
   'Station 0', 'import-upstream.mjs', 'spec-analyst', 'Station 0.5',
   'Station 1', 'code-explorer', 'Station 1.5', 'architecture-auditor',
@@ -273,7 +273,35 @@ if (goodRun.status === 2) {
   if (badRun.status !== 1) fail(`check-conventions must exit 1 on the bad fixture (got ${badRun.status})`)
   else if (missing.length) fail(`check-conventions missed rules on the bad fixture: ${missing.join(', ')}`)
   else pass(`check-conventions catches all ${expected.length} rules on the bad fixture`)
+
+  // unused-export: a segment file's export used only by its own test passes; an index.ts export
+  // used only by a test is still a finding; --ignore unused-export (worker self-check) drops it.
+  const scratch = mkdtempSync(join(conventionsFixtures, '.tmp-'))
+  try {
+    cpSync(join(conventionsFixtures, 'good'), scratch, { recursive: true })
+    const orders = join(scratch, 'src/features/orders')
+    writeFileSync(join(orders, 'api/fetchers.ts'), `${readFileSync(join(orders, 'api/fetchers.ts'), 'utf8')}\nexport const ordersPath = 'orders'\n`)
+    writeFileSync(join(orders, 'api/tests/fetchers.test.ts'), readFileSync(join(orders, 'api/tests/fetchers.test.ts'), 'utf8')
+      .replace("import { placeOrder } from '../fetchers'", "import { ordersPath, placeOrder } from '../fetchers'")
+      .replace("expect(http.post).toHaveBeenCalledWith('orders'", 'expect(http.post).toHaveBeenCalledWith(ordersPath'))
+    writeFileSync(join(orders, 'index.ts'), "export { PlaceOrder } from './ui/place-order'\nexport { placeOrder } from './api/fetchers'\n")
+    writeFileSync(join(orders, 'ui/place-order/place-order.test.tsx'), `import { placeOrder } from '@/features/orders'\n${readFileSync(join(orders, 'ui/place-order/place-order.test.tsx'), 'utf8')}\nvoid placeOrder\n`)
+    const run = (extra) => JSON.parse(node(conventionsScript, ['--root', scratch, '--all', '--json', ...extra]).stdout || '{}')
+    const unused = (run([]).findings ?? []).filter((f) => f.rule === 'unused-export')
+    if (unused.some((f) => f.file.endsWith('api/fetchers.ts'))) fail('unused-export flagged a segment export that its own test imports')
+    else if (!unused.some((f) => f.file.endsWith('orders/index.ts'))) fail('unused-export must still flag an index.ts export that only a test imports')
+    else pass('unused-export counts tests for segment files, not for index.ts')
+    if ((run(['--ignore', 'unused-export']).findings ?? []).some((f) => f.rule === 'unused-export')) fail('--ignore unused-export did not drop the rule')
+    else pass('--ignore unused-export drops the rule for layer self-checks')
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
 }
+
+// preflight-host.mjs ships in feature-dev-kit and frontend-orchestrator-kit; the copies must match.
+const preflightCopy = join(repoRoot, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/preflight-host.mjs')
+if (readFileSync(join(here, 'preflight-host.mjs'), 'utf8') !== readFileSync(preflightCopy, 'utf8')) fail('preflight-host.mjs copies differ between feature-dev-kit and frontend-orchestrator-kit')
+else pass('preflight-host.mjs copies match')
 
 const budget = readFileSync(join(skillDir, 'references/context-budget.md'), 'utf8')
 if (!budget.includes('HANDOFF:')) fail('context-budget.md missing HANDOFF return')
@@ -500,6 +528,59 @@ ui-surface:
     }
   } finally {
     rmSync(tmp, { recursive: true, force: true })
+  }
+}
+
+// --- 5b. board.mjs: cards, single-note rows, appends, gate status off the board ---
+{
+  const tmpBoard = mkdtempSync(join(tmpdir(), 'feature-dev-board-'))
+  try {
+    const boardScript = join(here, 'board.mjs')
+    const board = join(tmpBoard, 'demo.md')
+    const ctx = join(tmpBoard, 'demo.context')
+    writeFileSync(board, readFileSync(join(skillDir, 'templates/feature-spec.md'), 'utf8')
+      .replace('## UI Surface\n\n<one screen: id, title, route, states, components. prototype-page if PROTOTYPE_REF bound>',
+        '## UI Surface\n\n- screen-ref: SCR-001\n- title: Settings\n- route: /settings\n\n- screen-ref: SCR-002\n- title: Help\n- route: /help\n\n- screen-ref: SCR-003\n- title: Orders\n- route: /orders'))
+    const plan = join(tmpBoard, 'plan.md')
+    writeFileSync(plan, [
+      '**Strategy**: one engineer per layer.', '',
+      '| # | Station | Layer | Slice | Segments | Agent | Group | Status | Note |',
+      '|---|---------|-------|-------|----------|-------|-------|--------|------|',
+      '| 1 | 3 | shared | ui | Dialog | shared-engineer | — | todo | |',
+      '| 2 | 6 | pages | settings, help | ui | composition-engineer | B1 | todo | |', '',
+      '### Not building', '', '- Dark mode.',
+    ].join('\n'))
+    const b = (...a) => node(boardScript, a)
+    const put = b('section', board, '--put', 'Build Plan', '--from', plan)
+    const card = b('card', board, '--row', '2', '--agent', 'composition-engineer')
+    const cardPath = put.status === 0 && card.status === 0 ? JSON.parse(card.stdout).card : ''
+    const cardText = cardPath && existsSync(cardPath) ? readFileSync(cardPath, 'utf8') : ''
+    if (!cardText.includes('| 2 | 6 | pages | settings, help') || cardText.includes('| 1 | 3 | shared') || cardText.includes('## Gate Log') || !cardText.includes('Dark mode.')) {
+      fail(`board.mjs card must carry only its rows, the Not building list, and no Gate Log: ${card.stderr}`)
+    } else pass('board.mjs card carries its rows and sections, not the board')
+    if (!cardText.includes('- screen-ref: SCR-001') || !cardText.includes('- screen-ref: SCR-002')) fail('batch card dropped a screen of its batch row')
+    else if (cardText.includes('- screen-ref: SCR-003')) fail('batch card kept a screen outside its batch row')
+    else pass('batch card keeps exactly the screens of its batch row')
+    b('row', board, '--row', '2', '--status', 'in-progress', '--note', 'first')
+    b('row', board, '--row', '2', '--status', 'done', '--note', 'pages built')
+    const rowLine = readFileSync(board, 'utf8').split('\n').find((l) => l.startsWith('| 2 |')) ?? ''
+    if (!/\| done \| pages built \|$/.test(rowLine) || rowLine.includes('first')) fail(`board.mjs row must replace the note, not append: ${rowLine}`)
+    else pass('board.mjs row keeps one current note per row')
+    b('append', board, '--section', 'Reuse Map', '--line', '| Dialog | `@/shared/ui/dialog` | reuse |')
+    if (!readFileSync(board, 'utf8').includes('| Dialog | `@/shared/ui/dialog` | reuse |')) fail('board.mjs append did not add the Reuse Map row')
+    else pass('board.mjs append adds a Reuse Map row')
+    const before = readFileSync(board, 'utf8')
+    b('gate', board, '--station', 'Station 3', '--json', '{"passed":true,"log":".spec/.gate-log","gates":[{"gate":"types","status":"pass","duration_s":1}]}')
+    b('gate', board, '--station', 'Station 9', '--json', '{"passed":false,"log":".spec/.gate-log","gates":[{"gate":"types","status":"fail","duration_s":1}]}')
+    const status = existsSync(join(ctx, 'gate-status.md')) ? readFileSync(join(ctx, 'gate-status.md'), 'utf8') : ''
+    if (readFileSync(board, 'utf8') !== before) fail('board.mjs gate wrote the blackboard')
+    else if (!/\| types \| fail \| Station 9 \|/.test(status) || /\| types \| pass/.test(status)) fail(`gate-status.md must hold only the latest result per gate: ${status}`)
+    else pass('gate results go to gate-status.md (latest per gate), not the board')
+    const timings = existsSync(join(ctx, 'timings.jsonl')) ? readFileSync(join(ctx, 'timings.jsonl'), 'utf8').trim().split('\n') : []
+    if (!timings.some((l) => l.includes('"event":"spawn"')) || !timings.some((l) => l.includes('"event":"gate"'))) fail('timings.jsonl missing spawn / gate events')
+    else pass('timings.jsonl records spawns and gates')
+  } finally {
+    rmSync(tmpBoard, { recursive: true, force: true })
   }
 }
 
