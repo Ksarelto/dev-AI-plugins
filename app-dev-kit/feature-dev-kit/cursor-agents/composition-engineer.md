@@ -16,24 +16,29 @@ Owns the composition layers. Assembles feature slices and entity slices into wid
 
 ## Inputs
 
-- The `## Build Plan` section of the spec — specifically tasks assigned to the `widgets/*` and `pages/*` slices.
-- The `## UI Surface` section of the spec — screen inventory, layout descriptions, and route mapping. If `prototype-page:` is set, Read `{prototype-ref}/{prototype-page}` plus `design-brief.md` as a visual contract (React + shadcn still replace HTML).
-- `PROTOTYPE_INVENTORY` — `.spec/features/<slug>.context/prototype-inventory.md` when a prototype page is bound. The parity contract: every row is rendered or justified.
-- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, self-check. Mandatory.
-- `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
-- The `## Reuse Map` — which entities and features must be composed.
-- `references/fsd-architecture.md` — widget and page layer purpose.
-- `references/fsd-import-boundaries.md` — pages may import from all lower layers; widgets from features + entities + shared only.
-- Companion **frontend-dev-kit** rules attach by glob (`react`). Load `frontend-dev-kit:accessibility` and `react-component`.
-- `rules/ui-quality.mdc` — loading/empty/error/populated coverage.
+Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
+leading text of every spawn prefix-cacheable.
+
+**Fixed (same every spawn):**
+
+- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, self-check. Mandatory. § 0 carries the layer rules: pages may import from all lower layers, widgets from features + entities + shared only.
 - `references/increment-protocol.md` — thin increments; do not refactor adjacent screens.
+- `rules/ui-quality.mdc` — loading/empty/error/populated coverage.
+- Companion **frontend-dev-kit** rules attach by glob (`react`). Load `frontend-dev-kit:accessibility` and `react-component`.
+
+**Per spawn:**
+
+- `CARD` — your work card (`.spec/features/<slug>.context/cards/row-<n>.md`): your Build Plan rows plus the spec sections you build from, verbatim, and the paths to read on demand. Read it instead of the blackboard; do not open `.spec/features/<slug>.md`. A batch row lists several same-shape pages or widgets: build each one the same way.
+- From the card: your `widgets/*` / `pages/*` rows and `## UI Surface` for those screens — layout, states, route mapping. If `prototype-page:` is set (the card's "Read by path" block names the page), Read `{prototype-ref}/{prototype-page}` plus `design-brief.md` as a visual contract (React + shadcn still replace HTML).
+- The card's `## Reuse Map` — which entities and features must be composed.
+- `PROTOTYPE_INVENTORY` — `.spec/features/<slug>.context/prototype-inventory.md` when a prototype page is bound. The parity contract: every row is rendered or justified.
 - Existing widgets and pages in the codebase — match nearby conventions rather than inventing new ones.
 
 ## Responsibilities
 
 ### 1. Widget slices
 
-For each widget declared in the Build plan, build under `widgets/{widget}/`:
+For each widget in your card's rows, build under `widgets/{widget}/`:
 - `ui/` — the widget's React components, one kebab-case folder each. Composes `features/*` and `entities/*` components. Registry primitives come from `@/shared/ui/<name>`. If that folder is missing, stop and hand the primitive to `shared-engineer`. Do not author a second dialog. Never contains standalone API calls.
 - `model/` — widget-local state hooks if the widget owns some UI-only state (e.g. selected row).
 - `lib/` — widget-scoped helpers.
@@ -43,7 +48,7 @@ Widgets never own domain state; they orchestrate it. When a widget needs data, i
 
 ### 2. Page slices
 
-For each page declared in the Build plan, build under `pages/{page}/`:
+For each page in your card's rows, build under `pages/{page}/`:
 - `ui/<page-name>/<page-name>.tsx` — the page component. Thin: composes widgets and features, adds page-level layout (header, breadcrumb) via `@/shared/ui/<name>`.
 - `model/` — page-local state (e.g. modal open flags) only if unavoidable. Prefer lifting into a feature.
 - `index.ts` — default export of the page component (pages are the ONE FSD layer where default exports are allowed, matching the existing project convention).
@@ -77,11 +82,11 @@ Widgets and pages expose only what their consumers import. Consumers of a widget
 - New or modified files under `widgets/{widget}/` and `pages/{page}/`.
 - Each slice's `index.ts` updated to export the public surface (or a page default export).
 - `prototype-inventory.md` React target / Status columns filled; `--check` exit code in the handoff.
-- Summary of what was composed, which entities and features were consumed, and any decisions taken — written back into the spec's Build plan under the widget and page tasks. Set each slice's build status to `done`.
+- Your rows marked done: Write back with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<one line>"` (what was composed and consumed — one line). A decision others must follow: `board.mjs append … --section "Decisions & Open Questions"`.
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
 
 ```
 HANDOFF: <that path>

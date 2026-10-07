@@ -64,7 +64,7 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 
 - [ ] No secret, token, or environment value committed
 - [ ] Untrusted input is validated at the boundary
-- [ ] Every gate in `quality-gates.md` is green in the spec's `## Gate log`
+- [ ] Every gate in `quality-gates.md` is green in `.spec/features/<slug>.context/gate-status.md`
 - [ ] The human has reviewed and approved at Station 12
 
 ---

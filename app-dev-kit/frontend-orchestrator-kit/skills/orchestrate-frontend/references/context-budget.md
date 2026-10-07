@@ -22,15 +22,19 @@ Companion schema: `result-envelope.md` (canonical copy lives in
    transcript. Progress otherwise lives in `task-checklist.md`.
 3. Skill-tool arguments are structured **paths and ids**: `SPEC_PATH`, `FEATURE_ID`,
    `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`,
-   `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`.
-   Not file contents. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
+   `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`,
+   `PREFLIGHT`. Not file contents. `read-checklist.mjs --payload` prints the block; this skill does
+   not assemble the unions. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
 4. `REQUEST` to feature-dev is at most **one line** naming the task id and the files to read.
    `import-upstream.mjs` already writes stories/ACs onto the blackboard from `UPSTREAM_SPEC`.
 5. `build-checklist.mjs` reads `spec.md` from disk. This skill does not parse YAML stories
    into chat in order to derive tasks.
-6. Station 2a presents checklist **id / title / priority** from the YAML `features[]` — not the
-   spec body.
-7. Station 4 report is paths + checklist counts + branch names from the checklist file.
+6. Station 0 and 2a read `read-checklist.mjs --summary`, never the checklist YAML, and present
+   **id / title / priority** and task titles from it — not the spec body.
+7. Station 4 report is paths + checklist counts + branch names from `read-checklist.mjs --summary`.
+8. Between features, offer a fresh chat (`/orchestrate-frontend {slug}` resumes from the checklist
+   and envelopes). The callee skill bodies and returns of every finished feature stay in this
+   conversation otherwise.
 
 ---
 

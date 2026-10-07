@@ -65,7 +65,9 @@ for feature in features (in file order):
   set feature.status = in-progress; persist checklist
   do not check out develop / main / master between features
 
-  spawn feature-dev-kit:feature-dev once for this feature (nested tasks are not extra calls):
+  before the first feature of the run: preflight-host.mjs once (ask once on issues)
+  print the field block: read-checklist.mjs CHECKLIST_PATH --payload feature.id
+  spawn feature-dev-kit:feature-dev once for this feature (nested tasks are not extra calls) with it:
     REQUEST:        one line — feature id + "nested tasks in CHECKLIST_PATH; read UPSTREAM_SPEC"
     UPSTREAM_SPEC:  {spec.md path}
     FEATURE_ID:     feature.id
@@ -86,7 +88,7 @@ for feature in features (in file order):
   wait for it to return
   run update-checklist.mjs --result RESULT_OUT --fallback feature kit-result.json
   follow printed next:
-    continue → if more features remain: AskUserQuestion continue / pause / abort
+    continue → if more features remain: AskUserQuestion fresh chat (recommended) / continue here / pause / abort
     rerun    → re-invoke this feature once from its checkpoint
     ask      → ask once; do not start the next feature
     stop     → STOP (envelope aborted); do not start the next feature

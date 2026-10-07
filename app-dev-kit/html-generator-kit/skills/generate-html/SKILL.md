@@ -37,12 +37,10 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 |------|-----------|------|
 | `references/pipeline-flow.md` | this skill, orchestrator | before starting — single source of truth for station sequence, gates, and invariants |
 | `references/context-budget.md` | orchestrator | payload contracts — paths and slices, not the full spec on the hub |
-| `references/artifact-structure.md` | documentation | output directory layout — do not load into agents |
-| `references/design-system-conventions.md` | `design-strategist`, `screen-generator` | OKLCH token system, CSS conventions |
 | `references/alpine-interaction-patterns.md` | `screen-generator` (Station 4) | Alpine.js x- directives, store calls |
 | `references/interaction-conventions.md` | `screen-generator` (Station 4) | data hook naming for QA + verification |
 | `references/accessibility.md` | `screen-generator` (Station 4) | a11y requirements and landmark structure |
-| `references/qa-checklist.md` | `qa-prototype.mjs` (Station 6) | structured pass/fail scoring (script doc, not an agent read) |
+| `references/qa-checklist.md`, `design-system-conventions.md` | **nothing — human documentation** | what `qa-prototype.mjs` checks, and the OKLCH token system the CSS templates encode. Never load these into an agent; the operative copies are the script and `templates/*-css.md` |
 | `references/verification-protocol.md` | orchestrator (Station 6.5) | headless-browser verification via `scripts/verify-prototype.mjs` |
 | `references/ui-ux-pro-max.md` | this skill (Step 2.5), `design-strategist` | install/resolve the design-intelligence dependency, query recipes, token mapping, degradation |
 | `templates/design-brief.md` | `design-strategist` (Station 1.5) | output format for design-brief.md, incl. the `## Slots` JSON |
@@ -58,6 +56,7 @@ All script and reference paths are `{KIT_DIR}/skills/generate-html/…`. Never h
 | `scripts/qa-prototype.mjs` | orchestrator (Station 6, Bash) | static QA → `{passed, critical_issues, warnings}` |
 | `scripts/finalize-prototype.mjs` | this skill (Step 5, Bash) | `README.md` + `page-map.json` |
 | `scripts/verify-prototype.mjs` | orchestrator (Station 6.5, Bash) | renders prototype + runs axe + screenshots |
+| `scripts/log-timing.mjs` | orchestrator (every station, Bash) | appends `{station, at}` to `{OUTPUT_DIR}/timings.jsonl` — a measurement, never read by an agent |
 | `scripts/write-kit-result.mjs` | this skill (finalize or abort) | `{spec dir}/html-kit-result.json` path-only envelope for frontend-orchestrator-kit / app-orchestrator-kit |
 | `scripts/clone-prototype.mjs` | this skill (Step 2, append) | copy prior prototype dir before adding screens |
 | `scripts/record-prototype.mjs` | this skill (Step 5) | write `prototype_ref` into `.spec/app/current.json` |

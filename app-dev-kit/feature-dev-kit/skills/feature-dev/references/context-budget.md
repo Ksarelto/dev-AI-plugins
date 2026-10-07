@@ -28,6 +28,16 @@ Directory: `.spec/features/<slug>.context/`
 | `architecture-auditor-<station>.md` | `architecture-auditor` | the full architecture report. The blackboard stores this path plus one summary line |
 | `orchestrator-checkpoint.md` | `feature-orchestrator` | current station, status, decisions, next action, links to spoke handoffs |
 | `session.md` | `feature-dev` skill | where the human-facing run left off, which packet is pending, links only |
+| `cards/row-<n>.md` | `board.mjs card` (orchestrator) | one delegation's rows plus the sections that agent builds from — the worker's only view of the board |
+| `fix-batch-<n>.md` | `feature-orchestrator` (Station 11) | one owning agent's findings, one line each |
+| `gate-status.md`, `gate-log.jsonl` | `run-gates.sh --spec` / `board.mjs gate` | latest result per gate; full gate history |
+| `glossary.md` | `import-upstream.mjs` | the spec glossary, read by path by workers that write copy |
+| `timings.jsonl` | `board.mjs` (card, gate, timing) | spawn and gate timeline per station — measure before optimizing |
+
+A handoff file is **at most ~15 lines**: outcome, paths touched, decisions, open questions. Name a
+gate and its result (`lint: pass`); never copy gate output, Gate Log rows, or the row's Build Plan
+note into it — each fact is written once (gate → `gate-status.md`, row state → `board.mjs row`,
+detail → the handoff).
 
 Chat return from any spoke, at most five lines:
 
@@ -50,46 +60,64 @@ Packets stay small JSON. `REVIEW_PACKET.review_path` points at the review handof
 
 The spec file at `.spec/features/<slug>.md` is the shared state for decisions. Chat history is never a handoff medium. Long artifacts live in `.spec/features/<slug>.context/`.
 
-- Workers receive **only the section paths they need to read**, not the full spec content.
-- Workers write directly to their assigned sections; the orchestrator does not proxy writes.
-- The orchestrator reads the checkpoint and the sections it needs for the next station — not the entire spec every hop.
+- The Read tool cannot open one section of a file, so "read sections X, Y" alone still costs the
+  whole board. Section access is a script: `scripts/board.mjs`.
+- Pre-build workers (Stations 0–1b) edit their assigned sections directly.
+- Build workers (Stations 3–8) get a **work card** — `board.mjs card <board> --row <n> --agent <name>`
+  writes `<slug>.context/cards/row-<n>.md` with their rows and the sections in the table below,
+  verbatim. They never Read or Edit the board. They write back with `board.mjs row` (Status + one
+  current Note) and `board.mjs append` (`Reuse Map`, `Decisions & Open Questions`) — atomic script
+  writes, so nobody holds a stale copy.
+- Gate results never go onto the board (`run-gates.sh --spec` / `board.mjs gate` →
+  `<slug>.context/gate-status.md` + `gate-log.jsonl`).
+- The orchestrator reads the checkpoint and `board.mjs section <board> --get "<Header>"` for what it needs — not the entire spec every hop.
 - Cross-kit: return `.spec/features/{slug}.kit-result.json` (paths + outcome) to `orchestrate-frontend`.
   Never paste the blackboard or a diff into the parent conversation.
 
 ## Per-worker input allowlist
 
-The delegation template already lists SPEC + TARGET + APPLY + BOUNDARY + RETURN. This rule adds a required `SPEC_SECTIONS` field.
+Stations 0–1b delegations name `SPEC_SECTIONS` (read / write). Stations 3–8 delegations name a
+`CARD` instead — the card *is* the allowlist:
 
 ```
 OBJECTIVE: <one sentence>
-SPEC: .spec/features/<slug>.md
-SPEC_SECTIONS:
-  read:  <exact section headers the worker needs>
-  write: <exact section headers the worker will update>
-TARGET: <layer>/<slice>/<segment>
+CARD: .spec/features/<slug>.context/cards/row-<n>.md
+TARGET: <layer>/<slice>[, <slice>…]/<segment>
 APPLY: skill: <one skill>
 BOUNDARY: <paths>
 RETURN: HANDOFF path + one CONTAINS line. No file bodies, diffs, or command output.
 ```
 
-Workers open the spec sections they were named, and never scan sections outside their allowlist. They do not `Read` rule files; globs already attach them. `APPLY` names one skill.
+Workers read the card and the paths its "Read by path" block names, when they need them. On
+Cursor, rule files attach by glob; on Claude they do not, so the card names the rule file a
+worker must read. `APPLY` names one skill.
+
+**Fixed text first, card last.** Every worker's agent body puts its fixed reads
+(`ui-build-contract.md`, `increment-protocol.md`, the glob rules) ahead of the per-spawn `CARD`.
+The fixed part is byte-identical across every spawn of that role, so the host serves it from its
+prompt cache after the first one — a batched row or a 9-spawn layer pays for the contract once.
+Keep the delegation fields in the order above and do not inline card content into `OBJECTIVE`;
+either makes each prefix unique and loses the discount.
 
 ## Layer-specific slices
 
-| Worker | read sections | write sections |
-|--------|--------------|----------------|
+Every card also carries Request, Clarifications, and Decisions & Open Questions (binding human
+input), the Build Plan preamble, and its `### Not building` list. `board.mjs` owns the exact map.
+
+| Worker | reads (card for Stations 3–8) | writes |
+|--------|------------------------------|--------|
 | `spec-analyst` | Request, Clarifications, Acceptance criteria, UI surface, API contract | those same sections; never status `approved` |
 | `code-explorer` | Request, Acceptance criteria, UI surface | FSD Impact, Reuse map, UI surface (refine), Decisions |
 | `research-analyst` | FSD Impact, API contract, UI surface | Tech Investigation, Dependencies |
-| `shared-engineer` | Dependencies, Reuse map, Build plan (shared row) | Build plan (shared row), Gate log |
-| `entities-engineer` | API contract, Data model, Reuse map, Build plan (entity rows) | Build plan (entity rows), Gate log |
-| `features-engineer` | UI surface (interaction slices), Build plan (feature rows) | Build plan (feature rows), Gate log |
-| `composition-engineer` | UI surface (this screen), Reuse map, Build plan (widget/page rows) | Build plan (widget/page rows), Gate log |
-| `app-engineer` | UI surface (route map), Build plan (app row) | Build plan (app row), Gate log |
-| `slice-engineer` | The sections for its LAYER + SLICE only | Build plan (its row), Gate log |
-| `test-engineer` | Acceptance criteria, Build plan | Build plan (test rows), Gate log |
+| `shared-engineer` | card: Acceptance criteria, FSD Impact, API contract, Reuse map, Dependencies | `board.mjs row` (its rows), `append` Reuse Map |
+| `entities-engineer` | card: Acceptance criteria, FSD Impact, API contract, Reuse map | `board.mjs row`, `append` Reuse Map |
+| `features-engineer` | card: Acceptance criteria, FSD Impact, API contract, UI surface (its screens), Reuse map | `board.mjs row`, `append` Reuse Map |
+| `composition-engineer` | card: Acceptance criteria, FSD Impact, API contract, UI surface (its screens), Reuse map | `board.mjs row`, `append` Reuse Map |
+| `app-engineer` | card: Acceptance criteria, FSD Impact, UI surface (route map), Reuse map | `board.mjs row` |
+| `slice-engineer` | card: every build section | `board.mjs row`, `append` Reuse Map |
+| `test-engineer` | card: Acceptance criteria, UI surface | `board.mjs row` (test rows) |
 | `architecture-auditor` | FSD Impact paths (full-tier baseline) or changed-file list (diff) | **none on the blackboard** — writes the report to its handoff file |
-| `feature-orchestrator` | Build plan, Gate log, status, Human Review, checkpoint | `.spec/features/<slug>.md` and `.spec/features/<slug>.context/` (never `src/`) |
+| `feature-orchestrator` | Build plan, `gate-status.md`, status, Human Review, checkpoint — via `board.mjs section --get` | `.spec/features/<slug>.md` and `.spec/features/<slug>.context/` (never `src/`) |
 
 Anything outside the listed sections is off-limits without an explicit orchestrator note extending the allowlist.
 
@@ -110,11 +138,19 @@ diff-size guard still applies per path; do not invent a second triage agent.
   - `LAYER_GROUP`: one of `shared` / `entities` / `features` / `composition` / `app`
   - `SLICE_PATHS`: [ `src/{layer}/{slice}`, ... ]
   - `COVERAGE_TARGETS`: from `quality-gates.md`
-- The invocation writes coverage results per slice into the spec's Gate log before returning.
+- The invocation writes coverage results per slice into its handoff (one line per slice); the Station 9 coverage gate records the gate result.
 
 ## Slice workers
 
-Each worker receives only its own slice's `SPEC_SECTIONS`. Do not inline every slice's sections into one worker.
+Each worker receives only its own rows' card. Do not inline every slice's sections into one worker.
+A batch row (same-shape slices, `build-plan.md` rule 1) is one card and one worker.
+
+## Fix batches (Station 11)
+
+Group every open finding (gate, architecture-audit, code-review, parity) by owning agent and layer.
+Write each group to `<slug>.context/fix-batch-<n>.md` (one line per finding: path, rule, what to
+change) and spawn **one** owning engineer per batch with that path and a card for the affected
+rows. The same finding in N sibling slices is one batch, not N spawns.
 
 ## Prototype inventory
 
@@ -142,6 +178,9 @@ read only by `composition-engineer` (and the browser check), never by the orches
 | Return command output or file contents to the orchestrator | Return `HANDOFF` + `CONTAINS`; the next agent opens the file only if named |
 | Say "follow the project conventions" instead of naming rule files | An unnamed rule loads nothing — that is starvation |
 | Inline the same reference into every parallel worker | Pass the path; each worker loads it in its own window |
+| Point a build worker at the blackboard | Pass its card (`board.mjs card`); the board holds every other row and section |
+| Spawn one fixer per finding or per slice for the same change | One fix batch per owning agent + layer |
+| Write gate rows or row history onto the board | `gate-status.md` / `gate-log.jsonl`; one current Note per row |
 
 ## When context conflicts
 

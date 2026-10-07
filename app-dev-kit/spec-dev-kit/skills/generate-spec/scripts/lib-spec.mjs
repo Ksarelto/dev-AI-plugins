@@ -229,6 +229,13 @@ export function sliceBrief(fm, slice, specPath = '') {
   ])
   const touching = (items) => list(items).filter((x) => has(kept, x?.affects))
 
+  // Context rules / permissions (pulled in through a shared entity or endpoint) → the slice that
+  // lists them. Consumers build only their own refs and show these as "owned by another slice".
+  const ownerOf = (key, id) => slices.find((s) => list(s?.[key]).includes(id))?.id ?? ''
+  const owners = {}
+  for (const r of rules) if (!ruleIds.has(r.id)) owners[r.id] = ownerOf('rule-refs', r.id)
+  for (const p of permissions) if (!permIds.has(p.id)) owners[p.id] = ownerOf('permission-refs', p.id)
+
   return {
     brief: BRIEF_ENVELOPE,
     spec: specPath,
@@ -247,11 +254,13 @@ export function sliceBrief(fm, slice, specPath = '') {
     glossary: list(fm.glossary),
     'user-stories': list(fm['user-stories']).filter((s) => storyIds.has(s?.id)),
     'acceptance-criteria': acs,
-    requirements: list(fm.requirements).filter((r) => has(kept, r?.['covered-by'])),
+    // Ids only: no build kit reads requirement text, and the register is sentence-level.
+    'requirement-ids': list(fm.requirements).filter((r) => has(kept, r?.['covered-by'])).map((r) => r.id),
     entities,
     'state-machines': machines,
     'business-rules': rules,
     permissions,
+    owners,
     endpoints: apis,
     screens,
     interactions,

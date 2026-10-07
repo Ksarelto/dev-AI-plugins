@@ -38,7 +38,7 @@ Station 7. Invoke with or after `add-route` to make the new page discoverable in
 
 6. **Run `yarn typecheck`**: verify the nav config is type-safe.
 
-7. **Update the spec `## Build Plan`**: mark navigation tasks as done.
+7. **Mark your Build Plan rows done**: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<files — one line>"`.
 
 ## Pre-conditions
 

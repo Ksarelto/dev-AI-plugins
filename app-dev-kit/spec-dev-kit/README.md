@@ -93,7 +93,8 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
         spec-frontmatter.yaml
         spec-body.md                       ← narrative only; never restates the YAML
       fixtures/
-        example-spec.md                    ← complete valid 2.0 spec (exemplar + test fixture)
+        shape-reference.md                 ← every 2.0 section once or twice (read by the synthesizer)
+        example-spec.md                    ← full 2.0 spec, golden input for test-spec-contract.mjs
       scripts/
         continue-spec.mjs                  ← Station 0 scaffold + prior index
         extract-intake.mjs                 ← Station 0 slug hint, Station 1 atomic split → intake.json

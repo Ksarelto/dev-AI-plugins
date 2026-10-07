@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Station 4 requirements register, deterministic part. Every intake raw_requirements entry becomes
-// one REQ (source: stated, source_ref file#Lline, intake_refs) so source fidelity holds by
-// construction; spec-enricher writes only judgement — requirement_edits plus the other sections.
+// one REQ (source: stated, source_ref file#Lline, intake_refs) — entries with the same text share
+// one REQ and list every intake id — so source fidelity holds by construction; spec-enricher writes only judgement — requirement_edits plus the other sections.
 //
 // Seed:  node build-enriched.mjs --intake <intake.json> --seed <requirements.seed.json> [--prior-index <p>]
 //        → prints {"count":N,"next":"REQ-0NN"}; the enricher numbers its additions from `next`.
@@ -38,7 +38,23 @@ const reqId = (n) => `REQ-${String(n).padStart(3, '0')}`
 
 const KIND_TYPE = { metric: 'nfr', behavior: 'behavior', rule: 'rule', constraint: 'constraint', nfr: 'nfr', data: 'data', copy: 'copy' }
 const OPTIONAL = /\b(nice[- ]to[- ]have|optional|later|eventually|if time|phase 2|v2|could)\b/i
-const seed = (readJson(intakePath).raw_requirements ?? []).map((r, i) => ({
+// The same sentence stated in two source files is one requirement: the first keeps the id and
+// source_ref, and every copy's intake id goes into intake_refs, so source fidelity still holds.
+const normText = (t) => String(t ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+const firstByText = new Map()
+const unique = []
+for (const r of readJson(intakePath).raw_requirements ?? []) {
+  const key = normText(r.text)
+  const first = key ? firstByText.get(key) : undefined
+  if (first) {
+    first.copies.push(r.id)
+    continue
+  }
+  const entry = { ...r, copies: [] }
+  if (key) firstByText.set(key, entry)
+  unique.push(entry)
+}
+const seed = unique.map((r, i) => ({
   id: reqId(start + i),
   type: KIND_TYPE[r.kind_hint] ?? 'behavior',
   text: r.text,
@@ -48,7 +64,7 @@ const seed = (readJson(intakePath).raw_requirements ?? []).map((r, i) => ({
   source_ref: `${r.source_file}#L${r.source_line}`,
   priority: r.scope_hint === 'non-goal' ? 'wont' : OPTIONAL.test(r.text) ? 'could' : /\bshould\b/i.test(r.text) ? 'should' : 'must',
   scope: r.scope_hint === 'non-goal' ? 'non-goal' : 'in',
-  intake_refs: [r.id],
+  intake_refs: [r.id, ...r.copies],
 }))
 const next = reqId(start + seed.length)
 

@@ -22,7 +22,7 @@ The `orchestrate-frontend` skill (or a human invoking `/feature-dev` with the sa
 | `FEATURE_ID` | when from frontend-orchestrator-kit | Checklist feature id, e.g. `F-001` |
 | `TASK_IDS` | when from frontend-orchestrator-kit | Nested task ids, comma-separated, e.g. `T-001,T-002` |
 | `SCREEN_REFS` | when the feature has screens | Nested `ui-surface.screens[].id` values, e.g. `SCR-001,SCR-002` |
-| `SLICE_REF` | spec 2.0 checklists | Delivery slice id, e.g. `SL-002`. The import reads `{spec dir}/slices/{SLICE_REF}.yaml` (else the slice in the spec) for the goal, frontend steps, rules, and notifications. `done-when` AC bodies are always included. Slice `api-refs` are unioned with the screens' `api-refs`. With no `SCREEN_REFS`, the slice's screens are imported |
+| `SLICE_REF` | spec 2.0 checklists | Delivery slice id, e.g. `SL-002`. The import reads `{spec dir}/slices/{SLICE_REF}.yaml` as the source for every section (the whole spec when the brief is missing, or when a passed ref is outside the brief — a screen moved into this feature at Station 2a; it prints `WARN [BRIEF_FALLBACK]`) for the goal, frontend steps, rules, and notifications. `done-when` AC bodies are always included. Slice `api-refs` are unioned with the screens' `api-refs`. With no `SCREEN_REFS`, the slice's screens are imported |
 | `STORY_REFS` / `AC_REFS` / `ENTITY_REFS` | from the checklist | Unions of the nested tasks' refs. When passed they win over any derivation. `AC_REFS` is still unioned with the slice's `done-when`. Checklist `entity-refs` already include the slice's `entity-refs` |
 | `CHANGE` | only for a removal | `remove` when a nested task `change` is `remove`. Delete those screens' pages and routes. Do not scaffold a replacement. Not an `import-upstream.mjs` flag |
 | `PROTOTYPE_REF` | optional | `.spec/prototype/{proto-tc}_{slug}/` or empty — html-generator's own timecode |
@@ -30,6 +30,7 @@ The `orchestrate-frontend` skill (or a human invoking `/feature-dev` with the sa
 | `SLUG_HINT` | yes for a checklist feature | kebab-case feature slug; never the app `metadata.slug` |
 | `PARENT_BRANCH` | when HEAD is already `feature/*` | Branch to `git checkout` before `checkout -b`. Empty on the first feature |
 | `RESULT_OUT` | optional | Extra copy of `kit-result.json` (orchestrator `{checklist dir}/results/{feature.id}.json`) |
+| `PREFLIGHT` | optional | `accepted` when the caller already showed the `preflight-host.mjs` issues and the human chose to continue — this skill reports them without asking again |
 | `KIT_DIR` | — | **Not passed.** This skill resolves the plugin root itself (see skill Step 0) |
 
 Direct `/feature-dev "free text"` with no feature fields: glob an approved spec **and** a
@@ -54,14 +55,16 @@ Do not look for a `## UI Surface` heading in the app spec — it does not exist 
 | `ui-surface.screens[]` (incl. `page-type`, `primary-entity`, `roles`) | `## UI Surface` | **only** `SCREEN_REFS` |
 | `ui-surface.interactions[]` | `## UI Surface` | `screen-ref` is in `SCREEN_REFS` |
 | `user-stories[]` | `## Request` | `STORY_REFS`, else the stories of the kept ACs |
-| `acceptance-criteria[]` | `## Acceptance Criteria` | `AC_REFS`, always unioned with the slice's `done-when`; else (2.0) ACs of the screens' `story-refs` ∩ the slice's stories; else (1.x) keyword match on the screen |
-| `entities[]` (fields, `values`, `derived`) | `## API Contract / Data Model` | `ENTITY_REFS`; else screens' `primary-entity` (2.0); else names in `components[]` (1.x) |
+| `acceptance-criteria[]` | `## Acceptance Criteria` | `AC_REFS`, always unioned with the slice's `done-when`; else (2.0) ACs of the screens' `story-refs` ∩ the slice's stories (a screen that is not one of the slice's screens keeps all its stories); else (1.x) keyword match on the screen |
+| `entities[]` (fields, `values`, `derived`) | `## API Contract / Data Model` | `ENTITY_REFS`; else screens' `primary-entity` plus the slice's `entity-refs` (2.0, same as the checklist); else names in `components[]` (1.x) |
 | `api-surface.endpoints[]` (roles, error codes + copy) | `## API Contract / Data Model` | screens' `api-refs` union the slice's `api-refs` (2.0); else path/body mentions a kept entity (1.x; `mutations` merged by id) |
 | `state-machines[]` | `### Status lifecycle` | machines of the kept entities |
-| `business-rules[]` | `### Rules the UI must surface` | `applies-to` a kept entity / endpoint / screen, or in the slice's `rule-refs` |
-| `permissions[]` | `### Permissions` | `refs` touch a kept screen or endpoint |
+| `business-rules[]` | `### Rules the UI must surface` | With `SLICE_REF`: the slice's `rule-refs`, plus touching rules no slice lists. Without: `applies-to` a kept entity / endpoint / screen |
+| `business-rules[]` | `### Rules owned by other slices (context — do not build)` | `SLICE_REF` only: rules that touch a kept entity / endpoint / screen but another slice lists — one line each, `- BR-019 (SL-004): <first sentence>` |
+| `permissions[]` | `### Permissions` | With `SLICE_REF`: the slice's `permission-refs`, plus touching ones no slice lists. Without: `refs` touch a kept screen or endpoint |
+| `permissions[]` | `### Permissions owned by other slices (context — do not build)` | `SLICE_REF` only: one line each, `- PERM-004 (SL-004): <action>` |
 | `notifications[]` | `### Notifications (copy)` | effects of the kept state machines, or the slice's `notification-refs` |
-| `glossary[]` | `### Glossary` | all (short) |
+| `glossary[]` | `{slug}.context/glossary.md`, referenced from `### Glossary` by path | all — the same for every feature, so it is not copied into the board. Work cards name the path for workers that write copy |
 
 Do **not** copy screens that belong to another feature. A Sign-in feature must not list Building
 catalogue when that screen is not in `SCREEN_REFS`.

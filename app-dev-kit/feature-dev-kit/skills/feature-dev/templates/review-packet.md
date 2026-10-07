@@ -30,7 +30,7 @@ carries that path, not this body. The `feature-dev` skill reads the file once at
 | pages | profile-review | modified |
 | app | routes | modified |
 
-### Gate log
+### Gates (from `.spec/features/<slug>.context/gate-status.md`)
 | Gate | Result | Note |
 |------|--------|------|
 | typecheck | ✅ | — |

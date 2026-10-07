@@ -53,6 +53,8 @@ polling — the outcome is whatever that kit's envelope file says after the retu
 | `references/checklist-format.md` | this skill | reading/writing `task-checklist.md` |
 | `scripts/build-checklist.mjs` | this skill (Bash) | deterministic UI-task derivation / re-derivation |
 | `scripts/update-checklist.mjs` | this skill (Station 0/3, Bash) | feature status + `## Log` write-back; maps the feature-dev envelope |
+| `scripts/read-checklist.mjs` | this skill (Stations 0, 2a, 3, Bash) | `--summary` (feature/task lines, counts, first open feature, spec-newer flag) and `--payload F-NNN` (the Station 3 field block) — the YAML is never read into chat |
+| `scripts/preflight-host.mjs` | this skill (before the first Station 3 feature, Bash) | host setup gaps that would turn into red gates; same script feature-dev-kit runs |
 | `scripts/write-kit-result.mjs` | this skill (Station 4 or abort) | run-level envelope for `orchestrate-app` |
 
 This kit has **no agents of its own**.
@@ -68,6 +70,7 @@ This kit has **no agents of its own**.
 | FSD host (before Station 3) | `src/app`, `src/pages`, `src/features`, `src/entities`, `src/shared` | STOP — feature-dev-kit does not clone a starter |
 | `frontend-dev-kit` (before Station 3) | `architecture-audit` skill resolvable | STOP — required companion |
 | Clean git tree (before each Station 3 spawn) | `git status --porcelain` | AskUserQuestion: commit, stash, or abort — do not invoke feature-dev |
+| Host setup (once per run, before the first Station 3 feature) | `node {KIT_DIR}/skills/orchestrate-frontend/scripts/preflight-host.mjs` (exit 0) | Exit 1: one `AskUserQuestion` listing each `ISSUE` and its `fix` — **Apply the fixes** · **Continue anyway** (pass `--preflight accepted` to every `read-checklist.mjs --payload` this run) · **Abort**. Apply means editing the host; a `lint:fsd` tool choice or a new package is the human's pick |
 
 Do not pre-install a delegated kit’s own dependencies (`ui-ux-pro-max`, shadcn MCP) — each kit
 resolves those at run time.
@@ -109,14 +112,15 @@ A fresh session starts by reading `.spec/app/current.json`. Do not recover the s
    When `spec_path` is set and the argument is omitted or equals `slug`, use that path.
    The checklist is `.spec/app/task-checklist.md` (not beside the spec folder).
    If the argument matches `slug`:
-   - Read the checklist YAML **only** (id/title/status/paths — not a dump of the spec).
+   - `node {KIT_DIR}/skills/orchestrate-frontend/scripts/read-checklist.mjs {CHECKLIST_PATH} --summary` —
+     do not Read the checklist YAML.
    - `SPEC_PATH` = `spec-ref`. If that file is missing, STOP.
    - Read `status:` from the spec **front matter only**. If it is not `approved`, STOP — finish
      `/generate-spec` first.
-   - If `spec.md` is newer than checklist `updated`, or `build-checklist.mjs` would add/block
+   - If the summary says `spec-newer-than-checklist: true`, or `build-checklist.mjs` would add/block
      tasks: `AskUserQuestion` — **Re-derive checklist** (run Station 2a, keep existing
      `done`/`skipped` ids) · **Resume as-is** · **Abort**.
-   - Otherwise jump to **Station 3** at the first **feature** whose `status` is not `done` or `skipped`.
+   - Otherwise jump to **Station 3** at the summary's `first-open` feature.
      Treat leftover `in-progress` as the first item to re-offer (do not mark it `done`).
      When that feature is `in-progress`, decide from its envelope (`.spec/app/results/{feature.id}.json`,
      fallback `.spec/features/{slug}.kit-result.json`): present → run the Station 3 step 6
@@ -203,11 +207,18 @@ Nested tasks stay screen-level. No API-only or agent-only stories.
 Exit 1 — no buildable (non-`wont`) screens — report `SPEC_PATH` and stop.
 Exit 2 — parse/usage failure — report the error lines and stop.
 
-On exit 0, Read `task-checklist.md` YAML `features[]`. Present each feature **id, title, priority**
-and its nested task titles via one `AskUserQuestion`: **Approve as-is** · **Edit** (relay free
-text; you may move a task between features in the YAML; re-present) · **Abort**.
+On exit 0, run `read-checklist.mjs {CHECKLIST_PATH} --summary` (do not Read the YAML). Present each
+feature **id, title, priority** and its nested task titles from that output via one `AskUserQuestion`: **Approve as-is** · **Edit** (relay free
+text; you may move a task between features in the YAML — keep the moved task's own `slice-ref`;
+re-present the summary) · **Abort**.
+
+After approval, the parent conversation holds the spec-dev and html-generator skill bodies. Say once:
+`Checklist approved. For a smaller context, continue in a fresh chat: /orchestrate-frontend {slug}`.
+Then continue here unless the human stops.
 
 ### Station 3 — Feature loop
+
+Before the first feature of this run, run the host preflight (Prerequisites table) once.
 
 For each feature in checklist order, skipping `done` / `skipped`. One `feature-dev` call per
 feature. Nested tasks are not separate calls, branches, or commits.
@@ -226,7 +237,13 @@ Every checklist write in this station goes through one script (status, log line,
    `new-feature.sh` will exit 1 if you skip this.
 4. `--status in-progress`.
    Do **not** check out the integration branch between features. Stay on the current HEAD.
-5. Invoke `feature-dev-kit:feature-dev` with **paths and ids only**:
+5. Print the field block — do not assemble the ref unions yourself:
+
+   ```bash
+   node {KIT_DIR}/skills/orchestrate-frontend/scripts/read-checklist.mjs {CHECKLIST_PATH} --payload {feature.id} [--preflight accepted]
+   ```
+
+   Invoke `feature-dev-kit:feature-dev` with exactly that output (paths and ids only). Its fields:
 
    ```
    REQUEST:        Feature {feature.id} ({feature.slug-hint}). Nested tasks in CHECKLIST_PATH. Read UPSTREAM_SPEC.
@@ -243,10 +260,11 @@ Every checklist write in this station goes through one script (status, log line,
    SLUG_HINT:      {feature.slug-hint}
    PARENT_BRANCH:  {current HEAD when it is feature/*; empty on the first feature}
    RESULT_OUT:     {dirname(CHECKLIST_PATH)}/results/{feature.id}.json
+   CHANGE:         remove   (only when a nested task change is remove)
+   PREFLIGHT:      accepted (only when the human chose Continue anyway at the preflight)
    ```
 
-   If a nested task `change` is `remove`, also pass `CHANGE: remove` (those screen refs are deletions). Do not pass `CHANGE` otherwise.
-   Pass the ref unions from the checklist (after any Station 2a edit) so feature-dev builds exactly
+   The ref unions come from the checklist (after any Station 2a edit), so feature-dev builds exactly
    what the human approved instead of re-deriving it.
 
    Do **not** paste user stories, ACs, or spec YAML into `REQUEST`. feature-dev’s
@@ -260,9 +278,13 @@ Every checklist write in this station goes through one script (status, log line,
    - `ask` → ask once (retry or skip). Do not start the next feature.
    - `stop` → STOP. Do not start the next feature.
 7. If features remain: `AskUserQuestion` —
-   "Feature {n}/{total} is committed on {branch}. Continue cuts the next branch with checkout -b
-   on top of this one. Continue, pause, or abort?"
-   - **Continue** → next feature (stacked on the current feature branch).
+   "Feature {n}/{total} is committed on {branch}. The next feature is cut with checkout -b on top
+   of this one. Continue in a fresh chat (recommended), continue here, pause, or abort?"
+   - **Fresh chat** (recommended) → write the run-level envelope as for **Pause**, then tell the
+     human: `Open a new chat and run /orchestrate-frontend {slug}` — Station 0 resumes at the next
+     feature from the checklist and envelopes. This chat carries every prior feature's skill text
+     and returns; a new one starts empty. STOP.
+   - **Continue here** → next feature (stacked on the current feature branch).
    - **Pause** → write the run-level envelope (`outcome: approved` if any feature `done`, else
      `aborted`) and STOP. Re-running `/orchestrate-frontend {slug}` resumes here.
    - **Abort** → write envelope `aborted`; STOP; checklist stays as-is.
@@ -286,7 +308,7 @@ node {KIT_DIR}/skills/orchestrate-frontend/scripts/write-kit-result.mjs \
 
 If `RESULT_OUT` was passed, also `--also {RESULT_OUT}`.
 
-Read the checklist file. Report **paths and counts only**:
+Run `read-checklist.mjs {CHECKLIST_PATH} --summary`. Report **paths and counts only**:
 
 ```
 ✅ Frontend pipeline run for {slug}

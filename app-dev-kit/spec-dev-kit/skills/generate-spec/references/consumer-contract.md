@@ -58,6 +58,12 @@ briefs existed), filter the spec by the slice's refs — same result.
 **Build what `slice.*-refs` lists; everything else in the brief is context.** (A brief includes,
 for example, an endpoint of another slice because a screen in this slice calls it.)
 
+`owners` maps each context rule and permission (one pulled in through a shared entity or
+endpoint, not listed in this slice's `rule-refs` / `permission-refs`) to the slice that lists it,
+or `""` when no slice does. Show those as "owned by {slice} — do not build"; build an unowned one.
+`requirement-ids` lists the requirement ids this slice covers — ids only; look a text up with
+`lookup-spec.mjs --ids`.
+
 html-generator-kit does not read a slice brief. It builds one page for every `ui-surface.screens[]`
 row on the approved spec. The html-generator column is what those pages show, not a per-slice read.
 

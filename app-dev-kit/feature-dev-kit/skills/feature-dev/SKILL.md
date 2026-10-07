@@ -37,16 +37,17 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 | Path | Loaded by | When |
 |------|-----------|------|
 | `references/pipeline-flow.md` | orchestrator, once | canonical station order, tiers, gates, loop guards. This skill does not load it into the main chat |
-| `references/development-cycle.md` | this skill, orchestrator, build engineers | outer + inner implement loops |
+| `references/development-cycle.md` | this skill, orchestrator | outer + inner implement loops. **Not** a spoke read — the station card plus `ui-build-contract.md` is enough |
 | `references/upstream-contract.md` | this skill, `spec-analyst` | spawn payload and YAML field map |
 | `references/packets.md` | this skill, orchestrator, spec-analyst, research-analyst | packet types the hub may return |
-| `references/orchestration-protocol.md` | orchestrator | delegation format, handoff-via-spec, retry/escalation |
+| `references/orchestration-protocol.md` | orchestrator | delegation format, handoff-via-spec, retry/escalation. Listed in the orchestrator's own Inputs — this skill does not load it |
 | `references/feature-spec-format.md` | `spec-analyst` (Station 0), all workers | the blackboard schema every section must satisfy |
-| `references/fsd-architecture.md` | every build engineer | layers, slices, segments, where code belongs |
-| `references/fsd-import-boundaries.md` | build engineers | the import matrix + boundary lint config |
+| `references/fsd-architecture.md` | `code-explorer` (Station 1) | layers, slices, segments, where code belongs. Build engineers get the compact rules from `ui-build-contract.md` § 0 |
+| `references/fsd-import-boundaries.md` | host setup, Station 11 boundary fixes | the import matrix + Steiger / ESLint config. Build engineers use `ui-build-contract.md` § 0 |
 | `references/investigation-protocol.md` | `research-analyst` (Station 1a) | context7 flow, dependency proposal format |
 | `references/quality-gates.md` | orchestrator / this skill on a red gate (Stations 3–9) | gate commands, thresholds, per-failure remediation |
 | `references/definition-of-done.md` | orchestrator (Station 11), `code-reviewer` | the standing bar every increment clears |
+| `references/ui-build-contract.md` | every engineer that writes `src/` | the one build-time contract for a spoke: layer + segment rules (§ 0), shadcn fidelity, copy, boundaries, tests, parity, self-check |
 | `references/increment-protocol.md` | every build engineer | thin-slice discipline inside one slice |
 | `references/human-review-protocol.md` | this skill (Station 12) | what the human is shown and which decisions are offered |
 | `references/context-budget.md` | orchestrator, once | handoff-by-link contract and per-agent section allowlists |
@@ -59,7 +60,9 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 | `scripts/new-feature.sh` | this skill (Station 0, Bash) | slug + branch + spec scaffold |
 | `scripts/import-upstream.mjs` | this skill (Station 0, Bash) | scoped YAML + prototype → blackboard |
 | `scripts/validate-feature-spec.mjs` | this skill (Station 0.5, Bash) | deterministic blackboard validation |
-| `scripts/run-gates.sh` | orchestrator, this skill on patch (Bash) | runs the gate sequence, emits JSON; `--spec` appends the Gate Log row |
+| `scripts/run-gates.sh` | orchestrator, this skill on patch (Bash) | runs the gate sequence, emits JSON; `--spec` records each gate in `<slug>.context/gate-status.md` + `gate-log.jsonl` (not on the board) |
+| `scripts/board.mjs` | orchestrator, build workers (Bash) | section get/put, `card` (a worker's rows + sections), `row` (Status + one Note), `append`, `gate`, `timing` |
+| `scripts/preflight-host.mjs` | this skill (Step 1, Bash) | reports host setup gaps (gate scripts, `.spec` lint ignore, git-ignored transcripts) before any build |
 | `scripts/write-kit-result.mjs` | this skill (Station 12 approve or abort) | `.spec/features/{slug}.kit-result.json` path-only envelope |
 
 `{KIT_DIR}/rules/` holds only `ui-quality` and `git-workflow`. Do not name rule files in `APPLY`.
@@ -80,6 +83,7 @@ Never copy those files here.
 | shadcn registry lookup returns a component | see `references/mcp-servers.md` — call search/list before Station 0 | STOP — do not start intake, and do not hand-write primitives |
 | context7 MCP responding | see `references/mcp-servers.md` | Warn; Station 1a falls back to web search |
 | Working tree clean | `git status --porcelain` | Ask the human to commit or stash first |
+| Host setup | `node {KIT_DIR}/skills/feature-dev/scripts/preflight-host.mjs` (exit 0) | Exit 1: one `AskUserQuestion` listing each `ISSUE` and its `fix` — **Apply the fixes** (edit the host; a `lint:fsd` tool or any new package still needs the human's pick and Station 1b approval) · **Continue anyway** · **Abort**. Skip the question when the caller passed `PREFLIGHT: accepted` — report the issues in one line instead |
 
 A spec from `/generate-spec` at the `spec_path` in `.spec/app/current.json` (`.spec/spec/spec-*/spec.md`) is **optional but preferred**. When
 frontend-orchestrator-kit (or the human) also passes `FEATURE_ID` / `SCREEN_REFS`, Station 0 imports
@@ -112,7 +116,7 @@ Tell the user to reload the window. If `architecture-audit` still does not resol
 
 Structured fields (from frontend-orchestrator-kit or the human) may accompany the argument: `UPSTREAM_SPEC`,
 `FEATURE_ID`, `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`,
-`PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`.
+`PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`, `PREFLIGHT`.
 `REQUEST` may be a one-line pointer when `UPSTREAM_SPEC` + `FEATURE_ID` are set — do not expect
 an inlined spec body. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
 See `references/upstream-contract.md`.
@@ -246,6 +250,7 @@ BRANCH:      {branch}
 PARENT:      {PARENT}
 KIT_DIR:     {resolved plugin root}
 SESSION:     .spec/features/{slug}.context/session.md   (omit if it does not exist)
+RESUME_AT:   9   (only when re-spawning after a CONTINUE_PACKET)
 
 Read pipeline-flow.md once. Run the stations for this TIER.
 Return one packet per references/packets.md (paths only) and STOP.
@@ -267,6 +272,7 @@ Loop on the returned packet's `type`. Every re-spawn follows Spawning above.
 | Packet | This skill |
 |--------|------------|
 | `DEP_PACKET` | Present each package; Approve / Reject — find an alternative / Abort. Record verdicts in `## Dependencies`, re-spawn `MODE: build` from Station 2. |
+| `CONTINUE_PACKET` | No question. Re-spawn the orchestrator with the same fields plus `RESUME_AT: 9` (fresh context for Stations 9–11). |
 | `REVIEW_PACKET` | If UI changed, run the browser check below. Failures go back as `MODE: revise`, not to the human. Pass → Step 5. |
 | `ESCALATION_PACKET` | `AskUserQuestion` with `errors[]` and `options[]`. Apply the choice or STOP. |
 
@@ -382,8 +388,8 @@ be typed by a human.
 | "No shadcn MCP" | Merge `{KIT_DIR}/mcp.json` into root `.mcp.json`; see `references/mcp-servers.md` |
 | "architecture-audit not found" | Companion install below. Cursor: symlink then reload. Claude: `/plugin install frontend-dev-kit@dev-AI-plugins` |
 | Pipeline seems stuck | Check for a pending `AskUserQuestion` — answer it to continue |
-| Same gate fails 3× | Expected escalation. Read the gate log in the spec; the plan or spec is usually wrong |
-| Orchestrator returned no packet | It hit a hard stop — read the spec's `Gate log` and `status` |
+| Same gate fails 3× | Expected escalation. Read `.spec/features/<slug>.context/gate-status.md` (and the failed block in `.spec/.gate-log`); the plan or spec is usually wrong |
+| Orchestrator returned no packet | It hit a hard stop — read `gate-status.md`, the checkpoint, and the board `status` |
 | Worker touched files outside its slice | The delegation was under-specified; tighten `BOUNDARY` per `templates/delegation-message.md` |
 | Import dumped every app screen | Pass `FEATURE_ID` / `SCREEN_REFS` and `--require-scoped` |
 | Coverage stuck below threshold | Do not weaken thresholds — find the untested branches listed in the gate output |

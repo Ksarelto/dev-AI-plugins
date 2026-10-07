@@ -55,8 +55,8 @@ prototype-ref: .spec/prototype/{tc}_{slug}/        # or none
 | `## Reuse Map` | code-explorer | Existing slices/components that can be reused | Table: item → source location |
 | `## Tech Investigation` | research-analyst | Findings from context7/web research | Free prose + links |
 | `## Dependencies` | research-analyst | Proposed new packages with proposal table | See investigation-protocol.md |
-| `## Build Plan` | Orchestrator (station 2) | Station-by-station task list with assigned slices | Numbered steps with checkboxes |
-| `## Gate Log` | run-gates.sh `--spec` | Result of each quality gate run | Table: gate, result, notes |
+| `## Build Plan` | Orchestrator (station 2); each row's Status / Note by its worker via `board.mjs row` | Station-by-station task list with assigned slices | Table, one current Note per row (see build-plan.md) |
+| `## Gate Log` | — | Pointer only. Results live in `<slug>.context/gate-status.md` (latest per gate) and `gate-log.jsonl`, written by `run-gates.sh --spec` / `board.mjs gate` | One fixed paragraph |
 | `## Human Review` | Orchestrator (end of 11) | Review packet emitted to human | See packets.md + review-packet.md |
 | `## Decisions & Open Questions` | Any agent | Architectural decisions made; unresolved items | Bullet list with owner |
 
@@ -65,6 +65,11 @@ prototype-ref: .spec/prototype/{tc}_{slug}/        # or none
 ## Handoff Rule
 
 A worker agent MUST update its owned section(s) before returning control to the orchestrator. Returning without writing to the spec is a protocol violation. The orchestrator will re-delegate if the section is missing.
+
+Pre-build workers (Stations 0–1b) edit their sections directly. Build workers (Stations 3–8) never
+open the board: they read their work card (`board.mjs card`) and write back only with
+`board.mjs row` (their rows' Status and Note) and `board.mjs append` (`Reuse Map`,
+`Decisions & Open Questions`). Each write is one atomic script call, so no agent holds a stale copy.
 
 The orchestrator may write **only** this blackboard file (Build Plan, status, Human Review). It never writes `src/`.
 

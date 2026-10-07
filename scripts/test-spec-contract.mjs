@@ -57,6 +57,11 @@ try {
     assert(run.status === 1 && out.errors.some((e) => e.includes(`[${code}]`)), `${code} did not fire: ${out.errors.join(' | ')}`)
   }
 
+  // 1b. Warnings: a rule listed in a slice that builds none of its targets.
+  write('broken/SLICE_RULE_MISPLACED.md', base.replace('      rule-refs: []', '      rule-refs: [BR-002]'))
+  const misplaced = JSON.parse(node(S('validate-spec.mjs'), [join(root, 'broken/SLICE_RULE_MISPLACED.md'), '--json']).stdout)
+  assert(misplaced.warnings.some((w) => w.includes('[SLICE_RULE_MISPLACED] SL-001 lists BR-002') && w.includes('SL-002 builds it')), `SLICE_RULE_MISPLACED did not fire: ${misplaced.warnings.join(' | ')}`)
+
   // 2. gate-check: assumable gaps proceed; high+blocking gaps ask even with a default; cap proceeds.
   const gap = (id, severity, extra = {}) => ({ gap_id: id, severity, status: 'open', blocks_synthesis: false, can_assume_default: true, ...extra })
   const gate = (analysis, round) => {
@@ -81,6 +86,8 @@ try {
   assert(brief.brief === 'app-dev-kit/slice-brief/v1' && brief.slice.id === 'SL-002', 'brief envelope wrong')
   assert(brief['business-rules'].length === 3 && brief['state-machines'].some((m) => m.id === 'SM-003'), 'brief missing rules / state machines')
   assert(brief['depends-on'][0]?.id === 'SL-001', 'brief missing depends-on')
+  assert(!('requirements' in brief) && brief['requirement-ids'].includes('REQ-004'), `brief should carry requirement ids only: ${JSON.stringify(brief['requirement-ids'])}`)
+  assert(brief.owners && typeof brief.owners === 'object', 'brief missing owners map')
   assert(existsSync(join(root, run, 'slices/SL-001.yaml')), 'SL-001 brief missing')
 
   // 4. Orchestrators plan from the delivery plan.
@@ -95,6 +102,15 @@ try {
   assert(detailTask && detailTask['entity-refs'].includes('Listing') && detailTask['entity-refs'].includes('BorrowRequest'), `SCR-003 entity-refs ${JSON.stringify(detailTask?.['entity-refs'])}`)
   assert(detailTask?.['ac-refs']?.includes('AC-015'), `SCR-003 ac-refs missing done-when AC-015: ${JSON.stringify(detailTask?.['ac-refs'])}`)
   assert(checklist.features[1].tasks.find((t) => t['screen-ref'] === 'SCR-003')['story-refs'].join() === 'US-003', 'SCR-003 in SL-002 should only carry US-003')
+  const readChecklist = join(repo, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/read-checklist.mjs')
+  const summary = node(readChecklist, ['.spec/app/task-checklist.md', '--summary'])
+  assert(summary.status === 0 && summary.stdout.includes(`first-open: ${checklist.features[0].id} (pending)`) && summary.stdout.includes('(SL-002; depends-on'), `read-checklist --summary: ${summary.stdout}${summary.stderr}`)
+  const payload = node(readChecklist, ['.spec/app/task-checklist.md', '--payload', checklist.features[1].id])
+  const field = (k) => payload.stdout.match(new RegExp(`^${k}:\\s*(.*)$`, 'm'))?.[1] ?? ''
+  const tasks1 = checklist.features[1].tasks
+  assert(field('SLICE_REF') === 'SL-002' && field('SCREEN_REFS') === tasks1.map((t) => t['screen-ref']).join(','), `payload refs: ${payload.stdout}`)
+  assert(field('AC_REFS') === [...new Set(tasks1.flatMap((t) => t['ac-refs']))].join(','), 'payload AC_REFS is not the task union')
+  assert(!/^CHANGE:/m.test(payload.stdout) && !/^PREFLIGHT:/m.test(payload.stdout), 'payload printed an empty optional field')
 
   execFileSync('node', [join(repo, 'app-dev-kit/app-orchestrator-kit/skills/orchestrate-app/scripts/analyze-capabilities.mjs'), join(root, run, 'spec.md')], { encoding: 'utf8' })
   const plan = fm(join(root, '.spec/app/work-plan.md'))
@@ -122,6 +138,14 @@ try {
     assert(fboard.includes(want), `feature board missing "${want}"`)
   }
   assert(!fboard.includes('[AC-010]'), 'feature board imported an AC of another slice')
+  assert(fe.stdout.includes('SOURCE: brief SL-002'), `feature import did not read the slice brief: ${fe.stdout}`)
+  const ownedSection = fboard.split('### Permissions owned by other slices (context — do not build)')[1]?.split('###')[0] ?? ''
+  assert(/PERM-00\d \(SL-001\)/.test(ownedSection), `feature board should list SL-001 permissions as owned by another slice: ${ownedSection}`)
+  assert(!/^- PERM-00[124] /m.test(fboard.split('### Permissions (hide or disable')[1]?.split('###')[0] ?? ''), 'feature board builds a permission another slice owns')
+  assert(existsSync(join(root, '.spec/features/request-and-answer.context/glossary.md')) && fboard.includes('request-and-answer.context/glossary.md'), 'glossary not written by path')
+  const moved = node(join(repo, 'app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/import-upstream.mjs'),
+    ['--spec', `${run}/spec.md`, '--out', '.spec/features/moved.md', '--slug', 'moved', '--screen-refs', 'SCR-004,SCR-005', '--slice-ref', 'SL-002', '--require-scoped'])
+  assert(moved.status === 0 && moved.stderr.includes('BRIEF_FALLBACK') && moved.stdout.includes('SOURCE: spec'), `moved screen did not fall back to the spec: ${moved.stderr}`)
 
   const feNarrow = node(join(repo, 'app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/import-upstream.mjs'),
     ['--spec', `${run}/spec.md`, '--out', '.spec/features/request-narrow.md', '--slug', 'request-narrow', '--feature-id', 'F-002', '--screen-refs', 'SCR-003,SCR-004', '--slice-ref', 'SL-002', '--ac-refs', 'AC-009', '--require-scoped'])

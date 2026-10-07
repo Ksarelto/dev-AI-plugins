@@ -12,18 +12,23 @@ permissionMode: default
 
 ## Role
 
-Owns all additions to the FSD `entities` layer. For each entity slice declared in the spec's Build plan, produces the segments the feature actually needs — typically `api/` (TanStack Query hooks + query keys + types), `model/` (domain types, pure transforms), `ui/` (entity-scoped presentational components), and `lib/` (entity-scoped helpers). Never imports upward.
+Owns all additions to the FSD `entities` layer. For each entity slice in your card's rows, produces the segments the feature actually needs — typically `api/` (TanStack Query hooks + query keys + types), `model/` (domain types, pure transforms), `ui/` (entity-scoped presentational components), and `lib/` (entity-scoped helpers). Never imports upward.
 
 ## Inputs
 
-- The `## Build Plan` section of the spec — specifically tasks assigned to the `entities/*` slice(s).
-- The `API contract`, `Data model`, and `## Reuse Map` sections of the spec.
-- `references/fsd-architecture.md` — layer boundaries and segment purpose.
-- `references/fsd-import-boundaries.md` — the import matrix (entities may import shared only).
-- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:react-query-hook` for `api/` (keys in `shared/api/query-keys/`).
-- `references/ui-build-contract.md` — shadcn fidelity, copy, components, tests, self-check. Mandatory for `ui/`.
+Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
+leading text of every spawn prefix-cacheable.
+
+**Fixed (same every spawn):**
+
+- `references/ui-build-contract.md` — layer boundaries and segments (§ 0), shadcn fidelity, copy, components, tests, self-check. Mandatory; `entities` may import `shared` only.
 - `references/increment-protocol.md` — segment order inside a slice, and what not to touch.
-- `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
+- Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:react-query-hook` for `api/` (keys in `shared/api/query-keys/`).
+
+**Per spawn:**
+
+- `CARD` — your work card (`.spec/features/<slug>.context/cards/row-<n>.md`): your Build Plan rows plus the spec sections you build from, verbatim, and the paths to read on demand. Read it instead of the blackboard; do not open `.spec/features/<slug>.md`.
+- From the card: your `entities/*` rows, `## API Contract / Data Model`, and `## Reuse Map`.
 - Existing `shared/api` primitives — reuse the request/response envelope; never re-implement.
 
 ## Responsibilities
@@ -31,7 +36,7 @@ Owns all additions to the FSD `entities` layer. For each entity slice declared i
 ### 1. Per-entity api/ segment
 
 For each entity slice, build:
-- `api/{entity}.types.ts` — request/response interfaces mirrored from the spec's API contract.
+- `api/{entity}.types.ts` — request/response interfaces mirrored from the card's API contract.
 - `api/{entity}.hooks.ts` — one hook per endpoint via `frontend-dev-kit:react-query-hook`. Keys live in `shared/api/query-keys/`.
 - `api/index.ts` — public surface only.
 
@@ -59,7 +64,7 @@ Every hook must return typed data. Never leak `any` or unchecked assertions. Err
 
 ### 5. Public API hygiene
 
-Each slice's `index.ts` re-exports only symbols a file outside the slice already imports. Deep imports into segment files from outside the slice are forbidden and enforced by ESLint / Steiger (see `references/fsd-import-boundaries.md`).
+Each slice's `index.ts` re-exports only symbols a file outside the slice already imports. Deep imports into segment files from outside the slice are forbidden and enforced by ESLint / Steiger (`ui-build-contract.md` § 0).
 
 Before returning, run the self-check in `ui-build-contract.md` § 7 on the touched files.
 
@@ -67,11 +72,11 @@ Before returning, run the self-check in `ui-build-contract.md` § 7 on the touch
 
 - New or modified files under `entities/{entity}/{segment}/`.
 - Each slice's `index.ts` updated to export the public surface.
-- Summary of what was built, which shared primitives were reused, and any decisions taken — written back into the spec's Build plan under the entity tasks. Set the entity slice's build status to `done`.
+- Your rows marked done: Write back with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<one line>"` (what was built and reused — one line). Exports later layers import: `board.mjs append … --section "Reuse Map"`. A decision others must follow: `board.mjs append … --section "Decisions & Open Questions"`.
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
 
 ```
 HANDOFF: <that path>

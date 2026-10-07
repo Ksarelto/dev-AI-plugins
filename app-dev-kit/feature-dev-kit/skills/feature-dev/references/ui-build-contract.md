@@ -4,6 +4,35 @@ Every engineer that writes `src/` (Stations 3–7, `slice-engineer`, Station 11 
 list. The rules themselves live in **frontend-dev-kit** (`rules/*.mdc`, attached by glob) and the
 skills named below; this file is the checklist the conventions gate and `code-reviewer` hold you to.
 
+Your station card assigns the layer and slice. This file is everything you need to build inside it —
+do not open `fsd-architecture.md`, `fsd-import-boundaries.md`, `development-cycle.md`, or
+`pipeline-flow.md`. Those are for the hub, discovery, and host setup.
+
+## 0. Layer boundaries — what your slice may import
+
+A layer imports only from layers **strictly below** it. Never sideways, never upward.
+
+- `app` → everything · `pages` → widgets, features, entities, shared · `widgets` → features,
+  entities, shared · `features` → entities, shared · `entities` → shared · `shared` → nothing above it.
+- **Cross-slice imports within one layer are forbidden** — no widget imports another widget, no
+  feature another feature, no entity another entity. Extract the common part down a layer instead.
+- Every cross-slice import goes through the target slice's `index.ts`
+  (`@/entities/profile`, never `@/entities/profile/api/profile.hooks`).
+- Every slice has `index.ts`, created first, exporting only names a file **outside** the slice
+  imports. No `export *`. Query keys live in `shared/api/query-keys/`, not the public API.
+
+Segments inside your slice:
+
+- `model/` — types, state, selectors. No React, no network, no side effects.
+- `api/` — TanStack Query hooks, mutations, query keys. No components, no UI state.
+- `lib/` — pure formatters, validators, mappers. No React, no network.
+- `ui/` — components; imports `shared/ui`, own `model/`, own `api/`. No direct fetch calls.
+- `config/` — non-text constants and enum → locale-key maps. No English copy.
+- `locales/` — `en.json` + `keys.ts` for every string this slice renders.
+
+A missing `index.ts`, an upward import, or a deep internal import is a hard gate failure, not a
+review judgment. If your slice needs something from a sibling slice, escalate — do not duplicate it.
+
 ## 1. shadcn fidelity — one look, one motion
 
 - Registry first. `search_items_in_registries` → `view_items_in_registries` → the primitive lands in
@@ -77,8 +106,12 @@ node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --chec
 ```bash
 yarn typecheck
 yarn lint
-node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <touched files, comma-separated> --ignore missing-test
+node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <touched files, comma-separated> --ignore missing-test,unused-export
 ```
 
-Drop `--ignore missing-test` when you wrote the tests in this change (`slice-engineer`,
-`test-engineer`, Station 11). The Station 9 gate always runs every rule.
+Stations 3–6 ignore `unused-export`: the layer above, or the Station 7 wiring, imports those exports
+later. From Station 7 on, drop it. Drop `missing-test` too when you wrote the tests in this change
+(`slice-engineer`, `test-engineer`, Station 11). The Station 9 gate always runs every rule.
+
+Record the self-check in your handoff as one line (`self-check: typecheck pass, lint pass,
+conventions pass`). Do not copy gate output anywhere, and never onto the blackboard.

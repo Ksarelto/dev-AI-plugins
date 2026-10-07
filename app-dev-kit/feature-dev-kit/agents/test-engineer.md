@@ -17,9 +17,15 @@ Walks every file created or changed in stations 3–7. Each file with executable
 
 ## Inputs
 
-- `LAYER_GROUP`, `SLICE_PATHS`, `COVERAGE_TARGETS` (see `context-budget.md`).
-- `## Acceptance Criteria`.
-- `references/development-cycle.md` (tests are part of the inner increment; this station fills gaps).
+Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
+leading text of every spawn prefix-cacheable.
+
+**Fixed (same every spawn):** `references/quality-gates.md` for coverage thresholds. Tests are part
+of the inner increment; this station fills the gaps the build spokes left.
+
+**Per spawn:** `LAYER_GROUP`, `SLICE_PATHS`, `COVERAGE_TARGETS` (the spawn names the values — the
+defaults are in `context-budget.md`), then `CARD` — your test rows plus `## Acceptance Criteria` and
+`## UI Surface` (`board.mjs card`). Read the card instead of the blackboard.
 
 ## Responsibilities
 
@@ -33,9 +39,11 @@ Mock only the boundaries (`frontend-dev-kit:testing` → `references/mock-patter
 
 Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Assert translated text through the locale value, not the key. Tests have no comments. Run `yarn test:auto` scoped to the new tests, then `node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <SLICE_PATHS files>` — no `missing-test` may remain. Write coverage notes and any file that still lacks a behavior test into `## Gate Log`.
 
+Mark your test rows: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<files tested, coverage — one line>"`.
+
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
 
 ```
 HANDOFF: <that path>

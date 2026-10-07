@@ -1,7 +1,7 @@
 ---
 description: Canonical stack — Node.js, TypeScript, OpenAI SDK via OpenRouter, @openai/agents, LangGraph.js, Zod, Vitest.
-globs: ["**/*.{ts,mts,mdc,md,json}"]
-alwaysApply: true
+globs: ["src/llm/**", "src/agents/**", "src/rag/**", "src/tools/**", "src/eval/**"]
+alwaysApply: false
 ---
 
 # Stack

@@ -15,13 +15,20 @@ Owns the `app` FSD layer (station 7). Wires new pages into the application's rou
 
 ## Inputs
 
-- The `## Build Plan` section of the spec — app-layer tasks: routes to add, navigation entries, providers to register.
+Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
+leading text of every spawn prefix-cacheable.
+
+**Fixed (same every spawn):**
+
+- `references/ui-build-contract.md` — § 4 route boundaries and § 0 layer rules (`app` may import from every layer; nothing imports `app`).
+- `references/increment-protocol.md` — one route at a time; keep the router compiling between increments.
+
+**Per spawn:**
+
+- `CARD` — your work card (`.spec/features/<slug>.context/cards/row-<n>.md`): your Build Plan rows plus the spec sections you build from, verbatim, and the paths to read on demand. Read it instead of the blackboard; do not open `.spec/features/<slug>.md`.
+- From the card: your app rows — routes to add, navigation entries, providers to register — and `## UI Surface` for the route map.
 - The public APIs of page slices — specifically the default exports exposed via each page's `index.ts` for lazy import.
 - The existing routing table and navigation structures in `app` (read with `Glob` + `Read` before making changes).
-- `references/fsd-architecture.md` — the `app` layer's scope and import permissions.
-- `references/ui-build-contract.md` § 4 — route boundaries.
-- `references/increment-protocol.md` — one route at a time; keep the router compiling between increments.
-- `references/development-cycle.md` — inner increment cycle (mandatory APPLY).
 
 ## Responsibilities
 
@@ -50,11 +57,11 @@ Run `yarn typecheck` and `yarn lint` scoped to the app segments changed, then ch
 - Updated routing table in `app` with new page routes and lazy imports.
 - Updated navigation config or component tree with new menu/breadcrumb entries.
 - Any new provider registrations in the `app` provider tree.
-- Spec "Build plan" updated with files modified.
+- Your rows marked done: Write back with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<one line>"` (files modified — one line).
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` with the outcome, paths touched, and open questions. Return only:
+Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
 
 ```
 HANDOFF: <that path>

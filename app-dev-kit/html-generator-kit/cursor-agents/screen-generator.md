@@ -21,17 +21,29 @@ filter-bar-plus-table on every page ignores your inputs.
 
 ## Input (ONLY these — do not request additional context)
 
+The spawn arrives in two blocks: a shared block that is byte-identical for every page in this run,
+then the per-page block. The order matters — it is what makes the shared block prompt-cacheable
+across the parallel spawns — so read it as given and do not ask the orchestrator to re-send it.
+
+Shared block (identical in every spawn):
+
 | Field | Description |
 |-------|-------------|
+| `rules_dir` | `{KIT_DIR}/skills/generate-html/references/` |
+| `KIT_DIR` | plugin root (contains `agents/` and `skills/`) |
+| `design_ref` | Full content of `design-system-ref.md` (compact ~95 lines) |
+| `component_manifest` | Full content of `component-manifest.md` (compact ~50 lines) |
+| `ux_directives` | `ux-directives.md` — the `## All pages` and `## Do not` sections, verbatim |
+
+Per-page block (the only part that varies):
+
+| Field | Description |
+|-------|-------------|
+| `ux_page_section` | `ux-directives.md` — the section for THIS page's type |
 | `page` | `{ id, title, description, type, domain, entity }` for this page (`type` may be absent) |
 | `entity_fields` | `[ { name, type } ]` for this page's entity only |
 | `entity_statuses` | `[ 'STATUS_A', 'STATUS_B', ... ]` for this page's entity |
 | `api_contract` | `{ field: type }` for this page's entity |
-| `design_ref` | Full content of `design-system-ref.md` (compact ~95 lines) |
-| `ux_directives` | Full content of `ux-directives.md` (compact ~40 lines) — the "All pages" section plus the section for THIS page's type |
-| `component_manifest` | Full content of `component-manifest.md` (compact ~50 lines) |
-| `rules_dir` | `{KIT_DIR}/skills/generate-html/references/` |
-| `KIT_DIR` | plugin root (contains `agents/` and `skills/`) |
 | `output_path` | `{OUTPUT_DIR}/pages/{page.id}.html` |
 
 ## Steps
@@ -50,9 +62,10 @@ Also note the **Design direction** header at the top of `design_ref`, and treat 
 - you may use the **Signature classes** it lists — and only those. A class from a block that was not
   emitted does not exist in the CSS and will render as nothing.
 
-Then read `ux_directives`: apply the `## All pages` rules plus the section matching your page type,
-and respect its `## Do not` list. Where `ux_directives` and the generic patterns in this file
-disagree, `ux_directives` wins — it is product-specific and rule-sourced.
+Then read `ux_directives`: apply its `## All pages` rules and respect its `## Do not` list. Then
+apply `ux_page_section`, the directives for your page type. Where either disagrees with the generic
+patterns in this file, the directives win — they are product-specific and rule-sourced; between the
+two, `ux_page_section` is the more specific.
 
 If `design_ref` starts with `## Provided reference (binding)`, the user supplied that structure.
 It outranks everything else — `Design direction`, `ux_directives`, the page-type heuristic in
@@ -320,7 +333,7 @@ Write the complete HTML to `{output_path}`.
 - [ ] Every class used appears in `design_ref` — including signature classes (a class from a
       non-emitted block renders as nothing)
 - [ ] Composition matches the `design_ref` composition line for this page type
-- [ ] `ux_directives` "All pages" rules applied; nothing from its "Do not" list present
+- [ ] `ux_directives` "All pages" rules and `ux_page_section` applied; nothing from the "Do not" list present
 - [ ] `.num` on numeric cells / stat values · `.chip-row` used instead of a second bare select
 - [ ] `.hover-lift` only on cards/stat-cards · `.reveal` on ≤6 elements, none inside an `x-for`
 - [ ] No chart library referenced — proportions use `.meter` / `.sparkbars`

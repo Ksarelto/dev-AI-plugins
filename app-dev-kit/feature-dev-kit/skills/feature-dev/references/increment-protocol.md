@@ -27,14 +27,11 @@ the run without changing the result.
 
 ## Increment order inside a slice
 
-| Order | Increment | Done when |
-|-------|-----------|-----------|
-| 1 | `model/` types + schema | Types compile; no `any` |
-| 2 | `api/` hooks (entities) or mutations (features) | Query keys defined, invalidation listed |
-| 3 | `lib/` pure helpers | Unit-tested without rendering |
-| 4 | `ui/` component — happy path | Renders with mock props |
-| 5 | `ui/` — loading, empty, error states | Each state has a test |
-| 6 | `index.ts` public API | Exports only what consumers need |
+`model/` → `api/` → `lib/` → `ui/` happy path → `ui/` loading/empty/error → `index.ts`.
+
+Done when: types compile with no `any`; query keys defined and invalidation listed; helpers
+unit-tested without rendering; the component renders with mock props; each state has a test;
+`index.ts` exports only what consumers need (`ui-build-contract.md` § 0 for the segment rules).
 
 Segments below a segment must exist before it is written; that is the same dependency rule as the
 layer order, one level down.

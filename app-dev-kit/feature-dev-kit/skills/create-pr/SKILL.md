@@ -16,7 +16,7 @@ Only after a human sets the spec status to `done` at station 12 (human approval)
 
 1. **Verify pre-conditions** — refuse if either check fails:
    - Read the spec file: `status` must be `done`. If status is anything else, print an error and stop.
-   - Confirm all gates are green: the spec's `## Gate Log` must show PASS for all gates in the most recent entry.
+   - Confirm all gates are green: `.spec/features/<slug>.context/gate-status.md` must show `pass` for every gate (boards from before gate-status.md existed: the most recent `## Gate Log` entry).
 
 2. **Rebase over `develop`**:
    ```bash
@@ -70,7 +70,7 @@ Only after a human sets the spec status to `done` at station 12 (human approval)
 ## Pre-conditions
 
 - Spec status is `done` (human approved at station 12).
-- All quality gates pass (verified in spec `## Gate Log`).
+- All quality gates pass (verified in `.spec/features/<slug>.context/gate-status.md`).
 - No uncommitted changes on the branch.
 - `gh` CLI is authenticated and the remote is reachable.
 

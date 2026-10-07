@@ -20,8 +20,9 @@ Per-feature blackboard. Copied to .spec/features/<feature-slug>.md by scripts/ne
 status ∈ draft | awaiting-clarification | investigating | awaiting-dep-approval | approved |
          building | review | awaiting-human | changes-requested | done
 
-Every worker MUST update its owned section before returning — returning without writing is a
-protocol violation. The orchestrator reads THIS file (not chat output) to decide the next station.
+Pre-build workers (Stations 0–1b) write their owned sections. Build workers (Stations 3–8) never
+open this file: they read their work card (scripts/board.mjs card) and write back only through
+scripts/board.mjs (row, append). The orchestrator reads sections with board.mjs section --get.
 Canonical schema: ../references/feature-spec-format.md. Section ownership and read/write
 allowlists: ../references/context-budget.md. Spawn payload: ../references/upstream-contract.md.
 Packets: ../references/packets.md.
@@ -81,9 +82,8 @@ Packets: ../references/packets.md.
 
 ## Gate Log
 
-| Timestamp | Station | Gate | Result | Note |
-|-----------|---------|------|--------|------|
-| | | | | |
+Not kept here. `run-gates.sh --spec` and `board.mjs gate` write `<feature-slug>.context/gate-status.md`
+(latest result per gate) and `<feature-slug>.context/gate-log.jsonl` (history). Never edit by hand.
 
 ## Human Review
 

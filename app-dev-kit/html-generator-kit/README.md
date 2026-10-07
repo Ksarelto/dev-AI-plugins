@@ -140,12 +140,11 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
       references/
         pipeline-flow.md                     ← station sequence, gates, parallelism
         context-budget.md                    ← paths and slices, not full spec on the hub
-        artifact-structure.md                ← output directory layout + file ownership
-        design-system-conventions.md         ← OKLCH tokens + component CSS conventions
         alpine-interaction-patterns.md       ← Alpine.js directives + store API
         interaction-conventions.md           ← data hook naming (QA + verification)
         accessibility.md                     ← a11y landmarks + WCAG requirements
-        qa-checklist.md                      ← structured pass/fail scoring
+        design-system-conventions.md         ← OKLCH tokens (human doc; templates are operative)
+        qa-checklist.md                      ← what qa-prototype.mjs checks (human doc)
         verification-protocol.md             ← headless render check + screenshot protocol
         ui-ux-pro-max.md                     ← design dependency: install, resolve, query, degrade
       templates/

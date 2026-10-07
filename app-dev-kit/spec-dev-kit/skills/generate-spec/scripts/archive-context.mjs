@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// After human approval: move .spec/context/*.md to .spec/processed/{spec-id}/,
+// After human approval: move .spec/context/*.md to .spec/processed/{spec-id}/ (and the run's
+// intake / enriched intermediates to .spec/processed/{spec-id}/artifacts/),
 // point .spec/app/current.json at this spec, and write increments/INC-00N.json.
 // Does not delete the previous spec or prototype. Aborted runs must not call this.
 //
@@ -39,6 +40,16 @@ if (existsSync(inbox)) {
     if (!name.endsWith('.md')) continue
     renameSync(join(inbox, name), join(processedDir, name))
   }
+}
+
+// The large intermediates are dead after approval; keep them out of the run folder that build
+// kits Grep and Glob. changes.json, prior-index.json, and the review artifacts stay.
+const BULKY = /^(intake\.json|enriched\.json|enriched\.patch.*\.json|requirements\.seed\.json)$/
+const artifactsDir = join(runDir, 'artifacts')
+if (existsSync(artifactsDir)) {
+  const moved = readdirSync(artifactsDir).filter((name) => BULKY.test(name))
+  if (moved.length) mkdirSync(join(processedDir, 'artifacts'), { recursive: true })
+  for (const name of moved) renameSync(join(artifactsDir, name), join(processedDir, 'artifacts', name))
 }
 
 const basePath = join(runDir, 'base.spec.md')

@@ -61,6 +61,11 @@ Mode extras:
 
 `S` below = `{KIT_DIR}/skills/generate-spec/scripts`.
 
+**Timing.** At the start of each station, put `node S/log-timing.mjs --out {RUN_DIR}/artifacts/timings.jsonl --kit generate-spec --station <N> && `
+in front of that station's first Bash command (a station that starts with a spawn gets that line as
+its own Bash call). Before returning any packet, log `--event end` for the station you stop at. The
+file is a measurement, never an input: do not read it.
+
 ---
 
 ## Packets (return exactly one, then STOP)

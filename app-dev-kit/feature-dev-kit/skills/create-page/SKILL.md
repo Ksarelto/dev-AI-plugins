@@ -49,14 +49,14 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
 
 6. **Run `yarn typecheck`**: fix all TypeScript errors.
 
-7. **Update the spec `## Build Plan`**: mark page tasks as done, list files created.
+7. **Mark your Build Plan rows done**: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<files — one line>"` (files go in the handoff). Never edit the board directly.
 
 8. **Follow up with `add-route`** to register this page in the `app` routing table.
 
 ## Pre-conditions
 
 - All widget and feature slices the page composes exist with their `index.ts` public APIs.
-- The spec's `## UI Surface` describes the page layout and states.
+- The work card's `## UI Surface` describes the page layout and states.
 
 ## Outputs
 
