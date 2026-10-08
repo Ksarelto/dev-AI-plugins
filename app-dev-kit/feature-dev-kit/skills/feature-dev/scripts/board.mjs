@@ -8,8 +8,10 @@
 //   board.mjs row     <board.md> --row 4[,5] --status todo|in-progress|done|blocked [--note "<text>"]
 //                     sets the Build Plan Status cell and replaces the row's single Note (no history)
 //   board.mjs card    <board.md> --row 4[,5] --agent <name> [--layer <layer>] [--kit <KIT_DIR>]
-//                     writes <slug>.context/cards/row-4[-5].md: the rows plus the sections that agent
-//                     needs, verbatim; prints its path. The worker reads the card, never the board.
+//                     writes cards/common.md once (request, decisions, reuse map) and
+//                     cards/row-4[-5].md (rows, acceptance criteria, FSD Impact paths, this row's screens, scoped API).
+//   board.mjs handoff <board.md> --name <stem> --outcome <text> --paths <a,b> --decisions <a;b> --gates <text>
+//                     writes <slug>.context/<stem>.md, at most 15 lines.
 //   board.mjs gate    <board.md> --station "<label>" (--json '<run-gates JSON>' | --gate <name> --result pass|fail [--note "<text>"])
 //                     appends to <slug>.context/gate-log.jsonl and rewrites gate-status.md (latest per gate)
 //   board.mjs timing  <board.md> --station "<label>" --event start|end
@@ -27,7 +29,7 @@ const opt = (name) => {
   return i >= 0 && rest[i + 1] !== undefined && !rest[i + 1].startsWith('--') ? rest[i + 1] : ''
 }
 const usage = (msg) => {
-  console.error(`usage: board.mjs section|append|row|card|gate|timing <board.md> … — ${msg}`)
+  console.error(`usage: board.mjs section|append|row|card|handoff|gate|timing <board.md> … — ${msg}`)
   process.exit(2)
 }
 if (!cmd || !boardPath) usage('missing command or board path')
@@ -78,6 +80,33 @@ function planTable(lines, start, end) {
   return null
 }
 const rowIds = () => String(opt('row')).split(',').map((s) => s.trim()).filter(Boolean)
+
+// Path list from ## FSD Impact, filtered to this card's slices. Placeholder template rows are dropped.
+function impactPaths(content, names, kebab) {
+  if (!content) return ''
+  const tableLines = content.split('\n').filter((line) => line.trim().startsWith('|'))
+  if (tableLines.length < 3) return ''
+  const head = cells(tableLines[0]).map((h) => h.toLowerCase())
+  const at = (vals, name) => {
+    const index = head.indexOf(name)
+    return index >= 0 ? String(vals[index] ?? '').trim() : ''
+  }
+  const real = (value) => value && !/^-+$/.test(value) && !/^<[^>]*>$/.test(value)
+  const rows = tableLines.slice(2).map((line) => cells(line)).filter((vals) => vals.some(real))
+  const sliceOf = (vals) => kebab(at(vals, 'slice').split('/').pop())
+  const matched = names.length
+    ? rows.filter((vals) => names.some((n) => {
+      const slice = sliceOf(vals)
+      return slice && (slice === n || slice.endsWith(`-${n}`) || n.endsWith(`-${slice}`))
+    }))
+    : []
+  return (matched.length ? matched : rows).map((vals) => {
+    const path = [at(vals, 'layer'), at(vals, 'slice')].filter(real).join('/')
+    if (!path) return ''
+    const extra = [at(vals, 'segments'), at(vals, 'change')].filter(real).join(' — ')
+    return `- \`${path}\`${extra ? ` — ${extra}` : ''}`
+  }).filter(Boolean).join('\n')
+}
 
 if (cmd === 'section') {
   const text = read()
@@ -176,19 +205,11 @@ if (cmd === 'section') {
   const layers = [...new Set(picked.map((l) => cells(l)[col('layer')]).filter(Boolean))]
   const layer = opt('layer') || layers.join(', ')
 
-  // Binding human input for every worker, then the sections that agent builds from.
-  const BASE = ['Request', 'Clarifications', 'Decisions & Open Questions']
-  const BY_AGENT = {
-    'shared-engineer': ['Acceptance Criteria', 'FSD Impact', 'API Contract / Data Model', 'Reuse Map', 'Dependencies'],
-    'entities-engineer': ['Acceptance Criteria', 'FSD Impact', 'API Contract / Data Model', 'Reuse Map'],
-    'features-engineer': ['Acceptance Criteria', 'FSD Impact', 'API Contract / Data Model', 'UI Surface', 'Reuse Map'],
-    'composition-engineer': ['Acceptance Criteria', 'FSD Impact', 'API Contract / Data Model', 'UI Surface', 'Reuse Map'],
-    'app-engineer': ['Acceptance Criteria', 'FSD Impact', 'UI Surface', 'Reuse Map'],
-    'test-engineer': ['Acceptance Criteria', 'UI Surface'],
-  }
-  const all = [...new Set(Object.values(BY_AGENT).flat())]
-  const wanted = [...BASE.slice(0, 2), ...(BY_AGENT[agent] ?? all), BASE[2]]
   const rendersUi = ['features-engineer', 'composition-engineer', 'app-engineer', 'slice-engineer', 'shared-engineer'].includes(agent)
+  const filled = (heading) => {
+    const content = body(text, heading)
+    return content && !/^<[^>]*>$/.test(content.trim()) ? content : ''
+  }
 
   // Build Plan context that is not a row: strategy / human decisions above the table, and the
   // "Not building" list — the cheapest guard against scope invention.
@@ -226,35 +247,92 @@ if (cmd === 'section') {
     rendersUi ? `- Rule file — \`${kitDir}/rules/ui-quality.mdc\` (Cursor attaches it by glob; on Claude read it once).` : '',
   ].filter(Boolean)
 
-  const sections = wanted
-    .map((h) => [h, h === 'UI Surface' ? uiBody : body(text, h)])
-    .filter(([, b]) => b && !/^<[^>]*>$/.test(b.trim()))
-    .map(([h, b]) => `## ${h}${h === 'UI Surface' && scoped.length ? ` (this row's screens — ${scoped.length} of ${blocks.length})` : ''}\n\n${b}`)
+  const cellAt = (line, name) => {
+    const index = col(name)
+    return index >= 0 ? String(cells(line)[index] ?? '') : ''
+  }
+  const needles = picked.flatMap((l) => [
+    ...cellAt(l, 'slice').split(/[,\s/]+/),
+    ...cellAt(l, 'note').split(/[^\w./-]+/),
+  ]).filter((word) => word.length > 3)
+  const apiAll = filled('API Contract / Data Model')
+  const apiBody = apiAll.split(/\n(?=### )/).filter((block) =>
+    needles.some((word) => block.toLowerCase().includes(word.toLowerCase())),
+  ).join('\n\n').trim()
+  const acBody = filled('Acceptance Criteria')
+  const wantsImpact = ['shared-engineer', 'entities-engineer', 'features-engineer', 'composition-engineer', 'app-engineer', 'slice-engineer', 'research-analyst'].includes(agent)
+  const impactBody = wantsImpact ? impactPaths(filled('FSD Impact'), names, kebab) : ''
+  const sections = [
+    acBody ? `## Acceptance Criteria\n\n${acBody}` : '',
+    impactBody ? `## FSD Impact\n\n${impactBody}` : '',
+    uiBody && !/^<[^>]*>$/.test(uiBody.trim())
+      ? `## UI Surface${scoped.length ? ` (this row's screens — ${scoped.length} of ${blocks.length})` : ''}\n\n${uiBody}`
+      : '',
+    apiBody ? `## API Contract / Data Model\n\n${apiBody}` : '',
+  ].filter(Boolean)
+
+  const commonPath = join(contextDir, 'cards', 'common.md')
+  const common = [
+    `# Shared card — ${slug}`,
+    '',
+    'Read this once. A row card has only that row, its acceptance criteria, its screens, and the API contract for names in the row.',
+    '',
+    preamble,
+    notBuilding,
+    filled('Request') ? `## Request\n\n${filled('Request')}` : '',
+    filled('Clarifications') ? `## Clarifications\n\n${filled('Clarifications')}` : '',
+    filled('Decisions & Open Questions') ? `## Decisions & Open Questions\n\n${filled('Decisions & Open Questions')}` : '',
+    filled('Reuse Map') ? `## Reuse Map\n\n${filled('Reuse Map')}` : '',
+    reads.length ? `## Read by path\n\n${reads.join('\n')}` : '',
+  ].filter(Boolean).join('\n\n') + '\n'
+  mkdirSync(dirname(commonPath), { recursive: true })
+  writeFileSync(commonPath, common)
+
   const card = [
     `# Work card — ${slug} · row ${ids.join(', ')} · ${agent} · ${layer}`,
     '',
-    `Generated from \`${boardPath}\`. Read this card, not the board. Write back only with`,
+    `Generated from \`${boardPath}\`. Read this card, not the board. Shared sections: \`${commonPath}\`.`,
+    'Write back only with',
     `\`node ${kitDir}/skills/feature-dev/scripts/board.mjs\` (\`row\` for your rows, \`append\` for`,
-    '`Reuse Map` / `Decisions & Open Questions`). Your handoff file holds the rest.',
+    '`Reuse Map` / `Decisions & Open Questions`, `handoff` for the return).',
     '',
     '## Your rows',
     '',
     rowLine(table.head),
     lines[table.sep],
     ...picked,
-    preamble ? `\n${preamble}` : '',
     notBuilding ? `\n${notBuilding}` : '',
-    reads.length ? `\n## Read by path\n\n${reads.join('\n')}` : '',
     '',
     sections.join('\n\n'),
     '',
   ].filter((part) => part !== '').join('\n')
   const out = join(contextDir, 'cards', `row-${ids.join('-')}.md`)
-  mkdirSync(dirname(out), { recursive: true })
   writeFileSync(out, card)
+  const bytes = Buffer.byteLength(card)
+  if (bytes > 12 * 1024) console.error(`WARN card ${out} is ${bytes} bytes (limit 12288)`)
   const station = picked.map((l) => cells(l)[col('station')]).find(Boolean) ?? ''
   jsonl('timings.jsonl', { event: 'spawn', station, rows: ids, agent })
-  console.log(JSON.stringify({ card: out, bytes: Buffer.byteLength(card), board_bytes: Buffer.byteLength(text) }))
+  console.log(JSON.stringify({ card: out, common: commonPath, bytes, board_bytes: Buffer.byteLength(text) }))
+} else if (cmd === 'handoff') {
+  const name = opt('name')
+  if (!name) usage('handoff needs --name <stem>')
+  const bullets = (flagName) => String(opt(flagName) || '').split(flagName === 'paths' ? ',' : ';').map((part) => oneLine(part)).filter(Boolean)
+  const handoffLines = [
+    `outcome: ${oneLine(opt('outcome')) || 'done'}`,
+    'paths:',
+    ...bullets('paths').map((part) => `- ${part}`),
+    'decisions:',
+    ...bullets('decisions').map((part) => `- ${part}`),
+    `gates: ${oneLine(opt('gates'))}`,
+  ]
+  if (handoffLines.length > 15) {
+    console.error(`HANDOFF_TOO_LONG: ${handoffLines.length} lines (limit 15)`)
+    process.exit(1)
+  }
+  const out = join(contextDir, `${name}.md`)
+  mkdirSync(contextDir, { recursive: true })
+  writeFileSync(out, `${handoffLines.join('\n')}\n`)
+  console.log(JSON.stringify({ handoff: out, lines: handoffLines.length }))
 } else if (cmd === 'gate') {
   const station = opt('station')
   if (!station) usage('gate needs --station')

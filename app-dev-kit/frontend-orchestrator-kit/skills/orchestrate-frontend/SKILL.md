@@ -46,8 +46,8 @@ polling — the outcome is whatever that kit's envelope file says after the retu
 
 | Path | Loaded by | When |
 |------|-----------|------|
-| `references/pipeline-flow.md` | this skill | before starting — canonical station order, ownership, error handling |
-| `references/context-budget.md` | this skill | before Station 1 — what may live in the parent context |
+| `references/pipeline-flow.md` | this skill | only when a Troubleshooting row names the station order |
+| `references/context-budget.md` | this skill | only when a Troubleshooting row names a context rule |
 | `references/result-envelope.md` | this skill | after every delegated Skill returns |
 | `references/task-decomposition.md` | this skill, `build-checklist.mjs` | Station 2a |
 | `references/checklist-format.md` | this skill | reading/writing `task-checklist.md` |
@@ -56,6 +56,7 @@ polling — the outcome is whatever that kit's envelope file says after the retu
 | `scripts/read-checklist.mjs` | this skill (Stations 0, 2a, 3, Bash) | `--summary` (feature/task lines, counts, first open feature, spec-newer flag) and `--payload F-NNN` (the Station 3 field block) — the YAML is never read into chat |
 | `scripts/preflight-host.mjs` | this skill (before the first Station 3 feature, Bash) | host setup gaps that would turn into red gates; same script feature-dev-kit runs |
 | `scripts/write-kit-result.mjs` | this skill (Station 4 or abort) | run-level envelope for `orchestrate-app` |
+| `scripts/write-build-history.mjs` | this skill (Station 4) | append one run entry (spec version, prototype version, done features) to `.spec/app/build-history.md` |
 
 This kit has **no agents of its own**.
 
@@ -102,7 +103,9 @@ RESULT_OUT:     {optional extra envelope path}
 
 ## Steps
 
-Read `references/pipeline-flow.md` and `references/context-budget.md` before starting.
+Do not load `references/pipeline-flow.md` or `references/context-budget.md` up front. Open one only
+when a Troubleshooting row names it. This chat holds envelopes and `read-checklist.mjs --summary`
+lines, not spec or prototype bodies.
 
 ### Station 0 — Resume check
 
@@ -120,6 +123,10 @@ A fresh session starts by reading `.spec/app/current.json`. Do not recover the s
    - If the summary says `spec-newer-than-checklist: true`, or `build-checklist.mjs` would add/block
      tasks: `AskUserQuestion` — **Re-derive checklist** (run Station 2a, keep existing
      `done`/`skipped` ids) · **Resume as-is** · **Abort**.
+   - `Glob(".spec/context/*.md")`. If any files exist they are **unprocessed requirements** (not yet
+     archived by a publish run). Do not jump to Station 3 — fall through to Station 1 so
+     spec-dev-kit can amend the spec with those new requirements. The existing `done`/`skipped` tasks
+     will be preserved by `build-checklist.mjs` after the amended spec is approved.
    - Otherwise jump to **Station 3** at the summary's `first-open` feature.
      Treat leftover `in-progress` as the first item to re-offer (do not mark it `done`).
      When that feature is `in-progress`, decide from its envelope (`.spec/app/results/{feature.id}.json`,
@@ -134,10 +141,18 @@ A fresh session starts by reading `.spec/app/current.json`. Do not recover the s
 
 If `SKIP_UPSTREAM` is set, skip Stations 1–2 and go to Station 2a.
 
-If `SPEC_PATH` already points at an `approved` spec, skip to Station 2.
-
 Read `.spec/app/current.json`. If `spec_path` exists and the spec `status` is `approved`, set
-`SPEC_PATH` to that file and skip to Station 2. Do not glob for a newer spec folder.
+`SPEC_PATH` to that file. Then check for unprocessed requirements:
+
+- `Glob(".spec/context/*.md")`.
+  - **Empty** → skip to Station 2. No new requirements to incorporate.
+  - **Files present** → these are unprocessed requirements that have not been archived by a prior
+    publish run. Fall through to step 1 below so spec-dev-kit can amend the spec. It will append
+    new ids (continuing from the last `SL-NNN`, `US-NNN`, etc.) and archive the inbox on publish.
+    Do **not** skip to Station 2 in this case.
+
+    The amended spec is feature-only (`metadata.parent-spec`, new ids). Station 2a appends
+    checklist rows for the new slices and reopens only what `changes.json` marks modified.
 
 If none approved:
 
@@ -207,7 +222,8 @@ Nested tasks stay screen-level. No API-only or agent-only stories.
 Exit 1 — no buildable (non-`wont`) screens — report `SPEC_PATH` and stop.
 Exit 2 — parse/usage failure — report the error lines and stop.
 
-On exit 0, run `read-checklist.mjs {CHECKLIST_PATH} --summary` (do not Read the YAML). Present each
+On exit 0, report the script's `kept` / `appended` / `reopened` line, then run
+`read-checklist.mjs {CHECKLIST_PATH} --summary` (do not Read the YAML). Present each
 feature **id, title, priority** and its nested task titles from that output via one `AskUserQuestion`: **Approve as-is** · **Edit** (relay free
 text; you may move a task between features in the YAML — keep the moved task's own `slice-ref`;
 re-present the summary) · **Abort**.
@@ -308,7 +324,19 @@ node {KIT_DIR}/skills/orchestrate-frontend/scripts/write-kit-result.mjs \
 
 If `RESULT_OUT` was passed, also `--also {RESULT_OUT}`.
 
-Run `read-checklist.mjs {CHECKLIST_PATH} --summary`. Report **paths and counts only**:
+Run `read-checklist.mjs {CHECKLIST_PATH} --summary`.
+
+Append a history entry to `.spec/app/build-history.md` (create the file if absent):
+
+```bash
+node {KIT_DIR}/skills/orchestrate-frontend/scripts/write-build-history.mjs \
+  --spec "{SPEC_PATH}" \
+  --prototype "{PROTOTYPE_REF}" \
+  --checklist "{CHECKLIST_PATH}" \
+  --out .spec/app/build-history.md
+```
+
+Report **paths and counts only**:
 
 ```
 ✅ Frontend pipeline run for {slug}
@@ -316,6 +344,7 @@ Spec:       {SPEC_PATH}
 Prototype:  {PROTOTYPE_REF or "skipped"}
 Checklist:  {done}/{total} features done, {skipped} skipped, {blocked} blocked
 Envelope:   {dirname(SPEC_PATH)}/frontend-kit-result.json
+History:    .spec/app/build-history.md
 
 Branches ready for review (run /create-pr yourself for each):
   - {feature.branch}  ({feature.title}, parent {feature.parent-branch})
@@ -347,3 +376,4 @@ Remaining: {pending titles} — re-run /orchestrate-frontend {slug} to continue.
 | Dirty tree blocks Station 3 | Commit or stash; `new-feature.sh` refuses a dirty worktree |
 | Checklist `blocked` after a spec edit | Source screen removed — confirm at Station 2a |
 | Want to restart one task | Set its row to `pending`, clear `slug`/`branch`, re-run |
+| Station order or context rules are unclear | Read `references/pipeline-flow.md` or `references/context-budget.md` for that step only |

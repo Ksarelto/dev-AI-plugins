@@ -6,7 +6,7 @@
 
 import { writeFileSync } from 'node:fs'
 import { isAbsolute, join } from 'node:path'
-import { endpointsOf, flag, loadYaml, readSpec, sliceBrief } from './lib-spec.mjs'
+import { attachRequirements, endpointsOf, flag, loadSpecChain, loadYaml, readSpec, sliceBrief } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
 const specArg = String(flag(args, 'spec') || '')
@@ -23,6 +23,9 @@ if (!specArg || (!hasIds && !hasSlice)) {
 const specPath = isAbsolute(specArg) ? specArg : join(process.cwd(), specArg)
 const { parse, stringify } = await loadYaml()
 const { fm } = readSpec(specPath, parse)
+attachRequirements(specPath, fm, parse)
+const chain = loadSpecChain(specPath, parse, process.cwd())
+const parents = chain.slice(1)
 
 function emit(value) {
   const text = stringify(value, { lineWidth: 0, aliasDuplicateObjects: false })
@@ -41,33 +44,44 @@ if (hasSlice) {
     console.error(`FATAL: no slice ${sliceArg} in delivery-plan.slices`)
     process.exit(1)
   }
-  emit(sliceBrief(fm, slice, specArg))
+  emit(sliceBrief(fm, slice, specArg, { parents, requirements: fm.requirements }))
   console.error(`OK: brief for ${slice.id}`)
   process.exit(0)
 }
 
 const wanted = new Set(String(idsArg).split(',').map((id) => id.trim()).filter(Boolean))
 const take = (list) => (Array.isArray(list) ? list : []).filter((item) => wanted.has(item?.id) || wanted.has(item?.name))
-const ui = fm['ui-surface'] ?? {}
-const agent = fm['agent-surface'] ?? {}
+const takeAll = (pick) => {
+  const out = []
+  const seen = new Set()
+  for (const doc of [fm, ...parents.map((p) => p.fm)]) {
+    for (const item of take(pick(doc))) {
+      const key = item?.id ?? item?.name
+      if (key && seen.has(key)) continue
+      if (key) seen.add(key)
+      out.push(item)
+    }
+  }
+  return out
+}
 
 const found = {
-  requirements: take(fm.requirements),
-  roles: take(fm.roles),
-  permissions: take(fm.permissions),
-  entities: take(fm.entities),
-  'state-machines': take(fm['state-machines']),
-  'business-rules': take(fm['business-rules']),
-  'user-stories': take(fm['user-stories']),
-  'acceptance-criteria': take(fm['acceptance-criteria']),
-  screens: take(ui.screens),
-  interactions: take(ui.interactions),
-  endpoints: take(endpointsOf(fm)),
-  agents: take(agent.agents),
-  tools: take(agent.tools),
-  'knowledge-bases': take(agent['knowledge-bases']),
-  notifications: take(fm.notifications),
-  slices: take(fm['delivery-plan']?.slices),
+  requirements: takeAll((doc) => doc.requirements),
+  roles: takeAll((doc) => doc.roles),
+  permissions: takeAll((doc) => doc.permissions),
+  entities: takeAll((doc) => doc.entities),
+  'state-machines': takeAll((doc) => doc['state-machines']),
+  'business-rules': takeAll((doc) => doc['business-rules']),
+  'user-stories': takeAll((doc) => doc['user-stories']),
+  'acceptance-criteria': takeAll((doc) => doc['acceptance-criteria']),
+  screens: takeAll((doc) => doc['ui-surface']?.screens),
+  interactions: takeAll((doc) => doc['ui-surface']?.interactions),
+  endpoints: takeAll((doc) => endpointsOf(doc)),
+  agents: takeAll((doc) => doc['agent-surface']?.agents),
+  tools: takeAll((doc) => doc['agent-surface']?.tools),
+  'knowledge-bases': takeAll((doc) => doc['agent-surface']?.['knowledge-bases']),
+  notifications: takeAll((doc) => doc.notifications),
+  slices: takeAll((doc) => doc['delivery-plan']?.slices),
 }
 for (const key of Object.keys(found)) {
   if (!found[key].length) delete found[key]

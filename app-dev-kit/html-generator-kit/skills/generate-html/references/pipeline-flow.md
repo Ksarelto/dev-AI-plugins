@@ -77,7 +77,8 @@ question.
 When `current.json` has a `prototype_ref`, the skill copies that directory and sets `MODE: append`.
 Stations 1.5–3 are not re-run. The copied design files must still exist (the same gates, checked
 on disk). Station 4 runs only for screens listed in `delta-pages.json`. `spec-summary.json` is
-refreshed from the spec, and Stations 5–6 run on all its `assembly_pages`.
+refreshed with `--page-map` (and `--changes` when that file exists) so `assembly_pages` keeps
+ancestor screens and their titles. Stations 5–6 run on all of those pages.
 
 **Gate bypass is never allowed** for the first four gates on a full build. The render gate is where the
 "looks broken / tiny / unstyled" class of bug is caught — never skip the **script** when the

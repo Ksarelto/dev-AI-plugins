@@ -62,7 +62,7 @@ Run `yarn typecheck` and `yarn lint` scoped to the app segments changed, then ch
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
+Write the return with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug>.md --name <agent>-<station> --outcome "<one line>" --paths <comma-separated files> --decisions "<one line>" --gates "<lint: pass>"`. It rejects more than 15 lines. Never copy gate output or the Build Plan note. Return only:
 
 ```
 HANDOFF: <that path>

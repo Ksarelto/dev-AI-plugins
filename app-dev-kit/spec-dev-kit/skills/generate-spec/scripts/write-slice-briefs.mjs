@@ -8,7 +8,7 @@
 
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join } from 'node:path'
-import { flag, loadYaml, readSpec, rel, sliceBrief } from './lib-spec.mjs'
+import { attachRequirements, flag, loadSpecChain, loadYaml, readSpec, rel, sliceBrief } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
 const root = flag(args, 'root') && flag(args, 'root') !== true ? String(flag(args, 'root')) : process.cwd()
@@ -20,6 +20,9 @@ if (!specArg) {
 const specAbs = isAbsolute(specArg) ? specArg : join(root, specArg)
 const { parse, stringify } = await loadYaml()
 const { fm } = readSpec(specAbs, parse)
+attachRequirements(specAbs, fm, parse)
+const chain = loadSpecChain(specAbs, parse, root)
+const parents = chain.slice(1)
 const slices = fm['delivery-plan']?.slices ?? []
 const outDir = join(dirname(specAbs), 'slices')
 
@@ -34,7 +37,7 @@ for (const name of existsSync(outDir) ? readdirSync(outDir) : []) {
 }
 const specRel = rel(root, specAbs)
 for (const slice of slices) {
-  const brief = sliceBrief(fm, slice, specRel)
+  const brief = sliceBrief(fm, slice, specRel, { parents, requirements: fm.requirements })
   writeFileSync(join(outDir, `${slice.id}.yaml`), stringify(brief, { lineWidth: 0, aliasDuplicateObjects: false }))
 }
 console.log(`OK: wrote ${slices.length} brief(s) to ${rel(root, outDir)}/`)

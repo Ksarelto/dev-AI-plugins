@@ -60,11 +60,49 @@ const changes = changesPath ? JSON.parse(readFileSync(changesPath, 'utf8')) : nu
 const modifiedScreens = new Set(changes?.screens?.modified ?? [])
 const modifiedEntities = new Set([...(changes?.entities?.modified ?? []), ...(changes?.entities?.added ?? [])])
 const have = new Set(Object.keys(mapped))
-const entities = fm.entities ?? []
-const endpoints = [
-  ...(fm['api-surface']?.endpoints ?? []),
-  ...(fm['api-surface']?.mutations ?? []),
-]
+
+// In append mode (--page-map present) the current spec contains only new slices/screens.
+// Old screens live in ancestor specs via metadata.parent-spec. Follow the chain so that
+// assembly_pages has proper title/domain/description for every screen, not just orphan IDs.
+function loadSpecChain(startPath) {
+  const visited = new Set()
+  const chainScreens = []
+  const chainEntities = []
+  const chainEndpoints = []
+  let cur = startPath
+  while (cur && !visited.has(cur)) {
+    visited.add(cur)
+    if (!existsSync(cur)) break
+    let specRaw, specMatch, specFm
+    try {
+      specRaw = readFileSync(cur, 'utf8')
+      specMatch = specRaw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+      if (!specMatch) break
+      specFm = parse(specMatch[1])
+    } catch { break }
+    for (const s of (specFm['ui-surface']?.screens ?? [])) {
+      if (s.id && !chainScreens.some((x) => x.id === s.id)) chainScreens.push(s)
+    }
+    for (const e of (specFm.entities ?? [])) {
+      if (e.name && !chainEntities.some((x) => x.name === e.name)) chainEntities.push(e)
+    }
+    for (const ep of [...(specFm['api-surface']?.endpoints ?? []), ...(specFm['api-surface']?.mutations ?? [])]) {
+      chainEndpoints.push(ep)
+    }
+    const parent = specFm.metadata?.['parent-spec'] ?? ''
+    if (!parent) break
+    // parent-spec is repo-relative (same as lib-spec.loadSpecChain), not relative to this file.
+    cur = parent.startsWith('/') ? parent : join(root, parent)
+  }
+  return { screens: chainScreens, entities: chainEntities, endpoints: chainEndpoints }
+}
+
+// Use the full spec chain only in append mode; full-build reads only the current spec.
+const chain = mapPath ? loadSpecChain(specPath) : null
+const entities = chain?.entities ?? fm.entities ?? []
+const endpoints = chain
+  ? chain.endpoints
+  : [...(fm['api-surface']?.endpoints ?? []), ...(fm['api-surface']?.mutations ?? [])]
 
 function kebab(value) {
   return String(value ?? '')
@@ -156,7 +194,10 @@ function pageFields(screen) {
   }
 }
 
-const allScreens = (fm['ui-surface']?.screens ?? []).filter((screen) => screen.id)
+// In append mode: chain.screens = all screens across the spec ancestry (old + new, deduplicated).
+// In full-build mode: only the current spec's screens.
+const allScreens = (chain?.screens ?? fm['ui-surface']?.screens ?? []).filter((screen) => screen.id)
+const currentIds = new Set(allScreens.map((screen) => screen.id))
 const screens = allScreens
   .filter((screen) => {
     const entity = entityFor(screen)
@@ -168,10 +209,21 @@ const screens = allScreens
   })
   .map(pageFields)
 
-const assembly_pages = allScreens.map((screen) => {
-  const page = pageFields(screen)
-  return { id: page.id, spec_id: page.spec_id, title: page.title, domain: page.domain, description: page.description }
-})
+const assembly_pages = [
+  ...allScreens.map((screen) => {
+    const page = pageFields(screen)
+    return { id: page.id, spec_id: page.spec_id, title: page.title, domain: page.domain, description: page.description }
+  }),
+  ...Object.entries(mapped)
+    .filter(([specId]) => !currentIds.has(specId))
+    .map(([specId, mappedId]) => ({
+      id: typeof mappedId === 'string' && mappedId ? mappedId : kebab(specId),
+      spec_id: specId,
+      title: specId,
+      domain: kebab(specId),
+      description: '',
+    })),
+]
 const entities_changed = [...new Set([...(changes?.entities?.added ?? []), ...(changes?.entities?.modified ?? [])])]
 const nav_structure = {}
 for (const page of assembly_pages) (nav_structure[page.domain] ??= []).push(page.id)

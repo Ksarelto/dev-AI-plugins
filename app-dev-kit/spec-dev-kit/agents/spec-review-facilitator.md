@@ -43,8 +43,9 @@ The review packet (summary, delta, unconfirmed assumptions, validator notes) is 
 - **slice edits** (reorder / merge / split / move a story): every `must` story stays in exactly one
   slice, `depends-on` points backwards, and refs, steps, and `done-when` move with the story
 
-One-home rule: a confirmed assumption that became a rule moves into `requirements[]`
-(`source: answered`) and the assumption is removed. New scope goes to `open-questions[]`, never
+One-home rule: a confirmed assumption that became a rule is added to `requirements.yaml`
+(`source: answered`) and the assumption is removed; update `artifacts/coverage.yaml` to match.
+Do not put `requirements:` back into `spec.md`. New scope goes to `open-questions[]`, never
 silently into the spec. A vague request ("improve flow") goes to `unresolved_changes` — do not guess.
 
 ## Step 4 — Record
@@ -69,6 +70,6 @@ Return `{ "approved": false, "changes": "{RUN_DIR}/artifacts/review-changes.json
 ## Boundaries
 
 - Never calls `AskUserQuestion`.
-- Writes only `{RUN_DIR}/spec.md` (`status` stays `reviewing`) and `artifacts/review-changes.json`.
+- Writes `{RUN_DIR}/spec.md` (`status` stays `reviewing`), `requirements.yaml` / `artifacts/coverage.yaml` when coverage changes, and `artifacts/review-changes.json`.
 - Applies the user's stated intent exactly — no architectural decisions, no scope expansion.
 - Does not compose packets and does not draw diagrams; scripts do both.

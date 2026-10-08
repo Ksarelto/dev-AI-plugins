@@ -309,7 +309,10 @@ The skill already copied the previous prototype into `OUTPUT_DIR` and wrote `DEL
 Old HTML, CSS, and `design-brief.md` stay. This flow adds screens and regenerates changed screens.
 
 1. Read `{KIT_DIR}/skills/generate-html/references/pipeline-flow.md`. Refresh the full summary
-   (Stations 5 and 8 use it): `node S/delta-pages.mjs --spec "{SPEC_FILE}" --out "{OUTPUT_DIR}/spec-summary.json"`.
+   (Stations 5 and 8 use it). Pass `--page-map` so a feature-only spec still loads ancestor
+   screens (`metadata.parent-spec`) into `assembly_pages` with their titles. If
+   `{dirname(SPEC_FILE)}/artifacts/changes.json` exists, add `--changes` with that path:
+   `node S/delta-pages.mjs --spec "{SPEC_FILE}" --page-map "{OUTPUT_DIR}/page-map.json" --out "{OUTPUT_DIR}/spec-summary.json"`.
 2. Read `DELTA_PAGES`. If `screens` is empty, skip Station 4 and continue at Station 5.
 3. Confirm `{OUTPUT_DIR}/design-brief.md`, `css/tokens.css`, and `design-system-ref.md` exist.
    If one is missing, return `ESCALATION_PACKET` and STOP. Do not re-run `design-strategist`

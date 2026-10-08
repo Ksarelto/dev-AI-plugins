@@ -6,7 +6,7 @@
 
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { endpointsOf, flag, loadYaml, readSpec } from './lib-spec.mjs'
+import { attachRequirements, endpointsOf, flag, loadYaml, readSpec } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
 const specPath = args.find((a) => !a.startsWith('--') && a !== flag(args, 'out'))
@@ -19,6 +19,7 @@ const outPath = outArg && outArg !== true ? String(outArg) : join(dirname(specPa
 
 const { parse } = await loadYaml()
 const { fm } = readSpec(specPath, parse)
+attachRequirements(specPath, fm, parse)
 const list = (v) => (Array.isArray(v) ? v : [])
 const cell = (v) => String(Array.isArray(v) ? v.join(', ') : v ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ')
 const table = (head, rows) => rows.length
@@ -47,11 +48,32 @@ for (const s of slices) {
 // Requirement coverage
 const reqs = list(fm.requirements)
 const uncovered = reqs.filter((r) => (r.scope ?? 'in') === 'in' && !list(r['covered-by']).length)
-out.push('## Requirement coverage', '', `${reqs.length} requirements · ${uncovered.length} in scope without coverage`, '')
+const bySlice = new Map()
+for (const s of slices) bySlice.set(s.id, 0)
+for (const r of reqs) {
+  const owners = slices.filter((s) => list(r['covered-by']).some((id) =>
+    list(s['done-when']).includes(id) || list(s['story-refs']).some((story) => acsOf(story, id))))
+  for (const s of owners) bySlice.set(s.id, (bySlice.get(s.id) ?? 0) + 1)
+}
+function acsOf(storyId, acId) {
+  return list(fm['acceptance-criteria']).some((ac) => ac?.id === acId && ac?.['story-ref'] === storyId)
+}
+const nonGoals = reqs.filter((r) => r.scope === 'non-goal')
+out.push('## Requirement coverage', '', `${reqs.length} requirements · ${uncovered.length} in scope without coverage · ${nonGoals.length} non-goals`, '')
 out.push(table(
-  ['Id', 'Priority', 'Kind', 'Source', 'Scope', 'Covered by', 'Text'],
-  reqs.map((r) => [r.id, r.priority, r.kind, r['source-ref'] ?? r.source, r.scope ?? 'in', list(r['covered-by']).length ? r['covered-by'] : '✗', r.text]),
+  ['Slice', 'Requirements'],
+  [...bySlice].map(([id, n]) => [id, String(n)]),
 ), '')
+if (uncovered.length) {
+  out.push('### Uncovered', '')
+  for (const r of uncovered) out.push(`- ${r.id}: ${r.text}`)
+  out.push('')
+}
+if (nonGoals.length) {
+  out.push('### Non-goals', '')
+  for (const r of nonGoals) out.push(`- ${r.id}: ${r.text}`)
+  out.push('')
+}
 
 // Story → AC map
 const acs = list(fm['acceptance-criteria'])

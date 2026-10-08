@@ -43,6 +43,8 @@ DIFF_SCOPE and TOPICS apply when present. Write the report to the handoff path. 
 2. Run the preloaded `architecture-audit` procedure through step 5 (report). Stop. Never step 6.
    When the prompt contains `DIFF_SCOPE`, load only the `TOPICS` named there.
 3. Write the report to `.spec/features/<slug>.context/architecture-auditor-<station>.md`.
+   Station 9.5 returns every finding in this one pass, grouped by owning agent and layer
+   (one group is one later fix batch). Do not stop after the first finding.
    Return only `HANDOFF` and one `CONTAINS` line (hard count, judgment count). Do not paste the report.
    Bash is for mechanical checks (Steiger, ESLint, depcruise) only.
 

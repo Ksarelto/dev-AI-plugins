@@ -68,6 +68,8 @@ All script and reference paths are `{KIT_DIR}/skills/generate-spec/…`. Never h
 | `scripts/lookup-spec.mjs` | orchestrator (continue runs), humans | items by id, or `--slice SL-NNN` brief |
 | `scripts/publish-spec.mjs` | this skill (Station 10, Bash) | set `approved`, re-validate, write views + briefs; revert to `reviewing` on failure |
 | `scripts/continue-spec.mjs` | this skill (Station 0, Bash) | timecode freeze + run-folder scaffold |
+| `scripts/build-requirements.mjs` | orchestrator (Stations 6–7, Bash) | join `enriched.json` + `coverage.yaml` → `requirements.yaml` |
+| `scripts/write-changes.mjs` | orchestrator (Stations 6–7, Bash) | `artifacts/changes.json` vs the parent spec |
 | `scripts/extract-intake.mjs` | this skill (Stations 0–1, Bash) | slug hint; atomic `raw_requirements` split into `intake.json` |
 | `scripts/build-enriched.mjs` | orchestrator (Stations 4–5, Bash) | seed one REQ per intake entry; merge enricher patches into `enriched.json` |
 | `scripts/score-completeness.mjs` | orchestrator (Station 5, Bash) | fidelity + weighted score → `completeness.json` |
@@ -132,7 +134,7 @@ Read `{KIT_DIR}/skills/generate-spec/references/pipeline-flow.md` before Station
 node {KIT_DIR}/skills/generate-spec/scripts/continue-spec.mjs --slug {slug}
 ```
 
-Capture `MODE`, `SPEC_ID`, `RUN_DIR`, `PRIOR_INDEX`, `APP_SLUG`, and `TIMECODE` from stdout.
+Capture `MODE`, `SPEC_ID`, `RUN_DIR`, `PRIOR_INDEX`, `APP_SLUG`, `TIMECODE`, and `PARENT_SPEC` from stdout.
 Use `APP_SLUG` as the app slug from here on (`MODE=continue` keeps the existing app slug).
 4. Log: `"[generate-spec] Timecode: {TIMECODE} | Slug: {APP_SLUG} | Run dir: {RUN_DIR} | MODE: {MODE} | KIT_DIR: {KIT_DIR}"`
 
@@ -162,10 +164,11 @@ TIMECODE / SLUG / RUN_DIR / KIT_DIR
 APP_SLUG:  {APP_SLUG}
 CONTINUE:  {MODE}         # first | continue
 PRIOR_INDEX: {PRIOR_INDEX}
+PARENT_SPEC: {PARENT_SPEC}
 INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json
 
 Read {KIT_DIR}/skills/generate-spec/references/pipeline-flow.md before any station.
-Do NOT call AskUserQuestion. Do NOT inline base.spec.md or prior context files.
+Do NOT call AskUserQuestion. Do NOT inline the parent spec or prior context files.
 Return one packet as your final message and STOP.
 ```
 
@@ -281,12 +284,14 @@ Wall-clock is unmeasured. Do not quote a 3–10 minute total; observed runs have
 
 ## Re-Running
 
-A later `/generate-spec` reads `.spec/app/current.json`, copies that spec to `base.spec.md`, and
-assigns the next free id of every kind (`US`, `AC`, `SCR`, `API`, `REQ`, `BR`, `SM`, `SL`, …). The
-new feature arrives as new requirements, stories, and **new delivery slices** appended to the plan. The model sees `artifacts/prior-index.json` (id, title,
-route, entity name) plus the new inbox files — not the old notes and not the full previous spec.
-Publish writes a new `.spec/spec/{spec-id}/` folder, moves the inbox to `.spec/processed/{spec-id}/`,
-and leaves the previous spec on disk.
+A later `/generate-spec` reads `.spec/app/current.json` and writes `artifacts/prior-index.json`
+(parent path + next free ids). Never edit `prior-index.json`. The new run's `spec.md` is
+**feature-only**: new and modified items, with `metadata.parent-spec` pointing at the previous
+spec. Ids continue from `next`. "Not a merge" means that feature-only continue — it does not mean
+`mode: first`. The model sees `prior-index.json` plus the new inbox files — not the old notes and
+not the previous spec body. Publish writes a new `.spec/spec/{spec-id}/` folder, moves the inbox to
+`.spec/processed/{spec-id}/`, and leaves the previous spec on disk. Archive runs only after
+`publish-spec.mjs` exits 0, so `current.json` `next_ids` is taken from the approved spec.
 
 `revert-increment.mjs` points `current.json` at the parent spec and prototype. It does not delete
 the newer folders.

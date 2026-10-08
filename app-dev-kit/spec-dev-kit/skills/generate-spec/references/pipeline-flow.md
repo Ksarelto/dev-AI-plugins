@@ -47,15 +47,15 @@
 
 | # | Station | Owner | Model / Effort | Notes |
 |---|---------|-------|----------------|-------|
-| 0 | Context discovery + naming | **skill** | — | globs `.spec/context/*.md` only, freezes timecode, scaffolds `.spec/spec/` via `continue-spec.mjs` (copies the last spec when `current.json` exists) |
-| 1 | Intake & normalize | **skill** + `extract-intake.mjs` | — | script does the **atomic** split per `references/context-protocol.md` (every rule, number, and table row is one `raw_requirements` entry) into `artifacts/intake.json`; the skill adds only type hint, entities, roles, conflicts, drift |
+| 0 | Context discovery + naming | **skill** | — | globs `.spec/context/*.md` only, freezes timecode, scaffolds `.spec/spec/` via `continue-spec.mjs` (writes `prior-index.json` when `current.json` exists; does not copy the last spec) |
+| 1 | Intake & normalize | **skill** + `extract-intake.mjs` | — | script does the **atomic** split per `references/context-protocol.md` (every table row, bullet, and requirement-bearing paragraph is one `raw_requirements` entry) into `artifacts/intake.json`; the skill adds only type hint, entities, roles, conflicts, drift |
 | 2 | Gap & conflict analysis | `spec-analyst` | sonnet / **xhigh** (`effort: xhigh`) | writes `artifacts/analysis.json` |
 | 2a | Clarification questions | `spec-interrogator` → **skill** asks | sonnet | interrogator returns `questions[]`; orchestrator returns `CLARIFY_PACKET`; skill calls `AskUserQuestion` |
 | 2b | Re-analysis | `spec-analyst` | sonnet / **xhigh** | folds answers back in; skill re-spawns orchestrator `MODE: resume` |
 | 3 | Pre-enrich gate | orchestrator + `gate-check.mjs` | — | **blocking-gap check BEFORE enrichment** (same script as the Station 2 exit) |
 | 4 | Enrichment | `build-enriched.mjs` + `spec-enricher` | sonnet / **xhigh** | script seeds one REQ per intake entry; agent writes only edits + other sections (`enriched.patch.json`); script merges into `artifacts/enriched.json` |
 | 5 | Completeness gate | `spec-completeness` + `score-completeness.mjs` | haiku | agent judges category credits (`completeness-credits.json`); script computes **source fidelity** (every intake requirement carried into `enriched.json`), score, and `gate_passes` into `artifacts/completeness.json`; fail → analysis re-entry → `CLARIFY_PACKET` |
-| 6 | Synthesis | `spec-synthesizer` | sonnet / **xhigh** | schema 2.0 incl. `requirements`, `roles`, `permissions`, `business-rules`, `state-machines`, `notifications`, and the `delivery-plan`; first run writes `spec.md`; a continued run writes `artifacts/delta.yaml`, then `merge-spec.mjs` writes `spec.md`. `status: reviewing` |
+| 6 | Synthesis | `spec-synthesizer` | sonnet / **xhigh** | schema 2.0 incl. `roles`, `permissions`, `business-rules`, `state-machines`, `notifications`, and the `delivery-plan`; writes `spec.md` (feature-only on continue) plus `artifacts/coverage.yaml`; `build-requirements.mjs` writes `requirements.yaml`; `write-changes.mjs` writes `changes.json`. `status: reviewing` |
 | 7 | Validation gate | orchestrator + `validate-spec.mjs` | — | Bash; structure + contract quality + coverage + delivery plan (rule codes in `spec-schema.md`); on fail ×2 return `ESCALATION_PACKET` |
 | 8 | Diagram generation | `render-spec-views.mjs` (run at Station 9) | — | no agent; state machines, screen navigation, API sequences, and must-story user flows as Mermaid in `spec.views.md` |
 | 9 | Review loop (HARD STOP) | `render-spec-views.mjs` + `compose-review.mjs` → **skill** asks; `spec-review-facilitator` applies changes | sonnet (apply only) | scripts write `spec.views.md` and `artifacts/review-packet.md` (summary or delta, delivery plan, coverage, validator warnings); orchestrator returns `REVIEW_PACKET`; `MODE: revise` runs the facilitator apply pass |
@@ -195,17 +195,17 @@ Workers (and the skill) persist stage output so later stages read **paths**, not
 
 ```
 .spec/spec/spec-{tc}_{slug}/
-  spec.md                      ← synthesizer or merge-spec.mjs (reviewing); skill sets approved
+  spec.md                      ← synthesizer (reviewing); skill sets approved
+  requirements.yaml            ← build-requirements.mjs — one-line-per-requirement register
   spec.views.md                ← render-spec-views.mjs (Station 9 and publish): tables + diagrams
   slices/SL-NNN.yaml           ← write-slice-briefs.mjs (publish) — build briefs for downstream kits
   kit-result.json              ← write-kit-result.mjs
-  base.spec.md                 ← copy of the previous spec when MODE=continue; not a model prompt
   artifacts/
-    prior-index.json           ← continue-spec.mjs (ids + one line per existing screen)
+    prior-index.json           ← continue-spec.mjs (parent path + ids + one line per existing screen)
     prior-items.yaml           ← lookup-spec.mjs, full items for modified ids
-    delta.yaml                 ← synthesizer, continue runs: add, modify, and removed:
-    delta.md                   ← synthesizer, only when the narrative changes
-    changes.json               ← merge-spec.mjs
+    coverage.yaml              ← synthesizer: REQ-id → covering ids
+    removed.yaml               ← synthesizer, continue runs: ids dropped from the parent
+    changes.json               ← write-changes.mjs
     intake.json                ← extract-intake.mjs + skill judgement fields (Station 1); archived at publish
     analysis.json              ← spec-analyst (overwritten per round)
     completeness-credits.json  ← spec-completeness (category credits)

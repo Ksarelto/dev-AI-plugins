@@ -4,7 +4,9 @@
 (Station 3 status + log, run by the `orchestrate-frontend` skill)
 **Read by**: `orchestrate-frontend` skill, on every invocation (Station 0 resume check)
 **Location**: `.spec/app/task-checklist.md` when the spec lives under `.spec/spec/`. The checklist
-stays in the shared folder so a new spec version keeps `done` rows matched by `screen-ref`.
+stays in the shared folder. A later spec (`metadata.parent-spec`) appends features; a shipped
+feature is reopened only when `changes.json` lists its slice or screen as modified. Identity is
+`source-spec` plus `slice-ref`, not the slice id alone.
 Legacy specs under `.spec/app/spec-{timecode}_{slug}/` still keep the checklist beside `spec.md`.
 
 ---
@@ -39,6 +41,7 @@ features:
     branch: ""                    # feature/<slug> once resolved
     parent-branch: ""             # branch this one was cut from
     blocked-reason: ""
+    source-spec: spec-20260101-000001_app   # folder name of the spec that added this feature
     tasks:
       - id: T-001
         title: Sign in

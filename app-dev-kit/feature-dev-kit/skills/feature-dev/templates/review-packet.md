@@ -7,7 +7,7 @@ carries that path, not this body. The `feature-dev` skill reads the file once at
 ## Feature Review: ⟨feature-slug⟩
 
 **Spec**:   .spec/features/⟨slug⟩.md
-**Branch**: ⟨feature/IV-1423-decline-profile⟩ (base: ⟨develop⟩)
+**Branch**: ⟨feature/IV-1423-decline-profile⟩ (base: ⟨PARENT⟩)
 **Status**: awaiting-human
 
 ### What was built
@@ -47,7 +47,7 @@ carries that path, not this body. The `feature-dev` skill reads the file once at
 | ⟨none⟩ | | |
 
 ### Diff
-⟨output of: git diff --stat ⟨base⟩...HEAD — the stat only, never the diff body⟩
+⟨output of: git diff --stat {PARENT}...HEAD — the stat only, never the diff body⟩
 
 ### Open items for you
 - ⟨assumption the pipeline made that the human should confirm⟩

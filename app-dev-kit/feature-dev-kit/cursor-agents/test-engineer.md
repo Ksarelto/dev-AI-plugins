@@ -38,13 +38,13 @@ List the increment's created and changed files. Skip only `index.ts`, `styles.ts
 
 Mock only the boundaries (`frontend-dev-kit:testing` → `references/mock-patterns.md`): the fetcher module via `importOriginal` overriding one export, the router, env, and browser APIs. Keep entity hooks, the query client, i18n, and child components real. A mocked module returns only the fields the code reads. Never mock the component under test, `@/shared/ui/*`, or `react-i18next`.
 
-Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Assert translated text through the locale value, not the key. Tests have no comments. Run `yarn test:auto` scoped to the new tests, then `node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <SLICE_PATHS files>` — no `missing-test` may remain. Write coverage notes and any file that still lacks a behavior test into `## Gate Log`.
+Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Assert translated text through the locale value, not the key. Tests have no comments. Run `yarn test:auto` scoped to the new tests, then `node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <SLICE_PATHS files>` — no `missing-test` may remain. Write coverage notes and any file that still lacks a behavior test into the row `--note` and the handoff. `## Gate Log` stays a pointer.
 
 Mark your test rows: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<files tested, coverage — one line>"`.
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/<agent>-<station>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions. Name each gate you ran with its result (`lint: pass`); never copy gate output or your Build Plan note into it. Return only:
+Write the return with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug>.md --name <agent>-<station> --outcome "<one line>" --paths <comma-separated files> --decisions "<one line>" --gates "<lint: pass>"`. It rejects more than 15 lines. Never copy gate output or the Build Plan note. Return only:
 
 ```
 HANDOFF: <that path>

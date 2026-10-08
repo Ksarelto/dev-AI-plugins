@@ -110,7 +110,9 @@ overlapping screen). New screens append with the next free `T-NNN`; new features
 `F-NNN`. A screen that disappeared from the spec has its task marked `blocked` (reason: "source
 screen removed from spec") rather than deleted. When `--changes` is passed, a `done` task whose
 screen or entity is in `modified` returns to `pending` (`blocked-reason: spec changed`). The
-owning feature returns to `pending` with it.
+owning feature returns to `pending` with it. A restated slice listed in `changes.slices.modified`
+keeps its feature id and gains a task for each new `screen-ref`; screens already on that feature
+are not duplicated. Restating a slice that is not in `modified` is still `ID_COLLISION`.
 
 ---
 

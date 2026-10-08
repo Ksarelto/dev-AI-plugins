@@ -1,7 +1,7 @@
-// Shared helpers for continue / merge / archive / revert / validate / views. Not a CLI.
+// Shared helpers for continue / archive / revert / validate / views. Not a CLI.
 
-import { readFileSync } from 'node:fs'
-import { relative } from 'node:path'
+import { existsSync, readFileSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join, relative } from 'node:path'
 
 // Every id prefix the spec uses. nextIds() reports the next free number for each.
 export const ID_KINDS = [
@@ -98,6 +98,103 @@ export function nextIds(fm) {
   return next
 }
 
+export function maxNextIds(...nexts) {
+  const out = {}
+  for (const kind of ID_KINDS) {
+    out[kind] = Math.max(1, ...nexts.map((n) => Number(n?.[kind] ?? 1)))
+  }
+  return out
+}
+
+export function specIdOf(specPath) {
+  return basename(dirname(specPath))
+}
+
+export function normalizeRequirement(r) {
+  if (!r || typeof r !== 'object') return r
+  return {
+    ...r,
+    kind: r.kind || 'behavior',
+    source: r.source || 'stated',
+    'source-ref': r['source-ref'] || r.ref || '',
+    priority: r.priority || 'must',
+    scope: r.scope || 'in',
+    'covered-by': Array.isArray(r['covered-by']) ? r['covered-by'] : [],
+  }
+}
+
+export function loadRequirements(specPath, fm, parse) {
+  const list = (v) => (Array.isArray(v) ? v : [])
+  const file = fm?.metadata?.['requirements-file']
+  if (file && parse) {
+    const abs = isAbsolute(file) ? file : join(dirname(specPath), file)
+    if (existsSync(abs)) {
+      const parsed = parse(readFileSync(abs, 'utf8'))
+      return list(parsed?.requirements ?? parsed).map(normalizeRequirement)
+    }
+  }
+  return list(fm?.requirements).map(normalizeRequirement)
+}
+
+// Arrays of objects are one JSON line each. Callers omit default fields before writing.
+export function stringifyCompact(value) {
+  const write = (node, indent) => {
+    const pad = ' '.repeat(indent)
+    const inner = ' '.repeat(indent + 2)
+    if (Array.isArray(node)) {
+      if (!node.length) return '[]'
+      const objects = node.every((item) => item && typeof item === 'object' && !Array.isArray(item))
+      const body = node.map((item) => `${inner}${objects ? JSON.stringify(item) : write(item, indent + 2)}`).join(',\n')
+      return `[\n${body}\n${pad}]`
+    }
+    if (node && typeof node === 'object') {
+      const keys = Object.keys(node)
+      if (!keys.length) return '{}'
+      return `{\n${keys.map((key) => `${inner}${JSON.stringify(key)}: ${write(node[key], indent + 2)}`).join(',\n')}\n${pad}}`
+    }
+    return JSON.stringify(node)
+  }
+  return `${write(value, 0)}\n`
+}
+
+export function attachRequirements(specPath, fm, parse) {
+  fm.requirements = loadRequirements(specPath, fm, parse)
+  return fm
+}
+
+export function loadSpecChain(specPath, parse, root = process.cwd()) {
+  const specs = []
+  const seen = new Set()
+  let path = specPath
+  while (path && !seen.has(path)) {
+    seen.add(path)
+    const abs = isAbsolute(path) ? path : join(root, path)
+    if (!existsSync(abs)) break
+    const { fm, body } = readSpec(abs, parse)
+    attachRequirements(abs, fm, parse)
+    specs.push({ path: abs, specId: specIdOf(abs), fm, body })
+    const parent = fm.metadata?.['parent-spec']
+    if (!parent) break
+    path = parent
+  }
+  return specs
+}
+
+export function indexSpecChain(specs) {
+  const ids = new Map()
+  const entities = new Map()
+  const roles = new Map()
+  const duplicates = []
+  for (const { fm } of [...specs].reverse()) {
+    const idx = indexSpec(fm)
+    for (const [id, value] of idx.ids) ids.set(id, value)
+    for (const [name, entity] of idx.entities) entities.set(name, entity)
+    for (const [name, role] of idx.roles) roles.set(name, role)
+    duplicates.push(...idx.duplicates)
+  }
+  return { ids, entities, roles, duplicates }
+}
+
 export function screenIndex(fm) {
   const names = (fm.entities ?? []).map((entity) => entity.name).filter(Boolean)
   return (fm['ui-surface']?.screens ?? []).map((screen) => {
@@ -171,55 +268,108 @@ export const BRIEF_ENVELOPE = 'app-dev-kit/slice-brief/v1'
 
 // Everything one delivery slice needs, expanded from its refs. Written to slices/SL-NNN.yaml at
 // publish so build kits read one file instead of re-deriving scope from the whole spec.
-export function sliceBrief(fm, slice, specPath = '') {
+export function sliceBrief(fm, slice, specPath = '', opts = {}) {
   const list = (v) => (Array.isArray(v) ? v : [])
   const has = (set, values) => list(values).some((v) => set.has(v))
+  const parents = list(opts.parents)
+  const tag = (item, specId) => (item && specId ? { ...item, 'from-spec': specId } : item)
+  const pull = (have, ids, pick) => {
+    const out = [...have]
+    const seen = new Set(out.map((item) => item?.id ?? item?.name).filter(Boolean))
+    for (const id of ids) {
+      if (seen.has(id)) continue
+      for (const parent of parents) {
+        const item = pick(parent.fm, id)
+        if (item) {
+          out.push(tag(item, parent.specId))
+          seen.add(id)
+          break
+        }
+      }
+    }
+    return out
+  }
   const ui = fm['ui-surface'] ?? {}
   const agent = fm['agent-surface'] ?? {}
   const endpoints = endpointsOf(fm)
   const slices = list(fm['delivery-plan']?.slices)
+  const reqs = list(opts.requirements ?? fm.requirements)
 
   const storyIds = new Set(list(slice['story-refs']))
   const doneWhen = new Set(list(slice['done-when']))
-  const acs = list(fm['acceptance-criteria']).filter((ac) => storyIds.has(ac?.['story-ref']) || doneWhen.has(ac?.id))
+  let acs = list(fm['acceptance-criteria']).filter((ac) => storyIds.has(ac?.['story-ref']) || doneWhen.has(ac?.id))
+  acs = pull(acs, [...storyIds, ...doneWhen], (pfm, id) => list(pfm['acceptance-criteria']).find((ac) => ac?.id === id || ac?.['story-ref'] === id))
 
   const screenIds = new Set(list(slice['screen-refs']))
-  const screens = list(ui.screens).filter((s) => screenIds.has(s?.id))
-  const interactions = list(ui.interactions).filter((i) => screenIds.has(i?.['screen-ref']))
+  let screens = list(ui.screens).filter((s) => screenIds.has(s?.id))
+  screens = pull(screens, screenIds, (pfm, id) => list(pfm['ui-surface']?.screens).find((s) => s?.id === id))
+  let interactions = list(ui.interactions).filter((i) => screenIds.has(i?.['screen-ref']))
+  interactions = pull(interactions, screenIds, (pfm, id) => list(pfm['ui-surface']?.interactions).find((i) => i?.['screen-ref'] === id))
 
   const agentRefs = new Set(list(slice['agent-refs']))
-  const agents = list(agent.agents).filter((a) => agentRefs.has(a?.id))
+  let agents = list(agent.agents).filter((a) => agentRefs.has(a?.id))
+  agents = pull(agents, agentRefs, (pfm, id) => list(pfm['agent-surface']?.agents).find((a) => a?.id === id))
   const toolIds = new Set([...agentRefs, ...agents.flatMap((a) => list(a?.['tool-refs']))])
   const kbIds = new Set([...agentRefs, ...agents.flatMap((a) => list(a?.['knowledge-base-refs']))])
-  const tools = list(agent.tools).filter((t) => toolIds.has(t?.id))
-  const kbs = list(agent['knowledge-bases']).filter((k) => kbIds.has(k?.id))
+  let tools = list(agent.tools).filter((t) => toolIds.has(t?.id))
+  tools = pull(tools, toolIds, (pfm, id) => list(pfm['agent-surface']?.tools).find((t) => t?.id === id))
+  let kbs = list(agent['knowledge-bases']).filter((k) => kbIds.has(k?.id))
+  kbs = pull(kbs, kbIds, (pfm, id) => list(pfm['agent-surface']?.['knowledge-bases']).find((k) => k?.id === id))
 
   const apiIds = new Set([
     ...list(slice['api-refs']),
     ...screens.flatMap((s) => list(s?.['api-refs'])),
     ...tools.map((t) => t?.['api-ref']).filter(Boolean),
   ])
-  const apis = endpoints.filter((e) => apiIds.has(e?.id))
+  let apis = endpoints.filter((e) => apiIds.has(e?.id))
+  apis = pull(apis, apiIds, (pfm, id) => endpointsOf(pfm).find((e) => e?.id === id))
 
   const entityNames = new Set([
     ...list(slice['entity-refs']),
     ...screens.map((s) => s?.['primary-entity']).filter(Boolean),
   ])
-  const entities = list(fm.entities).filter((e) => entityNames.has(e?.name))
+  let entities = list(fm.entities).filter((e) => entityNames.has(e?.name))
+  entities = pull(entities, entityNames, (pfm, id) => list(pfm.entities).find((e) => e?.name === id))
 
   const smIds = new Set(list(slice['state-machine-refs']))
-  const machines = list(fm['state-machines']).filter((m) => smIds.has(m?.id) || entityNames.has(m?.entity))
+  let machines = list(fm['state-machines']).filter((m) => smIds.has(m?.id) || entityNames.has(m?.entity))
+  machines = pull(machines, smIds, (pfm, id) => list(pfm['state-machines']).find((m) => m?.id === id))
   const guardIds = new Set(machines.flatMap((m) => list(m?.transitions).flatMap((t) => [...list(t?.guard), ...list(t?.effects)])))
 
+  const sentence = (t) => {
+    const text = String(t ?? '').trim()
+    const cut = text.match(/^.*?[.!?](\s|$)/)?.[0]?.trim() ?? text
+    return cut.length > 140 ? `${cut.slice(0, 137)}…` : cut
+  }
   const ruleIds = new Set(list(slice['rule-refs']))
-  const rules = list(fm['business-rules']).filter((b) => ruleIds.has(b?.id) || guardIds.has(b?.id)
-    || has(entityNames, b?.['applies-to']) || has(apiIds, b?.['applies-to']))
+  let rules = list(fm['business-rules']).filter((b) => ruleIds.has(b?.id) || guardIds.has(b?.id))
+  rules = pull(rules, ruleIds, (pfm, id) => list(pfm['business-rules']).find((b) => b?.id === id))
 
   const ntfIds = new Set([...list(slice['notification-refs']), ...guardIds])
-  const notifications = list(fm.notifications).filter((n) => ntfIds.has(n?.id))
+  let notifications = list(fm.notifications).filter((n) => ntfIds.has(n?.id))
+  notifications = pull(notifications, ntfIds, (pfm, id) => list(pfm.notifications).find((n) => n?.id === id))
 
   const permIds = new Set(list(slice['permission-refs']))
-  const permissions = list(fm.permissions).filter((p) => permIds.has(p?.id) || has(apiIds, p?.refs) || has(screenIds, p?.refs))
+  let permissions = list(fm.permissions).filter((p) => permIds.has(p?.id))
+  permissions = pull(permissions, permIds, (pfm, id) => list(pfm.permissions).find((p) => p?.id === id))
+
+  const catalogs = [{ fm, specId: '' }, ...parents]
+  const seenExtra = new Set([...rules.map((b) => b?.id), ...permissions.map((p) => p?.id)])
+  const ownedElsewhere = []
+  for (const doc of catalogs) {
+    for (const b of list(doc.fm['business-rules'])) {
+      if (!b?.id || seenExtra.has(b.id) || ruleIds.has(b.id)) continue
+      if (!(has(entityNames, b?.['applies-to']) || has(apiIds, b?.['applies-to']))) continue
+      seenExtra.add(b.id)
+      ownedElsewhere.push({ id: b.id, kind: 'rule', text: sentence(b.rule), 'from-spec': doc.specId })
+    }
+    for (const p of list(doc.fm.permissions)) {
+      if (!p?.id || seenExtra.has(p.id) || permIds.has(p.id)) continue
+      if (!(has(apiIds, p?.refs) || has(screenIds, p?.refs))) continue
+      seenExtra.add(p.id)
+      ownedElsewhere.push({ id: p.id, kind: 'permission', text: sentence(p.action), 'from-spec': doc.specId })
+    }
+  }
 
   const kept = new Set([
     slice.id, ...storyIds, ...acs.map((a) => a.id), ...screenIds, ...interactions.map((i) => i.id),
@@ -231,36 +381,58 @@ export function sliceBrief(fm, slice, specPath = '') {
 
   // Context rules / permissions (pulled in through a shared entity or endpoint) → the slice that
   // lists them. Consumers build only their own refs and show these as "owned by another slice".
-  const ownerOf = (key, id) => slices.find((s) => list(s?.[key]).includes(id))?.id ?? ''
+  const ownerOf = (key, id) => {
+    const local = slices.find((s) => list(s?.[key]).includes(id))?.id
+    if (local) return local
+    for (const parent of parents) {
+      const found = list(parent.fm['delivery-plan']?.slices).find((s) => list(s?.[key]).includes(id))?.id
+      if (found) return found
+    }
+    return ''
+  }
   const owners = {}
-  for (const r of rules) if (!ruleIds.has(r.id)) owners[r.id] = ownerOf('rule-refs', r.id)
-  for (const p of permissions) if (!permIds.has(p.id)) owners[p.id] = ownerOf('permission-refs', p.id)
+  for (const item of ownedElsewhere) {
+    item.owner = ownerOf(item.kind === 'rule' ? 'rule-refs' : 'permission-refs', item.id)
+    if (item.owner) owners[item.id] = item.owner
+    delete item['from-spec']
+  }
 
   return {
     brief: BRIEF_ENVELOPE,
     spec: specPath,
     'spec-version': String(fm['spec-version'] ?? ''),
     slice,
-    'depends-on': slices
-      .filter((s) => list(slice['depends-on']).includes(s?.id))
-      .map((s) => ({ id: s.id, title: s.title, goal: s.goal })),
+    'depends-on': list(slice['depends-on']).map((id) => {
+      const local = slices.find((s) => s?.id === id)
+      if (local) return { id: local.id, title: local.title, goal: local.goal }
+      for (const parent of parents) {
+        const found = list(parent.fm['delivery-plan']?.slices).find((s) => s?.id === id)
+        if (found) return { id: found.id, title: found.title, goal: found.goal, 'from-spec': parent.specId }
+      }
+      return { id }
+    }),
     context: {
       title: fm.metadata?.title ?? '',
       goal: fm.context?.goal ?? '',
       constraints: list(fm.context?.constraints),
       'non-goals': list(fm.context?.['non-goals']),
     },
-    roles: list(fm.roles),
-    glossary: list(fm.glossary),
-    'user-stories': list(fm['user-stories']).filter((s) => storyIds.has(s?.id)),
+    roles: list(fm.roles).map((r) => r?.name).filter(Boolean),
+    glossary: list(fm.glossary).map((g) => g?.term).filter(Boolean),
+    'user-stories': pull(
+      list(fm['user-stories']).filter((s) => storyIds.has(s?.id)),
+      storyIds,
+      (pfm, id) => list(pfm['user-stories']).find((s) => s?.id === id),
+    ),
     'acceptance-criteria': acs,
-    // Ids only: no build kit reads requirement text, and the register is sentence-level.
-    'requirement-ids': list(fm.requirements).filter((r) => has(kept, r?.['covered-by'])).map((r) => r.id),
+    // Ids only: no build kit reads requirement text.
+    'requirement-ids': reqs.filter((r) => has(kept, r?.['covered-by'])).map((r) => r.id),
     entities,
     'state-machines': machines,
     'business-rules': rules,
     permissions,
     owners,
+    'owned-elsewhere': ownedElsewhere,
     endpoints: apis,
     screens,
     interactions,

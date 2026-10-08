@@ -11,7 +11,7 @@
 // File shape of record: ../references/checklist-format.md
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 function flagValue(name) {
@@ -157,8 +157,10 @@ function allocateId(prefix, used, preserved) {
   return id
 }
 
-const usedTaskIds = new Set()
-const usedFeatureIds = new Set()
+const currentScreenIds = new Set(screens.map((s) => s.id).filter(Boolean))
+const keptPriors = priorTaskRows.filter((t) => t['screen-ref'] && !currentScreenIds.has(t['screen-ref']))
+const usedTaskIds = new Set(keptPriors.map((t) => t.id).filter(Boolean))
+const usedFeatureIds = new Set(keptPriors.map((t) => t._feature?.id).filter(Boolean))
 
 const tasks = []
 const features = []
@@ -331,18 +333,218 @@ function buildFromSlices() {
   }
 }
 
-if (sliceMode) buildFromSlices()
+function absPath(p) {
+  return resolve(isAbsolute(p) ? p : join(process.cwd(), p))
+}
+
+function specIdOf(specFile) {
+  return basename(dirname(absPath(specFile)))
+}
+
+function parentSpecPaths(specFile) {
+  const out = []
+  const seen = new Set()
+  let current = specFile
+  while (current && !seen.has(absPath(current))) {
+    seen.add(absPath(current))
+    let doc
+    try { doc = readFrontmatter(current) } catch { break }
+    const parent = doc.metadata?.['parent-spec']
+    if (!parent) break
+    current = isAbsolute(parent) ? parent : join(process.cwd(), parent)
+    if (!existsSync(current)) break
+    out.push(current)
+  }
+  return out
+}
+
+const priorSpec = existing?.['spec-ref'] || ''
+const appendMode = Boolean(
+  existing && priorSpec && absPath(priorSpec) !== absPath(specPath)
+  && [absPath(specPath), ...parentSpecPaths(specPath).map(absPath)].includes(absPath(priorSpec)),
+)
+
+let keptCount = 0
+let appendedCount = 0
+let reopenedCount = 0
+
+function copyFeature(feature, sourceSpec) {
+  return {
+    ...feature,
+    'source-spec': feature['source-spec'] || sourceSpec,
+    tasks: (feature.tasks ?? []).map((task) => ({ ...task })),
+  }
+}
+
+function reopenFeature(feature) {
+  if (feature.status !== 'done' && feature.status !== 'skipped') return false
+  feature.status = 'pending'
+  feature['blocked-reason'] = 'spec changed'
+  return true
+}
+
+function buildAppend() {
+  const priorSpecId = specIdOf(priorSpec)
+  const specId = specIdOf(specPath)
+  const kept = (existing?.features ?? []).map((feature) => copyFeature(feature, priorSpecId))
+  keptCount = kept.length
+  for (const feature of kept) {
+    const sliceHit = feature['slice-ref'] && modifiedSlices.has(feature['slice-ref'])
+    const screenHit = (feature.tasks ?? []).some((task) => modifiedScreens.has(task['screen-ref']))
+    if ((sliceHit || screenHit) && reopenFeature(feature)) reopenedCount++
+  }
+  const knownScreens = new Set(kept.flatMap((feature) => (feature.tasks ?? []).map((task) => task['screen-ref'])))
+  const featureIdBySlice = new Map(kept.filter((feature) => feature['slice-ref']).map((feature) => [feature['slice-ref'], feature.id]))
+  const usedFeatureIdsAppend = new Set(kept.map((feature) => feature.id))
+  const usedTaskIdsAppend = new Set(kept.flatMap((feature) => (feature.tasks ?? []).map((task) => task.id)))
+  const added = []
+
+  function taskFor(slice, screenId, sliceStories) {
+    const screen = screens.find((item) => item.id === screenId)
+    if (!screen) return null
+    const own = (screen['story-refs'] ?? []).filter((id) => sliceStories.has(id))
+    const storyIds = own.length ? own : [...sliceStories]
+    const knownEntities = new Set(entities.map((entity) => entity.name))
+    const acIds = [...new Set([
+      ...acs.filter((ac) => storyIds.includes(ac['story-ref'])).map((ac) => ac.id),
+      ...(slice['done-when'] ?? []),
+    ])]
+    const entityRefs = [...new Set([
+      ...(screen['primary-entity'] ? [screen['primary-entity']] : []),
+      ...(slice['entity-refs'] ?? []),
+    ])].filter((name) => knownEntities.has(name))
+    return {
+      id: allocateId('T', usedTaskIdsAppend),
+      title: screen.title,
+      'slice-ref': slice.id,
+      'screen-ref': screenId,
+      'story-refs': storyIds,
+      'ac-refs': acIds,
+      'entity-refs': entityRefs,
+      'api-refs': screen['api-refs'] ?? [],
+      status: 'pending',
+      'blocked-reason': '',
+    }
+  }
+
+  if (sliceMode) {
+    for (const slice of slices) {
+      if (!(slice.tracks ?? []).includes('frontend')) continue
+      const prior = kept.find((feature) => feature['slice-ref'] === slice.id && feature['source-spec'] !== specId)
+      const sliceStories = new Set(slice['story-refs'] ?? [])
+      if (prior) {
+        if (!modifiedSlices.has(slice.id)) {
+          console.error(`ID_COLLISION: ${slice.id} is already ${prior.id} from ${prior['source-spec']}`)
+          process.exit(2)
+        }
+        const have = new Set((prior.tasks ?? []).map((task) => task['screen-ref']))
+        for (const screenId of slice['screen-refs'] ?? []) {
+          if (have.has(screenId)) continue
+          const task = taskFor(slice, screenId, sliceStories)
+          if (!task) continue
+          prior.tasks.push(task)
+          have.add(screenId)
+        }
+        prior['story-refs'] = [...new Set([...(prior['story-refs'] ?? []), ...sliceStories])]
+        continue
+      }
+      const nested = []
+      for (const screenId of slice['screen-refs'] ?? []) {
+        const task = taskFor(slice, screenId, sliceStories)
+        if (task) nested.push(task)
+      }
+      if (!nested.length) continue
+      const id = allocateId('F', usedFeatureIdsAppend)
+      featureIdBySlice.set(slice.id, id)
+      added.push({
+        id,
+        title: slice.title,
+        'slug-hint': kebab(slice.title) || kebab(slice.id),
+        'slice-ref': slice.id,
+        'source-spec': specId,
+        'depends-on': (slice['depends-on'] ?? []).map((dep) => featureIdBySlice.get(dep)).filter(Boolean),
+        'story-refs': [...sliceStories],
+        priority: maxPriority([...sliceStories]),
+        status: 'pending',
+        slug: '',
+        branch: '',
+        'parent-branch': '',
+        'blocked-reason': '',
+        tasks: nested,
+      })
+    }
+  } else {
+    const collisions = screens.filter((screen) => knownScreens.has(screen.id) && !modifiedScreens.has(screen.id))
+    if (collisions.length) {
+      console.error(`ID_COLLISION: ${collisions.map((screen) => screen.id).join(', ')} already on the checklist from ${priorSpecId}`)
+      process.exit(2)
+    }
+    const fresh = screens.filter((screen) => !knownScreens.has(screen.id))
+    const groups = new Map()
+    for (const screen of fresh) {
+      const { storyIds, acIds } = storyRefsForScreen(screen)
+      const priority = maxPriority(storyIds)
+      if (priority === 'wont') continue
+      const task = {
+        id: allocateId('T', usedTaskIdsAppend),
+        title: screen.title,
+        'screen-ref': screen.id,
+        'story-refs': storyIds,
+        'ac-refs': acIds,
+        'entity-refs': entityRefsForScreen(screen),
+        status: 'pending',
+        'blocked-reason': '',
+        _priority: priority,
+      }
+      const story = storyIds
+        .map((id) => stories.find((item) => item.id === id))
+        .filter((item) => item && item.priority !== 'wont')
+        .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority])[0]
+      const key = story ? `story:${story.id}` : `screen:${screen.id}`
+      if (!groups.has(key)) groups.set(key, { story, tasks: [] })
+      groups.get(key).tasks.push(task)
+    }
+    for (const { story, tasks: groupTasks } of groups.values()) {
+      const priority = story?.priority ?? groupTasks[0]?._priority ?? 'should'
+      const title = groupTasks.length === 1 ? groupTasks[0].title : (story?.['i-want'] || groupTasks[0].title)
+      added.push({
+        id: allocateId('F', usedFeatureIdsAppend),
+        title,
+        'slug-hint': kebab(title) || kebab(story?.id) || kebab(groupTasks[0]['screen-ref']),
+        'source-spec': specId,
+        'story-refs': story ? [story.id] : [],
+        priority,
+        status: 'pending',
+        slug: '',
+        branch: '',
+        'parent-branch': '',
+        'blocked-reason': '',
+        tasks: groupTasks.map(({ _priority, ...task }) => task),
+      })
+    }
+  }
+
+  appendedCount = added.length
+  features.push(...kept, ...added)
+}
+
+if (appendMode) buildAppend()
+else if (sliceMode) buildFromSlices()
 else buildFromStories()
 
 const currentKeys = new Set(tasks.map(taskKey))
-for (const prior of priorTaskRows) {
+if (!appendMode) for (const prior of priorTaskRows) {
   if (!prior['screen-ref']) continue
   if (claimedPrior.has(prior)) continue
   if (currentKeys.has(taskKey(prior)) || prior.status === 'skipped') continue
   if (features.some((f) => f.tasks.some((t) => t.id === prior.id))) continue
-  const removing = prior.status === 'done'
+  const listedRemoved = (changes?.screens?.removed ?? []).includes(prior['screen-ref'])
+    || (prior['slice-ref'] && (changes?.slices?.removed ?? []).includes(prior['slice-ref']))
   const host = features.find((f) => f.id === prior._feature?.id)
     ?? features.find((f) => (f['story-refs'] ?? []).some((id) => (prior['story-refs'] ?? []).includes(id)))
+    ?? features.find((f) => f['slice-ref'] && f['slice-ref'] === prior['slice-ref'])
+  const keepPrior = !listedRemoved
+  const removing = listedRemoved && prior.status === 'done'
   const blockedTask = {
     id: prior.id,
     title: prior.title,
@@ -351,9 +553,11 @@ for (const prior of priorTaskRows) {
     'story-refs': prior['story-refs'] ?? [],
     'ac-refs': prior['ac-refs'] ?? [],
     'entity-refs': prior['entity-refs'] ?? [],
-    status: removing ? 'pending' : 'blocked',
-    change: removing ? 'remove' : '',
-    'blocked-reason': removing ? '' : 'source screen removed from spec',
+    status: keepPrior ? (prior.status ?? 'pending') : (removing ? 'pending' : 'blocked'),
+    ...(keepPrior ? {} : { change: removing ? 'remove' : '' }),
+    'blocked-reason': keepPrior
+      ? (prior['blocked-reason'] ?? '')
+      : (removing ? '' : 'source screen removed from spec'),
   }
   if (host) {
     host.tasks.push(blockedTask)
@@ -364,22 +568,28 @@ for (const prior of priorTaskRows) {
   } else {
     features.push({
       id: allocateId('F', usedFeatureIds, prior._feature?.id),
-      title: prior.title || prior['screen-ref'],
-      'slug-hint': kebab(prior.title) || kebab(prior['screen-ref']),
+      title: prior._feature?.title || prior.title || prior['screen-ref'],
+      'slug-hint': kebab(prior._feature?.title || prior.title) || kebab(prior['screen-ref']),
+      ...(prior._feature?.['slice-ref'] ? { 'slice-ref': prior._feature['slice-ref'] } : {}),
       'story-refs': prior['story-refs'] ?? [],
-      priority: 'should',
-      status: removing ? 'pending' : 'blocked',
+      priority: prior._feature?.priority ?? 'should',
+      status: keepPrior ? (prior._feature?.status ?? prior.status ?? 'pending') : (removing ? 'pending' : 'blocked'),
       slug: prior._feature?.slug ?? '',
       branch: prior._feature?.branch ?? '',
       'parent-branch': prior._feature?.['parent-branch'] ?? '',
-      'blocked-reason': removing ? 'spec changed' : 'source screen removed from spec',
+      'blocked-reason': keepPrior
+        ? (prior._feature?.['blocked-reason'] ?? '')
+        : (removing ? 'spec changed' : 'source screen removed from spec'),
       tasks: [blockedTask],
     })
   }
 }
 
 // 1.x: priority order. 2.0: the delivery plan's order is the build order — never re-sort it.
-if (!sliceMode) features.sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))
+if (!sliceMode && !appendMode) features.sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))
+const thisSpecId = specIdOf(specPath)
+for (const feature of features) if (!feature['source-spec']) feature['source-spec'] = thisSpecId
+if (!appendMode) appendedCount = features.length
 
 const taskCount = features.reduce((n, f) => n + f.tasks.length, 0)
 if (taskCount === 0) {
@@ -397,9 +607,11 @@ const front = {
   features,
 }
 
-const logLine = existing
-  ? `- ${now} — checklist re-derived from ${specPath} (${features.length} features, ${taskCount} tasks)`
-  : `- ${now} — checklist generated from ${specPath} (${features.length} features, ${taskCount} tasks)`
+const logLine = appendMode
+  ? `- ${now} — checklist appended from ${specPath} (kept ${keptCount}, appended ${appendedCount}, reopened ${reopenedCount})`
+  : existing
+    ? `- ${now} — checklist re-derived from ${specPath} (${features.length} features, ${taskCount} tasks)`
+    : `- ${now} — checklist generated from ${specPath} (${features.length} features, ${taskCount} tasks)`
 
 const priorBody = existing
   ? readFileSync(checklistPath, 'utf8').split(/^---\r?\n[\s\S]*?\r?\n---\r?\n/)[1] ?? ''
@@ -411,4 +623,5 @@ mkdirSync(dirname(checklistPath), { recursive: true })
 writeFileSync(checklistPath, `---\n${stringify(front)}---\n${body}`, 'utf8')
 
 console.log(`OK: wrote ${checklistPath} (${features.length} features, ${taskCount} tasks)`)
+console.log(`kept: ${keptCount} appended: ${appendedCount} reopened: ${reopenedCount}`)
 process.exit(0)

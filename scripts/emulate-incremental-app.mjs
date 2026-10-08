@@ -4,7 +4,7 @@
 // and a revert points current.json back while leaving the new folders on disk.
 // Then checks each kit's skill tells a fresh session to read .spec/app/current.json.
 
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { parse, stringify } from 'yaml'
 import { tmpdir } from 'node:os'
@@ -136,8 +136,24 @@ try {
   assert(continued.includes('MODE=continue'), continued)
   assert(continued.includes('APP_SLUG=campus'), continued)
   const runB = '.spec/spec/spec-20260101-000002_campus'
-  write(`${runB}/artifacts/delta.yaml`, `
-source-files: [goal.md, stories.md, screens.md]
+  write(`${runB}/spec.md`, `---
+spec-version: "1.2"
+timecode: "20260101-000002"
+type: app
+status: reviewing
+metadata:
+  slug: campus
+  title: Campus
+  created: "2026-01-01T00:00:00Z"
+  updated: "2026-01-01T00:00:00Z"
+  source-files: [goal.md, stories.md, screens.md]
+  parent-spec: ${runA}/spec.md
+context:
+  problem: Reviewers need a profile review.
+  goal: Review a profile.
+  target-users: [reviewer]
+  existing-system: Campus
+  constraints: []
 user-stories:
   - id: US-002
     as: reviewer
@@ -160,13 +176,15 @@ ui-surface:
       components: [ReviewForm]
       notes: Manage a single Profile review.
   interactions: []
+---
 `)
-  run(join(specScripts, 'merge-spec.mjs'), ['--run', runB])
-  const merged = readFileSync(join(root, `${runB}/spec.md`), 'utf8')
-  assert(merged.includes('US-001') && merged.includes('SCR-001'), 'second spec dropped the first feature')
-  assert(merged.includes('US-002') && merged.includes('SCR-002'), 'second spec missing the new feature')
-  assert(/slug: ["']?campus["']?/.test(merged), 'second spec changed the app slug')
-  write(`${runB}/spec.md`, merged.replace(/status: ["']?reviewing["']?/, 'status: approved'))
+  run(join(specScripts, 'write-changes.mjs'), ['--run', runB])
+  const specB = readFileSync(join(root, `${runB}/spec.md`), 'utf8')
+  assert(specB.includes('parent-spec:') && specB.includes(`${runA}/spec.md`), 'second spec missing parent-spec')
+  assert(!specB.includes('US-001') && !specB.includes('SCR-001'), 'second spec copied the first feature')
+  assert(specB.includes('US-002') && specB.includes('SCR-002'), 'second spec missing the new feature')
+  assert(/slug: ["']?campus["']?/.test(specB), 'second spec changed the app slug')
+  write(`${runB}/spec.md`, specB.replace(/status: ["']?reviewing["']?/, 'status: approved'))
   run(join(specScripts, 'archive-context.mjs'), ['--run', runB])
   assert(!existsSync(join(root, '.spec/context/goal.md')), 'second inbox not cleared')
   assert(existsSync(join(root, '.spec/processed/spec-20260101-000002_campus/goal.md')), 'second context not archived')
@@ -183,11 +201,27 @@ ui-surface:
     '--out', `${protoB}/delta-pages.json`,
   ])
   const delta = readJson(`${protoB}/delta-pages.json`)
+  const ancestor = (delta.assembly_pages ?? []).find((page) => page.spec_id === 'SCR-001')
   assert(
     delta.screens.length === 1
     && delta.screens[0].spec_id === 'SCR-002'
-    && delta.screens[0].id === 'profiles-id-review',
+    && delta.screens[0].id === 'profiles-id-review'
+    && ancestor?.title === 'Profiles'
+    && ancestor?.id === 'profiles',
     `delta ${JSON.stringify(delta)}`,
+  )
+  run(join(htmlScripts, 'delta-pages.mjs'), [
+    '--spec', `${runB}/spec.md`,
+    '--page-map', `${protoB}/page-map.json`,
+    '--out', `${protoB}/spec-summary.json`,
+  ])
+  const summary = readJson(`${protoB}/spec-summary.json`)
+  const summaryAncestor = (summary.assembly_pages ?? []).find((page) => page.spec_id === 'SCR-001')
+  assert(
+    summary.screens.length === 1
+    && summary.screens[0].spec_id === 'SCR-002'
+    && summaryAncestor?.title === 'Profiles',
+    `spec-summary ${JSON.stringify(summary.assembly_pages)}`,
   )
   assert(existsSync(join(root, `${protoB}/pages/profiles.html`)), 'clone dropped the first page')
   write(`${protoB}/pages/review.html`, '<main>Review</main>\n')
@@ -212,19 +246,45 @@ ui-surface:
   assert(existsSync(join(root, `${protoB}/pages/review.html`)), 'revert deleted the newer prototype')
 
   const mergeRun = '.spec/spec/spec-20260101-000003_campus'
-  write(`${mergeRun}/base.spec.md`, specA)
-  write(`${mergeRun}/artifacts/delta.yaml`, `source-files: [goal.md]
+  write(`${mergeRun}/spec.md`, `---
+spec-version: "1.2"
+timecode: "20260101-000003"
+type: app
+status: reviewing
+metadata:
+  slug: campus
+  title: Campus
+  created: "2026-01-01T00:00:00Z"
+  updated: "2026-01-01T00:00:00Z"
+  source-files: [goal.md]
+  parent-spec: ${runA}/spec.md
+context:
+  problem: Reviewers need a profile list.
+  goal: List profiles.
+  target-users: [reviewer]
 entities:
   - name: Profile
+    description: A person
     fields:
+      - name: id
+        type: string
+        required: true
+        description: id
       - name: bio
         type: string
         required: false
         description: bio
+user-stories:
+  - id: US-001
+    as: reviewer
+    i-want: list profiles
+    so-that: I can review them
+    priority: must
+---
 `)
-  run(join(specScripts, 'merge-spec.mjs'), ['--run', mergeRun])
+  run(join(specScripts, 'write-changes.mjs'), ['--run', mergeRun])
   const mergedProfile = readFileSync(join(root, `${mergeRun}/spec.md`), 'utf8')
-  assert(mergedProfile.includes('name: id') && mergedProfile.includes('name: bio'), 'partial entity delta dropped old fields')
+  assert(mergedProfile.includes('name: id') && mergedProfile.includes('name: bio'), 'restated entity dropped old fields')
   const profileChanges = readJson(`${mergeRun}/artifacts/changes.json`)
   assert(profileChanges.entities.modified.includes('Profile'), `profile changes ${JSON.stringify(profileChanges.entities)}`)
 
@@ -319,6 +379,192 @@ api-surface:
     const split = splitFront(readFileSync(${JSON.stringify(join(root, 'crlf-spec.md'))}, 'utf8'), parse)
     if (split?.fm?.metadata?.slug !== 'campus') process.exit(1)
   `], { encoding: 'utf8' })
+
+  const lane = join(root, '.spec/spec/spec-20260201-000001_lane/spec.md')
+  const laneNext = join(root, '.spec/spec/spec-20260201-000002_lane/spec.md')
+  const laneSlice = (id, title, screen) => `    - id: ${id}
+      title: ${title}
+      tracks: [frontend]
+      story-refs: [US-${id.slice(-3)}]
+      screen-refs: [${screen}]
+      depends-on: []`
+  const laneScreen = (id, title, story) => `    - id: ${id}
+      title: ${title}
+      story-refs: [${story}]`
+  const laneStory = (id) => `  - id: ${id}
+    as: reviewer
+    i-want: do ${id}
+    so-that: it is done
+    priority: must`
+  write('.spec/spec/spec-20260201-000001_lane/spec.md', `---
+spec-version: "2.0"
+timecode: "20260201-000001"
+type: feature
+status: approved
+metadata:
+  slug: lane
+  title: Lane
+delivery-plan:
+  slices:
+${['001', '002', '003', '004'].map((n) => laneSlice(`SL-${n}`, `Slice ${n}`, `SCR-${n}`)).join('\n')}
+ui-surface:
+  screens:
+${['001', '002', '003', '004'].map((n) => laneScreen(`SCR-${n}`, `Screen ${n}`, `US-${n}`)).join('\n')}
+user-stories:
+${['001', '002', '003', '004'].map((n) => laneStory(`US-${n}`)).join('\n')}
+---
+`)
+  execFileSync('node', [checklistScript, lane], { encoding: 'utf8' })
+  const laneChecklist = join(root, '.spec/app/task-checklist.md')
+  const laneDone = readFileSync(laneChecklist, 'utf8').replaceAll('status: pending', 'status: done')
+  writeFileSync(laneChecklist, laneDone)
+  write('.spec/spec/spec-20260201-000002_lane/spec.md', `---
+spec-version: "2.0"
+timecode: "20260201-000002"
+type: feature
+status: reviewing
+metadata:
+  slug: lane
+  title: Lane next
+  parent-spec: ${lane}
+delivery-plan:
+  slices:
+${laneSlice('SL-001', 'Slice 001 again', 'SCR-001')}
+ui-surface:
+  screens:
+${laneScreen('SCR-009', 'Other', 'US-009')}
+user-stories:
+${laneStory('US-001')}
+---
+`)
+  writeFileSync(laneChecklist, laneDone)
+  const collision = spawnSync(process.execPath, [checklistScript, laneNext], { encoding: 'utf8' })
+  assert(collision.status === 2 && collision.stderr.includes('ID_COLLISION'), `ID_COLLISION did not fire: ${collision.stderr}`)
+  const reused = spawnSync(process.execPath, [join(specScripts, 'validate-spec.mjs'), laneNext, '--json'], { encoding: 'utf8' })
+  assert(reused.stdout.includes('[ID_REUSED]'), `ID_REUSED did not fire: ${reused.stdout}`)
+  write('.spec/spec/spec-20260201-000002_lane/spec.md', `---
+spec-version: "2.0"
+timecode: "20260201-000002"
+type: feature
+status: reviewing
+metadata:
+  slug: lane
+  title: Lane next
+  parent-spec: ${lane}
+delivery-plan:
+  slices:
+${laneSlice('SL-005', 'Slice 005', 'SCR-005')}
+ui-surface:
+  screens:
+${laneScreen('SCR-005', 'Screen 005', 'US-005')}
+user-stories:
+${laneStory('US-005')}
+---
+`)
+  write('.spec/spec/spec-20260201-000002_lane/artifacts/changes.json', `${JSON.stringify({ screens: { modified: ['SCR-001'] }, slices: { modified: [] } })}\n`)
+  writeFileSync(laneChecklist, laneDone)
+  const appended = execFileSync('node', [checklistScript, laneNext, '--changes', join(root, '.spec/spec/spec-20260201-000002_lane/artifacts/changes.json')], { encoding: 'utf8' })
+  assert(appended.includes('kept: 4') && appended.includes('appended: 1') && appended.includes('reopened: 1'), appended)
+  const laneFm = parse(readFileSync(laneChecklist, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/)[1])
+  const reopened = laneFm.features.find((feature) => (feature.tasks ?? []).some((task) => task['screen-ref'] === 'SCR-001'))
+  const stillDone = laneFm.features.filter((feature) => feature['slice-ref'] && feature['slice-ref'] !== 'SL-001' && feature['slice-ref'] !== 'SL-005' && feature.status === 'done')
+  assert(reopened?.status === 'pending' && reopened['blocked-reason'] === 'spec changed', `reopen ${JSON.stringify(reopened)}`)
+  assert(stillDone.length === 3, `kept done ${stillDone.length}`)
+  assert(laneFm.features.some((feature) => feature['slice-ref'] === 'SL-005' && feature.status === 'pending'), 'new slice was not appended')
+  write('.spec/spec/spec-20260201-000003_lane/spec.md', `---
+spec-version: "2.0"
+timecode: "20260201-000003"
+type: feature
+status: reviewing
+metadata:
+  slug: lane
+  title: Lane extend
+  parent-spec: ${lane}
+delivery-plan:
+  slices:
+${laneSlice('SL-001', 'Slice 001', 'SCR-001').replace('screen-refs: [SCR-001]', 'screen-refs: [SCR-001, SCR-009]')}
+ui-surface:
+  screens:
+${laneScreen('SCR-001', 'Screen 001', 'US-001')}
+${laneScreen('SCR-009', 'Screen 009', 'US-009')}
+user-stories:
+${laneStory('US-001')}
+${laneStory('US-009')}
+---
+`)
+  write('.spec/spec/spec-20260201-000003_lane/artifacts/changes.json', `${JSON.stringify({ slices: { modified: ['SL-001'] }, screens: { modified: [], added: ['SCR-009'] } })}\n`)
+  writeFileSync(laneChecklist, laneDone)
+  const extended = execFileSync('node', [checklistScript, join(root, '.spec/spec/spec-20260201-000003_lane/spec.md'), '--changes', join(root, '.spec/spec/spec-20260201-000003_lane/artifacts/changes.json')], { encoding: 'utf8' })
+  assert(extended.includes('kept: 4') && extended.includes('appended: 0') && extended.includes('reopened: 1'), extended)
+  const extendedFm = parse(readFileSync(laneChecklist, 'utf8').match(/^---\r?\n([\s\S]*?)\r?\n---/)[1])
+  const extendedFeature = extendedFm.features.find((feature) => feature['slice-ref'] === 'SL-001')
+  const extendedScreens = (extendedFeature?.tasks ?? []).map((task) => task['screen-ref'])
+  assert(
+    extendedFeature?.id === 'F-001'
+    && extendedFeature?.status === 'pending'
+    && extendedScreens.includes('SCR-001')
+    && extendedScreens.includes('SCR-009')
+    && extendedFm.features.filter((feature) => feature['slice-ref'] === 'SL-001').length === 1,
+    `extended slice ${JSON.stringify(extendedFeature)}`,
+  )
+  const sized = spawnSync(process.execPath, [join(repo, 'scripts/check-artifact-sizes.mjs'), join(root, '.spec')], { encoding: 'utf8' })
+  assert(sized.status === 0, `size budget: ${sized.stdout}${sized.stderr}`)
+  const boardScript = join(repo, 'app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/board.mjs')
+  const demo = join(root, 'card-fixture/demo.md')
+  write('card-fixture/demo.md', readFileSync(join(repo, 'app-dev-kit/feature-dev-kit/skills/feature-dev/templates/feature-spec.md'), 'utf8'))
+  const plan = join(root, 'card-fixture/plan.md')
+  write('card-fixture/plan.md', [
+    '| # | Station | Layer | Slice | Segments | Agent | Group | Status | Note |',
+    '|---|---------|-------|-------|----------|-------|-------|--------|------|',
+    '| 1 | 6 | pages | settings | ui | composition-engineer | — | todo | Settings page |',
+    '',
+    '### Not building',
+    '',
+    '- Dark mode.',
+  ].join('\n'))
+  execFileSync('node', [boardScript, 'section', demo, '--put', 'Build Plan', '--from', plan], { encoding: 'utf8' })
+  const impact = join(root, 'card-fixture/impact.md')
+  write('card-fixture/impact.md', [
+    '| Slice | Layer | Segments | Change |',
+    '|-------|-------|----------|--------|',
+    '| settings | pages | ui | modified |',
+    '| other | entities | model | new |',
+  ].join('\n'))
+  execFileSync('node', [boardScript, 'section', demo, '--put', 'FSD Impact', '--from', impact], { encoding: 'utf8' })
+  const card = JSON.parse(execFileSync('node', [boardScript, 'card', demo, '--row', '1', '--agent', 'composition-engineer'], { encoding: 'utf8' }))
+  const cardText = readFileSync(card.card, 'utf8')
+  assert(card.bytes <= 12 * 1024 && existsSync(card.common), `card ${JSON.stringify(card)}`)
+  assert(cardText.includes('`pages/settings`') && !cardText.includes('entities/other'), `fsd paths missing from card: ${cardText}`)
+  const handoff = JSON.parse(execFileSync('node', [boardScript, 'handoff', demo, '--name', 'composition-engineer-6', '--outcome', 'done', '--paths', 'src/pages/settings.tsx', '--decisions', 'used the button', '--gates', 'lint pass'], { encoding: 'utf8' }))
+  assert(handoff.lines <= 15, `handoff lines ${handoff.lines}`)
+
+  const importScript = join(repo, 'app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/import-upstream.mjs')
+  const extendChecklist = join(root, '.spec/app/extend-checklist.md')
+  write('.spec/app/extend-checklist.md', `---
+features:
+  - id: F-001
+    title: Profiles
+    slug-hint: profiles
+    status: done
+    tasks:
+      - id: T-001
+        screen-ref: SCR-001
+        status: done
+---
+`)
+  const extendOut = join(root, '.spec/features/review.md')
+  execFileSync('node', [importScript, '--spec', join(root, `${runA}/spec.md`), '--out', extendOut, '--slug', 'review', '--feature-id', 'F-002', '--screen-refs', 'SCR-001', '--checklist', extendChecklist], { encoding: 'utf8' })
+  const extendBoard = readFileSync(extendOut, 'utf8')
+  assert(extendBoard.includes('Extend existing') && extendBoard.includes('SCR-001 already built by F-001 (profiles)'), `extend ${extendBoard}`)
+  const removeOut = join(root, '.spec/features/drop.md')
+  execFileSync('node', [importScript, '--spec', join(root, `${runA}/spec.md`), '--out', removeOut, '--slug', 'drop', '--feature-id', 'F-002', '--screen-refs', 'SCR-001', '--checklist', extendChecklist, '--change', 'remove'], { encoding: 'utf8' })
+  const removeBoard = readFileSync(removeOut, 'utf8')
+  assert(
+    removeBoard.includes('Remove. Do not scaffold a replacement.')
+    && removeBoard.includes('change: remove')
+    && !removeBoard.includes('Extend existing'),
+    `remove ${removeBoard}`,
+  )
 
   const skills = [
     'app-dev-kit/html-generator-kit/skills/generate-html/SKILL.md',

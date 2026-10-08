@@ -14,7 +14,8 @@
 // Usage: node gate-check.mjs <analysis.json> --round <n> [--max-rounds 3] [--threshold 25]
 // Exit 0 always on a decision (read stdout JSON). Exit 2 on usage/parse failure.
 
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { flag } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
@@ -37,6 +38,27 @@ try {
 } catch (e) {
   console.error(`FATAL: cannot read ${path}: ${e.message}`)
   process.exit(2)
+}
+
+if ('requirements_map' in analysis || 'qa_log' in analysis) {
+  console.error('ERROR [ANALYSIS_BLOAT] analysis.json must not carry requirements_map or a qa_log copy')
+  process.exit(2)
+}
+if (analysis.delta === true) {
+  const basePath = join(dirname(path), 'analysis.base.json')
+  if (!existsSync(basePath)) {
+    console.error('ERROR [ANALYSIS_DELTA] delta: true but analysis.base.json is missing — copy the previous analysis.json there first')
+    process.exit(2)
+  }
+  const base = JSON.parse(readFileSync(basePath, 'utf8'))
+  analysis = {
+    ...base,
+    gaps: analysis.gaps ?? base.gaps,
+    root_cause_groups: analysis.root_cause_groups ?? base.root_cause_groups,
+    change_intents: analysis.change_intents ?? base.change_intents,
+  }
+  delete analysis.delta
+  writeFileSync(path, `${JSON.stringify(analysis, null, 2)}\n`)
 }
 
 const gaps = Array.isArray(analysis.gaps) ? analysis.gaps : []
