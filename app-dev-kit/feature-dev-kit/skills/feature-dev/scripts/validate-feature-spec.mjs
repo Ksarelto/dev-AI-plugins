@@ -185,6 +185,14 @@ if (/awaiting-human-approval/i.test(deps)) {
   }
 }
 
+const gateLog = sections.get('gate log') ?? ''
+if (/^\|.*\|.*\b(pass|fail)\b/im.test(gateLog)) {
+  err('GATE_LOG_ON_BOARD', '## Gate Log must be a pointer — results belong in gate-log.jsonl')
+}
+if (raw.length > 60 * 1024) {
+  err('BOARD_TOO_LARGE', `blackboard is ${raw.length} bytes (limit 61440) — move history to the context directory`)
+}
+
 // --- Buildable checks (Station 2 entry) ---
 if (requireBuildable || ['building', 'review', 'awaiting-human'].includes(fm.status)) {
   for (const name of ['FSD Impact', 'Build Plan']) {

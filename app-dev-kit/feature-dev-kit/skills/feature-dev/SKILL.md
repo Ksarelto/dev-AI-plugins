@@ -188,11 +188,13 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
   --ac-refs {comma-separated or omit} \
   --entity-refs {comma-separated or omit} \
   --prototype-ref {PROTOTYPE_REF or omit} \
+  --checklist {CHECKLIST_PATH or omit} \
+  --change {remove, or omit} \
   --require-scoped \
   --changes {dirname(UPSTREAM_SPEC)}/artifacts/changes.json
 ```
 
-Pass `--changes` only when that file exists. `--require-scoped` is mandatory when the upstream spec `type` is `app` or has more than one
+Pass `--changes` only when that file exists. Pass `--checklist` when `CHECKLIST_PATH` is set — import reads it and does not edit it. Pass `--change remove` only when `CHANGE=remove`. `--require-scoped` is mandatory when the upstream spec `type` is `app` or has more than one
 screen. Standalone requests omit it.
 
 When the board has a `prototype-page:` line, build the parity contract (it prints `SKIP` otherwise):
@@ -201,7 +203,7 @@ When the board has a `prototype-page:` line, build the parity contract (it print
 node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --spec {SPEC_PATH}
 ```
 
-It writes `.spec/features/{slug}.context/prototype-inventory.md` — every string, control, field, state, and dialog on the prototype page. Station 6 fills its React target / Status columns. See `references/upstream-contract.md` § Prototype inventory. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement.
+It writes `.spec/features/{slug}.context/prototype-inventory.md` — every string, control, field, state, and dialog on the prototype page. Station 6 fills its React target / Status columns. See `references/upstream-contract.md` § Prototype inventory. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement. Import writes that instruction into `## Change request` (`Remove` / `Extend existing`), which Station 1 obeys.
 
 Then spawn `spec-analyst` with `SPEC_PATH` — the import already wrote the scoped slice (screens,
 stories, ACs, entities, prototype page) into the blackboard. Do not paste the slice.

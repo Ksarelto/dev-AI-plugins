@@ -6,7 +6,7 @@
 //   delta-pages. Also checks a 1.x spec with endpoints duplicated into mutations is de-duplicated.
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -177,19 +177,36 @@ try {
   // never read — this assertion is the regression guard for that mismatch.
   assert(req?.type === 'detail' && req.entity === 'BorrowRequest' && req.entity_statuses.includes('LAPSED'), `delta-pages SCR-004 ${JSON.stringify(req)}`)
 
-  // 6. Continue run: a delta adds a slice; merge keeps 2.0 valid and reports slice changes.
+  // 6. Continue run: feature-only spec references the parent; write-changes reports new ids.
   const next = '.spec/spec/spec-20260101-000002_shelf-share'
   mkdirSync(join(root, next, 'artifacts'), { recursive: true })
-  copyFileSync(join(root, run, 'spec.md'), join(root, next, 'base.spec.md'))
-  write(`${next}/artifacts/delta.yaml`, `
-requirements:
-  - { id: REQ-013, text: A lender may pause a listing., kind: behavior, source: stated, source-ref: notes.md#L3, priority: should, scope: in, covered-by: [AC-017] }
+  write(`${next}/spec.md`, `---
+spec-version: "2.0"
+timecode: "20260101-000002"
+type: app
+status: reviewing
+metadata:
+  slug: shelf-share
+  title: Pause listings
+  created: "2026-01-01T00:00:00Z"
+  updated: "2026-01-01T00:00:00Z"
+  source-files: [notes.md]
+  requirements-file: requirements.yaml
+  parent-spec: ${run}/spec.md
+  pipeline-rounds: { clarification: 0, completeness: 0, review: 0 }
+context:
+  problem: Lenders cannot pause a listing while they are away.
+  goal: A lender can pause a listing so it receives no requests.
+  target-users: [Resident]
+  existing-system: Shelf Share
+  constraints: []
+  non-goals: []
 user-stories:
   - { id: US-008, as: Resident (lender), i-want: pause my listing, so-that: I am not asked while away, priority: should }
 acceptance-criteria:
   - { id: AC-017, story-ref: US-008, kind: happy, given: a Free listing I lend, when: I pause it, then: it shows Paused and receives no requests, testable: true }
 api-surface:
-  mutations:
+  endpoints:
     - { id: API-011, method: POST, path: "/v1/listings/{id}/holiday", description: Set a holiday pause, auth-required: true, roles: [Resident], story-refs: [US-008] }
 delivery-plan:
   slices:
@@ -206,17 +223,25 @@ delivery-plan:
         - { track: backend, do: Add the pause endpoint using SM-002., refs: [API-011, SM-002] }
         - { track: frontend, do: Add a pause control to listing detail., refs: [SCR-003] }
       done-when: [AC-017]
+non-functional:
+  performance: [p95 list < 2s]
+  accessibility: [WCAG 2.2 AA]
+  security: [auth]
+---
 `)
-  const merged = node(S('merge-spec.mjs'), ['--run', next])
-  if (merged.status !== 0) throw new Error(`merge failed: ${merged.stdout}${merged.stderr}`)
-  const mfm = fm(join(root, next, 'spec.md'))
-  assert(mfm['spec-version'] === '2.0' && !mfm['api-surface'].mutations, 'merge kept mutations or changed version')
-  assert(mfm['api-surface'].endpoints.some((e) => e.id === 'API-011'), 'merge dropped the delta mutation')
-  assert(mfm['delivery-plan'].slices.length === 3, 'merge did not append the slice')
+  write(`${next}/requirements.yaml`, `requirements:
+  - { id: REQ-013, text: A lender may pause a listing., kind: behavior, source: stated, source-ref: notes.md#L3, priority: should, scope: in, covered-by: [AC-017] }
+`)
+  const written = node(S('write-changes.mjs'), ['--run', next])
+  if (written.status !== 0) throw new Error(`write-changes failed: ${written.stdout}${written.stderr}`)
+  const nfm = fm(join(root, next, 'spec.md'))
+  assert(nfm['spec-version'] === '2.0' && nfm.metadata['parent-spec'] === `${run}/spec.md`, 'feature-only spec missing parent-spec')
+  assert(!('requirements' in nfm) || !nfm.requirements, 'feature-only spec inlined the register')
+  assert(nfm['delivery-plan'].slices.length === 1, 'feature-only spec should carry only the new slice')
   const changes = JSON.parse(read(`${next}/artifacts/changes.json`))
   assert(changes.slices?.added?.includes('SL-003') && changes.endpoints.added.includes('API-011'), `changes ${JSON.stringify(changes.slices)}`)
   const mv = node(S('validate-spec.mjs'), [join(root, next, 'spec.md'), '--json'])
-  assert(mv.status === 0, `merged spec invalid: ${mv.stdout}`)
+  assert(mv.status === 0, `feature-only spec invalid: ${mv.stdout}`)
 
   // 7. Legacy 1.x: endpoints duplicated into mutations are read once.
   const legacy = `---
@@ -256,4 +281,4 @@ if (failures.length) {
   for (const message of failures) console.error(`- ${message}`)
   process.exit(1)
 }
-console.log('OK: spec 2.0 contract — validator, gate, publish briefs, continue merge, and every consumer agree')
+console.log('OK: spec 2.0 contract — validator, gate, publish briefs, feature-only continue, and every consumer agree')

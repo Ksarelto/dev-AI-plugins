@@ -273,9 +273,6 @@ When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
       "affected_field": "actor"
     }
   ],
-  "requirements_map": [
-    { "raw_id": "R-001", "type": "functional", "story_candidate": "USC-001", "entities": ["Session"] }
-  ],
   "reframed_success_criteria": [
     { "raw_id": "R-080", "original": "loads fast", "reframed": "booking page interactive in < 2 s p95 on a phone" }
   ],
@@ -290,6 +287,7 @@ When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
       "benefit": "manage system users",
       "priority_signal": "must",
       "narrative_completeness": { "actor": true, "capability": true, "benefit": true, "priority": true },
+      "raw_refs": ["R-001", "R-014"],
       "source_requirements": ["GAP-ref or requirement text"]
     }
   ],
@@ -351,11 +349,21 @@ A thorough thinking pass here prevents multiple clarification rounds.
 
 ## Continue runs
 
-When `BASE_SPEC` and `PRIOR_INDEX` are passed, read `PRIOR_INDEX` only (ids, one `i-want` per story, entity names, screen titles). Do not read `BASE_SPEC`. Add `change_intents` to the report. `id` is the entity `name` or an existing `US-` / `SCR-` / `AC-` / `API-` / `AGT-` / `TOOL-` id. A request that changes something already in the index is `modified` or `removed`. Something with no index match is `added` and may omit `id`. On a first run (no `PRIOR_INDEX`), write `"change_intents": []`.
+When `PRIOR_INDEX` is passed, read it only (ids, one `i-want` per story, entity names, screen titles). Do not read the parent spec body. Add `change_intents` to the report. `id` is the entity `name` or an existing `US-` / `SCR-` / `AC-` / `API-` / `AGT-` / `TOOL-` id. A request that changes something already in the index is `modified` or `removed`. Something with no index match is `added` and may omit `id`. On a first run (no `PRIOR_INDEX`), write `"change_intents": []`.
+
+Do not write `requirements_map` or a copy of `qa_log`. `gate-check.mjs` exits 2 if either key is present. Classify intake entries onto `user_story_candidates[].raw_refs`.
+
+From clarification round 2 on, write only the delta:
+
+```json
+{ "delta": true, "gaps": [], "root_cause_groups": [], "change_intents": [] }
+```
+
+`gate-check.mjs` merges that onto `artifacts/analysis.base.json`.
 
 ## Persistence
 
-Write the full analysis report to `{RUN_DIR}/artifacts/analysis.json` (overwrite per round) before returning. When `INTAKE_REPORT_PATH` / `ANALYSIS_PATH` are provided, read those files — do not expect inlined reports.
+Round 1: write the full analysis report to `{RUN_DIR}/artifacts/analysis.json` before returning. From round 2, write the delta only. When `INTAKE_REPORT_PATH` / `ANALYSIS_PATH` are provided, read those files — do not expect inlined reports.
 
 ## Boundaries
 

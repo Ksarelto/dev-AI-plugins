@@ -8,7 +8,7 @@
 
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
-import { flag, idsOf, loadYaml, nextIds, readSpec, rel } from './lib-spec.mjs'
+import { attachRequirements, flag, idsOf, loadYaml, maxNextIds, nextIds, readSpec, rel } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
 const runArg = String(flag(args, 'run') || '')
@@ -27,6 +27,7 @@ if (!existsSync(specAbs)) {
 
 const { parse } = await loadYaml()
 const { fm } = readSpec(specAbs, parse)
+attachRequirements(specAbs, fm, parse)
 const specId = basename(runDir)
 const appDir = join(root, '.spec/app')
 const currentPath = join(appDir, 'current.json')
@@ -52,12 +53,14 @@ if (existsSync(artifactsDir)) {
   for (const name of moved) renameSync(join(artifactsDir, name), join(processedDir, 'artifacts', name))
 }
 
-const basePath = join(runDir, 'base.spec.md')
-const baseFm = existsSync(basePath) ? readSpec(basePath, parse).fm : null
+const parentPath = fm.metadata?.['parent-spec']
+  ? (fm.metadata['parent-spec'].startsWith('/') ? fm.metadata['parent-spec'] : join(root, fm.metadata['parent-spec']))
+  : ''
+const parentFm = parentPath && existsSync(parentPath) ? attachRequirements(parentPath, readSpec(parentPath, parse).fm, parse) : null
 const storyIds = idsOf(fm, 'stories')
 const screenIds = idsOf(fm, 'screens')
-const prevStories = new Set(baseFm ? idsOf(baseFm, 'stories') : [])
-const prevScreens = new Set(baseFm ? idsOf(baseFm, 'screens') : [])
+const prevStories = new Set(parentFm ? idsOf(parentFm, 'stories') : [])
+const prevScreens = new Set(parentFm ? idsOf(parentFm, 'screens') : [])
 
 const incDir = join(appDir, 'increments')
 mkdirSync(incDir, { recursive: true })
@@ -104,7 +107,7 @@ const current = {
   spec_id: specId,
   prototype_ref: prev.prototype_ref ?? '',
   prototype_id: prev.prototype_id ?? '',
-  next_ids: nextIds(fm),
+  next_ids: maxNextIds(prev.next_ids, nextIds(fm)),
   increment_id: incId,
 }
 writeFileSync(currentPath, `${JSON.stringify(current, null, 2)}\n`)

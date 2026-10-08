@@ -65,7 +65,7 @@ See `{KIT_DIR}/skills/feature-dev/references/packets.md`.
 
 ### Station 1 — Discovery
 
-If the blackboard has `## Change request`, this increment edits the existing slice. Do not scaffold a second page, entity, or feature.
+If `## Change request` exists, obey its first line. `Remove.` means do not scaffold a replacement — the skill already deleted those pages and routes. `Extend existing.` or `Spec changed.` means edit the existing slice. Do not scaffold a second page, entity, or feature.
 
 Spawn `code-explorer` with `SPEC_PATH` and `SPEC_SECTIONS` (Request, Acceptance criteria, UI surface). It writes `## FSD Impact` and `## Reuse Map`, and a handoff file. Re-delegate if those sections are still placeholders.
 
@@ -132,6 +132,7 @@ DIFF_SCOPE
 TOPICS: layers-and-segments, public-api-and-slices, <api-layer-and-query-keys | routing-and-boundaries | styling — whichever matches the changed paths>
 SCOPE: git diff --name-only {base}...HEAD plus importers of those slices.
 Write the report to .spec/features/<slug>.context/architecture-auditor-9.5.md
+Return every finding in this pass, grouped by owning agent and layer. Do not stop after the first.
 Return only HANDOFF + CONTAINS.
 ```
 
@@ -143,7 +144,7 @@ Spawn `code-reviewer` with the **file list**, not the raw diff, plus the `protot
 
 ### Station 11 — Fix loop
 
-Group every open finding (red gate, architecture-audit, code-review, parity) by owning agent and layer. Write each group to `.spec/features/<slug>.context/fix-batch-<n>.md` — one line per finding: path, rule, what to change — and spawn **one** owning engineer per batch with `FINDINGS: <that path>`, a card for the affected rows, and a `BOUNDARY` listing every affected slice. The same change in N sibling slices is one batch, never N spawns. Then re-run gates per `pipeline-flow.md` § Gates. On exceeding the attempt cap there: `status: awaiting-human`, `ESCALATION_PACKET`.
+Group every open finding (red gate, architecture-audit, code-review, parity) by owning agent and layer. Write each group to `.spec/features/<slug>.context/fix-batch-<n>.md` — one line per finding: path, rule, what to change — and spawn **one** owning engineer per batch with `FINDINGS: <that path>`, a card for the affected rows, and a `BOUNDARY` listing every affected slice. The worker's return is one `board.mjs handoff` (15 lines), not a file per finding. The same change in N sibling slices is one batch, never N spawns. Then re-run gates per `pipeline-flow.md` § Gates. On exceeding the attempt cap there: `status: awaiting-human`, `ESCALATION_PACKET`.
 
 ### End — REVIEW_PACKET
 

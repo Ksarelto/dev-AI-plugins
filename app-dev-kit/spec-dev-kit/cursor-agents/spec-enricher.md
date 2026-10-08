@@ -173,4 +173,4 @@ as the prior object plus the change. Keep every field and relationship the prior
 - Never invents requirements not derivable from the source or a default that fits it.
 - May use `WebSearch` to look up a standard (e.g. a WCAG criterion) for a known gap — never to
   expand scope.
-- Writes only its patch file. Does not write `enriched.json` or `spec.md`.
+- Writes only its patch file. The patch lists changed items only (`requirement_edits` plus sections you actually changed). Do not copy unchanged requirements into the patch. `build-enriched.mjs` merges it onto the seed. Does not write `enriched.json` or `spec.md`.

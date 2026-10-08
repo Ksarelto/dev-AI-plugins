@@ -30,9 +30,9 @@ enriched requirements.
   enriched.json       ← build-enriched.mjs merge
   prior-index.json    ← continue-spec.mjs
   prior-items.yaml    ← lookup-spec.mjs (modified ids only)
-  delta.yaml          ← synthesizer on a continue run
-  delta.md            ← synthesizer, only when the narrative changes
-  changes.json        ← merge-spec.mjs
+  coverage.yaml       ← synthesizer
+  removed.yaml        ← synthesizer, continue runs
+  changes.json        ← write-changes.mjs
 ```
 
 Rules:
@@ -49,7 +49,7 @@ KIT_DIR, RUN_DIR
 INTAKE_REPORT_PATH: {RUN_DIR}/artifacts/intake.json
 ANALYSIS_OUT_PATH:  {RUN_DIR}/artifacts/analysis.json
 CONTEXT_FILE_PATHS: [.spec/context/*.md]   # paths only
-BASE_SPEC, PRIOR_INDEX                 # continue runs only; paths, do not paste base.spec.md
+PRIOR_INDEX                            # continue runs only; path, do not paste the parent spec
 ```
 
 ### Station 2a (spec-interrogator)
@@ -68,7 +68,7 @@ INTAKE_REPORT_PATH: unchanged
 ANALYSIS_PATH: {RUN_DIR}/artifacts/analysis.json
 ANALYSIS_OUT_PATH: same
 NEW_ANSWERS: only answers from the latest AskUserQuestion — NOT the full qa-log
-BASE_SPEC, PRIOR_INDEX                 # continue runs only
+PRIOR_INDEX                            # continue runs only
 ```
 
 ### Station 4 (spec-enricher)
@@ -103,7 +103,7 @@ ANALYSIS_PATH: artifacts/analysis.json
 CONTINUE, PRIOR_INDEX, PRIOR_ITEMS   # continue runs only
 ```
 
-Pass **paths, not content**. A first run writes `{RUN_DIR}/spec.md`. A continue run writes `artifacts/delta.yaml`.
+Pass **paths, not content**. Every run writes `{RUN_DIR}/spec.md` and `artifacts/coverage.yaml`. A continue run is feature-only (`metadata.parent-spec`).
 
 ### Station 7 (validate-spec.mjs)
 ```
@@ -135,7 +135,7 @@ Before spawning Station 4/6/9, estimate serialized payload size (paths do not co
 |---------|-----------|------------------|
 | `qa-log.md` (if a worker must inline) | 15 KB | Keep verbatim only the two most recent rounds |
 | `enriched.json` (if accidentally inlined) | 30 KB | Do not inline — pass the path |
-| `spec.md` | 250 KB | `SPEC_TOO_LARGE` warning — look for restated sections; never escalate on size alone (a full app spec with its requirements register is legitimately large; downstream kits read slice briefs, not the whole file) |
+| `spec.md` front matter | 2,500 lines | `SPEC_TOO_LARGE` warning — the register belongs in `requirements.yaml`; never escalate on size alone |
 
 Log breaches into `open-questions[]` so downstream kits know a distillation happened.
 

@@ -34,8 +34,10 @@ Directory: `.spec/features/<slug>.context/`
 | `glossary.md` | `import-upstream.mjs` | the spec glossary, read by path by workers that write copy |
 | `timings.jsonl` | `board.mjs` (card, gate, timing) | spawn and gate timeline per station — measure before optimizing |
 
-A handoff file is **at most ~15 lines**: outcome, paths touched, decisions, open questions. Name a
-gate and its result (`lint: pass`); never copy gate output, Gate Log rows, or the row's Build Plan
+A handoff file is **at most 15 lines**: outcome, paths touched, decisions, gates. Write it with
+`board.mjs handoff <board.md> --name <agent-station> --outcome … --paths a,b --decisions … --gates …`.
+The command rejects a longer file. Station 11 is one handoff per fix batch, not one file per finding. Name a
+gate and its result in that file (`lint: pass`); never copy gate output, Gate Log rows, or the row's Build Plan
 note into it — each fact is written once (gate → `gate-status.md`, row state → `board.mjs row`,
 detail → the handoff).
 
@@ -103,6 +105,8 @@ either makes each prefix unique and loses the discount.
 
 Every card also carries Request, Clarifications, and Decisions & Open Questions (binding human
 input), the Build Plan preamble, and its `### Not building` list. `board.mjs` owns the exact map.
+Build cards also include a path list from `## FSD Impact` (`layer/slice`), filtered to that row's
+slices, so a builder does not open the board to see where the row lands.
 
 | Worker | reads (card for Stations 3–8) | writes |
 |--------|------------------------------|--------|
@@ -123,10 +127,12 @@ Anything outside the listed sections is off-limits without an explicit orchestra
 
 ## code-reviewer input contract
 
-The `code-reviewer` must NOT receive the raw output of `git diff main...HEAD`. Instead:
+The `code-reviewer` must NOT receive the raw output of `git diff {PARENT}...HEAD`. `{PARENT}` is
+the branch this feature was cut from (`new-feature.sh` prints it; the orchestrator spawn field is
+`PARENT`). A stacked feature is reviewed as its own delta. Do not diff `main` or `develop`.
 
-1. Orchestrator runs `git diff --name-only main...HEAD` and passes the file list.
-2. `code-reviewer` iterates the file list, reading each file's diff on demand via `git diff main...HEAD -- <path>`.
+1. Orchestrator runs `git diff --name-only {PARENT}...HEAD` and passes the file list.
+2. `code-reviewer` iterates the file list, reading each file's diff on demand via `git diff {PARENT}...HEAD -- <path>`.
 
 Never load the entire diff into the reviewer's prompt. If the file list is large, the 100 KB
 diff-size guard still applies per path; do not invent a second triage agent.

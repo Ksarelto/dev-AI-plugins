@@ -1,7 +1,7 @@
 # Spec Schema — YAML Front Matter
 
 **Version**: 2.0
-**Written by**: `spec-synthesizer` (Station 6), `merge-spec.mjs` (continue runs)
+**Written by**: `spec-synthesizer` (Station 6); `requirements.yaml` by `build-requirements.mjs`
 **Validated by**: `scripts/validate-spec.mjs` (Station 7 and publish)
 **Read by**: every downstream kit — see `consumer-contract.md` for who reads which section and in what order
 
@@ -14,8 +14,8 @@
 2. **One home per fact.** Each requirement, rule, decision, assumption, and question is written
    once, in its own section, and referenced by id everywhere else. Never restate an item in a second
    section. A risk that depends on an open question says `Q-001`; it does not repeat the question.
-3. **Stated is not assumed.** A rule that appears in `.spec/context/` is a `requirements[]` entry
-   with `source: stated`. `assumptions[]` holds only what the pipeline inferred.
+3. **Stated is not assumed.** A rule that appears in `.spec/context/` is a `requirements.yaml`
+   entry with `source: stated`. `assumptions[]` holds only what the pipeline inferred.
 4. **Everything is addressable.** Every list item has an id (or, for entities, a unique `name`).
    Downstream kits pass ids, not prose.
 5. **Human views are generated, not written.** Tables (coverage, permissions, API list, screen
@@ -28,7 +28,7 @@
 
 | Prefix | Section | Prefix | Section |
 |--------|---------|--------|---------|
-| `REQ-` | `requirements[]` | `SCR-` | `ui-surface.screens[]` |
+| `REQ-` | `requirements.yaml` | `SCR-` | `ui-surface.screens[]` |
 | `KPI-` | `context.success-metrics[]` | `INT-` | `ui-surface.interactions[]` |
 | `PERM-` | `permissions[]` | `API-` | `api-surface.endpoints[]` |
 | `BR-` | `business-rules[]` | `AGT-` / `TOOL-` / `KB-` | `agent-surface.*` |
@@ -57,6 +57,8 @@ metadata:
   created: "YYYY-MM-DDTHH:mm:ssZ"
   updated: "YYYY-MM-DDTHH:mm:ssZ"
   source-files: []                       # .spec/context/ files consumed
+  requirements-file: requirements.yaml   # sidecar register; do not inline requirements[] in spec.md
+  parent-spec: ""                        # continue runs only — path of the previous spec.md
   pipeline-rounds: { clarification: 0, completeness: 0, review: 0 }
 
 context:
@@ -76,16 +78,10 @@ glossary:                                # domain words the build must use consi
   - term: ""
     meaning: ""
 
-requirements:                            # atomic register — one rule or behaviour per entry
-  - id: REQ-001
-    text: ""                             # one testable statement, in the source's words
-    kind: behavior                       # behavior | rule | constraint | nfr | data | copy | metric
-    source: stated                       # stated | answered — inferences live ONLY in assumptions[]
-    source-ref: "requirements.md#L264"   # file#Lline for stated; "qa-log Round N Qk" for answered
-    priority: must                       # must | should | could | wont
-    scope: in                            # in | non-goal | deferred
-    covered-by: [AC-011, BR-001]         # ids that implement/test it (AC, BR, SM, NTF, PERM, SCR, API)
-                                         # or "non-functional.<category>"
+# requirements[] lives in requirements.yaml (one flow-style line per entry), not in spec.md.
+# The synthesizer writes artifacts/coverage.yaml (REQ-id → covering ids); build-requirements.mjs
+# joins that with enriched.json. Older specs may still inline requirements[] — the validator
+# accepts either form.
 
 roles:
   - name: ""                             # e.g. "Resident" — referenced by name everywhere
@@ -334,6 +330,8 @@ Errors block Station 7 and publish. Warnings are surfaced in the Station 9 revie
 | `type`, `status` valid | `TYPE_INVALID`, `STATUS_INVALID` |
 | `metadata.slug` kebab-case | `SLUG_FORMAT_INVALID` |
 | Every id matches its prefix and is unique across the spec | `ID_FORMAT_INVALID`, `DUPLICATE_ID` |
+| A later increment (`current.json` points at another spec) sets `metadata.parent-spec` | `PARENT_SPEC_MISSING` |
+| An id from the parent chain is not reused for a new item (a restated modified item is listed in `prior-items.yaml` or `changes.json`) | `ID_REUSED` |
 | `acceptance-criteria[].story-ref` resolves | `BROKEN_STORY_REF` |
 | `testable` is boolean | `TESTABLE_FLAG_MISSING` |
 | HTTP method valid | `HTTP_METHOD_INVALID` |
@@ -353,6 +351,9 @@ Errors block Station 7 and publish. Warnings are surfaced in the Station 9 revie
 | Enum-typed fields (`…Status`, or any field with `values`) list `values` | `ENUM_VALUES_MISSING` | error |
 | A lifecycle field with 2+ values has a state machine; its `states` equal the field `values`; transitions use known states | `STATE_MACHINE_MISSING`, `STATE_MACHINE_INVALID` | error |
 | Every `must` + `scope: in` requirement has non-empty `covered-by` (`metric` → a `KPI-*`) | `REQUIREMENT_UNCOVERED` | error |
+| A requirement is about the product, not the source file ("This file…") | `META_REQUIREMENT` | error |
+| One acceptance criterion covers at most 25 requirements | `CATCH_ALL_COVERAGE` | warning |
+| A decision does not copy a requirement's text | `DEC_RESTATES_REQ` | error |
 | `requirements[].source` is `stated` or `answered` (an inference is an assumption, never a requirement) | `REQUIREMENT_INVALID` | error |
 | Every `must` story has ≥1 `happy` AC and ≥1 non-happy AC | `STORY_UNHAPPY_PATH_MISSING` | error |
 | Every business rule has ≥1 `ac-refs` | `RULE_UNTESTED` | error |
@@ -380,7 +381,7 @@ downstream kits still read them (see `consumer-contract.md` § Legacy specs).
 - `context.target-users` ≥ 1 and `roles` ≥ 1 (`2.0`)
 - `user-stories` ≥ 1, each with ≥ 1 acceptance criterion
 - `non-functional.accessibility` and `non-functional.security` ≥ 1
-- `requirements` ≥ 1 (`2.0`) — `1.x`: `traceability.source-requirements` ≥ 1
+- `requirements.yaml` (or inline `requirements[]` on older specs) ≥ 1 (`2.0`) — `1.x`: `traceability.source-requirements` ≥ 1
 - `delivery-plan.slices` ≥ 1 (`2.0`)
 
 ---
@@ -405,7 +406,7 @@ downstream kits still read them (see `consumer-contract.md` § Legacy specs).
 
 1. Bump `spec-version`: minor for additive optional fields, major for removed or renamed fields.
 2. Update this file, `templates/spec-frontmatter.yaml`, `scripts/validate-spec.mjs`
-   (`SUPPORTED_SCHEMA_VERSIONS`), `scripts/merge-spec.mjs`, and `consumer-contract.md`.
+   (`SUPPORTED_SCHEMA_VERSIONS`), `scripts/write-changes.mjs`, and `consumer-contract.md`.
 3. Keep readers tolerant of the previous major version.
 
 | Version | Change |

@@ -13,6 +13,7 @@ metadata:
   created: "2026-01-01T00:00:00Z"
   updated: "2026-01-01T00:00:00Z"
   source-files: [requirements.md]
+  requirements-file: requirements.yaml
   pipeline-rounds: { clarification: 1, completeness: 0, review: 1 }
 context:
   problem: Residents of one building lend tools through a group chat, so nobody can tell what is free, requests vanish, and lenders are chased for answers.
@@ -31,6 +32,8 @@ context:
 glossary:
   - term: Hold
     meaning: The period after a lender accepts, when the item is promised to one borrower.
+# requirements.yaml (sidecar — do not copy this list into spec.md):
+#   - { id: REQ-001, text: Only admitted residents and the manager can see the catalogue., kind: rule, source: stated, source-ref: requirements.md#L12, priority: must, scope: in, covered-by: [PERM-001, AC-002] }
 requirements:
   - id: REQ-001
     text: Only admitted residents and the manager can see the catalogue.

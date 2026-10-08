@@ -406,6 +406,13 @@ for (const [key, prior] of existingByKey) {
     })
     continue
   }
+  const listedRemoved = (changes?.slices?.removed ?? []).includes(prior['slice-ref'])
+    || (prior['entity-refs'] ?? []).some((name) => (changes?.entities?.removed ?? []).includes(name))
+    || (prior['agent-ref'] && (changes?.agents?.removed ?? []).includes(prior['agent-ref']))
+  if (!listedRemoved) {
+    tasks.push({ ...prior })
+    continue
+  }
   if (prior.status === 'done') {
     tasks.push({
       ...prior,

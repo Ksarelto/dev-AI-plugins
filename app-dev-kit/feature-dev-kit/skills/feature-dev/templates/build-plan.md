@@ -9,7 +9,7 @@ contract: every row becomes exactly one delegation, and every worker marks its o
 ## Build plan
 
 **Strategy**: ⟨one line — consolidated slice-engineer | one engineer per layer | parallel per slice⟩
-**Base branch**: ⟨develop⟩   **Feature branch**: ⟨feature/IV-1423-decline-profile⟩
+**Base branch**: ⟨PARENT⟩   **Feature branch**: ⟨feature/IV-1423-decline-profile⟩
 
 | # | Station | Layer | Slice | Segments | Agent | Group | Status | Note |
 |---|---------|-------|-------|----------|-------|-------|--------|------|

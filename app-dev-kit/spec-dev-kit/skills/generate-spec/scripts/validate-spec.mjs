@@ -5,8 +5,9 @@
 // Schema of record: ../references/spec-schema.md (rule codes match its tables).
 // 2.0 specs get every rule. 1.x specs get the structure rules; most 2.0 rules become warnings.
 
-import { readFileSync } from 'node:fs'
-import { endpointsOf, indexSpec, isV2, loadYaml, roleName } from './lib-spec.mjs'
+import { existsSync, readFileSync } from 'node:fs'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+import { attachRequirements, endpointsOf, indexSpec, indexSpecChain, isV2, loadSpecChain, loadYaml, roleName } from './lib-spec.mjs'
 
 const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 const TYPES = ['feature', 'app', 'domain', 'integration']
@@ -69,6 +70,52 @@ try {
 }
 const body = raw.slice(fmMatch[0].length)
 const v2 = isV2(fm)
+attachRequirements(specPath, fm, parse)
+const chain = loadSpecChain(specPath, parse, process.cwd())
+const chainIndex = indexSpecChain(chain)
+
+function appRootOf(specFile) {
+  let dir = dirname(resolve(specFile))
+  for (let i = 0; i < 8; i++) {
+    if (basename(dir) === '.spec') return dirname(dir)
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return process.cwd()
+}
+
+function sameFile(a, b, root) {
+  const abs = (p) => resolve(isAbsolute(p) ? p : join(root, p))
+  return abs(a) === abs(b)
+}
+
+function restatedIds(runDir) {
+  const ids = new Set()
+  const walk = (node) => {
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item)
+      return
+    }
+    if (!node || typeof node !== 'object') return
+    if (typeof node.id === 'string') ids.add(node.id)
+    for (const value of Object.values(node)) walk(value)
+  }
+  const priorItems = join(runDir, 'artifacts/prior-items.yaml')
+  if (existsSync(priorItems)) {
+    try { walk(parse(readFileSync(priorItems, 'utf8'))) } catch { /* listed ids stay empty */ }
+  }
+  const changesFile = join(runDir, 'artifacts/changes.json')
+  if (existsSync(changesFile)) {
+    try {
+      const changes = JSON.parse(readFileSync(changesFile, 'utf8'))
+      for (const section of Object.values(changes)) {
+        for (const id of section?.modified ?? []) if (id) ids.add(String(id))
+      }
+    } catch { /* ignore */ }
+  }
+  return ids
+}
 
 const errors = []
 const warnings = []
@@ -81,8 +128,13 @@ const nonEmpty = (v) => Array.isArray(v) && v.length > 0
 const str = (v) => typeof v === 'string' && v.trim().length > 0
 
 const index = indexSpec(fm)
-const { ids, entities, roles } = index
+const { ids: localIds, entities: localEntities } = index
+const ids = chainIndex.ids
+const entities = chainIndex.entities
+const roles = chainIndex.roles
 const roleNames = new Set(roles.keys())
+const fmLines = fmMatch[1].split(/\r?\n/).length
+if (fmLines > 2500) warn('SPEC_TOO_LARGE', `front matter is ${fmLines} lines (limit 2500) — keep the register in requirements.yaml`)
 const stories = arr(fm['user-stories'])
 const acs = arr(fm['acceptance-criteria'])
 const endpoints = endpointsOf(fm)
@@ -91,10 +143,33 @@ const screens = arr(ui.screens)
 const slices = arr(fm['delivery-plan']?.slices)
 const nfr = fm['non-functional'] ?? {}
 
+const appRoot = appRootOf(specPath)
+const currentPath = join(appRoot, '.spec/app/current.json')
+if (existsSync(currentPath)) {
+  let current = null
+  try { current = JSON.parse(readFileSync(currentPath, 'utf8')) } catch { current = null }
+  const pointed = current?.spec_path
+  if (pointed && !sameFile(pointed, specPath, appRoot) && !fm.metadata?.['parent-spec']) {
+    err('PARENT_SPEC_MISSING', `current.json points at ${pointed} but this spec has no metadata.parent-spec — a later increment is feature-only, not a new first spec`)
+  }
+}
+if (chain.length > 1) {
+  const parentIds = new Set()
+  for (const { fm: parentFm } of chain.slice(1)) {
+    for (const id of indexSpec(parentFm).ids.keys()) parentIds.add(id)
+  }
+  const allowed = restatedIds(dirname(resolve(specPath)))
+  for (const id of localIds.keys()) {
+    if (parentIds.has(id) && !allowed.has(id)) {
+      err('ID_REUSED', `${id} already exists in the parent spec — new items take the next free id; a modified item must be listed in artifacts/prior-items.yaml or changes.json`)
+    }
+  }
+}
+
 // A ref is a known id, an entity name, or (for covered-by) "non-functional.<category>".
 function resolves(ref, { allowNfr = false } = {}) {
   const r = String(ref ?? '').trim()
-  if (ids.has(r) || entities.has(r)) return true
+  if (ids.has(r) || entities.has(r) || localIds.has(r) || localEntities.has(r)) return true
   if (allowNfr && /^non-functional\./.test(r)) return nonEmpty(nfr[r.slice('non-functional.'.length)])
   return false
 }
@@ -198,7 +273,7 @@ for (const e of endpoints) {
   checkRefs(e?.id, 'story-refs', e?.['story-refs'])
 }
 
-for (const [name, entity] of entities) {
+for (const [name, entity] of localEntities) {
   if (!str(entity.description) || entity.description.trim() === name) rule('PLACEHOLDER_DESCRIPTION', `entity ${name} description is empty or just its name`)
   for (const f of arr(entity.fields)) {
     const d = String(f?.description ?? '').trim()
@@ -216,7 +291,7 @@ for (const [name, entity] of entities) {
 
 if (v2) {
   // Roles and permissions
-  if (!nonEmpty(fm.roles)) err('MVS_INCOMPLETE', 'roles[] must list at least one role')
+  if (!nonEmpty(fm.roles) && roles.size === 0) err('MVS_INCOMPLETE', 'roles[] must list at least one role')
   for (const u of arr(fm.context?.['target-users'])) checkRole('context', 'target-users', u)
   for (const s of stories) checkRole(s?.id, 'as', s?.as)
   for (const p of arr(fm.permissions)) {
@@ -239,6 +314,16 @@ if (v2) {
     if (inScope && r?.priority === 'must' && !nonEmpty(r?.['covered-by'])) {
       err('REQUIREMENT_UNCOVERED', `${r?.id} (must, ${r?.source}) has nothing in covered-by: ${String(r?.text).slice(0, 90)}`)
     }
+    if (/^this (file|document|brief|section)\b/i.test(String(r?.text ?? '').trim())) {
+      err('META_REQUIREMENT', `${r?.id} is about the source file, not the product: ${String(r.text).slice(0, 90)}`)
+    }
+  }
+  const coveredCount = new Map()
+  for (const r of arr(fm.requirements)) {
+    for (const id of arr(r?.['covered-by'])) coveredCount.set(id, (coveredCount.get(id) ?? 0) + 1)
+  }
+  for (const [id, n] of coveredCount) {
+    if (n > 25) warn('CATCH_ALL_COVERAGE', `${id} covers ${n} requirements — map each requirement to the AC that tests it`)
   }
 
   // Acceptance criteria kinds + unhappy paths
@@ -266,7 +351,7 @@ if (v2) {
 
   // State machines
   const machines = arr(fm['state-machines'])
-  for (const [name, entity] of entities) {
+  for (const [name, entity] of localEntities) {
     for (const f of arr(entity.fields)) {
       const lifecycle = f?.name === 'status' || /(Status|State)$/.test(String(f?.type ?? ''))
       if (!lifecycle || f?.derived || arr(f?.values).length < 2) continue
@@ -344,7 +429,13 @@ if (v2) {
     }
   }
   for (const q of arr(fm['open-questions'])) checkRefs(q?.id, 'affects', q?.affects)
-  for (const d of arr(fm.traceability?.decisions)) checkRefs(d?.id, 'affects', d?.affects)
+  const reqTexts = new Set(arr(fm.requirements).map((r) => String(r?.text ?? '').trim().toLowerCase()).filter(Boolean))
+  for (const d of arr(fm.traceability?.decisions)) {
+    checkRefs(d?.id, 'affects', d?.affects)
+    if (reqTexts.has(String(d?.decision ?? '').trim().toLowerCase())) {
+      err('DEC_RESTATES_REQ', `${d?.id} repeats a requirement — reference it from affects, do not copy the text`)
+    }
+  }
   for (const r of arr(fm.risks)) checkTokens(r?.id, 'mitigation', [r?.mitigation])
 
   // One home per fact
@@ -358,6 +449,9 @@ if (v2) {
   // Delivery plan
   if (!nonEmpty(slices)) err('MVS_INCOMPLETE', 'delivery-plan.slices must list at least one slice')
   const seenSlices = new Set()
+  for (const { fm: parentFm } of chain.slice(1)) {
+    for (const sl of arr(parentFm['delivery-plan']?.slices)) if (sl?.id) seenSlices.add(sl.id)
+  }
   const storyOwner = new Map()
   for (const sl of slices) {
     const label = sl?.id ?? '(slice)'

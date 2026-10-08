@@ -103,7 +103,8 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
         score-completeness.mjs             ← Station 5 fidelity + score + gate
         compose-review.mjs                 ← Station 9 review packet (summary / delta)
         validate-spec.mjs                  ← Station 7 + publish gate
-        merge-spec.mjs / lookup-spec.mjs   ← continue runs
+        build-requirements.mjs                 ← Station 6 requirements.yaml sidecar
+        write-changes.mjs / lookup-spec.mjs    ← continue runs
         render-spec-views.mjs              ← spec.views.md: tables + all Mermaid diagrams (Station 8)
         write-slice-briefs.mjs             ← slices/SL-NNN.yaml
         publish-spec.mjs / archive-context.mjs / write-kit-result.mjs / revert-increment.mjs

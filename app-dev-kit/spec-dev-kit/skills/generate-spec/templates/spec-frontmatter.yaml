@@ -17,6 +17,8 @@ metadata:
   updated: "{{YYYY-MM-DDTHH:mm:ssZ}}"
   source-files:
     - "{{requirements.md}}"
+  requirements-file: requirements.yaml
+  # parent-spec: ".spec/spec/spec-YYYYMMDD-HHmmss_{{slug}}/spec.md"   # continue runs only
   pipeline-rounds: { clarification: 0, completeness: 0, review: 0 }
 
 context:
@@ -40,15 +42,8 @@ glossary:                                  # copy the source's glossary; add ter
 
 # Atomic register: one testable statement per entry. Every MUST/MUST NOT, every table row, every
 # number (limits, timers, retention) in the source becomes one entry with source-ref file#Lline.
-requirements:
-  - id: REQ-001
-    text: "{{A resident may have at most three active borrows at a time}}"
-    kind: "{{behavior|rule|constraint|nfr|data|copy|metric}}"
-    source: "{{stated|answered}}"
-    source-ref: "{{requirements.md#L364}}"
-    priority: "{{must|should|could|wont}}"
-    scope: "in"
-    covered-by: ["{{BR-001}}", "{{AC-002}}"]
+# Do not inline requirements[] here. Write artifacts/coverage.yaml; build-requirements.mjs
+# writes requirements.yaml next to spec.md.
 
 roles:
   - name: "{{Resident}}"

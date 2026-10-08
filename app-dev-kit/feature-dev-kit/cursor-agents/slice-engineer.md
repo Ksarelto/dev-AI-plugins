@@ -53,7 +53,7 @@ Build `model` → `api` → `lib` → `ui` → `index.ts`. UI components go in k
 
 ## Handoff
 
-Write `.spec/features/<slug>.context/slice-engineer-<layer>.md` — at most ~15 lines: outcome, paths touched, decisions, open questions; name gates with their result, never copy their output. Return only `HANDOFF` and one `CONTAINS` line. If this context is near its limit, refresh that file and continue from it.
+Write the return with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug>.md --name slice-engineer-<layer> --outcome "<one line>" --paths <comma-separated files> --decisions "<one line>" --gates "<lint: pass>"`. It rejects more than 15 lines. Return only `HANDOFF` and one `CONTAINS` line. If this context is near its limit, refresh that file and continue from it.
 
 ## Boundaries
 

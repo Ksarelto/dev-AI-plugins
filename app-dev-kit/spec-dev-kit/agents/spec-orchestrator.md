@@ -47,8 +47,8 @@ Always:
 - `MODE` — `build` | `resume` | `revise` (default `build`)
 - `TIMECODE`, `SLUG`, `RUN_DIR` — `.spec/spec/spec-{TIMECODE}_{SLUG}/`
 - `CONTINUE` — `first` or `continue`
-- `PRIOR_INDEX` — path to `artifacts/prior-index.json` (do not inline it)
-- `BASE_SPEC` — `{RUN_DIR}/base.spec.md` on a continue run. Pass the path. Do not paste the file.
+- `PRIOR_INDEX` — path to `artifacts/prior-index.json` (do not inline it). Never edit this file. "Do not carry the previous scope forward" means a feature-only continue (`metadata.parent-spec`, new ids from `next`). It does not mean rewriting `prior-index.json` to `mode: first`.
+- `PARENT_SPEC` — path from `prior-index.json` `parent_spec` on a continue run. Pass the path. Do not paste the file.
 - `KIT_DIR` — plugin root (see skill for resolution)
 - `INTAKE_REPORT_PATH` — `{RUN_DIR}/artifacts/intake.json`
 
@@ -108,20 +108,20 @@ Do **not** continue past a packet. Do **not** ask the user yourself.
 
 Initialize `clarification_rounds` from the skill (0 on `build`).
 
-On `CONTINUE=continue`, every spec-analyst spawn also receives `BASE_SPEC` and `PRIOR_INDEX` (paths only). After each `analysis.json` write, collect `change_intents` whose `op` is `modified` and whose `id` is set:
+On `CONTINUE=continue`, every spec-analyst spawn also receives `PRIOR_INDEX` (path only). From round 2, copy `{RUN_DIR}/artifacts/analysis.json` to `analysis.base.json` before the analyst spawn. The analyst then writes only `{ delta: true, gaps, root_cause_groups, change_intents }`. `gate-check.mjs` merges it and exits 2 if the file contains `requirements_map` or `qa_log`. After each `analysis.json` write, collect `change_intents` whose `op` is `modified` and whose `id` is set:
 
 ```
-Bash: node S/lookup-spec.mjs --spec {RUN_DIR}/base.spec.md --ids {ids} --out {RUN_DIR}/artifacts/prior-items.yaml
+Bash: node S/lookup-spec.mjs --spec {PARENT_SPEC} --ids {ids} --out {RUN_DIR}/artifacts/prior-items.yaml
       # no modified ids → Bash: printf '{}\n' > {RUN_DIR}/artifacts/prior-items.yaml
 ```
 
-Pass `PRIOR_ITEMS` (that path) to spec-enricher and spec-synthesizer. Do not paste it.
+`PARENT_SPEC` is `prior-index.json` `parent_spec`. Pass `PRIOR_ITEMS` (that path) to spec-enricher and spec-synthesizer. Do not paste it.
 
 ```
 Spawn spec-analyst (Pass 1) unless RESUME_AT is 2b:
   KIT_DIR, RUN_DIR, INTAKE_REPORT_PATH
   ANALYSIS_OUT_PATH: {RUN_DIR}/artifacts/analysis.json
-  BASE_SPEC, PRIOR_INDEX   # continue runs only
+  PRIOR_INDEX   # continue runs only
   RULES: {KIT_DIR}/skills/generate-spec/references/clarification-protocol.md
   RETURN: after writing analysis.json
 
@@ -142,7 +142,7 @@ gate = Bash: node S/gate-check.mjs {RUN_DIR}/artifacts/analysis.json --round {cl
 Spawn spec-analyst (Pass 2):
   INTAKE_REPORT_PATH, ANALYSIS_PATH, ANALYSIS_OUT_PATH (overwrite)
   NEW_ANSWERS: this round only, each answer with the question's gap_refs
-  BASE_SPEC, PRIOR_INDEX   # continue runs only
+  PRIOR_INDEX   # continue runs only
 Refresh prior-items.yaml (continue runs only). Re-run the Station 2 gate.
 ```
 
@@ -218,9 +218,15 @@ Spawn spec-synthesizer:
   PRIOR_ITEMS   // continue runs only
 ```
 
-When `{RUN_DIR}/base.spec.md` exists, the synthesizer writes `{RUN_DIR}/artifacts/delta.yaml`
-only. Then `Bash: node S/merge-spec.mjs --run {RUN_DIR}`. Otherwise the synthesizer writes
-`{RUN_DIR}/spec.md`. Either way `status` is `reviewing`. Continue Station 7.
+The synthesizer always writes `{RUN_DIR}/spec.md` (`status: reviewing`) and
+`{RUN_DIR}/artifacts/coverage.yaml`. Then:
+
+```
+Bash: node S/build-requirements.mjs --run {RUN_DIR}
+Bash: node S/write-changes.mjs --run {RUN_DIR}
+```
+
+Continue Station 7.
 
 ---
 
@@ -234,6 +240,8 @@ if validation_attempts >= 2:
   Return ESCALATION_PACKET { resume_at: "7", errors: ERROR lines } and STOP
 validation_attempts++
 Spawn spec-synthesizer correction pass with VALIDATION_ERRORS (ERROR lines only)
+Bash: node S/build-requirements.mjs --run {RUN_DIR}
+Bash: node S/write-changes.mjs --run {RUN_DIR}
 Re-run this station.
 ```
 

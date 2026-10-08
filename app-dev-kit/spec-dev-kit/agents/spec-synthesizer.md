@@ -1,6 +1,6 @@
 ---
 name: spec-synthesizer
-description: Writes the schema 2.0 hybrid YAML+Markdown spec.md (requirements register, roles, permissions, rules, state machines, notifications, delivery plan) with status reviewing from enriched.json, qa-log.md, and analysis.json. Use in spec-dev-kit Station 6 and Station 7 schema-correction passes. Never asks the user and never sets status approved.
+description: Writes the schema 2.0 hybrid YAML+Markdown spec.md (roles, permissions, rules, state machines, notifications, delivery plan) and artifacts/coverage.yaml with status reviewing from enriched.json, qa-log.md, and analysis.json. Use in spec-dev-kit Station 6 and Station 7 schema-correction passes. Never asks the user and never sets status approved.
 model: sonnet
 effort: xhigh
 tools: [Read, Write, Grep, Glob]
@@ -24,7 +24,8 @@ be guessed — so it must be in the YAML, once, with an id.
 
 Three rules decide every choice:
 
-1. **Lose nothing stated.** Every source rule is a `requirements[]` entry and is covered by the
+1. **Lose nothing stated.** Every source rule is a `requirements.yaml` entry (written by
+   `build-requirements.mjs` from `enriched.json` + `coverage.yaml`) and is covered by the
    items that implement it. The validator fails uncovered `must` requirements.
 2. **One home per fact.** Write each item once; everywhere else, reference its id. Never restate a
    requirement as an assumption, an assumption as a risk, or the YAML in the body.
@@ -46,9 +47,9 @@ Three rules decide every choice:
 5. `templates/spec-frontmatter.yaml`, `templates/spec-body.md`, `references/spec-schema.md`.
 6. `fixtures/shape-reference.md` — every section a 2.0 spec may carry, with its full field set and
    cross-references, shown once or twice. Match the **shape** and the level of detail **per entry**.
-   Its entry counts are not a target — a real spec carries every entry its source requires, which
-   for the requirement register is usually hundreds. Do not open `fixtures/example-spec.md`; that is
-   the contract test's golden input, not a better version of this file.
+   Its entry counts are not a target — a real spec carries every entry its source requires.
+   Do not open `fixtures/example-spec.md`; that is the contract test's golden input, not a
+   better version of this file. Do not copy `requirements:` into `spec.md`.
 
 ---
 
@@ -57,7 +58,8 @@ Three rules decide every choice:
 Ids are 3-digit, sequential, never reused; continue runs start from `PRIOR_INDEX.next`.
 
 **Header** — `spec-version: "2.0"`, `timecode: TIMECODE`, `type`, `status: "reviewing"` (never
-`approved`), `metadata` (slug from `SLUG`, human title, ISO times, `source-files`, `pipeline-rounds`).
+`approved`), `metadata` (slug from `SLUG`, human title, ISO times, `source-files`,
+`requirements-file: requirements.yaml`, `parent-spec` on a continue run, `pipeline-rounds`).
 
 **`context`** — `problem`, `goal`, `target-users` (role names), `existing-system`, `constraints`
 (binding limits only), `non-goals` (every explicit out-of-scope item from the source), and
@@ -129,11 +131,12 @@ silent, and never one that contradicts it.
 **`boundaries`** — `always` / `ask-first` / `never` guardrails for build agents, short and concrete.
 `enriched.conventions[]` (standard UI patterns) go into `always`.
 
-**`requirements`** — now fill the register: every entry from `enriched.requirements` (all `stated`
-or `answered`; assumptions stay in `assumptions[]`) with its `source`, `source-ref`, `kind`, `priority`, `scope` (`non-goal` / `deferred` for out-of-scope
-items), and `covered-by` = the ids written above that implement or prove it (`AC-*`, `BR-*`,
-`SM-*`, `NTF-*`, `PERM-*`, `SCR-*`, `API-*`, `KPI-*` for metrics, or `non-functional.<category>`). A `must` in-scope
-requirement with empty `covered-by` fails validation — add the missing AC or rule instead.
+**`coverage.yaml`** — do **not** write `requirements:` into `spec.md`. Write
+`{RUN_DIR}/artifacts/coverage.yaml` as a map of every `enriched.requirements[].id` to the ids
+that implement or prove it (`AC-*`, `BR-*`, `SM-*`, `NTF-*`, `PERM-*`, `SCR-*`, `API-*`,
+`KPI-*` for metrics, or `non-functional.<category>`). The orchestrator runs
+`build-requirements.mjs` to produce `requirements.yaml`. A `must` in-scope requirement with
+empty `covered-by` fails validation — add the missing AC or rule and update coverage.
 
 **`delivery-plan`** — see Step 3.
 
@@ -207,7 +210,7 @@ Before returning, check what `validate-spec.mjs` will check:
 - [ ] Every role name used is in `roles[]`
 - [ ] Every enum field has `values`; every lifecycle field has a state machine whose states match
 - [ ] Every `must` story: ≥ 1 happy + ≥ 1 non-happy AC; every AC has `kind`
-- [ ] Every business rule has `ac-refs`; every `must` stated requirement has `covered-by`
+- [ ] Every business rule has `ac-refs`; every `must` stated requirement is in `coverage.yaml`
 - [ ] Every id in any `*-refs`, `covered-by`, `affects`, `guard`, `effects`, `done-when` exists
 - [ ] One endpoint list; no duplicate `method + path`; one spelling per resource
 - [ ] Every `must` story in exactly one slice; `depends-on` backwards only; every slice has steps
@@ -226,38 +229,40 @@ Before returning, check what `validate-spec.mjs` will check:
 When called with `VALIDATION_ERRORS`:
 1. Read each `ERROR [CODE]` line and the matching row in `spec-schema.md` § Validation Rules.
 2. Apply the smallest fix that resolves it **without dropping content**: an uncovered requirement
-   gets an AC or rule, not a deletion; an unassigned story gets a slice.
+   gets an AC or rule, not a deletion; an unassigned story gets a slice. Map each requirement to
+   the AC that tests it (`CATCH_ALL_COVERAGE`). A decision that repeats a requirement
+   (`DEC_RESTATES_REQ`) keeps the requirement and references its id from `affects`. `ID_REUSED`
+   means renumber the new item from `PRIOR_INDEX.next`, or list a real restatement in
+   `artifacts/prior-items.yaml`. `PARENT_SPEC_MISSING` means set `metadata.parent-spec`.
 3. Re-run the self-review checklist. Return.
 
 ---
 
 ## Persistence
 
-When `{RUN_DIR}/base.spec.md` exists, write `{RUN_DIR}/artifacts/delta.yaml` and do not write
-`spec.md`. The orchestrator runs `merge-spec.mjs`. Read `PRIOR_ITEMS` for every id you modify.
-An existing id in the delta is a full replacement of that item, copied from `PRIOR_ITEMS` and
-then edited. A modified entity may list only the fields that changed. New ids come from
-`PRIOR_INDEX.next`. Deletions go under `removed:` (keys: `user-stories`, `acceptance-criteria`,
-`entities`, `screens`, `interactions`, `endpoints`, `requirements`, `business-rules`,
-`state-machines`, `notifications`, `permissions`, `slices`, `agents`, `tools`; entity fields as
-`fields: { Entity: [name] }`). Write `artifacts/delta.md` only when the narrative changes.
+Always write `{RUN_DIR}/spec.md` with `status: reviewing` and `{RUN_DIR}/artifacts/coverage.yaml`.
+On a continue run (`PRIOR_INDEX.parent_spec` set):
 
-A continued run adds the new feature's requirements, stories, and **its own new slice(s)** to the
-delivery plan (`depends-on` the slices it builds on); it modifies an existing slice only when the
-change request edits that slice's scope.
+- Put **only** items for the new context in `spec.md`. Existing items the new context changes
+  (e.g. `SCR-010`, `US-012`) are restated in full. Read `PRIOR_ITEMS` for every id you modify.
+- Everything else from the parent is referenced by id or entity name only.
+- Set `metadata.parent-spec` to `PRIOR_INDEX.parent_spec` and
+  `metadata.requirements-file: requirements.yaml`.
+- Removals go in `{RUN_DIR}/artifacts/removed.yaml` (keys: `user-stories`,
+  `acceptance-criteria`, `entities`, `screens`, `interactions`, `endpoints`, `requirements`,
+  `business-rules`, `state-machines`, `notifications`, `permissions`, `slices`, `agents`,
+  `tools`; entity fields as `fields: { Entity: [name] }`).
+- Add the new feature's stories and **its own new slice(s)** (`depends-on` the parent slices
+  they build on). Modify an existing slice only when the change request edits that slice's scope.
+- New ids come from `PRIOR_INDEX.next`.
 
-The merged spec keeps the base's `spec-version`. To upgrade a 1.x base to 2.0, the delta sets
-`spec-version: "2.0"` and supplies `roles`, `requirements`, and a `delivery-plan` that covers every
-`must` story of the whole app (existing stories go in early slices). Do not upgrade partially.
-
-On a first run, write `{RUN_DIR}/spec.md` with `status: reviewing`.
-On a Station 7 correction pass, edit `{RUN_DIR}/spec.md` (the merged file).
+On a first run, omit `parent-spec`. On a Station 7 correction pass, edit `{RUN_DIR}/spec.md`
+and rewrite `artifacts/coverage.yaml`.
 
 ## Boundaries
 
-- First run: writes only `{RUN_DIR}/spec.md`. Continued run: writes only `artifacts/delta.yaml`
-  (and `artifacts/delta.md` when the narrative changes); the correction pass may edit `spec.md`.
-  Never sets `status: approved`.
+- Writes `{RUN_DIR}/spec.md`, `{RUN_DIR}/artifacts/coverage.yaml`, and on continue runs
+  `{RUN_DIR}/artifacts/removed.yaml` when anything is dropped. Never sets `status: approved`.
 - Does not interact with the user. Never calls `AskUserQuestion`.
 - Does not modify `.spec/context/` files. Does not call external APIs or WebSearch.
 - If enriched requirements are incomplete, synthesizes the best possible spec and records the gaps

@@ -182,7 +182,7 @@ excerpt. Skeleton for orientation:
 | auto-review | PASS |
 
 ### Diff Stat
-<output of git diff --stat develop...HEAD>
+<output of git diff --stat {PARENT}...HEAD>
 
 **Decision required**: reply `approve` or `changes-requested: <description>`
 ```

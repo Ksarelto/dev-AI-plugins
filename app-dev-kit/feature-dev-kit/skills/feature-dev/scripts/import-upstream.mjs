@@ -2,7 +2,7 @@
 // Deterministic mapper: spec-dev-kit YAML (+ optional html prototype) → feature blackboard.
 // One feature per run (one screen, or several screens nested under that feature).
 // Usage:
-//   node import-upstream.mjs --spec <spec.md> --out <feature.md> [--slice-ref SL-001] [filters] [--require-scoped] [--changes <changes.json>]
+//   node import-upstream.mjs --spec <spec.md> --out <feature.md> [--slice-ref SL-001] [filters] [--require-scoped] [--changes <changes.json>] [--checklist <task-checklist.md>] [--change remove]
 // Spec 2.0: screens carry story-refs / api-refs / primary-entity. --slice-ref reads the slice brief
 // ({spec dir}/slices/{SL}.yaml; the whole spec when a passed ref is outside it) and adds the slice
 // goal, frontend steps, done-when ACs, and the slice's api-refs. Only the slice's rule-refs and
@@ -45,6 +45,8 @@ const acRefsArg = listFlag('ac-refs')
 const entityRefsArg = listFlag('entity-refs')
 const sliceRef = flag('slice-ref') === true ? '' : (flag('slice-ref') || '')
 const changesArg = flag('changes')
+const checklistArg = flag('checklist')
+const changeArg = flag('change') === true ? '' : (flag('change') || '')
 
 function loadChanges(changesFlag) {
   if (!changesFlag || changesFlag === true) return null
@@ -69,7 +71,11 @@ function changedIdSet(changes) {
 }
 
 if (!specPath) {
-  console.error('usage: node import-upstream.mjs --spec <spec.md> [--out <feature.md>] [--feature-id F-001] [--screen-refs SCR-001,SCR-002] [--task-ids T-001,T-002] [--require-scoped]')
+  console.error('usage: node import-upstream.mjs --spec <spec.md> [--out <feature.md>] [--feature-id F-001] [--screen-refs SCR-001,SCR-002] [--task-ids T-001,T-002] [--checklist <task-checklist.md>] [--change remove] [--require-scoped]')
+  process.exit(2)
+}
+if (changeArg && changeArg !== 'remove') {
+  console.error(`FATAL: --change must be "remove" (got "${changeArg}")`)
   process.exit(2)
 }
 
@@ -118,6 +124,7 @@ function sourceFromSpec(spec) {
     permissions: list(spec.permissions),
     notifications: list(spec.notifications),
     glossary: list(spec.glossary),
+    elsewhere: [],
     slices: list(spec['delivery-plan']?.slices),
     owners: null,
     type: spec.type,
@@ -140,7 +147,8 @@ function sourceFromBrief(brief) {
     machines: list(brief['state-machines']),
     permissions: list(brief.permissions),
     notifications: list(brief.notifications),
-    glossary: list(brief.glossary),
+    glossary: list(brief.glossary).map((g) => (typeof g === 'string' ? { term: g, meaning: '' } : g)),
+    elsewhere: list(brief['owned-elsewhere']),
     slices: [],
     owners: brief.owners ?? null,
     type: 'app',
@@ -308,11 +316,23 @@ function split(items, refsKey, sliceKey) {
   const build = touching.filter((x) => own.has(x.id) || !ownerOf(sliceKey, x.id))
   return { build, other: touching.filter((x) => !build.includes(x)).map((x) => ({ ...x, owner: ownerOf(sliceKey, x.id) })) }
 }
-const { build: uiRules, other: otherRules } = split(src.rules, 'applies-to', 'rule-refs')
-const { build: uiPermissions, other: otherPermissions } = split(src.permissions, 'refs', 'permission-refs')
+const { build: uiRules, other: otherRulesFromSplit } = split(src.rules, 'applies-to', 'rule-refs')
+const { build: uiPermissions, other: otherPermissionsFromSplit } = split(src.permissions, 'refs', 'permission-refs')
+const otherRules = [
+  ...otherRulesFromSplit,
+  ...list(src.elsewhere).filter((x) => x?.kind === 'rule').map((x) => ({ id: x.id, owner: x.owner, rule: x.text })),
+]
+const otherPermissions = [
+  ...otherPermissionsFromSplit,
+  ...list(src.elsewhere).filter((x) => x?.kind === 'permission').map((x) => ({ id: x.id, owner: x.owner, action: x.text })),
+]
 const uiMachines = src.machines.filter((m) => entityNames.includes(m.entity))
 const effectIds = new Set(uiMachines.flatMap((m) => list(m.transitions).flatMap((t) => list(t.effects))))
 const uiNotifications = src.notifications.filter((n) => effectIds.has(n.id) || list(slice?.['notification-refs']).includes(n.id))
+if (src.glossary.some((g) => g?.term && !g.meaning)) {
+  const byTerm = new Map(list(fullSpec().glossary).map((g) => [g.term, g.meaning]))
+  src.glossary = src.glossary.map((g) => ({ ...g, meaning: g.meaning || byTerm.get(g.term) || '' }))
+}
 const glossary = src.glossary
 const frontendSteps = list(slice?.steps).filter((s) => s.track === 'frontend')
 
@@ -567,13 +587,55 @@ const localIds = [
 const changed = changedIdSet(loadChanges(changesArg))
 const overlap = [...new Set(localIds.filter(Boolean).map(String))].filter((id) => changed.has(id))
 const reopen = priorStatus === 'done' && overlap.length > 0
-if (reopen || (hadBoard && fmValue('prior-branch') && overlap.length > 0)) {
-  if (reopen) {
-    replaceFm('status', 'approved')
-    replaceFm('prior-branch', fmValue('branch') || 'none')
-  }
-  replaceSection('Change request', `Spec changed. Edit the existing slice.\n\n${overlap.map((id) => `- ${id}`).join('\n')}`)
+if (reopen) {
+  replaceFm('status', 'approved')
+  replaceFm('prior-branch', fmValue('branch') || 'none')
 }
+
+function doneScreenOwners(checklistFlag) {
+  if (!checklistFlag || checklistFlag === true) return []
+  const checklistPath = String(checklistFlag).startsWith('/') ? String(checklistFlag) : join(process.cwd(), String(checklistFlag))
+  if (!existsSync(checklistPath)) {
+    console.error(`FATAL: checklist not found: ${checklistPath}`)
+    process.exit(2)
+  }
+  const raw = readFileSync(checklistPath, 'utf8')
+  const front = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+  if (!front) return []
+  const doc = parse(front[1])
+  const owners = []
+  for (const feature of doc.features ?? []) {
+    if (feature.status !== 'done') continue
+    if (featureId && feature.id === featureId) continue
+    for (const task of feature.tasks ?? []) {
+      if (!task['screen-ref'] || task.change === 'remove') continue
+      owners.push({
+        screen: String(task['screen-ref']),
+        feature: feature.id ?? '',
+        title: feature['slug-hint'] || feature.title || '',
+      })
+    }
+  }
+  return owners
+}
+
+const owners = doneScreenOwners(checklistArg)
+const extending = changeArg === 'remove' ? [] : selectedScreens.flatMap((screen) => {
+  const hit = owners.find((owner) => owner.screen === screen.id)
+  return hit ? [{ id: screen.id, ...hit }] : []
+})
+const notes = []
+if (changeArg === 'remove') {
+  const ids = selectedScreens.map((screen) => screen.id).filter(Boolean)
+  replaceFm('change', 'remove')
+  notes.push(`Remove. Do not scaffold a replacement.\n\n${ids.map((id) => `- ${id}`).join('\n')}`)
+} else if (extending.length) {
+  notes.push(`Extend existing. Do not scaffold a second page, entity, or feature.\n\n${extending.map((item) => `- ${item.id} already built by ${item.feature}${item.title ? ` (${item.title})` : ''}`).join('\n')}`)
+}
+if (reopen || (hadBoard && fmValue('prior-branch') && overlap.length > 0)) {
+  notes.push(`Spec changed. Edit the existing slice.\n\n${overlap.map((id) => `- ${id}`).join('\n')}`)
+}
+if (notes.length) replaceSection('Change request', notes.join('\n\n'))
 
 mkdirSync(dirname(outPath), { recursive: true })
 writeFileSync(outPath, board, 'utf8')

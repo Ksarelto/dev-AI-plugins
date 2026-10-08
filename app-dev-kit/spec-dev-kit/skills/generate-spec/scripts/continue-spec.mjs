@@ -1,15 +1,16 @@
 #!/usr/bin/env node
 // Scaffold .spec/spec/{spec-id}/ for a new feature.
 // No current.json → first feature, ids start at 001.
-// current.json present → copy the last spec to base.spec.md and write a compact prior-index.
+// current.json present → write a compact prior-index (parent path + next ids). Does not copy
+// the previous spec into the run folder.
 // Does not read .spec/context/. Does not put the previous spec body on stdout.
 //
 // Usage: node continue-spec.mjs --slug <kebab> [--root <dir>] [--timecode YYYYMMDD-HHmmss]
-// Prints MODE, SPEC_ID, RUN_DIR, PRIOR_INDEX, APP_SLUG, TIMECODE.
+// Prints MODE, SPEC_ID, RUN_DIR, PRIOR_INDEX, APP_SLUG, TIMECODE, PARENT_SPEC.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { flag, loadYaml, nextIds, readSpec, rel, screenIndex } from './lib-spec.mjs'
+import { attachRequirements, flag, loadYaml, maxNextIds, nextIds, readSpec, rel, screenIndex } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
 const slugArg = String(flag(args, 'slug') || '')
@@ -47,7 +48,7 @@ mkdirSync(join(runDir, 'artifacts'), { recursive: true })
 const prior = {
   mode: 'first',
   app_slug: appSlug,
-  base_spec: '',
+  parent_spec: '',
   next: { US: 1, SCR: 1, AC: 1, INT: 1, API: 1, AGT: 1, TOOL: 1 },
   screens: [],
   stories: [],
@@ -55,16 +56,16 @@ const prior = {
 }
 
 if (current?.spec_path) {
-  const baseAbs = join(root, current.spec_path)
-  if (!existsSync(baseAbs)) {
+  const parentAbs = join(root, current.spec_path)
+  if (!existsSync(parentAbs)) {
     console.error(`FATAL: current spec missing: ${current.spec_path}`)
     process.exit(1)
   }
-  copyFileSync(baseAbs, join(runDir, 'base.spec.md'))
-  const { fm } = readSpec(baseAbs, parse)
+  const { fm } = readSpec(parentAbs, parse)
+  attachRequirements(parentAbs, fm, parse)
   prior.mode = 'continue'
-  prior.base_spec = 'base.spec.md'
-  prior.next = nextIds(fm)
+  prior.parent_spec = current.spec_path
+  prior.next = maxNextIds(current.next_ids, nextIds(fm))
   prior.screens = screenIndex(fm)
   prior.stories = (fm['user-stories'] ?? []).map((story) => ({ id: story.id, 'i-want': story['i-want'] ?? '' }))
   prior.entities = (fm.entities ?? []).map((entity) => entity.name).filter(Boolean)
@@ -79,3 +80,4 @@ console.log(`RUN_DIR=${rel(root, runDir)}`)
 console.log(`PRIOR_INDEX=${rel(root, priorPath)}`)
 console.log(`APP_SLUG=${appSlug}`)
 console.log(`TIMECODE=${timecode}`)
+console.log(`PARENT_SPEC=${prior.parent_spec}`)

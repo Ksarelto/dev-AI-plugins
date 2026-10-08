@@ -21,6 +21,7 @@ Files next to `spec_path`:
 | File | Use |
 |------|-----|
 | `spec.md` | the contract (YAML front matter). Parse YAML; never feed the body to a model as data |
+| `requirements.yaml` | atomic register (one flow-style line per requirement). Older specs inline `requirements[]` in `spec.md` |
 | `slices/SL-NNN.yaml` | **build brief** per slice (`brief: app-dev-kit/slice-brief/v1`) — the slice plus every item it references |
 | `spec.views.md` | generated human tables; never parse it |
 | `artifacts/changes.json` | ids added / modified / removed by the last increment, per section (incl. `slices`) |
@@ -95,6 +96,8 @@ No `delivery-plan`, no briefs, no explicit refs. Consumers keep their previous h
 - enum values parsed from `"One of: …"` in the field description.
 
 When a 1.x app is continued, spec-dev-kit keeps `spec-version` 1.x unless the continue run
-upgrades it explicitly (adds `roles`, `requirements`, and a `delivery-plan` covering every `must`
-story). After an upgrade, orchestrators re-plan by slice; shipped work is matched by screen
-(frontend) or kept as `done` history (backend), never queued for removal.
+upgrades it explicitly (adds `roles`, a `requirements.yaml`, and a `delivery-plan` covering every
+`must` story of the new increment). After an upgrade, orchestrators re-plan by slice; shipped
+work is matched by screen (frontend) or kept as `done` history (backend), never queued for
+removal. A feature-only continue spec (`metadata.parent-spec`) lists only the new increment —
+keep prior `done` rows and prototype pages that are absent from it.

@@ -14,9 +14,11 @@ Defines how the pipeline discovers, reads, normalizes, and traces requirements f
 
 1. Glob `.spec/context/*.md` (flat — no subdirectory recursion on first pass).
 2. Sort files by modification time descending (newest first = highest signal).
-3. If zero files found: the `generate-spec` skill stops and tells the user to drop requirement files in `.spec/context/`.
-4. If a file is empty (0 bytes): skip with warning, do not fail.
-5. If a file is binary or unreadable: skip with warning, do not fail.
+3. Skip a file whose content hash matches any `.md` already in `.spec/processed/*/` (stale inbox
+   after an aborted run). Print a notice; do not extract it again.
+4. If zero files remain: the `generate-spec` skill stops and tells the user to drop requirement files in `.spec/context/`.
+5. If a file is empty (0 bytes): skip with warning, do not fail.
+6. If a file is binary or unreadable: skip with warning, do not fail.
 
 ---
 
@@ -66,31 +68,35 @@ For each file, the `generate-spec` skill extracts:
 `raw_requirements[]` is the register every later station is checked against (Station 5 fidelity,
 Station 7 `REQUIREMENT_UNCOVERED`). `scripts/extract-intake.mjs` applies these rules — the skill
 does not copy requirements by hand. It emits one entry per table row, bullet (lead-in bullets
-ending in `:` prefix their children), and requirement-bearing sentence, routes sections by heading
-(glossary, decisions, success measures, out of scope, copy, open questions, narrative), and sets
-`kind_hint` / `role_hint` / `scope_hint` / `confidence` by keyword. The skill then fills only
-`type_hint`, `consolidated_entities`, `consolidated_user_roles`, `potential_conflicts`, and
-`terminology_drift`. Compound statements ("A and B") stay one entry; the enricher splits them.
+ending in `:` prefix their children), and requirement-bearing **paragraph** (consecutive non-blank
+prose lines), routes sections by heading (glossary, decisions, success measures, out of scope,
+copy, open questions, narrative), and sets `kind_hint` / `role_hint` / `scope_hint` / `confidence`
+by keyword. The skill then fills only `type_hint`, `consolidated_entities`,
+`consolidated_user_roles`, `potential_conflicts`, and `terminology_drift`. Compound statements
+("A and B") stay one entry; the enricher splits them.
 
 The rules the script implements:
 
-- Every MUST / MUST NOT / "may" / "cannot" sentence → one entry. Split "A and B" into two.
+- Every **paragraph** that carries a signal word (`must` / `shall` / `should` / `cannot` /
+  `never` / `always` / `at most` / `at least` / `required` / `not allowed` / `notif` / `expire` /
+  `lapse` / `retain`) → one entry. Do not split a paragraph into sentences.
+- Skip document-meta lines: `This file/document/brief/section …`, `Read [x](…) for …`, `See …`,
+  `**Repo:**` / path-only lines, and link-only lines.
 - Every **table row** (roles × actions matrix, "who is told" table, edge-case table, status list)
   → one entry quoting the whole row (a row maps to one structured item later: one permission row,
   one notification, one edge-case AC). Do not split a row into cells.
 - Every **number** — limits, timers, windows, retention, sizes, counts — is kept verbatim in the
-  entry text (`"at most three active borrows"`, `"lapses after 24 hours"`).
+  entry text (`"at most three active borrows"`, `"lapses after 24 hours"`). A digit alone is not
+  enough to create an entry.
 - Glossary rows → `glossary[]` (also one entry each when they define behaviour).
 - "Decisions already made" lists → entries, with their ids in `decisions_already_made[]`. If a
   decision only repeats a rule already extracted, list that rule's id instead of a new entry.
 - Success measures → entries with `kind_hint: metric`, ids in `success_metrics[]`.
 - Narrative (pain points, background) is not a requirement — it feeds `context.problem` only.
-- Lists ("payments, invoices, claims") split into one entry per item; "A or B" stays one entry.
 - Out-of-scope lists → entries with `scope_hint: non-goal`.
 - Copy / voice examples ("Good: …", "Bad: …") → `copy_examples[]`.
-
-Do not summarise and do not merge near-duplicates across sections — the analyst deduplicates with
-both source lines kept. A long structured PRD legitimately yields hundreds of entries.
+- Exact and normalized duplicates across files merge into one entry. The first keeps
+  `source_file` / `source_line`; later copies go in `also_at: ["file.md#L12"]`.
 
 ---
 
@@ -114,7 +120,8 @@ After processing all files, the skill writes `artifacts/intake.json`:
       "kind_hint": "rule | behavior | constraint | nfr | data | copy | metric",
       "role_hint": "authoritative | discussion",     // per source file; analyst weights conflicts
       "scope_hint": "in | non-goal",
-      "confidence": "high | medium | low"
+      "confidence": "high | medium | low",
+      "also_at": ["file2.md#L8"]         // later copies of the same statement
     }
   ],
   "glossary": [{ "term": "...", "meaning": "...", "source_line": 0 }],

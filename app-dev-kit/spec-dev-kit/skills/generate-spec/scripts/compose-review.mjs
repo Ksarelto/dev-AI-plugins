@@ -11,7 +11,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { endpointsOf, flag, loadYaml, readSpec } from './lib-spec.mjs'
+import { attachRequirements, endpointsOf, flag, loadYaml, readSpec } from './lib-spec.mjs'
 
 const args = process.argv.slice(2)
 const value = (name) => {
@@ -30,6 +30,7 @@ const outPath = value('out') || join(dirname(specPath), 'artifacts/review-packet
 
 const { parse } = await loadYaml()
 const { fm } = readSpec(specPath, parse)
+attachRequirements(specPath, fm, parse)
 const list = (v) => (Array.isArray(v) ? v : [])
 
 let warnings = []

@@ -12,20 +12,20 @@ Which folder is current lives in `.spec/app/current.json` (`app-state.md`), not 
 ```
 .spec/spec/spec-{YYYYMMDD-HHmmss}_{app-slug}/
   spec.md                    ← hybrid spec (YAML front matter + Markdown body) — the contract
+  requirements.yaml          ← one-line-per-requirement register (build-requirements.mjs)
   spec.views.md              ← generated tables (render-spec-views.mjs); never edited by hand
   slices/SL-NNN.yaml         ← one build brief per delivery slice (write-slice-briefs.mjs, at publish)
   kit-result.json            ← path-only envelope for parent orchestrators
-  base.spec.md               ← previous spec, only when this run continues an app
   artifacts/intake.json      ← Station 1
   artifacts/analysis.json    ← Station 2 / 2b
   artifacts/qa-log.md        ← every human round
   artifacts/enriched.json    ← Station 4
   artifacts/completeness.json← Station 5
-  artifacts/prior-index.json ← continue runs: ids and next free numbers
+  artifacts/prior-index.json ← continue runs: parent path, ids, and next free numbers
   artifacts/prior-items.yaml ← continue runs: full prior items for modified ids
-  artifacts/delta.yaml       ← continue runs: add, modify, and removed:
-  artifacts/delta.md         ← continue runs: narrative replacement, only when it changes
-  artifacts/changes.json     ← merge-spec.mjs: added / modified / removed ids per section
+  artifacts/coverage.yaml    ← synthesizer: REQ-id → covering ids
+  artifacts/removed.yaml     ← continue runs: ids dropped from the parent
+  artifacts/changes.json     ← write-changes.mjs: added / modified / removed ids per section
 ```
 
 ### Examples
@@ -39,7 +39,7 @@ Which folder is current lives in `.spec/app/current.json` (`app-state.md`), not 
 
 .spec/spec/spec-20240201-091500_campus/
   spec.md
-  base.spec.md
+  requirements.yaml
   …
 ```
 
@@ -91,10 +91,11 @@ generated `spec.views.md`, not in the body.
 
 ## Versioning Across Runs
 
-Each publish writes a new folder; the previous spec stays on disk. `continue-spec.mjs` copies the
-spec named by `current.json` into `base.spec.md` and continues every id kind from `next_ids`.
-Downstream kits load `current.json` `spec_path`; they never pick the newest timecode themselves.
-On publish the inbox moves to `.spec/processed/{spec-id}/` — that folder is the context snapshot.
+Each publish writes a new folder; the previous spec stays on disk. `continue-spec.mjs` writes
+`prior-index.json` (parent path + next free ids) and does not copy the previous spec. The new
+`spec.md` is feature-only (`metadata.parent-spec`). Downstream kits load `current.json`
+`spec_path`; they never pick the newest timecode themselves. On publish the inbox moves to
+`.spec/processed/{spec-id}/` — that folder is the context snapshot.
 
 ---
 
