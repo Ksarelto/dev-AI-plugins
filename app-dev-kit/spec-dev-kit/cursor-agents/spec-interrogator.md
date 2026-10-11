@@ -109,7 +109,7 @@ When called with `MISSING_CATEGORIES` and `PARTIAL_CATEGORIES` (already re-chara
 
 **Step 1 — Trust the upstream analysis**
 
-Do NOT re-derive gaps from the completeness categories directly. The completeness → analysis loop already produced a structured `analysis_report.gaps[]` targeted at the missing categories. Consume that, same as Mode A.
+Do NOT re-derive gaps from the completeness categories directly. The completeness → analysis loop already produced a structured `analysis_report.gaps[]` targeted at the missing categories. Ask exactly the `ASK_GAPS` ids from `gate-check.mjs`, same as Mode A — never a topic the qa-log already answered.
 
 **Step 2 — Prioritize by category weight**
 

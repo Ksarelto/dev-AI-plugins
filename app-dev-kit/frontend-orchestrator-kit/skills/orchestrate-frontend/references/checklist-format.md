@@ -4,9 +4,9 @@
 (Station 3 status + log, run by the `orchestrate-frontend` skill)
 **Read by**: `orchestrate-frontend` skill, on every invocation (Station 0 resume check)
 **Location**: `.spec/app/task-checklist.md` when the spec lives under `.spec/spec/`. The checklist
-stays in the shared folder. A later spec (`metadata.parent-spec`) appends features; a shipped
-feature is reopened only when `changes.json` lists its slice or screen as modified. Identity is
-`source-spec` plus `slice-ref`, not the slice id alone.
+stays in the shared folder. A later spec (`metadata.parent-spec`) appends features. A shipped
+feature is reopened when `changes.json` lists its slice or screen as modified, or when the spec
+gains a screen that feature did not have. Identity is `source-spec` plus `slice-ref`, not the slice id alone.
 Legacy specs under `.spec/app/spec-{timecode}_{slug}/` still keep the checklist beside `spec.md`.
 
 ---
@@ -26,7 +26,11 @@ checklist-version: "1.2"
 spec-ref: ".spec/spec/spec-{tc}_{slug}/spec.md"
 prototype-ref: ".spec/prototype/{proto-tc}_{slug}/"  # html-generator's NEW timecode; empty if skipped
 generated: "YYYY-MM-DDTHH:mm:ssZ"
-updated: "YYYY-MM-DDTHH:mm:ssZ"
+updated: "YYYY-MM-DDTHH:mm:ssZ"   # any status write; not used for the spec-newer check
+derived: "YYYY-MM-DDTHH:mm:ssZ"   # last build-checklist write. Missing → readers use updated
+approved: ""                      # ISO time once Station 2a approves. Missing + any non-pending row → treat as approved
+approved-spec-ref: ""             # spec-ref at approval time
+preflight: ""                     # "accepted <ISO>" after Continue anyway. Missing → not accepted
 
 features:
   - id: F-001
@@ -41,6 +45,7 @@ features:
     branch: ""                    # feature/<slug> once resolved
     parent-branch: ""             # branch this one was cut from
     blocked-reason: ""
+    rerun: false                  # true after one missing envelope; cleared on the next status write
     source-spec: spec-20260101-000001_app   # folder name of the spec that added this feature
     tasks:
       - id: T-001
@@ -107,6 +112,10 @@ Only a human decision (via `AskUserQuestion`) writes `skipped`. `build-checklist
 | `blocked-reason` | Must be non-empty when `status: blocked` |
 | `spec-ref` | Must point to a file that exists |
 
-`build-checklist.mjs` enforces these on write; the orchestrate-frontend skill re-checks them on read
-before resuming (Station 0) and refuses to resume a checklist that fails validation — surface the
-error and ask the human to fix or regenerate it.
+`read-checklist.mjs --summary` prints `ERROR` for a duplicate id, a `done` row with no branch, or a
+`blocked` row with no reason, and `WARN stale-envelope` / `WARN orphan-board` when a result file or
+a done board does not match the checklist. Station 0 refuses to resume while any `ERROR` line is
+present — surface it and ask the human to fix or regenerate. `build-checklist.mjs --dry-run` prints
+the kept / appended / reopened / adopted counts without writing. A missing optional field above is
+the legacy value: no `derived` means compare against `updated`; no `approved` with any row that is
+not `pending` means the checklist was approved before this field existed.

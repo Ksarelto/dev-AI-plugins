@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Section-level access to a feature blackboard (.spec/features/<slug>.md), so no agent has to Read
-// or rewrite the whole file to touch one part of it. Every write is one atomic script call.
+// or rewrite the whole file to touch one part of it. Every file write is a temp file plus rename,
+// so a crash cannot leave a partial board.
 //
 //   board.mjs section <board.md> --get "<Header>"                  print one section body
 //   board.mjs section <board.md> --put "<Header>" --from <file>    replace one section body
@@ -16,11 +17,22 @@
 //                     appends to <slug>.context/gate-log.jsonl and rewrites gate-status.md (latest per gate)
 //   board.mjs timing  <board.md> --station "<label>" --event start|end
 //                     appends to <slug>.context/timings.jsonl (card and gate append there too)
+//   board.mjs timing  <board.md> --summary
+//                     prints one line per station that has a start and an end (seconds)
+//   board.mjs snapshot <board.md> --round <n>
+//                     writes the worktree hash (tracked + untracked) to <slug>.context/fix-round-<n>.tree
+//   board.mjs changed  <board.md> --since <n>
+//                     prints a comma list of paths that differ from that snapshot
+//   board.mjs audit-scope <board.md> [--prior <report.md>]
+//                     REUSE <path> when the parent audit still covers this feature; FULL otherwise
 //
 // Exit 0 ok, 1 not found (section, row), 2 usage error.
 
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const [cmd, boardPath, ...rest] = process.argv.slice(2)
@@ -29,11 +41,17 @@ const opt = (name) => {
   return i >= 0 && rest[i + 1] !== undefined && !rest[i + 1].startsWith('--') ? rest[i + 1] : ''
 }
 const usage = (msg) => {
-  console.error(`usage: board.mjs section|append|row|card|handoff|gate|timing <board.md> … — ${msg}`)
+  console.error(`usage: board.mjs section|append|row|card|handoff|gate|timing|snapshot|changed|audit-scope <board.md> … — ${msg}`)
   process.exit(2)
 }
 if (!cmd || !boardPath) usage('missing command or board path')
 if (!existsSync(boardPath)) usage(`no board at ${boardPath}`)
+
+const writeAtomic = (path, contents) => {
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  writeFileSync(tmp, contents)
+  renameSync(tmp, path)
+}
 
 const contextDir = boardPath.replace(/\.md$/, '.context')
 const now = () => new Date().toISOString()
@@ -120,7 +138,18 @@ if (cmd === 'section') {
     }
     process.stdout.write(`${content}\n`)
   } else if (put && opt('from')) {
-    writeFileSync(boardPath, putBody(text, put, readFileSync(opt('from'), 'utf8')))
+    if (put === 'Build Plan' && !rest.includes('--force')) {
+      const current = body(text, 'Build Plan') ?? ''
+      const hasDone = current.split('\n').some((line) => {
+        if (!line.trim().startsWith('|')) return false
+        return cells(line).some((cell) => cell.trim().toLowerCase() === 'done')
+      })
+      if (hasDone) {
+        console.error('REFUSED: Build Plan has a done row. Pass --force to replace it.')
+        process.exit(1)
+      }
+    }
+    writeAtomic(boardPath, putBody(text, put, readFileSync(opt('from'), 'utf8')))
     console.log(`OK: replaced ## ${put}`)
   } else usage('section needs --get "<Header>" or --put "<Header>" --from <file>')
 } else if (cmd === 'append') {
@@ -130,7 +159,7 @@ if (cmd === 'section') {
   const text = read()
   const at = locate(text, section)
   if (!at) {
-    writeFileSync(boardPath, putBody(text, section, line))
+    writeAtomic(boardPath, putBody(text, section, line))
   } else {
     const { lines, start, end } = at
     let last = end - 1
@@ -138,7 +167,7 @@ if (cmd === 'section') {
     // Drop an empty template placeholder row ("| | |") when the first real row arrives.
     if (/^\|(\s*\|)+\s*$/.test(lines[last]) && line.trim().startsWith('|')) lines.splice(last--, 1)
     lines.splice(last + 1, 0, line)
-    writeFileSync(boardPath, lines.join('\n'))
+    writeAtomic(boardPath, lines.join('\n'))
   }
   console.log(`OK: appended to ## ${section}`)
 } else if (cmd === 'row') {
@@ -179,7 +208,7 @@ if (cmd === 'section') {
     console.error(`NOT FOUND: Build Plan row(s) ${[...missing].join(', ')}`)
     process.exit(1)
   }
-  writeFileSync(boardPath, lines.join('\n'))
+  writeAtomic(boardPath, lines.join('\n'))
   console.log(`OK: row ${ids.join(',')} → ${status}`)
 } else if (cmd === 'card') {
   const ids = rowIds()
@@ -286,7 +315,7 @@ if (cmd === 'section') {
     reads.length ? `## Read by path\n\n${reads.join('\n')}` : '',
   ].filter(Boolean).join('\n\n') + '\n'
   mkdirSync(dirname(commonPath), { recursive: true })
-  writeFileSync(commonPath, common)
+  writeAtomic(commonPath, common)
 
   const card = [
     `# Work card — ${slug} · row ${ids.join(', ')} · ${agent} · ${layer}`,
@@ -307,7 +336,7 @@ if (cmd === 'section') {
     '',
   ].filter((part) => part !== '').join('\n')
   const out = join(contextDir, 'cards', `row-${ids.join('-')}.md`)
-  writeFileSync(out, card)
+  writeAtomic(out, card)
   const bytes = Buffer.byteLength(card)
   if (bytes > 12 * 1024) console.error(`WARN card ${out} is ${bytes} bytes (limit 12288)`)
   const station = picked.map((l) => cells(l)[col('station')]).find(Boolean) ?? ''
@@ -331,7 +360,7 @@ if (cmd === 'section') {
   }
   const out = join(contextDir, `${name}.md`)
   mkdirSync(contextDir, { recursive: true })
-  writeFileSync(out, `${handoffLines.join('\n')}\n`)
+  writeAtomic(out, `${handoffLines.join('\n')}\n`)
   console.log(JSON.stringify({ handoff: out, lines: handoffLines.length }))
 } else if (cmd === 'gate') {
   const station = opt('station')
@@ -361,12 +390,132 @@ if (cmd === 'section') {
     ...[...latest.values()].map((e) => rowLine([e.gate, e.result, e.station, e.at, oneLine(e.note)])),
     '',
   ].join('\n')
-  writeFileSync(join(contextDir, 'gate-status.md'), table)
+  writeAtomic(join(contextDir, 'gate-status.md'), table)
   console.log(`OK: ${gates.map((g) => `${g.gate}:${g.result}`).join(', ')} → ${join(contextDir, 'gate-status.md')}`)
+} else if (cmd === 'snapshot' || cmd === 'changed') {
+  // Temp index so `git add -A` + `write-tree` sees untracked files without touching the real index.
+  const flag = cmd === 'snapshot' ? 'round' : 'since'
+  const round = opt(flag)
+  if (!/^\d+$/.test(round)) usage(`${cmd} needs --${flag} <n>`)
+  const rootRun = spawnSync('git', ['-C', resolve(dirname(boardPath)), 'rev-parse', '--show-toplevel'], { encoding: 'utf8' })
+  if (rootRun.status !== 0) {
+    console.error((rootRun.stderr || 'not a git repo').trim())
+    process.exit(1)
+  }
+  const root = rootRun.stdout.trim()
+  const index = join(tmpdir(), `board-tree-${process.pid}`)
+  const run = (args) => {
+    const r = spawnSync('git', ['-C', root, ...args], { encoding: 'utf8', env: { ...process.env, GIT_INDEX_FILE: index } })
+    if (r.status !== 0) {
+      rmSync(index, { force: true })
+      console.error((r.stderr || r.stdout || 'git failed').trim())
+      process.exit(r.status || 1)
+    }
+    return r.stdout.trim()
+  }
+  let tree
+  try {
+    run(['add', '-A'])
+    tree = run(['write-tree'])
+  } finally {
+    rmSync(index, { force: true })
+  }
+  if (cmd === 'snapshot') {
+    mkdirSync(contextDir, { recursive: true })
+    writeAtomic(join(contextDir, `fix-round-${round}.tree`), `${tree}\n`)
+    console.log(tree)
+  } else {
+    const file = join(contextDir, `fix-round-${round}.tree`)
+    if (!existsSync(file)) {
+      console.error(`no snapshot ${file}`)
+      process.exit(1)
+    }
+    const diff = spawnSync('git', ['-C', root, 'diff', '--name-only', readFileSync(file, 'utf8').trim(), tree], { encoding: 'utf8' })
+    if (diff.status !== 0) {
+      console.error((diff.stderr || 'git diff failed').trim())
+      process.exit(diff.status || 1)
+    }
+    const names = diff.stdout.split('\n').filter((p) => p && !/fix-round-\d+\.tree$/.test(p) && !/fix-scope-\d+\.txt$/.test(p))
+    process.stdout.write(names.length ? `${names.join(',')}\n` : '')
+  }
 } else if (cmd === 'timing') {
-  const station = opt('station')
-  const event = opt('event')
-  if (!station || !['start', 'end'].includes(event)) usage('timing needs --station and --event start|end')
-  jsonl('timings.jsonl', { event, station })
-  console.log(`OK: ${station} ${event}`)
+  if (rest.includes('--summary')) {
+    const file = join(contextDir, 'timings.jsonl')
+    if (!existsSync(file)) {
+      console.log('(no timings)')
+      process.exit(0)
+    }
+    const open = new Map()
+    const totals = new Map()
+    for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
+      const e = JSON.parse(line)
+      if (e.event === 'start') open.set(e.station, e.at)
+      else if (e.event === 'end' && open.has(e.station)) {
+        const ms = Date.parse(e.at) - Date.parse(open.get(e.station))
+        totals.set(e.station, (totals.get(e.station) ?? 0) + Math.max(0, ms))
+        open.delete(e.station)
+      }
+    }
+    if (!totals.size) console.log('(no completed stations)')
+    else for (const [station, ms] of totals) console.log(`${station}: ${Math.round(ms / 1000)}s`)
+  } else {
+    const station = opt('station')
+    const event = opt('event')
+    if (!station || !['start', 'end'].includes(event)) usage('timing needs --station and --event start|end, or --summary')
+    jsonl('timings.jsonl', { event, station })
+    console.log(`OK: ${station} ${event}`)
+  }
+} else if (cmd === 'audit-scope') {
+  const text = read()
+  const parent = (text.match(/^parent-branch:\s*(.*)$/m)?.[1] ?? '').trim().replace(/^['"]|['"]$/g, '')
+  const featuresDir = dirname(boardPath)
+  let priorPath = opt('prior')
+  if (!priorPath && parent && parent !== 'none') {
+    for (const name of readdirSync(featuresDir)) {
+      if (!name.endsWith('.md')) continue
+      const candidate = join(featuresDir, name)
+      if (resolve(candidate) === resolve(boardPath)) continue
+      const raw = readFileSync(candidate, 'utf8')
+      const branch = (raw.match(/^branch:\s*(.*)$/m)?.[1] ?? '').trim().replace(/^['"]|['"]$/g, '')
+      if (branch === parent) {
+        priorPath = join(candidate.replace(/\.md$/, '.context'), 'architecture-auditor-9.5.md')
+        break
+      }
+    }
+  }
+  const impact = body(text, 'FSD Impact') ?? ''
+  const wanted = new Set()
+  for (const match of impact.matchAll(/`([^`\n]+)`/g)) {
+    const found = match[1].replace(/^src\//, '').trim()
+    if (found.includes('/')) wanted.add(found)
+  }
+  const full = () => {
+    console.log('FULL')
+    process.exit(0)
+  }
+  if (!priorPath || !existsSync(priorPath)) full()
+  const report = readFileSync(priorPath, 'utf8')
+  const sha = (report.match(/^AUDITED-AT:\s*(\S+)/m)?.[1] ?? '').trim()
+  const scope = (report.match(/^SCOPE-PATHS:\s*(.*)$/m)?.[1] ?? '').split(',').map((item) => item.trim()).filter(Boolean)
+  if (!sha || !scope.length) full()
+  const gateLog = join(dirname(priorPath), 'gate-log.jsonl')
+  let passed = false
+  if (existsSync(gateLog)) {
+    for (const line of readFileSync(gateLog, 'utf8').split('\n').filter(Boolean)) {
+      try {
+        const entry = JSON.parse(line)
+        if (entry.gate === 'architecture-audit') passed = entry.result === 'pass'
+      } catch { /* a bad line does not count as a pass */ }
+    }
+  }
+  if (!passed) full()
+  const ancestor = spawnSync('git', ['merge-base', '--is-ancestor', sha, 'HEAD'], { encoding: 'utf8' })
+  if (ancestor.status !== 0) full()
+  const covers = (path) => scope.some((item) => path === item || path.startsWith(`${item}/`) || item.startsWith(`${path}/`) || path.endsWith(item) || item.endsWith(path))
+  const uncovered = [...wanted].filter((path) => !covers(path))
+  const diff = spawnSync('git', ['diff', '--name-only', sha, '--', ...scope], { encoding: 'utf8' })
+  const changed = (diff.stdout || '').split('\n').map((item) => item.trim()).filter(Boolean)
+  const out = [...new Set([...uncovered, ...changed])]
+  if (!out.length) console.log(`REUSE ${priorPath}`)
+  else for (const path of out) console.log(path)
 } else usage(`unknown command ${cmd}`)

@@ -12,7 +12,7 @@
     {
       "name": "base-dev-kit",
       "source": "./base-dev-kit",
-      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, and testing principles — applicable to any language or stack.",
+      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation — applicable to any language or stack.",
       "category": "productivity",
       "tags": ["clean-code", "security", "git", "testing", "honesty", "universal"]
     },
@@ -26,7 +26,7 @@
     {
       "name": "pptx-dev-kit",
       "source": "./pptx-dev-kit",
-      "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML.",
+      "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML — design schema, outline, deck.json render, and structural validation.",
       "category": "productivity",
       "tags": ["pptx", "powerpoint", "presentation", "slides", "python-pptx", "design-system", "orchestration"]
     },
@@ -54,7 +54,7 @@
     {
       "name": "html-generator-kit",
       "source": "./app-dev-kit/html-generator-kit",
-      "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling and scripting — Alpine.js is vendored; only Google Fonts loads from a CDN). A provided theme, brand, style guide, mockup, or layout is binding; ui-ux-pro-max supplies the design direction only when none is provided. Headless-browser verified before the skill-owned review gate.",
+      "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling; Alpine and Google Fonts load from a CDN). A provided theme, brand, style guide, mockup, or layout is binding; ui-ux-pro-max supplies the design direction only when none is provided. Headless-browser verified before the skill-owned review gate.",
       "category": "productivity",
       "tags": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "ui-ux-pro-max", "app-dev-kit"]
     },

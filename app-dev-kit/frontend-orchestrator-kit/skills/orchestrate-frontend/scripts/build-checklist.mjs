@@ -5,13 +5,20 @@
 //   order, one task per slice screen; refs come from the slice and screen, never guessed.
 // Spec 1.x: one task per screen, grouped under the highest-priority user story that owns them
 //   (AC ↔ screen matched by keywords). Screen-less API/agent stories are omitted.
-// Usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>]
+// Usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>] [--dry-run]
 // Exit 0 = written (features.length > 0). Exit 1 = zero buildable tasks. Exit 2 = usage/parse failure.
 // Algorithm of record: ../references/task-decomposition.md
 // File shape of record: ../references/checklist-format.md
 
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { mkdirSync, readFileSync, writeFileSync, existsSync, renameSync, readdirSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
+
+function writeAtomic(path, contents) {
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  writeFileSync(tmp, contents)
+  renameSync(tmp, path)
+}
 
 const args = process.argv.slice(2)
 function flagValue(name) {
@@ -21,13 +28,14 @@ function flagValue(name) {
   if (!next || next.startsWith('--')) return ''
   return next
 }
+const dryRun = args.includes('--dry-run')
 const prototypeRef = flagValue('prototype-ref')
 const changesPath = flagValue('changes')
 const consumed = new Set([prototypeRef, changesPath].filter(Boolean))
 const specPath = args.find((a) => !a.startsWith('--') && !consumed.has(a))
 
 if (!specPath) {
-  console.error('usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>]')
+  console.error('usage: node build-checklist.mjs <path-to-spec.md> [--prototype-ref <path>] [--changes <changes.json>] [--dry-run]')
   process.exit(2)
 }
 
@@ -92,11 +100,11 @@ const existingFeatures = existing?.features ?? []
 
 const PRIORITY_RANK = { must: 0, should: 1, could: 2, wont: 3 }
 
-const stories = spec['user-stories'] ?? []
-const acs = spec['acceptance-criteria'] ?? []
-const screens = spec['ui-surface']?.screens ?? []
+let stories = spec['user-stories'] ?? []
+let acs = spec['acceptance-criteria'] ?? []
+let screens = spec['ui-surface']?.screens ?? []
 const interactions = spec['ui-surface']?.interactions ?? []
-const entities = spec.entities ?? []
+let entities = spec.entities ?? []
 
 function kebab(s) {
   return String(s ?? '')
@@ -157,14 +165,43 @@ function allocateId(prefix, used, preserved) {
   return id
 }
 
-const currentScreenIds = new Set(screens.map((s) => s.id).filter(Boolean))
-const keptPriors = priorTaskRows.filter((t) => t['screen-ref'] && !currentScreenIds.has(t['screen-ref']))
-const usedTaskIds = new Set(keptPriors.map((t) => t.id).filter(Boolean))
-const usedFeatureIds = new Set(keptPriors.map((t) => t._feature?.id).filter(Boolean))
+const usedTaskIds = new Set(priorTaskRows.map((t) => t.id).filter(Boolean))
+const usedFeatureIds = new Set((existing?.features ?? []).map((f) => f.id).filter(Boolean))
 
 const tasks = []
 const features = []
-const slices = (spec['delivery-plan']?.slices ?? []).filter((s) => s?.id)
+let slices = (spec['delivery-plan']?.slices ?? []).filter((s) => s?.id)
+
+// A continue spec lists only its own slices. With no checklist yet, derive ancestor slices first
+// so shipped work keeps its place and depends-on can resolve.
+function absorbAncestors() {
+  if (existing) return
+  const older = [...parentSpecPaths(specPath)].reverse()
+  if (!older.length) return
+  const sliceMap = new Map()
+  const screenMap = new Map()
+  const storyMap = new Map()
+  const acMap = new Map()
+  const entityMap = new Map()
+  const take = (doc, sid) => {
+    for (const screen of doc['ui-surface']?.screens ?? []) if (screen?.id) screenMap.set(screen.id, screen)
+    for (const story of doc['user-stories'] ?? []) if (story?.id) storyMap.set(story.id, story)
+    for (const ac of doc['acceptance-criteria'] ?? []) if (ac?.id) acMap.set(ac.id, ac)
+    for (const entity of doc.entities ?? []) if (entity?.name) entityMap.set(entity.name, entity)
+    for (const slice of doc['delivery-plan']?.slices ?? []) {
+      if (!slice?.id || !(slice.tracks ?? []).includes('frontend')) continue
+      sliceMap.set(slice.id, { ...slice, _sourceSpec: sid })
+    }
+  }
+  for (const file of older) take(readFrontmatter(file), specIdOf(file))
+  take(spec, specIdOf(specPath))
+  slices = [...sliceMap.values()]
+  screens = [...screenMap.values()]
+  stories = [...storyMap.values()]
+  acs = [...acMap.values()]
+  entities = [...entityMap.values()]
+}
+absorbAncestors()
 const sliceMode = slices.length > 0
 const claimedPrior = new Set()
 
@@ -240,12 +277,17 @@ function buildFromStories() {
       const { _priority, ...rest } = task
       return rest
     })
+    const priorScreens = new Set((priorFeature?.tasks ?? []).map((task) => task['screen-ref']))
+    const gainedScreen = priorScreens.size > 0 && nested.some((task) => !priorScreens.has(task['screen-ref']))
     const reopenFeature = priorFeature?.status === 'done' && (
       nested.some((task) => task.status === 'pending' && task['blocked-reason'] === 'spec changed')
       || (story && modifiedStories.has(story.id))
+      || gainedScreen
     )
+    const id = allocateId('F', usedFeatureIds, priorFeature?.id)
+    if (reopenFeature) markReopened(id)
     features.push({
-      id: allocateId('F', usedFeatureIds, priorFeature?.id),
+      id,
       title,
       'slug-hint': kebab(title) || kebab(story?.id) || kebab(groupTasks[0]['screen-ref']),
       'story-refs': story ? [story.id] : [],
@@ -309,17 +351,22 @@ function buildFromSlices() {
     if (!nested.length) continue
     const priorFeature = existingFeatures.find((f) => f['slice-ref'] === slice.id)
       ?? existingFeatures.find((f) => !f['slice-ref'] && (f.tasks ?? []).some((t) => nested.some((n) => n.id === t.id)))
+    const priorScreens = new Set((priorFeature?.tasks ?? []).map((task) => task['screen-ref']))
+    const gainedScreen = priorScreens.size > 0 && nested.some((task) => !priorScreens.has(task['screen-ref']))
     const reopenFeature = priorFeature?.status === 'done' && (
       nested.some((task) => task.status === 'pending' && task['blocked-reason'] === 'spec changed')
       || modifiedSlices.has(slice.id)
+      || gainedScreen
     )
     const id = allocateId('F', usedFeatureIds, priorFeature?.id)
+    if (reopenFeature) markReopened(id)
     featureIdBySlice.set(slice.id, id)
     features.push({
       id,
       title: slice.title,
       'slug-hint': kebab(slice.title) || kebab(slice.id),
       'slice-ref': slice.id,
+      ...(slice._sourceSpec ? { 'source-spec': slice._sourceSpec } : {}),
       'depends-on': (slice['depends-on'] ?? []).map((dep) => featureIdBySlice.get(dep)).filter(Boolean),
       'story-refs': [...sliceStories],
       priority: maxPriority([...sliceStories]),
@@ -367,6 +414,68 @@ const appendMode = Boolean(
 let keptCount = 0
 let appendedCount = 0
 let reopenedCount = 0
+let adoptedCount = 0
+const archives = []
+const reopenedIds = new Set()
+
+function markReopened(featureId) {
+  if (!reopenedIds.has(featureId)) {
+    reopenedIds.add(featureId)
+    reopenedCount++
+  }
+  const file = join(dirname(checklistPath), 'results', `${featureId}.json`)
+  if (existsSync(file) && !archives.includes(file)) archives.push(file)
+}
+
+function adoptApprovedBoards() {
+  if (existing) return
+  const dir = join(dirname(checklistPath), '..', 'features')
+  if (!existsSync(dir)) return
+  const boards = []
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.md')) continue
+    let fm
+    try { fm = readFrontmatter(join(dir, name)) } catch { continue }
+    if (fm.status !== 'done' || !fm['slice-ref']) continue
+    const slug = fm.slug || name.replace(/\.md$/, '')
+    const kitPath = join(dir, `${slug}.kit-result.json`)
+    if (!existsSync(kitPath)) continue
+    let kit
+    try { kit = JSON.parse(readFileSync(kitPath, 'utf8')) } catch { continue }
+    if (kit.outcome !== 'approved') continue
+    const featureId = fm['feature-id'] && fm['feature-id'] !== 'none' ? fm['feature-id'] : ''
+    boards.push({
+      slice: fm['slice-ref'],
+      featureId,
+      slug: kit.slug || slug,
+      branch: kit.branch || fm.branch || '',
+      parent: kit.parent_branch || fm['parent-branch'] || '',
+    })
+  }
+  const used = new Set(features.map((feature) => feature.id))
+  for (const feature of features) {
+    if (feature.status !== 'pending' || feature.slug) continue
+    const board = boards.find((item) => item.slice === feature['slice-ref'])
+    if (!board) continue
+    const previous = feature.id
+    if (board.featureId && board.featureId !== feature.id && !used.has(board.featureId)) {
+      used.delete(feature.id)
+      feature.id = board.featureId
+      used.add(board.featureId)
+      for (const other of features) {
+        if (!other['depends-on']) continue
+        other['depends-on'] = other['depends-on'].map((id) => (id === previous ? feature.id : id))
+      }
+    }
+    feature.status = 'done'
+    feature.slug = board.slug
+    feature.branch = board.branch
+    feature['parent-branch'] = board.parent
+    feature['blocked-reason'] = ''
+    for (const task of feature.tasks ?? []) if (task.status !== 'skipped') task.status = 'done'
+    adoptedCount++
+  }
+}
 
 function copyFeature(feature, sourceSpec) {
   return {
@@ -391,7 +500,7 @@ function buildAppend() {
   for (const feature of kept) {
     const sliceHit = feature['slice-ref'] && modifiedSlices.has(feature['slice-ref'])
     const screenHit = (feature.tasks ?? []).some((task) => modifiedScreens.has(task['screen-ref']))
-    if ((sliceHit || screenHit) && reopenFeature(feature)) reopenedCount++
+    if ((sliceHit || screenHit) && reopenFeature(feature)) markReopened(feature.id)
   }
   const knownScreens = new Set(kept.flatMap((feature) => (feature.tasks ?? []).map((task) => task['screen-ref'])))
   const featureIdBySlice = new Map(kept.filter((feature) => feature['slice-ref']).map((feature) => [feature['slice-ref'], feature.id]))
@@ -438,13 +547,16 @@ function buildAppend() {
           process.exit(2)
         }
         const have = new Set((prior.tasks ?? []).map((task) => task['screen-ref']))
+        let gained = false
         for (const screenId of slice['screen-refs'] ?? []) {
           if (have.has(screenId)) continue
           const task = taskFor(slice, screenId, sliceStories)
           if (!task) continue
           prior.tasks.push(task)
           have.add(screenId)
+          gained = true
         }
+        if (gained && reopenFeature(prior)) markReopened(prior.id)
         prior['story-refs'] = [...new Set([...(prior['story-refs'] ?? []), ...sliceStories])]
         continue
       }
@@ -564,6 +676,7 @@ if (!appendMode) for (const prior of priorTaskRows) {
     if (removing && (host.status === 'done' || host.status === 'skipped')) {
       host.status = 'pending'
       host['blocked-reason'] = 'spec changed'
+      markReopened(host.id)
     }
   } else {
     features.push({
@@ -589,6 +702,7 @@ if (!appendMode) for (const prior of priorTaskRows) {
 if (!sliceMode && !appendMode) features.sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))
 const thisSpecId = specIdOf(specPath)
 for (const feature of features) if (!feature['source-spec']) feature['source-spec'] = thisSpecId
+adoptApprovedBoards()
 if (!appendMode) appendedCount = features.length
 
 const taskCount = features.reduce((n, f) => n + f.tasks.length, 0)
@@ -598,20 +712,29 @@ if (taskCount === 0) {
 }
 
 const now = new Date().toISOString()
+const rowSig = (list) => (list ?? []).map((feature) => `${feature.id}:${(feature.tasks ?? []).map((task) => `${task.id}@${task['screen-ref']}`).join(',')}`).join('|')
+const rowsChanged = Boolean(existing && rowSig(existing.features) !== rowSig(features))
 const front = {
   'checklist-version': sliceMode ? '1.2' : '1.1',
   'spec-ref': specPath,
   'prototype-ref': prototypeRef || existing?.['prototype-ref'] || '',
   generated: existing?.generated ?? now,
   updated: now,
+  derived: now,
   features,
 }
+if (existing?.preflight) front.preflight = existing.preflight
+if (existing?.approved && !rowsChanged) {
+  front.approved = existing.approved
+  if (existing['approved-spec-ref']) front['approved-spec-ref'] = existing['approved-spec-ref']
+}
 
+const counts = `kept ${keptCount}, appended ${appendedCount}, reopened ${reopenedCount}, adopted ${adoptedCount}`
 const logLine = appendMode
-  ? `- ${now} — checklist appended from ${specPath} (kept ${keptCount}, appended ${appendedCount}, reopened ${reopenedCount})`
+  ? `- ${now} — checklist appended from ${specPath} (${counts})`
   : existing
-    ? `- ${now} — checklist re-derived from ${specPath} (${features.length} features, ${taskCount} tasks)`
-    : `- ${now} — checklist generated from ${specPath} (${features.length} features, ${taskCount} tasks)`
+    ? `- ${now} — checklist re-derived from ${specPath} (${features.length} features, ${taskCount} tasks, ${counts})`
+    : `- ${now} — checklist generated from ${specPath} (${features.length} features, ${taskCount} tasks, ${counts})`
 
 const priorBody = existing
   ? readFileSync(checklistPath, 'utf8').split(/^---\r?\n[\s\S]*?\r?\n---\r?\n/)[1] ?? ''
@@ -619,9 +742,19 @@ const priorBody = existing
 
 const body = existing ? `${priorBody.trimEnd()}\n${logLine}\n` : `${priorBody}${logLine}\n`
 
-mkdirSync(dirname(checklistPath), { recursive: true })
-writeFileSync(checklistPath, `---\n${stringify(front)}---\n${body}`, 'utf8')
-
-console.log(`OK: wrote ${checklistPath} (${features.length} features, ${taskCount} tasks)`)
-console.log(`kept: ${keptCount} appended: ${appendedCount} reopened: ${reopenedCount}`)
+const stamp = now.replace(/[:.]/g, '-')
+if (!dryRun) {
+  for (const file of archives) renameSync(file, file.replace(/\.json$/, `.${stamp}.stale.json`))
+  mkdirSync(dirname(checklistPath), { recursive: true })
+  writeAtomic(checklistPath, `---\n${stringify(front)}---\n${body}`)
+  console.log(`OK: wrote ${checklistPath} (${features.length} features, ${taskCount} tasks)`)
+} else {
+  console.log(`DRY-RUN: would write ${checklistPath} (${features.length} features, ${taskCount} tasks)`)
+  for (const file of archives) console.log(`would-archive: ${file}`)
+}
+console.log(`kept: ${keptCount} appended: ${appendedCount} reopened: ${reopenedCount} adopted: ${adoptedCount}`)
+for (const feature of features) {
+  const deps = (feature['depends-on'] ?? []).join(',')
+  console.log(`- ${feature.id} [${feature.status}] ${feature['slice-ref'] ?? ''} ${feature.title}${deps ? ` depends-on ${deps}` : ''}`)
+}
 process.exit(0)

@@ -278,8 +278,9 @@ attributed station by station — see X-6.
 
 ### F-2 Builders load a long reference and skill chain
 
-- **Evidence:** every builder reads `ui-build-contract.md` (84), `fsd-architecture.md` (138),
-  `increment-protocol.md` (121), `development-cycle.md` (78), some also `fsd-import-boundaries.md`
+- **Evidence:** every builder reads `ui-build-contract.md`, and used to also read
+  `increment-protocol.md` (merged into the contract), `fsd-architecture.md` (138),
+  `development-cycle.md` (78), some also `fsd-import-boundaries.md`
   (112); then chains, e.g. `create-feature` → `rhf-form` + `react-query-hook` +
   `create-react-component` → `react-component` + `tailwind-styles` + `accessibility` + `testing` +
   `error-handling` + `i18n`.
@@ -294,11 +295,21 @@ attributed station by station — see X-6.
 - **Change (S/M):** trim each to the constraints (≤ 40 lines per the repo's own authoring rule) and
   move the procedures into the skills that already exist.
 
-### F-4 Late review in separate passes
+### F-4 Late review in separate passes — **done (parallel, one fix round)**
 
-- **Evidence:** Station 9.5 `architecture-auditor` and Station 10 `code-reviewer` both read the
-  whole diff; the browser check before Station 12 can trigger a full `MODE: revise`.
-- **Change (M):** one review pass over the diff with both checklists, or run them in parallel.
+- **Evidence (before):** Station 9.5 `architecture-auditor` and Station 10 `code-reviewer` both read
+  the whole diff, one after the other, each with its own fix round. The browser check ran after
+  both had passed and a failure replayed Stations 9–10.
+- **Measured** (`deps-frontend` `document-types-list`, standard tier, 2026-10-09): about 4h40m of
+  agent time. Mechanical gates were cheap (a full sweep about 35s: types 3s, lint 6s, fsd 1s,
+  conventions 0s, build 5s, coverage 19s). Station 8 was three sequential `test-engineer` spawns,
+  about 40 min. Stations 9.5 and 10 were two fix rounds and two full re-reviews, about 45 min of
+  the 86 min verify phase. The browser check then found three real bugs and forced another
+  9/9.5/10 replay.
+- **Change:** builders write behavior tests in the same change (`test-engineer` only on a Station 9
+  gap). The browser check runs on `CONTINUE_PACKET`, before Stations 9–11, and each failure leaves
+  a regression test. Stations 9.5 and 10 spawn in one turn; Station 11 merges gate, audit, review,
+  and browser findings; only a reviewer that failed is re-run, in `MODE: verify` on the fixed files.
 
 ### F-5 `code-explorer` always runs
 
@@ -383,7 +394,7 @@ baseline (a stale-agent rebuild, a revise pass, and agents since deleted), so F-
 | M-5 | One spawn per slice for the same change | F-001 Station 11: 8 composition spawns for one re-export; F-002 Station 6: 9 spawns for near-identical empty pages | Batch rows (same-shape slices, one delegation) and fix batches (`fix-batch-<n>.md`, one spawn per owner + layer) | **done** |
 | M-6 | `unused-export` false positives | Four `*-11-unused-export` fixes; usage ignored test files; workers self-checked before later layers imported | Tests count for segment files, never for `index.ts`; self-checks ignore it until Station 7 | **done** |
 | M-7 | Host setup failures as red gates | `.spec/**` not ignored by ESLint, `lint:fsd` missing → two Station 11 spawns | `preflight-host.mjs` (feature-dev-kit and frontend-orchestrator-kit copies): reports, the skill asks once; never edits the host | **done** |
-| M-8 | One orchestrator context for ~70 spawns | `maxTurns: 80`; F-001 log shows a stale-agent rebuild (cause not confirmed) | `CONTINUE_PACKET` after Station 8; a fresh orchestrator runs 9–11 with `RESUME_AT: 9` | **done** |
+| M-8 | One orchestrator context for ~70 spawns | `maxTurns: 80`; F-001 log shows a stale-agent rebuild (cause not confirmed) | `CONTINUE_PACKET` after Station 7; the skill runs the browser check, then a fresh orchestrator runs 9–11 with `RESUME_AT: 9` | **done** |
 | M-9 | Checklist YAML read into chat | 785 lines / 17 KB at Stations 0 and 2a; Station 3 unions computed by the model | `read-checklist.mjs --summary` (~1 KB) and `--payload F-NNN` | **done** |
 | M-10 | Glossary copied into every board | 25 terms, ~4 KB, read by every spawn | `<slug>.context/glossary.md`, named by path in the cards of copy-writing workers | **done** |
 | M-11 | Intermediates in the run folder | `intake.json` + `enriched.json` ≈ 1.1 MB where agents Grep | `archive-context.mjs` moves them to `.spec/processed/{spec-id}/artifacts/` at publish | **done** |

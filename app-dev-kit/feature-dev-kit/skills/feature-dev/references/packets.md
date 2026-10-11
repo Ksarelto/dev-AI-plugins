@@ -16,7 +16,7 @@ Every packet has `type` and `spec_path`. Extra fields depend on the type.
 |--------|-------------|------------|
 | `CLARIFY_PACKET` | `spec-analyst` (Station 0) | `AskUserQuestion` with `questions[]`; write answers into `## Clarifications`; re-spawn analyst |
 | `DEP_PACKET` | `feature-orchestrator` (Station 1b) | Per-package Approve / Reject-alternative / Abort; write verdicts; re-spawn `MODE: build` from Station 2 |
-| `CONTINUE_PACKET` | `feature-orchestrator` (end of Station 8, `MODE: build`) | No human question. Re-spawn the orchestrator with `MODE: build`, `RESUME_AT: 9`, same `SLUG` / `SPEC_PATH` / `BRANCH` / `PARENT` / `KIT_DIR` |
+| `CONTINUE_PACKET` | `feature-orchestrator` (end of Station 7) | UI review (route + console + prototype tab), then `RESUME_AT: 9`. Pass `UI_FINDINGS` when `ui-review.md` has findings |
 | `REVIEW_PACKET` | `feature-orchestrator` (end of 11) | Read `review_path` once; Approve / Request changes / Abort (Station 12) |
 | `ESCALATION_PACKET` | `feature-orchestrator` or a spoke that cannot proceed | `AskUserQuestion` with `errors[]` and `options[]` |
 
@@ -75,9 +75,10 @@ Returned only when `## Dependencies` has rows still `awaiting-human-approval`.
 }
 ```
 
-Returned once per build, after Station 8. It splits the run into a build phase (Stations 1–8) and
-a verify phase (Stations 9–11) so one orchestrator context does not carry every build spawn into
-review. The checkpoint holds everything the verify phase needs; pass its path, not the chat.
+Returned once, after Station 7. It splits the run into a build phase (Stations 1–7; tests are in
+those changes) and a verify phase so one orchestrator context does not carry every build spawn into
+review. The skill runs the UI review, then `RESUME_AT: 9`. The checkpoint holds everything the
+verify phase needs; pass its path, not the chat.
 
 ---
 

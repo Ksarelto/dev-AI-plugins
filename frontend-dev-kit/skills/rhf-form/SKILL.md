@@ -34,7 +34,7 @@ shared/ui/form/
 
 ## Instructions
 
-1. **Define the schema** in the form's `types.ts`. Every message is a translation key: `z.string().min(1, usersKeys.form.errors.nameRequired)` — never English. Business invariants call `models/` pure functions. Wire-shape zod stays in `api/`.
+1. **Define the schema** in the form's `schema.ts`. Every message is a translation key: `z.string().min(1, usersKeys.form.errors.nameRequired)` — never English. Business invariants call `models/` pure functions. Props stay in `types.ts`. Wire-shape zod stays in `api/`.
 2. **Create the mutation hook** — `useCreateXxx` / `useUpdateXxx` with cache invalidation.
 3. **Build the form component**: `useForm<FormValues>({ resolver: zodResolver(schema), defaultValues })`. Default values live in the folder's `constants.ts`.
 4. **Bind fields** with `<Form.Field>`. `label`, `description`, `placeholder`, and option text are `t(key)`. Closed-set props are constants: `type={InputType.Email}`, `orientation={FieldOrientation.Horizontal}`.

@@ -4,7 +4,7 @@
   "component": "agents",
   "cases": [
     {
-      "prompt": "Have the feature-orchestrator drive stations through architecture-audit and hand back a REVIEW_PACKET without asking me",
+      "prompt": "Have the feature-orchestrator drive stations through architecture-audit and hand back a CONTINUE_PACKET or REVIEW_PACKET without asking me",
       "expect": "feature-orchestrator"
     },
     {
@@ -48,11 +48,11 @@
       "expect": "slice-engineer"
     },
     {
-      "prompt": "Have test-engineer write colocated Vitest RTL tests to the coverage threshold per layer group",
+      "prompt": "Have test-engineer fill a Station 9 missing-test and coverage-threshold gap for one layer group with colocated Vitest RTL tests",
       "expect": "test-engineer"
     },
     {
-      "prompt": "Have code-reviewer emit a severity-tagged report of conventions and acceptance coverage not the architecture-audit",
+      "prompt": "Have code-reviewer emit a severity-tagged report of acceptance coverage, test quality, and accessibility, not the architecture-audit and not the conventions gate",
       "expect": "code-reviewer"
     }
   ]

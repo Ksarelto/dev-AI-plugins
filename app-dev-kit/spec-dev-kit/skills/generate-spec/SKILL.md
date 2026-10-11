@@ -101,6 +101,7 @@ screenshot-to-text transcriptions, email/Slack transcripts.
 | `[feature-name]` | Optional | Hint for the spec slug. If omitted, slug is derived from context files per `references/artifact-naming.md`. |
 
 Parents (`orchestrate-frontend`, `orchestrate-app`) also pass `RESULT_OUT: .spec/app/results/generate-spec.json`.
+`orchestrate-frontend` passes `BUILDS: frontend` — written to `intake.json` `system_boundary.builds`.
 Every envelope write (`approved`, `aborted`, `error`) uses `--also {RESULT_OUT}` so the parent can
 read `outcome` without treating `current.json` as an envelope.
 
@@ -151,7 +152,8 @@ node {KIT_DIR}/skills/generate-spec/scripts/extract-intake.mjs --context .spec/c
    decisions, success metrics, copy examples, and open questions. Do not re-extract or summarise.
 2. Read `intake.json` and the context files once, then fill **only** the judgement fields with one
    edit: `type_hint`, `consolidated_entities`, `consolidated_user_roles`, `potential_conflicts`,
-   `terminology_drift`.
+   `terminology_drift`, `system_boundary` (`references/context-protocol.md` § Atomic Extraction
+   Rules; a caller's `BUILDS` sets `builds`).
 3. Ensure `{RUN_DIR}/artifacts/qa-log.md` exists (empty file is fine).
 
 ### Step 4 — Drive the orchestrator until publish

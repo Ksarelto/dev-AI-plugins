@@ -20,7 +20,7 @@ Adaptation is **frontend-dev-kit:shadcn-usage**. File layout is **frontend-dev-k
 
 2. **Browse the shadcn registry**: use the shadcn MCP to search for the component. Use the registry component when it covers the need. Record the decision.
 
-3. **Path A — Registry match**: run the shadcn MCP add command (`get_add_command_for_items`, equivalent to `npx shadcn@latest add <component>`) against the project's `components.json` style. This places the component files in the project's shadcn output directory. Keep that CLI output open — it is the diff baseline for step 4.
+3. **Path A — Registry match**: run one shadcn MCP add command for every missing primitive (`get_add_command_for_items`, equivalent to `npx shadcn@latest add a b c`) against the project's `components.json` style. Do not add them one command at a time. This places the component files in the project's shadcn output directory. Keep that CLI output open — it is the diff baseline for step 4.
 
 4. **Re-home, do not rewrite** (`frontend-dev-kit:shadcn-usage` § Adding a base, `rules/shadcn.mdc`):
    - Move the file(s) to `shared/ui/<name>/` (`button/button.tsx`). Delete the leftover flat file under the CLI output path so `@/components/ui/*` is not a second copy.

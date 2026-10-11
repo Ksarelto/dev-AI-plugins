@@ -25,6 +25,17 @@ notification tables, decisions already made) answer most questions. Before openi
 the intake for the answer; a gap is only what the source does not say or says two ways. Never
 re-ask a decision the source lists as already made — record it for a `DEC-*` (`source: context`).
 
+**Nor is another system's behaviour.** Read `intake.system_boundary`. Anything inside
+`owned_elsewhere` (an existing backend's validation, import steps, retries, audit, retention) is
+not a gap — this spec only decides how the client reacts, and that reaction is the enricher's
+"server-owned failure" convention (show the server's code / message, keep the previous data). Do
+not open Step 4 dependency gaps, Error-State gaps, or Observability / Data Lifecycle gaps for
+work the boundary assigns elsewhere.
+
+**Nor is what the parent spec already decides.** On a continue run, `PRIOR_INDEX` lists the
+parent's `roles` and `permissions`. A permission gap those rows answer (e.g. "any signed-in user")
+is not a gap; reuse the role.
+
 ---
 
 ## Responsibilities
@@ -211,9 +222,12 @@ When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
 
 1. Map each answer to its corresponding `gap_id` in the prior analysis (or `root_cause_group`).
 2. For each gap an answer decides: mark `status: resolved`, `resolved_by: user_answer`,
-   `answer_ref: "Round N Qk"`. Resolve only what the answer actually decides; leftover sub-questions
-   become new, narrower gaps (`opened_by: "Round N Qk"`). A group is resolved only when all its
-   members are. A gap left open keeps `status: open` — the gate script reads it.
+   `answer_ref: "Round N Qk"`. An answer closes its topic: a short answer ("no limit", "backend
+   handles it", "show the server error") is a decision, not a partial one. Detail the answer left
+   open may become a follow-up gap (`opened_by: "Round N Qk"`, `can_assume_default: true`, a
+   `default_if_assumed` that follows the answer) — `gate-check.mjs` never asks a follow-up gap; the
+   enricher assumes it. A group is resolved only when all its members are. A gap left open keeps
+   `status: open` — the gate script reads it.
 3. Write the answer-derived requirements to `requirements_from_answers[]` (`{ id: "A-001", text,
    answer_ref }`) and choices to `decisions_from_answers[]`; the enricher turns them into
    `source: answered` requirements and `DEC-*` (`source: qa`).
@@ -221,6 +235,22 @@ When called with `PRIOR_ANALYSIS` and `USER_ANSWERS`:
 5. Recalculate `gap_score` with resolved gaps removed.
 6. Detect if any answers created new conflicts with prior requirements.
 7. Return updated analysis report.
+
+---
+
+### Completeness gap analysis (`MODE: completeness_gap_analysis`)
+
+Called from Station 5 with `COMPLETENESS_PATH` (`artifacts/completeness.json`). Open one gap per
+`missing_categories[]` / `partial_categories[]` entry that still needs a human decision, then
+write the delta (`{ delta: true, gaps, root_cause_groups, change_intents }`; the orchestrator
+copied the previous analysis to `analysis.base.json`). Skip, without opening a gap:
+
+- a category the qa-log already answered — that answer is credit, not a new question; set
+  `opened_by` on any gap that only narrows an earlier answer;
+- anything inside `system_boundary.owned_elsewhere`;
+- anything a convention or a domain default closes — `can_assume_default: true`.
+
+`gate-check.mjs` picks the askable ones; when none are left, no question round runs.
 
 ---
 

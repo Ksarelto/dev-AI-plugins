@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+:root {
+  --radius: 0.625rem;
+  --primary: oklch(0.2 0.02 264);
+}

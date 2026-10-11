@@ -1,10 +1,15 @@
 # Quality Gates
 
 Station 9 runs every gate below, in order, once. A failing gate blocks later gates in that sweep.
-Between layers (Stations 3–7) run only `run-gates.sh --until fsd` (types, lint, fsd) — tests are
-written at Station 8, so `conventions` would report every new file as `missing-test`. A **patch**
-run walks Station 8 first and then runs `run-gates.sh --until conventions`. `yarn build` and
-`yarn test:auto` are Station 9, not per layer.
+Between layers (Stations 3–7) run only `run-gates.sh --until fsd` (types, lint, fsd).
+Before a fix loop, `run-gates.sh --fix <comma-separated files>` runs the host's `lint:fix` script
+(or `node_modules/.bin/eslint --fix` when eslint is a declared dependency) and
+`node_modules/.bin/prettier --write`, only on those files and only when the tool is in
+`package.json`. It prints `SKIP` and exits 0 when neither tool is available. It never uses `npx`.
+Re-run the gates after it. Only findings that remain go to an engineer. Builders
+write behavior tests in the same change and self-check conventions, including `missing-test`, on
+their files. A **patch** run then uses `run-gates.sh --until conventions`. `yarn build` and
+`yarn test:auto` are Station 9, not per layer. Stations 9.5 and 10 run after that sweep, in one turn.
 
 ---
 
@@ -64,7 +69,7 @@ Human gates (not automated commands):
 | FSD boundaries | Deep import into slice internals | Add the symbol to the slice's `index.ts`; update the import path |
 | FSD boundaries | Upward import | Move the shared code into `shared/`; remove the upward reference |
 | FSD boundaries | Missing `index.ts` | Create `index.ts` with named re-exports only for symbols a file outside the folder already imports |
-| Conventions | `missing-test` | `test-engineer` writes the listed test (behavior, boundary mocks only) |
+| Conventions | `missing-test` | `test-engineer` writes the listed test for that layer group (behavior, boundary mocks only) |
 | Conventions | `comment` | Delete the comment; if the code needs it, extract a function whose name says it |
 | Conventions | `unused-export` | Drop the `export` keyword or the `index.ts` line — do not add an import to justify it |
 | Conventions | `hardcoded-copy` / `string-map` | Move the text to the slice's `locales/en.json` + `keys.ts` (or `common`), render `t(key)` (`add-text-content`) |
@@ -84,10 +89,12 @@ Human gates (not automated commands):
 
 ## Fix Loop
 
-1. Identify the first failing gate. The transcript is `.spec/.gate-log`. Pass that **path** to the fix engineer, not the transcript.
-2. The engineer applies the smallest diff that can make that gate pass, then writes a handoff file.
-3. Re-run the failed gate plus `types` (`run-gates.sh --only types`, then `--only <failed>` when they differ).
-4. Re-run `fsd` only if the fix touched imports. Re-run `conventions` after any source edit (it is fast). Re-run `coverage` only if the fix touched tests. Do not run `yarn build` after a type error.
-5. If the same gate fails again after 2 more attempts (3 total), escalate. Set spec status to `awaiting-human`. Stop.
+1. Collect every open finding: the failed gate (transcript in `.spec/.gate-log` — pass the **path**, not the transcript), architecture-audit hard findings, code-review `[CRITICAL]` / unresolved `[IMPORTANT]`, parity, and UI review findings. Group by owning agent and layer.
+2. `board.mjs snapshot <board> --round <n>` before the fix. Each batch line is `path | rule | change`. If that `path | rule` is already in an earlier `fix-batch-*.md`, stop and escalate — two rules are fighting.
+3. The engineer applies the smallest diff that clears its batch. A UI-review line includes a regression test that fails on the reported behavior when that behavior is testable.
+4. `board.mjs changed <board> --since <n>` is `FIX_SCOPE`. Write it to `fix-scope-<n>.txt`.
+5. Re-run `types`, `lint`, and `fsd`, plus `check-conventions.mjs --files <FIX_SCOPE>`. Re-run `coverage` only if the fix touched tests. Do not run `yarn build` after a type error.
+6. Spawn both reviewers in one turn, `MODE: verify`, on `FIX_SCOPE` plus prior open findings. Do not skip a reviewer that passed the full diff.
+7. A round with zero findings ends the loop. After 3 rounds, escalate. Set spec status to `awaiting-human`. Stop.
 
 A green layer gate (`--until fsd`) does not replace the Station 9 sweep.

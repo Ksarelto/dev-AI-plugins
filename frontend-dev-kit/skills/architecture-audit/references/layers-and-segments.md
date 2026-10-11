@@ -15,7 +15,7 @@ Six layers, top-down. Group by business capability, not by technical type. A sli
 - New feature default is `api/ + ui/ + index.ts` — empty scaffolded `models/`/`hooks/` is a smell (judgment), not a missing folder.
 - Feature `api/` that exists must include `endpoints.ts`. Same for entity `api/`.
 - `shared/lib/` units use canonical names (`auth`, `i18n`, `notify`, `permissions`, `analytics`, `logger`, `modals`, `clock.ts`, `ids.ts`, `lazyFeature.ts`). No synonyms (`datetime/` next to `clock.ts`, `rbac/` next to `permissions/`). Keep `auth/` distinct from `permissions/`.
-- Inside a feature: `ui/` → `hooks/` → `models/`; `ui/` → `models/` for pure functions only (form schemas); `hooks/` → `api/` → `models/`. `ui/` never imports `api/`. `models/` never imports any `api/` (own, other slice, `shared/api`) or React/DOM.
+- Inside a feature: `ui/` → `hooks/` → `models/`; `ui/` → `models/` for pure functions only. The form schema is `ui/<form>/schema.ts`, not a file in `models/`. `hooks/` → `api/` → `models/`. `ui/` never imports `api/`. `models/` never imports any `api/` (own, other slice, `shared/api`) or React/DOM.
 - Feature `api/` may import entity **types** only — never an entity's canonical query. `hooks/` is the only feature segment that may call `@/entities/{name}` query APIs (via `index.ts`).
 - `models/` may import `entities/*` types + pure functions via `index.ts`, never `entities/*/api/`.
 - Persist carve-out: a Zustand **store** file may name `sessionStorage`/`localStorage` in `persist`'s `storage`. A pure rule function never touches `window`/DOM/storage.

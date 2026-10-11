@@ -85,7 +85,7 @@ standard patterns → `false`; anything that could be a dealbreaker → `true` +
 | 1 | 5 | Highest-impact gaps + hard conflicts |
 | 2 | 4 | Remaining critical gaps from round 1 answers |
 | 3 | 2 | Only blocking unknowns (anything else → assumption + blocking open question) |
-| completeness loop | 4 | Missing categories / unmapped source requirements |
+| completeness loop | 4 | One round only; askable gaps from `gate-check.mjs`, never a topic already answered |
 
 Batching all questions into one `AskUserQuestion` call is mandatory — never send one question at a
 time. **Which gaps are asked** is decided by `scripts/gate-check.mjs` (`askable_gaps`), not by
@@ -162,6 +162,11 @@ Rank all candidate questions before selecting the batch. Send highest-priority f
 
 ## Assumption Trigger (No Question Needed)
 
+Behaviour inside `system_boundary.owned_elsewhere` (an existing backend's steps, retries, audit,
+retention) is never asked — the client's reaction is the enricher's server-owned failure default.
+Permissions the parent spec already defines (`prior-index.json` `roles` / `permissions`) are not
+re-asked.
+
 UI-state gaps (loading, empty, network error, destructive-action confirmation, validation timing,
 WCAG 2.2 AA baseline) do not need questions — `spec-enricher` fills them from its domain-aware
 default table (`agents/spec-enricher.md` Step 3), **only when the source is silent and the default
@@ -186,6 +191,10 @@ After user answers are received:
 5. Check if answers introduced new gaps (e.g., user says "and it should also integrate with X").
 6. Re-run gap detection on the updated requirement set.
 7. Report updated `gap_score` and remaining `gaps[]` to orchestrator.
+
+**One answer closes a topic.** Detail an answer left open is a follow-up gap (`opened_by`) that the
+enricher assumes — `gate-check.mjs` never asks it. Do not slice an answered topic into narrower
+questions ("X is already decided; what about X′?").
 
 **Critical rule**: If a user answer introduces new scope, add it to requirements but **do not re-open** closed clarification rounds. New scope is fair game for completeness check but not for re-triggering the clarification loop.
 

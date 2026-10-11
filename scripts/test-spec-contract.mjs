@@ -73,6 +73,8 @@ try {
   assert(gate({ gaps: [gap('GAP-1', 'high', { blocks_synthesis: true })] }, 1).decision === 'ASK', 'high blocking gap with a default was not asked')
   assert(gate({ gaps: [gap('GAP-1', 'medium', { can_assume_default: false })], conflicts: [{ conflict_id: 'C-1', type: 'contradiction', status: 'open' }] }, 1).decision === 'ASK', 'open contradiction was not asked')
   assert(gate({ gaps: [gap('GAP-1', 'high', { blocks_synthesis: true, can_assume_default: false })] }, 3).decision === 'PROCEED_WITH_ASSUMPTIONS', 'round cap did not proceed with assumptions')
+  const followUp = gate({ gaps: [gap('GAP-1', 'high', { blocks_synthesis: true, can_assume_default: false, opened_by: 'Round 1 Q2' })] }, 1)
+  assert(followUp.decision === 'PROCEED' && followUp.assumable_gaps.includes('GAP-1'), 'a follow-up gap opened by an answer was asked again')
 
   // 3. Publish: approve, views, one brief per slice, briefs carry the slice's scope.
   const run = '.spec/spec/spec-20260101-000001_shelf-share'

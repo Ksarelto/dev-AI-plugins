@@ -72,8 +72,15 @@ ending in `:` prefix their children), and requirement-bearing **paragraph** (con
 prose lines), routes sections by heading (glossary, decisions, success measures, out of scope,
 copy, open questions, narrative), and sets `kind_hint` / `role_hint` / `scope_hint` / `confidence`
 by keyword. The skill then fills only `type_hint`, `consolidated_entities`,
-`consolidated_user_roles`, `potential_conflicts`, and `terminology_drift`. Compound statements
-("A and B") stay one entry; the enricher splits them.
+`consolidated_user_roles`, `potential_conflicts`, `terminology_drift`, and `system_boundary`.
+Compound statements ("A and B") stay one entry; the enricher splits them.
+
+`system_boundary` says what this run builds and what another system already owns:
+`builds` is the tracks this spec delivers (`frontend` / `backend` / `agent`; a caller's `BUILDS`
+hint wins), `owned_elsewhere` lists behaviour the source assigns to an existing system (e.g.
+"backend API: validation, import steps, persistence, audit, retention"), `source_lines` the
+lines that say so. Leave `owned_elsewhere` empty when the source builds everything. Later stations
+never ask how an `owned_elsewhere` system behaves — only how this client reacts to its answer.
 
 The rules the script implements:
 
@@ -132,6 +139,7 @@ After processing all files, the skill writes `artifacts/intake.json`:
   "consolidated_user_roles": [{ "role": "Patient", "definition": "...", "source_lines": [28] }],
   "potential_conflicts": [{ "conflict_id": "C-001", "statement_a": "...", "lines_a": [84], "statement_b": "...", "lines_b": [85], "severity": "high" }],
   "terminology_drift": [{ "concept": "...", "terms": ["move", "reschedule"], "source_lines": [55, 66] }],
+  "system_boundary": { "builds": ["frontend"], "owned_elsewhere": ["backend API: validation, import steps, audit"], "source_lines": [3] },
   "context_starved_categories": ["Observability"]   // completeness categories with zero signal in the source
   "raw_open_questions": ["…"]       // TBD / "?" / unclear statements, verbatim
 }

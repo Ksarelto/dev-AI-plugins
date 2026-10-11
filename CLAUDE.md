@@ -37,7 +37,7 @@ Each plugin has both `.claude-plugin/plugin.json` and `.cursor-plugin/plugin.jso
 Key fields (same in both):
 
 - `name` — kebab-case, used as namespace for skills/commands: `/plugin-name:skill`
-- `agents` / `skills` / `commands` / `rules` — paths to component directories. `agents` differs by harness: Claude `./agents/*.md`, Cursor `./agents/`
+- `agents` / `skills` / `commands` / `rules` — paths to component directories. `agents` differs by harness: Claude `./agents/*.md`, Cursor `./agents/` (spec-dev-kit, html-generator-kit, and feature-dev-kit use `./cursor-agents/`)
 - `mcpServers` — path to `.mcp.json` / `mcp.json` file or inline config
 
 ## Skill format (SKILL.md)

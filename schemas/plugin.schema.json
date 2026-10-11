@@ -72,7 +72,7 @@
     },
     "agents": {
       "$ref": "#/$defs/stringOrStringArray",
-      "description": "Agent files or a directory. Claude Code: ./agents/*.md (a directory is rejected). Cursor: ./agents/ (a glob is not expanded and loads nothing)."
+      "description": "Agent files or a directory. Claude Code: ./agents/*.md (a directory is rejected). Cursor: ./agents/ (a glob is not expanded and loads nothing). spec-dev-kit, html-generator-kit, and feature-dev-kit use ./cursor-agents/."
     },
     "skills": {
       "$ref": "#/$defs/stringOrStringArray",

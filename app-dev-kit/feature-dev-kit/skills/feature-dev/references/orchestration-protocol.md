@@ -27,7 +27,7 @@ itself — it delegates to worker agents and reads the spec blackboard to decide
 | 5 | Build features | features-engineer | `features/` segments built and gated |
 | 6 | Build widgets + pages | composition-engineer | `widgets/` and `pages/` segments built and gated |
 | 7 | Wire app | app-engineer | Providers, routing wired; integration verified |
-| 8 | Tests | test-engineer | Coverage thresholds met |
+| 8 | Tests | the layer engineer, in the same change. `test-engineer` only on a Station 9 `missing-test` or coverage miss | Every new executable file has a behavior test |
 | 9 | Quality gates | run-gates.sh (orchestrator, Bash) | All gates green (see quality-gates.md) |
 | 9.5 | Architecture audit | architecture-auditor | Zero hard violations on changed paths |
 | 10 | Auto-review | code-reviewer | No [CRITICAL], no unresolved [IMPORTANT] |
@@ -40,7 +40,7 @@ itself — it delegates to worker agents and reads the spec blackboard to decide
 ## Delegation Message Template
 
 Canonical copy with field rules and a worked example: `../templates/delegation-message.md`.
-Stations 0–1b delegations name a `SPEC_SECTIONS` allowlist; Stations 3–8 name a `CARD` (`board.mjs card`) — see `context-budget.md`.
+Stations 0–1b delegations name a `SPEC_SECTIONS` allowlist; Stations 3–7 name a `CARD` (`board.mjs card`) — see `context-budget.md`.
 
 The orchestrator uses this exact format when delegating to a worker agent:
 
@@ -64,14 +64,14 @@ BOUNDARY: only touch src/entities/profile/api/; do not modify index.ts (orchestr
 RETURN: HANDOFF .spec/features/decline-profile.context/entities-engineer-4.md + one CONTAINS line
 ```
 
-Do not list `development-cycle.md`, `increment-protocol.md`, `fsd-architecture.md`, or rule files in `APPLY`. The card's "Read by path" block names the rule file (Cursor attaches it by glob; Claude does not). The worker reads one skill recipe when that skill says to.
+Do not list `development-cycle.md`, `fsd-architecture.md`, or rule files in `APPLY`. The card's "Read by path" block names the rule file (Cursor attaches it by glob; Claude does not). The worker reads one skill recipe when that skill says to. Slice order and the simplicity ladder are `ui-build-contract.md`.
 
 ---
 
 ## Handoff via files
 
 - Pre-build workers (Stations 0–1b) read and write their named spec sections.
-- Build workers (Stations 3–8) read their work card (`board.mjs card`), never the board. They mark
+- Build workers (Stations 3–7) read their work card (`board.mjs card`), never the board. They mark
   their rows with `board.mjs row --status --note` and add reuse entries / decisions with
   `board.mjs append`; the detail goes to `.spec/features/<slug>.context/<agent>-<station>.md`.
 - Gate results are never written onto the board: `run-gates.sh --spec` and `board.mjs gate` keep
@@ -86,7 +86,7 @@ Do not list `development-cycle.md`, `increment-protocol.md`, `fsd-architecture.m
 
 Build proceeds bottom-up: `shared` → `entities` → `features` → `widgets`+`pages` → `app`.
 
-After each layer group completes, run `run-gates.sh --until fsd`. If that fails, fix before the next layer. The package build and coverage run once at Station 9. Station 8 ends the build phase: the orchestrator returns `CONTINUE_PACKET`, and a fresh orchestrator runs Stations 9–11 from the checkpoint (`packets.md`).
+After each layer group completes, run `run-gates.sh --until fsd`. If that fails, fix before the next layer. The package build and coverage run once at Station 9. Station 7 ends the build phase: the orchestrator returns `CONTINUE_PACKET`. The skill runs the UI review, then a fresh orchestrator runs Stations 9–11 from the checkpoint (`packets.md`). Stations 9.5 and 10 run in the same turn.
 
 ---
 
@@ -105,32 +105,31 @@ When a layer has more than one slice, run those slices one after another on the 
 ## Fix Loop
 
 ```
-Gate failure / audit or review findings
+Open findings (gates, audit, review, parity, UI review)
        │
        ▼
-Group findings by owning agent + layer → one fix batch per group
-(.spec/features/<slug>.context/fix-batch-<n>.md: finding, path, rule, one line each)
+Group by owning agent + layer → fix-batch-<n>.md
+one line each: path | rule | change
+       │  path|rule already in an earlier batch? → ESCALATION (rules fighting)
+       ▼
+board.mjs snapshot --round <n>
        │
        ▼
-One fix engineer per batch receives: the batch file path + a card for the affected rows
+One fix engineer per batch
        │
        ▼
-Fix engineer applies targeted fix
+FIX_SCOPE = board.mjs changed --since <n>
+types + lint + fsd + conventions --files FIX_SCOPE
+both reviewers, MODE: verify, one turn, FIX_SCOPE only
        │
-       ▼
-Orchestrator re-runs the failing gate
-       │
-   ┌───┴───┐
- PASS     FAIL (attempt N)
+   ┌───┴────┐
+ zero      still open (round N)
    │         │
    ▼         ▼ (N ≥ 3)
-Continue   Escalate to human:
-pipeline   emit gate log + error output
-           set spec status: awaiting-human
-           STOP
+Continue   ESCALATION_PACKET
 ```
 
-After 2–3 failed fix-loop iterations on the same gate, escalate. Do not continue looping indefinitely.
+A round with zero findings ends the loop. Cap 3. Do not continue past an oscillation.
 
 One finding repeated across sibling slices (the same re-export in eight pages, the same missing
 key in five forms) is **one** batch for one spawn, with `BOUNDARY` listing every affected slice —

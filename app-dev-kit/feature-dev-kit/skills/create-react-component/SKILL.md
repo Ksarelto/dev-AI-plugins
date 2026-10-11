@@ -23,7 +23,7 @@ FSD placement only. Procedures live in **frontend-dev-kit**. Load them; do not r
 |------|------|
 | Presentational | `entities/<domain>/ui/`, `shared/ui/`, `features/<slice>/ui/` |
 | Container | `features/<slice>/ui/`, `widgets/<name>/ui/` |
-| Hook reused by two components | `features/<slice>/model/` or `widgets/<name>/model/` |
+| Hook reused by two components | `features/<slice>/hooks/` or `widgets/<name>/model/` |
 
 Export through the slice `index.ts` only what a file outside the folder already imports. Four states: `rules/ui-quality.mdc` (attached by glob).
 

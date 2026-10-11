@@ -5,14 +5,22 @@
 //   node import-upstream.mjs --spec <spec.md> --out <feature.md> [--slice-ref SL-001] [filters] [--require-scoped] [--changes <changes.json>] [--checklist <task-checklist.md>] [--change remove]
 // Spec 2.0: screens carry story-refs / api-refs / primary-entity. --slice-ref reads the slice brief
 // ({spec dir}/slices/{SL}.yaml; the whole spec when a passed ref is outside it) and adds the slice
-// goal, frontend steps, done-when ACs, and the slice's api-refs. Only the slice's rule-refs and
-// permission-refs are built; others that touch the feature are listed as owned by another slice.
+// goal, frontend steps, done-when ACs, and the slice's api-refs. Only the slice's rule-refs,
+// permission-refs, ac-refs, and story-refs are built; others that touch the feature are listed
+// as owned by another slice.
 // The glossary goes to {slug}.context/glossary.md, referenced from the blackboard by path.
 // Spec 1.x: ACs and entities are matched to screens by keywords and component names.
 // Exit 0 = wrote (or printed). Exit 1 = scoped-import failure. Exit 2 = usage/parse failure.
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+
+function writeAtomic(path, contents) {
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  writeFileSync(tmp, contents)
+  renameSync(tmp, path)
+}
 import { fileURLToPath } from 'node:url'
 
 const args = process.argv.slice(2)
@@ -336,6 +344,40 @@ if (src.glossary.some((g) => g?.term && !g.meaning)) {
 const glossary = src.glossary
 const frontendSteps = list(slice?.steps).filter((s) => s.track === 'frontend')
 
+// ACs and stories another slice lists are context, not work. Explicit --ac-refs / --story-refs
+// and this slice's done-when stay. Specs whose slices name neither ac-refs nor story-refs keep
+// the AC_REFS filter above and nothing else.
+let builtAcs = filteredAcs
+let builtStories = filteredStories
+const otherAcs = []
+const otherStoriesOwned = []
+const planSlices = ownerSlices()
+if (slice && planSlices.some((s) => list(s?.['ac-refs']).length || list(s?.['story-refs']).length)) {
+  const ownAc = new Set([...list(slice['ac-refs']), ...list(slice['done-when']), ...acRefsArg])
+  const ownStory = new Set([...list(slice['story-refs']), ...storyRefsArg])
+  const otherAcIds = new Map()
+  const otherStoryIds = new Map()
+  for (const s of planSlices) {
+    if (!s?.id || s.id === slice.id) continue
+    for (const id of list(s['ac-refs'])) if (!ownAc.has(id)) otherAcIds.set(id, s.id)
+    for (const id of list(s['story-refs'])) if (!ownStory.has(id)) otherStoryIds.set(id, s.id)
+  }
+  builtAcs = []
+  for (const ac of filteredAcs) {
+    const byAc = otherAcIds.get(ac.id)
+    const byStory = ac['story-ref'] && !ownStory.has(ac['story-ref']) ? otherStoryIds.get(ac['story-ref']) : ''
+    if ((byAc || byStory) && !ownAc.has(ac.id)) otherAcs.push({ ...ac, owner: byAc || byStory })
+    else builtAcs.push(ac)
+  }
+  const builtStoryIds = new Set(builtAcs.map((a) => a['story-ref']).filter(Boolean))
+  builtStories = []
+  for (const story of filteredStories) {
+    if (otherStoryIds.has(story.id) && !ownStory.has(story.id) && !builtStoryIds.has(story.id)) {
+      otherStoriesOwned.push({ ...story, owner: otherStoryIds.get(story.id) })
+    } else builtStories.push(story)
+  }
+}
+
 function kebab(s) {
   return String(s ?? '')
     .toLowerCase()
@@ -406,8 +448,11 @@ const requestLines = [
     ? selectedScreens.map((s) => `${s.title} (${s.route}).`).join('\n')
     : src.title,
   !slice && src.goal ? `Goal: ${src.goal}` : '',
-  filteredStories.length
-    ? 'User stories:\n' + filteredStories.map((s) => `- As a ${s.as}, I want ${s['i-want']}, so that ${s['so-that']}.`).join('\n')
+  builtStories.length
+    ? 'User stories:\n' + builtStories.map((s) => `- As a ${s.as}, I want ${s['i-want']}, so that ${s['so-that']}.`).join('\n')
+    : '',
+  otherStoriesOwned.length
+    ? '### Stories owned by other slices (context — do not build)\n' + otherStoriesOwned.map((s) => `- ${s.id} (${s.owner}): ${s['i-want'] ?? ''}`).join('\n')
     : '',
   frontendSteps.length
     ? 'Slice steps (frontend, from the spec delivery plan):\n' + frontendSteps.map((s, i) => `${i + 1}. ${s.do}${list(s.refs).length ? ` (${s.refs.join(', ')})` : ''}`).join('\n')
@@ -415,9 +460,14 @@ const requestLines = [
   list(slice?.['done-when']).length ? `Done when: ${slice['done-when'].join(', ')} pass.` : '',
 ].filter(Boolean).join('\n\n')
 
-const acMarkdown = filteredAcs.length
-  ? filteredAcs.map((ac, i) => `${i + 1}. [${ac.id}] ${acLine(ac)}`).join('\n')
-  : '1. TBD: no acceptance criteria mapped to this screen-task'
+const acMarkdown = [
+  builtAcs.length
+    ? builtAcs.map((ac, i) => `${i + 1}. [${ac.id}] ${acLine(ac)}`).join('\n')
+    : '1. TBD: no acceptance criteria mapped to this screen-task',
+  otherAcs.length
+    ? '### Acceptance criteria owned by other slices (context — do not build)\n' + otherAcs.map((ac) => `- ${ac.id} (${ac.owner}): ${acLine(ac)}`).join('\n')
+    : '',
+].filter(Boolean).join('\n\n')
 
 function screenBlock(s) {
   const page = resolvePrototypePage(protoDir, s, s.id)
@@ -507,8 +557,8 @@ const compact = [
   `SLICE_REF: ${sliceRef || '(none)'}`,
   `SCREEN_REF: ${selectedScreens.map((s) => s.id).join(', ') || '(none)'}`,
   `PROTOTYPE_PAGE: ${selectedScreens.map((s) => resolvePrototypePage(protoDir, s, s.id)).filter(Boolean).join(', ') || '(none)'}`,
-  `STORIES: ${filteredStories.map((s) => s.id).join(', ') || '(none)'}`,
-  `ACS: ${filteredAcs.map((a) => a.id).join(', ') || '(none)'}`,
+  `STORIES: ${builtStories.map((s) => s.id).join(', ') || '(none)'}`,
+  `ACS: ${builtAcs.map((a) => a.id).join(', ') || '(none)'}${otherAcs.length ? ` (${otherAcs.length} owned by other slices)` : ''}`,
   `ENTITIES: ${filteredEntities.map((e) => e.name).join(', ') || '(none)'}`,
   `SCREENS_IMPORTED: ${selectedScreens.length}`,
   `SOURCE: ${src.kind === 'brief' ? `brief ${sliceRef}` : 'spec'}`,
@@ -533,6 +583,7 @@ let board = hadBoard
   : existsSync(templatePath)
     ? readFileSync(templatePath, 'utf8')
     : ''
+const sourceBoard = board
 
 if (!board) {
   console.error('FATAL: no --out file and no templates/feature-spec.md')
@@ -553,6 +604,28 @@ function replaceSection(heading, content) {
     return
   }
   board = board.replace(re, `$1\n${content}\n`)
+}
+
+const forceImport = flag('force') === true
+if (hadBoard && !forceImport) {
+  const statusLine = sourceBoard.match(/^status:\s*(.*)$/m)
+  const status = statusLine ? statusLine[1].trim().replace(/^['"]|['"]$/g, '') : ''
+  const localIds = [
+    ...selectedScreens.map((screen) => screen.id),
+    ...filteredEntities.map((entity) => entity.name),
+    ...builtStories.map((story) => story.id),
+    ...builtAcs.map((ac) => ac.id),
+    ...filteredEndpoints.map((endpoint) => endpoint.id),
+  ].filter(Boolean).map(String)
+  const overlapIds = [...new Set(localIds)].filter((id) => changedIdSet(loadChanges(changesArg)).has(id))
+  const reopenEarly = status === 'done' && overlapIds.length > 0
+  const editable = !status || status === 'draft' || status === 'awaiting-clarification' || reopenEarly
+  if (!editable) {
+    const missing = [...new Set(localIds.filter((id) => !sourceBoard.includes(id)))]
+    console.log(`SKIP: board at status ${status}`)
+    if (missing.length) console.error(`WARN upstream-changed: ${missing.join(', ')}`)
+    process.exit(0)
+  }
 }
 
 replaceFm('slug', slug)
@@ -580,8 +653,8 @@ const priorStatus = hadBoard ? fmValue('status') : ''
 const localIds = [
   ...selectedScreens.map((screen) => screen.id),
   ...filteredEntities.map((entity) => entity.name),
-  ...filteredStories.map((story) => story.id),
-  ...filteredAcs.map((ac) => ac.id),
+  ...builtStories.map((story) => story.id),
+  ...builtAcs.map((ac) => ac.id),
   ...filteredEndpoints.map((endpoint) => endpoint.id),
 ]
 const changed = changedIdSet(loadChanges(changesArg))
@@ -638,10 +711,14 @@ if (reopen || (hadBoard && fmValue('prior-branch') && overlap.length > 0)) {
 if (notes.length) replaceSection('Change request', notes.join('\n\n'))
 
 mkdirSync(dirname(outPath), { recursive: true })
-writeFileSync(outPath, board, 'utf8')
+writeAtomic(outPath, board)
 if (glossaryPath) {
   mkdirSync(contextDir, { recursive: true })
-  writeFileSync(glossaryPath, `# Glossary\n\nUse these words in UI copy.\n\n${glossary.map((g) => `- **${g.term}**: ${g.meaning}`).join('\n')}\n`, 'utf8')
+  writeAtomic(glossaryPath, `# Glossary\n\nUse these words in UI copy.\n\n${glossary.map((g) => `- **${g.term}**: ${g.meaning}`).join('\n')}\n`)
+}
+if (protoDir && selectedScreens.length) {
+  const unbound = selectedScreens.filter((s) => !resolvePrototypePage(protoDir, s, s.id))
+  if (unbound.length) console.error(`WARN prototype-ref set but no page resolved for: ${unbound.map((s) => s.id).join(', ')}`)
 }
 console.log(`OK: wrote ${outPath}`)
 console.log(compact)

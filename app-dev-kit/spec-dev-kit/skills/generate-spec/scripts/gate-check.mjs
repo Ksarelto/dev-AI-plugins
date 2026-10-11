@@ -10,6 +10,8 @@
 //
 // Askable = no safe default, OR high severity + blocks_synthesis (confirm the default instead of
 // assuming it). Assumable gaps never force a question, however many there are.
+// A follow-up gap (`opened_by` an earlier answer) is never askable: one answer closes a topic, and
+// what it left open becomes an assumption, not a narrower question.
 //
 // Usage: node gate-check.mjs <analysis.json> --round <n> [--max-rounds 3] [--threshold 25]
 // Exit 0 always on a decision (read stdout JSON). Exit 2 on usage/parse failure.
@@ -78,8 +80,9 @@ function score(list) {
 
 // High + blocks_synthesis is a "must be true" gap: ask even when a default exists — the
 // interrogator offers that default as the (Recommended) option, so confirming costs one click.
-const blocking = open.filter((g) => g.severity === 'high' && g.blocks_synthesis)
-const askable = open.filter((g) => g.can_assume_default !== true || blocking.includes(g))
+const firstAsk = open.filter((g) => !g.opened_by)
+const blocking = firstAsk.filter((g) => g.severity === 'high' && g.blocks_synthesis)
+const askable = firstAsk.filter((g) => g.can_assume_default !== true || blocking.includes(g))
 const assumable = open.filter((g) => !askable.includes(g))
 const conflicts = (Array.isArray(analysis.conflicts) ? analysis.conflicts : [])
   .filter((c) => (c?.status ?? 'open') !== 'resolved' && ['contradiction', 'terminology_drift', undefined].includes(c?.type))

@@ -4,6 +4,7 @@ status: draft
 created: <YYYY-MM-DD>
 ticket: <TICKET-ID or TBD>
 branch: <feature/…>
+parent-branch: <parent-branch>
 upstream-spec: none
 feature-id: none
 task-id: none
@@ -20,7 +21,7 @@ Per-feature blackboard. Copied to .spec/features/<feature-slug>.md by scripts/ne
 status ∈ draft | awaiting-clarification | investigating | awaiting-dep-approval | approved |
          building | review | awaiting-human | changes-requested | done
 
-Pre-build workers (Stations 0–1b) write their owned sections. Build workers (Stations 3–8) never
+Pre-build workers (Stations 0–1b) write their owned sections. Build workers (Stations 3–7) never
 open this file: they read their work card (scripts/board.mjs card) and write back only through
 scripts/board.mjs (row, append). The orchestrator reads sections with board.mjs section --get.
 Canonical schema: ../references/feature-spec-format.md. Section ownership and read/write
@@ -46,7 +47,7 @@ Packets: ../references/packets.md.
 
 | Slice | Layer | Segments | Change |
 |-------|-------|----------|--------|
-| `<slice>` | `<layer>` | `api/`, `model/`, `ui/` | new \| modified |
+| `<slice>` | `<layer>` | features: `models/`, `hooks/`, `api/`, `ui/`; entities: `model/`, `api/`, `ui/` | new \| modified |
 
 ## API Contract / Data Model
 

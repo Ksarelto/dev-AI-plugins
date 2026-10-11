@@ -8,6 +8,27 @@ Your station card assigns the layer and slice. This file is everything you need 
 do not open `fsd-architecture.md`, `fsd-import-boundaries.md`, `development-cycle.md`, or
 `pipeline-flow.md`. Those are for the hub, discovery, and host setup.
 
+## Simplicity ladder
+
+Before writing, stop at the first rung that holds:
+
+1. Reuse what is already in the codebase — the Reuse Map, an existing helper, an existing primitive.
+2. Prefer a language or platform feature that already does it.
+3. Use a dependency that is already installed. A new package is Station 1b, never a silent install.
+4. Write the minimum that satisfies the acceptance criteria in front of you.
+5. No abstraction with one use. No generic table, form factory, or hook around a single `useState`. Abstract on the third real use.
+6. No comments, including no marker comments. A deliberate simplification goes in the handoff `--decisions`, not in the source.
+
+## Inside the slice
+
+Order, features: stub `index.ts` first, then `models/` → `api/` → `hooks/` → `lib/` → `ui/` happy path → `ui/` loading, empty, error, and finalize `index.ts` exports last. Entities use singular `model/` and have no `hooks/` (the query hook lives in `api/`). Widgets are `ui/` plus an optional singular `model/`. Do not typecheck between segments. Typecheck once when the slice is complete, then write the behavior test (§ 5).
+
+A gate and this file disagree → kit bug: escalate citing both, never flip the fix.
+
+Touch only `BOUNDARY`. Do not clean up, reformat, or modernize a file you are only reading. Do not add a prop, variant, or endpoint the spec does not ask for. Write it under `## Decisions & Open Questions` instead.
+
+The slice typechecks when you finish it. Prefer an additive change. If a public API must change, update every call site in the same change.
+
 ## 0. Layer boundaries — what your slice may import
 
 A layer imports only from layers **strictly below** it. Never sideways, never upward.
@@ -15,18 +36,22 @@ A layer imports only from layers **strictly below** it. Never sideways, never up
 - `app` → everything · `pages` → widgets, features, entities, shared · `widgets` → features,
   entities, shared · `features` → entities, shared · `entities` → shared · `shared` → nothing above it.
 - **Cross-slice imports within one layer are forbidden** — no widget imports another widget, no
-  feature another feature, no entity another entity. Extract the common part down a layer instead.
-- Every cross-slice import goes through the target slice's `index.ts`
+  feature another feature. An entity imports another entity only through that entity's `@x`
+  file (`@/entities/profile/@x/document`), never through the sibling `index.ts`. Anything wider
+  goes down a layer.
+- Every other cross-slice import goes through the target slice's `index.ts`
   (`@/entities/profile`, never `@/entities/profile/api/profile.hooks`).
-- Every slice has `index.ts`, created first, exporting only names a file **outside** the slice
-  imports. No `export *`. Query keys live in `shared/api/query-keys/`, not the public API.
+- Every slice has `index.ts`. Stub it first (empty or minimal) and finalize its exports last.
+  Export only names a file **outside** the slice imports. No `export *`. Pages are the exception: `pages/*/index.ts` default-exports the page.
+  Query keys live in `shared/api/query-keys/`, not the public API.
 
 Segments inside your slice:
 
-- `model/` — types, state, selectors. No React, no network, no side effects.
-- `api/` — TanStack Query hooks, mutations, query keys. No components, no UI state.
+- `models/` (features only) — types, state, selectors, pure invariants. No React, no network, no side effects, no locale keys. A form's Zod schema lives in that form's `ui/` folder (`schema.ts`) with translation-key messages. Entities use singular `model/` for the same job. Widgets may have a singular `model/` for local UI state only. No `features/*/model/`, no `entities/*/models/`, no widget `models/` or `api/`.
+- `api/` — fetchers and `endpoints.ts`. Feature query/mutation hooks do not live here. No components, no UI state, no query-key factories.
+- `hooks/` (features only) — TanStack Query hooks. The only segment whose `ui/` may call them. `ui/` never imports `api/`.
 - `lib/` — pure formatters, validators, mappers. No React, no network.
-- `ui/` — components; imports `shared/ui`, own `model/`, own `api/`. No direct fetch calls.
+- `ui/` — components; imports `shared/ui`, own `models/` (or entity `model/`) for pure functions, and own `hooks/`. No direct fetch calls.
 - `config/` — non-text constants and enum → locale-key maps. No English copy.
 - `locales/` — `en.json` + `keys.ts` for every string this slice renders.
 
@@ -45,8 +70,8 @@ review judgment. If your slice needs something from a sibling slice, escalate �
   `animate-*`, `transition*`, `duration-*`, `ease-*`, `fade-*`, `slide-*`, `zoom-*` in any
   `styles.ts` outside `shared/ui`, no custom `@keyframes`, no Motion wrapper around a primitive that
   already animates.
-- A look the primitive lacks is a new `cva` variant in `shared/ui/<name>`, not a call-site override.
-  Call-site `className` is layout only (grid, gap, width).
+- A look the primitive lacks — including a gradient, shadow, or motion the bound prototype uses — is a new `cva` variant in `shared/ui/<name>`, not a call-site override. Call-site `className` is layout only (grid, gap, width).
+- Prototype effects are recreated only as a `shared/ui` variant or `tw-animate`. Not in a feature, widget, or page `styles.ts`.
 - Closed-set props use the primitive's constants — `variant={ButtonVariant.Outline}`,
   `size={ButtonSize.Small}`, `type={ButtonType.Submit}`, `AlertVariant.Destructive`. Omit a prop set
   to its default.
@@ -68,7 +93,7 @@ review judgment. If your slice needs something from a sibling slice, escalate �
   empty states; compute a branch into a named `const` above `return`.
 - No inline handlers: `const handleOpenChange = (nextOpen: boolean): void => { … }` above `return`,
   then `onOpenChange={handleOpenChange}`.
-- Four data states from shared primitives: `Skeleton`/`Spinner`, `Alert`, `Empty`, success.
+- Feature and entity UI: four data states from shared primitives: `Skeleton`/`Spinner`, `Alert`, `Empty`, success. A widget does not add its own error or retry UI.
 - `index.ts` exports only what another file imports. No `export *`. Types and constants stay
   internal unless a consumer imports them.
 
@@ -79,26 +104,30 @@ review judgment. If your slice needs something from a sibling slice, escalate �
 - Every feature: the component `features/<f>/index.ts` exports wraps its content in
   `<ErrorBoundary resetKeys={[…]}>` from `@/shared/ui/error-boundary`. Hooks live in the content
   component, below the boundary.
-- A widget with an independent data source that may fail on its own also gets a boundary.
+- A widget uses Suspense only. It does not add its own `ErrorBoundary`, error `Alert`, or retry.
+  The composed feature owns those states.
 - Fallbacks use the shared `ErrorFallback` (Alert + Button, translated). Never render `error.message`.
 
 ## 5. Tests
 
-- Every executable file (a function, a class, or a top-level call) has a behavior test: components
-  colocated `<name>.test.tsx`, hooks / api / model / lib in the segment's `tests/`.
-- Mock only the boundaries: the fetcher module (`importOriginal` + override one export), router,
-  browser APIs. Keep entity hooks, query client, i18n, and child components real.
-- `test-engineer` owns Station 8. `slice-engineer` writes the test in the same change.
+The engineer that creates an executable file writes its behavior test in the same change. There is no test station after the build.
+
+- Components: colocated `<name>.test.tsx`. Hooks, api, `models/` or `model/`, lib, route modules, and guards: the segment's `tests/`.
+- Assert behavior (what renders, what was called, loading, empty, error), not that the module exists. Assert translated text through the locale value, not the key.
+- Mock only the boundaries: the fetcher module (`importOriginal` + override one export), the router, browser APIs. Keep entity hooks, the query client, i18n, and child components real.
+- A fix for a UI-review finding includes a regression test that fails on the reported behavior when that behavior is testable (a response longer than the page size, a control the page cannot reach).
+- `test-engineer` runs only when Station 9 reports `missing-test` or coverage below the thresholds in `quality-gates.md`, and only for that layer group.
 
 ## 6. Prototype parity
 
-When `.spec/features/<slug>.context/prototype-inventory.md` exists, it is the parity contract. For
+When `.spec/features/<slug>.context/prototype-inventory.md` exists, it is the structure contract (copy, controls, fields, states) — not the look. For
 every row you render, set **React target** to the file and **Status** to `done`. `n/a: <reason>`
 only for sample server data, an emoji replaced by a lucide icon, or prototype-only chrome. Every
-prototype state (loading / empty / error / success / dialogs) must render. Verify:
+prototype state (loading / empty / error / success / dialogs) must render. The look is the theme port at Station 3. A color, font, radius, or shadow diff is a `shared/ui` token or `cva` variant. Spacing and size are `styles.ts` layout. Layout the tokens cannot express is the human UI review, not a script. Verify:
 
 ```bash
 node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check .spec/features/<slug>.context/prototype-inventory.md
+node {KIT_DIR}/skills/feature-dev/scripts/port-prototype-theme.mjs --check --prototype <prototype-ref> --globals src/shared/ui/theme/globals.css
 ```
 
 ## 7. Self-check before the handoff
@@ -106,12 +135,13 @@ node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --chec
 ```bash
 yarn typecheck
 yarn lint
-node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <touched files, comma-separated> --ignore missing-test,unused-export
+node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <touched files, comma-separated> [--ignore unused-export]
 ```
 
-Stations 3–6 ignore `unused-export`: the layer above, or the Station 7 wiring, imports those exports
-later. From Station 7 on, drop it. Drop `missing-test` too when you wrote the tests in this change
-(`slice-engineer`, `test-engineer`, Station 11). The Station 9 gate always runs every rule.
+Stations 3–6 pass `--ignore unused-export`: the layer above, or the Station 7 wiring, imports those
+exports later. From Station 7 on, drop it. Do not ignore `missing-test` — the test is part of this
+change. The Station 9 gate always runs every rule. `app-engineer` has no Bash; the layer gate and
+Station 9 run these commands.
 
 Record the self-check in your handoff as one line (`self-check: typecheck pass, lint pass,
 conventions pass`). Do not copy gate output anywhere, and never onto the blackboard.

@@ -4,7 +4,8 @@
 // requirement-bearing paragraph, with source_file, source_line, section, and keyword hints.
 // Glossary / decisions / success-measure / out-of-scope / copy / open-question sections are routed
 // by heading. Fields that need judgement are left empty for the skill: type_hint,
-// consolidated_entities, consolidated_user_roles, potential_conflicts, terminology_drift.
+// consolidated_entities, consolidated_user_roles, potential_conflicts, terminology_drift,
+// system_boundary.
 //
 // Usage: node extract-intake.mjs --context <dir> --out <intake.json> [--timecode <tc>]
 //        node extract-intake.mjs --context <dir> --slug-hint     # print the derived slug only
@@ -290,6 +291,7 @@ const intake = {
   consolidated_user_roles: [],
   potential_conflicts: [],
   terminology_drift: [],
+  system_boundary: { builds: [], owned_elsewhere: [], source_lines: [] },
   context_starved_categories: Object.entries(CATEGORY_SIGNAL).filter(([, re]) => !re.test(allText)).map(([c]) => c),
   raw_open_questions: openQuestions,
 }

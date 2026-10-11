@@ -1,0 +1,15 @@
+:root {
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans', var(--font-sans);
+  --background: oklch(0.99 0.01 70);
+  --primary: oklch(0.55 0.15 165);
+  --success: oklch(0.62 0.16 152);
+  --radius: 1rem;
+  --shadow-sm: 0 1px 2px 0 oklch(0.21 0.01 70 / 0.06);
+  --control-py: 0.6rem;
+}
+
+.dark {
+  --background: oklch(0.18 0.01 70);
+  --primary: oklch(0.7 0.15 165);
+}

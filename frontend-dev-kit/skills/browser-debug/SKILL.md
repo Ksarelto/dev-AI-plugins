@@ -13,6 +13,8 @@ Use the **chrome-devtools** MCP server to connect to a running Chrome browser an
 2. Dev server running (e.g. `npm run dev`)
 3. Approve the remote debugging permission dialog when Cursor connects
 
+The feature-dev human review loads this skill for navigation and the console only. Do not take a snapshot or a screenshot in that review. Snapshots stay for general debugging.
+
 ## When to use
 
 - The feature-dev pipeline runs this check before human review whenever UI changed. It is required there, not optional

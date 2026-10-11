@@ -32,7 +32,8 @@ Directory: `.spec/features/<slug>.context/`
 | `fix-batch-<n>.md` | `feature-orchestrator` (Station 11) | one owning agent's findings, one line each |
 | `gate-status.md`, `gate-log.jsonl` | `run-gates.sh --spec` / `board.mjs gate` | latest result per gate; full gate history |
 | `glossary.md` | `import-upstream.mjs` | the spec glossary, read by path by workers that write copy |
-| `timings.jsonl` | `board.mjs` (card, gate, timing) | spawn and gate timeline per station — measure before optimizing |
+| `timings.jsonl` | `board.mjs` (card, gate, timing) | spawn and gate timeline per station — `timing --summary` prints it |
+| `ui-review.md` | `feature-dev` skill | route, console result, human comments — Station 11 input (`UI_FINDINGS`) |
 
 A handoff file is **at most 15 lines**: outcome, paths touched, decisions, gates. Write it with
 `board.mjs handoff <board.md> --name <agent-station> --outcome … --paths a,b --decisions … --gates …`.
@@ -65,7 +66,7 @@ The spec file at `.spec/features/<slug>.md` is the shared state for decisions. C
 - The Read tool cannot open one section of a file, so "read sections X, Y" alone still costs the
   whole board. Section access is a script: `scripts/board.mjs`.
 - Pre-build workers (Stations 0–1b) edit their assigned sections directly.
-- Build workers (Stations 3–8) get a **work card** — `board.mjs card <board> --row <n> --agent <name>`
+- Build workers (Stations 3–7, and `test-engineer` on a Station 9 gap) get a **work card** — `board.mjs card <board> --row <n> --agent <name>`
   writes `<slug>.context/cards/row-<n>.md` with their rows and the sections in the table below,
   verbatim. They never Read or Edit the board. They write back with `board.mjs row` (Status + one
   current Note) and `board.mjs append` (`Reuse Map`, `Decisions & Open Questions`) — atomic script
@@ -78,7 +79,7 @@ The spec file at `.spec/features/<slug>.md` is the shared state for decisions. C
 
 ## Per-worker input allowlist
 
-Stations 0–1b delegations name `SPEC_SECTIONS` (read / write). Stations 3–8 delegations name a
+Stations 0–1b delegations name `SPEC_SECTIONS` (read / write). Stations 3–7 delegations name a
 `CARD` instead — the card *is* the allowlist:
 
 ```
@@ -95,7 +96,7 @@ Cursor, rule files attach by glob; on Claude they do not, so the card names the 
 worker must read. `APPLY` names one skill.
 
 **Fixed text first, card last.** Every worker's agent body puts its fixed reads
-(`ui-build-contract.md`, `increment-protocol.md`, the glob rules) ahead of the per-spawn `CARD`.
+(`ui-build-contract.md`, the glob rules) ahead of the per-spawn `CARD`.
 The fixed part is byte-identical across every spawn of that role, so the host serves it from its
 prompt cache after the first one — a batched row or a 9-spawn layer pays for the contract once.
 Keep the delegation fields in the order above and do not inline card content into `OBJECTIVE`;
@@ -108,7 +109,7 @@ input), the Build Plan preamble, and its `### Not building` list. `board.mjs` ow
 Build cards also include a path list from `## FSD Impact` (`layer/slice`), filtered to that row's
 slices, so a builder does not open the board to see where the row lands.
 
-| Worker | reads (card for Stations 3–8) | writes |
+| Worker | reads (card for Stations 3–7) | writes |
 |--------|------------------------------|--------|
 | `spec-analyst` | Request, Clarifications, Acceptance criteria, UI surface, API contract | those same sections; never status `approved` |
 | `code-explorer` | Request, Acceptance criteria, UI surface | FSD Impact, Reuse map, UI surface (refine), Decisions |
@@ -139,7 +140,9 @@ diff-size guard still applies per path; do not invent a second triage agent.
 
 ## test-engineer invocation model
 
-- One `test-engineer` invocation per **layer group** (shared, entities, features, composition, app), not one per slice — otherwise per-slice invocations pay the setup cost N times.
+Spawned only when Station 9 reports `missing-test` or coverage below threshold.
+
+- One `test-engineer` invocation for the **failing layer group** (shared, entities, features, composition, app), not one per slice.
 - Each invocation receives:
   - `LAYER_GROUP`: one of `shared` / `entities` / `features` / `composition` / `app`
   - `SLICE_PATHS`: [ `src/{layer}/{slice}`, ... ]
@@ -153,7 +156,7 @@ A batch row (same-shape slices, `build-plan.md` rule 1) is one card and one work
 
 ## Fix batches (Station 11)
 
-Group every open finding (gate, architecture-audit, code-review, parity) by owning agent and layer.
+Group every open finding (gate, architecture-audit, code-review, parity, UI review) by owning agent and layer.
 Write each group to `<slug>.context/fix-batch-<n>.md` (one line per finding: path, rule, what to
 change) and spawn **one** owning engineer per batch with that path and a card for the affected
 rows. The same finding in N sibling slices is one batch, not N spawns.
@@ -163,7 +166,7 @@ rows. The same finding in N sibling slices is one batch, not N spawns.
 `.spec/features/<slug>.context/prototype-inventory.md` is passed by **path** to UI workers and to
 `code-reviewer`. Never paste its rows into a prompt or onto the blackboard. Workers read the rows
 for their page/state and edit only the React target / Status cells. The prototype HTML itself is
-read only by `composition-engineer` (and the browser check), never by the orchestrator.
+read only by `composition-engineer` (and the UI review, by path), never by the orchestrator.
 
 ## Size guards
 

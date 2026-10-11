@@ -159,7 +159,7 @@ Notes:
 ```
 
 ```ts
-// features/users/ui/create-user-form/types.ts
+// features/users/ui/create-user-form/schema.ts
 import { z } from 'zod';
 import { UserRole } from '@/entities/user';
 import { usersKeys } from '../../locales/keys';
@@ -171,7 +171,10 @@ export const createUserSchema = z.object({
 });
 
 export type CreateUserFormValues = z.infer<typeof createUserSchema>;
+```
 
+```ts
+// features/users/ui/create-user-form/types.ts
 export interface CreateUserFormProps {
   onSuccess: () => void;
 }
@@ -180,7 +183,7 @@ export interface CreateUserFormProps {
 ```ts
 // features/users/ui/create-user-form/constants.ts
 import { UserRole } from '@/entities/user';
-import type { CreateUserFormValues } from './types';
+import type { CreateUserFormValues } from './schema';
 
 export const DEFAULT_VALUES: CreateUserFormValues = {
   name: '',
@@ -205,7 +208,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useCreateUser } from '../../hooks/use-create-user';
 import { usersKeys } from '../../locales/keys';
 import { DEFAULT_VALUES } from './constants';
-import { createUserSchema, type CreateUserFormProps, type CreateUserFormValues } from './types';
+import { createUserSchema, type CreateUserFormValues } from './schema';
+import type { CreateUserFormProps } from './types';
 
 export const CreateUserForm = ({ onSuccess }: CreateUserFormProps): JSX.Element => {
   const { t } = useTranslation();
@@ -296,7 +300,7 @@ export const CreateUserForm = ({ onSuccess }: CreateUserFormProps): JSX.Element 
 **Request:** "Add a form to edit user profile"
 
 ```ts
-// features/settings/ui/profile-form/types.ts
+// features/settings/ui/profile-form/schema.ts
 import { z } from 'zod';
 import { settingsKeys } from '../../locales/keys';
 
@@ -329,7 +333,7 @@ import { useUpdateProfile } from '../../hooks/use-update-profile';
 import { settingsKeys } from '../../locales/keys';
 import { DEFAULT_VALUES } from './constants';
 import * as styles from './styles';
-import { profileSchema, type ProfileFormValues } from './types';
+import { profileSchema, type ProfileFormValues } from './schema';
 
 export const ProfileForm = (): JSX.Element => {
   const { t } = useTranslation();

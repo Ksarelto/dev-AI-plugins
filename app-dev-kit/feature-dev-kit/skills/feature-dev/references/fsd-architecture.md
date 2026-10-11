@@ -12,9 +12,9 @@ Layers run top-to-bottom. A layer may only import from layers **strictly below**
 |-------|-------------|---------------|-----------------|------------------|
 | `app` | Providers, router (every route in `RouteBoundary`), global styles, app bootstrap | `providers/`, `router/`, `styles/` | All layers | Business logic, API calls |
 | `pages` | Route screens — thin composition of widgets/features | `ui/`, `index.ts` | `widgets`, `features`, `entities`, `shared` | State logic, direct API calls |
-| `widgets` | Large self-contained UI blocks reused across pages | `ui/`, `model/`, `api/`, `lib/`, `index.ts` | `features`, `entities`, `shared` | Page-level routing, app providers |
-| `features` | Single user interaction / action per slice; the exported entry wraps itself in an error boundary | `ui/`, `model/`, `api/`, `lib/`, `locales/`, `index.ts` | `entities`, `shared` | Multi-action business flows, widget composition |
-| `entities` | Business objects: their data, API hooks, and display UI | `ui/`, `model/`, `api/`, `lib/`, `config/`, `index.ts` | `shared` | Feature logic, user-interaction handlers |
+| `widgets` | Large self-contained UI blocks reused across pages. Suspense only — no own error UI | `ui/`, optional `model/`, `index.ts` | `features`, `entities`, `shared` | `api/`, `models/`, routing, app providers |
+| `features` | Single user interaction / action per slice; the exported entry wraps itself in an error boundary | `ui/`, `models/`, `hooks/`, `api/`, `lib/`, `locales/`, `index.ts` | `entities`, `shared` | Multi-action business flows, widget composition |
+| `entities` | Business objects: their data, API hooks, and display UI. Another entity only via `@x` | `ui/`, `model/`, `api/`, `lib/`, `config/`, `index.ts` | `shared`, other entities via `@x` only | Feature logic, user-interaction handlers |
 | `shared` | Primitives, utilities, design system; domain-agnostic | `ui/`, `api/`, `lib/`, `config/`, `hooks/` | Nothing above it | Business domain concepts |
 
 ---
@@ -27,9 +27,11 @@ A **segment** partitions a slice by technical purpose:
 
 | Segment | Contents |
 |---------|----------|
-| `ui/` | React components and styled wrappers for this slice |
-| `model/` | State, derived selectors, TypeScript types for this slice |
-| `api/` | TanStack Query hooks, mutation hooks, query keys |
+| `ui/` | React components and styled wrappers for this slice. Imports `hooks/`, never `api/` |
+| `models/` | Features only. State, selectors, pure invariants. No React, no network, no locale keys. Form schemas live in the form's `ui/` folder |
+| `model/` | Entities (and optional widget UI state). Same job as `models/`, singular folder |
+| `hooks/` | Features only. TanStack Query hooks. The only segment `ui/` calls for data |
+| `api/` | Fetchers and `endpoints.ts`. Not query-key factories |
 | `lib/` | Pure utilities, validators, formatters — no side effects |
 | `config/` | Non-text constants scoped to this slice (limits, ids, enum → locale-key maps) |
 | `locales/` | `en.json` + `keys.ts` — every user-visible string this slice renders (`frontend-dev-kit:i18n`) |
@@ -74,7 +76,7 @@ Rules:
 | `src/theme/` | `shared/ui/theme/` |
 | `src/components/` (presentational) | `shared/ui/` (shadcn wrappers) |
 | `src/api/<domain>/` hooks | `entities/<domain>/api/` |
-| `src/api/constants.ts` queryKeys | co-located in each `entities/<domain>/api/<domain>.queryKeys.ts` |
+| `src/api/constants.ts` queryKeys | `shared/api/query-keys/<domain>.ts` |
 | `src/containers/` (smart) | `features/<action>/` or `widgets/<block>/` |
 | `src/pages/` | `pages/<page>/` |
 | `src/authentication/` | `app/providers/` |
@@ -121,9 +123,10 @@ Is it a global provider, router, or app bootstrap concern?
 
 | Segment | Purpose | May import | Must NOT contain |
 |---------|---------|------------|------------------|
-| `api/` | Query/mutation hooks, URL builders, API DTOs | `shared/api`, `shared/lib`, `shared/config` | React components, UI state |
-| `model/` | Entity types, interaction state types, factory functions | own `types`, pure TS stdlib | React, hooks, Axios, side effects |
-| `ui/` | Feature/entity display and interaction components | `shared/ui`, own `model/`, own `api/` (via state/) | Direct Axios calls, other slices' internals |
+| `api/` | Fetchers, `endpoints.ts`, DTOs | `shared/api`, `shared/lib`, `shared/config` | React components, UI state, query-key factories |
+| `hooks/` | Feature query and mutation hooks | own `api/`, `shared/api/query-keys`, entity public API | React components |
+| `models/` / `model/` | Types, selectors, pure invariants (`models/` on features, `model/` on entities). Form schemas stay in the form's `ui/` folder | own types, pure TS stdlib | React, network, side effects, locale keys |
+| `ui/` | Feature/entity display and interaction components | `shared/ui`, own `models/` or `model/` (pure), own `hooks/` | Direct fetch calls, `api/` imports, other slices' internals |
 | `lib/` | Pure formatters, validators, mappers | own `model/`, own types | React, network calls, side effects |
 | `config/` | Non-text constants, enum → locale-key maps | own `locales/keys` | Runtime code, English copy |
 | `locales/` | `en.json`, `keys.ts` | nothing | Code, anything shown only by another slice |

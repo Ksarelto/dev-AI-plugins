@@ -1,6 +1,6 @@
 ---
 name: create-entity
-description: Scaffold an FSD entity slice (model + api + ui). Wraps add-api-domain logic into the entity's api segment (hooks, types, queryKeys, apiMap). Use for a new business entity (profile, document, client, file).
+description: Scaffold an FSD entity slice (model + api + ui). Puts hooks, types, and endpoints in the entity api segment. Query keys live in shared/api/query-keys/. Use for a new business entity (profile, document, client, file).
 argument-hint: <EntityName>
 disable-model-invocation: false
 allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]

@@ -3,7 +3,7 @@ name: app-engineer
 description: Wires the FSD `app` layer (station 7) — routing table, lazy page imports, navigation/menu/breadcrumb entries, and providers. Use last in the build spine, after pages exist.
 model: haiku
 tools: [Read, Write, Edit, Glob, Grep]
-skills: [add-route, wire-navigation]
+skills: [add-route, wire-navigation, testing]
 permissionMode: default
 ---
 
@@ -15,13 +15,11 @@ Owns the `app` FSD layer (station 7). Wires new pages into the application's rou
 
 ## Inputs
 
-Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
-leading text of every spawn prefix-cacheable.
+Read the fixed contract first, then your card (see `context-budget.md` § Per-worker input allowlist for why).
 
 **Fixed (same every spawn):**
 
-- `references/ui-build-contract.md` — § 4 route boundaries and § 0 layer rules (`app` may import from every layer; nothing imports `app`).
-- `references/increment-protocol.md` — one route at a time; keep the router compiling between increments.
+- `references/ui-build-contract.md` — § 4 route boundaries, § 0 layer rules (`app` may import from every layer; nothing imports `app`), § 5 tests, the simplicity ladder. One route at a time; the router compiles when you finish.
 
 **Per spawn:**
 
@@ -48,9 +46,15 @@ If the feature introduces a new context provider or query-client scope, register
 
 The `app` layer must not contain business logic, API calls, or presentation components beyond the routing/layout shell. If the spec asks for app-layer work that crosses into business logic, flag it to the orchestrator as a misplacement — the logic belongs in a feature or entity slice.
 
-### 5. Self-check before returning
+### 5. Tests
 
-Run `yarn typecheck` and `yarn lint` scoped to the app segments changed, then check that every route element in the changed route files goes through `withRouteBoundary` (`rg -n "element:" src/app/router` — each hit wraps its page). Verify that new routes resolve to the correct page components and that lazy imports are syntactically correct. `app-engineer` has no `Bash`; the orchestrator's layer gate and Station 9 `conventions` run the scripts. Write the list of modified files into the spec's "Build plan" before returning.
+Write the behavior test for every executable file you create — a route module, a guard, a provider (`ui-build-contract.md` § 5, `frontend-dev-kit:testing`). This agent has no Bash; Station 9 runs the tests.
+
+### 6. Self-check before returning
+
+This agent has no `Bash`. Typecheck and lint are run by the orchestrator's layer gate and Station 9 `conventions`.
+
+Use `Grep` to check that every `element:` in the changed route files goes through `withRouteBoundary` (`rg -n "element:" src/app/router` — each hit must wrap its page). Use `Read` to verify lazy imports are syntactically correct (each `lazyFeature()` call resolves to the correct page path). Write the list of modified files into the spec's "Build plan" before returning.
 
 ## Outputs
 
@@ -61,14 +65,7 @@ Run `yarn typecheck` and `yarn lint` scoped to the app segments changed, then ch
 
 ## Handoff
 
-Write the return with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug>.md --name <agent>-<station> --outcome "<one line>" --paths <comma-separated files> --decisions "<one line>" --gates "<lint: pass>"`. It rejects more than 15 lines. Never copy gate output or the Build Plan note. Return only:
-
-```
-HANDOFF: <that path>
-CONTAINS: <one line>
-```
-
-If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+Write the return per `{KIT_DIR}/skills/feature-dev/references/handoff-format.md` (use `--name app-engineer-7`).
 
 ## Boundaries
 

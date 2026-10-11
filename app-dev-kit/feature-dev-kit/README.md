@@ -105,7 +105,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
     features-engineer.md                     ← sonnet | interaction slices
     composition-engineer.md                  ← sonnet | widgets + pages
     app-engineer.md                          ← haiku | routes, navigation, providers
-    test-engineer.md                         ← sonnet | behavior tests for every new executable file; frontend-dev-kit:testing
+    test-engineer.md                         ← sonnet | Station 9 test gaps only; frontend-dev-kit:testing
     code-reviewer.md                         ← sonnet high | conventions + AC coverage; FSD audit is station 9.5
   skills/
     feature-dev/                             ← the pipeline entry point
@@ -115,15 +115,15 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
         development-cycle.md                 ← outer hub loop + inner increment loop
         upstream-contract.md                 ← spawn payload + YAML field map (one feature)
         packets.md                           ← CLARIFY / DEP / CONTINUE / REVIEW / ESCALATION envelopes
+        handoff-format.md                    ← build-engineer return via board.mjs handoff
         orchestration-protocol.md            ← delegation contract, handoff-via-spec, escalation
         feature-spec-format.md               ← blackboard schema + status lifecycle
         fsd-architecture.md                  ← layers, slices, segments, placement rules
         fsd-import-boundaries.md             ← the import matrix + Steiger config
         investigation-protocol.md            ← context7 flow + dependency-proposal policy
         quality-gates.md                     ← gate commands, thresholds, remediation hints
-        ui-build-contract.md                 ← what every src/ worker is held to (shadcn, copy, JSX, boundaries, tests, parity)
+        ui-build-contract.md                 ← what every src/ worker is held to (simplicity, slice order, shadcn, copy, JSX, boundaries, tests, parity)
         definition-of-done.md                ← the standing bar, independent of acceptance criteria
-        increment-protocol.md                ← thin-slice discipline inside one slice
         human-review-protocol.md             ← what the human sees at station 12
         context-budget.md                    ← per-agent payload allowlist + size guards
         artifact-naming.md                   ← slug → branch → spec → slice paths
@@ -142,6 +142,9 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
         preflight-host.mjs                   ← host setup gaps (gate scripts, .spec lint ignore, git-ignored transcripts) before the build
         check-conventions.mjs                ← `conventions` gate: missing tests, comments, copy, exports, JSX, motion
         extract-prototype-inventory.mjs      ← prototype page → parity table; --check fails unbuilt rows/states
+        port-prototype-theme.mjs             ← copy prototype :root tokens into globals.css; --check diffs
+        commit-feature.sh                    ← stage, then one commit on approve
+        write-kit-result.mjs                 ← .spec/features/{slug}.kit-result.json on approve or abort
         mock-flow.mjs                        ← contract tests (no LLM)
     create-slice/  create-entity/  create-feature/  create-widget/  create-page/
     create-shared-ui/  create-react-component/  add-route/  wire-navigation/
@@ -184,7 +187,7 @@ feature-dev skill
   Station 0.5  🧑 GATE: spec approval (validate-feature-spec.mjs, then human)
       │
   Classify TIER
-      patch     → slice-engineer, Station 8 file walk, run-gates.sh --until conventions, then Station 12
+      patch     → slice-engineer (tests in the same change), run-gates.sh --until conventions, UI review, then Station 12
       standard  → feature-orchestrator (skip Station 1.5)
       full      → feature-orchestrator
       Station 1    discovery — code-explorer            → FSD impact + reuse map
@@ -194,17 +197,17 @@ feature-dev skill
       Station 2    planning                              ↓ GATE: build-plan
       Station 3–7  layers — each worker reads a work card ↓ GATE: --until fsd
                    (board.mjs card), never the board; same-shape slices = one batch row
-                   Station 6 fills prototype-inventory   ↓ GATE: parity (--check)
-      Station 8    test-engineer (always)                 ← every new executable file
-      ⇢ RETURN CONTINUE_PACKET → fresh orchestrator for Stations 9–11 (RESUME_AT: 9)
+                   Station 6 fills prototype-inventory   ↓ GATE: parity (inventory + theme)
+                   tests are inline (Station 9 spawns test-engineer only for a gap)
+      ⇢ RETURN CONTINUE_PACKET → UI review, then a fresh orchestrator for Stations 9–11
       Station 9    full sweep — conventions + build + coverage once  ↓ GATE: all-green
-      Station 9.5  architecture-auditor DIFF_SCOPE        ↓ GATE: architecture-clean
-      Station 10   auto-review — code-reviewer           ↓ GATE: review-clean
-      Station 11   fix loop — one spawn per fix batch (findings grouped by owner + layer), max 3
+      Station 9.5  architecture-auditor DIFF_SCOPE        ┐ same turn
+      Station 10   auto-review — code-reviewer           ┘
+      Station 11   one fix round (gates + both reviews + UI comments), then verify only what failed
       ⇢ RETURN REVIEW_PACKET (review_path only)
       │
 feature-dev skill
-  Browser check  Chrome DevTools — layout, actions, prototype vs React per state, one adjacent route (when UI changed)
+  UI review    open the feature route + prototype; human comments join Station 11
   Station 12   🧑 GATE: human review (max 3 cycles)
       │
       ▼

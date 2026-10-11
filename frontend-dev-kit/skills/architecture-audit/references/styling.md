@@ -16,7 +16,7 @@ Every component folder has a co-located `styles.ts`. Tailwind + `cva`. Tokens in
 - No `!important`. Do not fight a shadcn primitive with specificity or a call-site `className` override — a new look is a new `cva` variant appended to the base's `styles.ts`; the registry classes stay verbatim (`rules/shadcn.mdc`).
 - `className` from callers is merged in `styles.ts` via `cn()`, `className` last. Do not use both `cn` and `cva` for the same prop. Call-site `className` on a primitive is layout only (width, margin, grid placement).
 - Motion utilities (`animate-*`, `transition-*`, `duration-*`, `fade-*`, `slide-*`, `zoom-*`) appear only in `shared/ui/*/styles.ts`. `globals.css` imports `tw-animate-css` once and declares no extra `@keyframes` or `--animate-*`.
-- Prototype look is reproduced through tokens in `globals.css`, not per-component overrides; prototype motion (`reveal`, `hover-lift`) is not ported.
+- Prototype look is reproduced through tokens in `globals.css`, not per-component overrides. Prototype motion (`reveal`, `hover-lift`) is a finding unless it is a `shared/ui` variant.
 - Icon-only buttons: `aria-label`. Forms: `FormLabel` with `FormField`.
 
 **Judgment**

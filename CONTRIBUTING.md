@@ -21,7 +21,7 @@ same change. An undiscoverable skill — one whose description doesn't match how
 ask for it — is a bug even if `npm run validate` passes.
 See [evals/README.md](evals/README.md) for the case format.
 
-Content is shared; only the manifest directories differ. Keep the two `plugin.json` files in sync when you change metadata or paths, except `agents`: `.claude-plugin` uses `./agents/*.md` (Claude Code rejects a directory), `.cursor-plugin` uses `./agents/` (Cursor does not expand globs, so `*.md` loads no agents).
+Content is shared; only the manifest directories differ. Keep the two `plugin.json` files in sync when you change metadata or paths, except `agents`: `.claude-plugin` uses `./agents/*.md` (Claude Code rejects a directory), `.cursor-plugin` uses `./agents/` (Cursor does not expand globs, so `*.md` loads no agents). spec-dev-kit, html-generator-kit, and feature-dev-kit point Cursor at `./cursor-agents/`, generated from `agents/` by `npm run build:cursor-agents`.
 
 ## Naming conventions
 
