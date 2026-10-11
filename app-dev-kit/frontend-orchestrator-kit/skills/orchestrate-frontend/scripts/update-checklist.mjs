@@ -9,7 +9,15 @@
 // Prints {"feature","from","to","next"} where next is continue | rerun | ask | stop.
 // Exit 0 ok, 1 bad state (unknown feature, done without slug/branch), 2 usage error.
 
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+
+function writeAtomic(path, contents) {
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  writeFileSync(tmp, contents)
+  renameSync(tmp, path)
+}
 
 const args = process.argv.slice(2)
 const opt = (name) => {
@@ -20,8 +28,10 @@ const path = args[0]
 const featureId = opt('feature')
 const status = opt('status')
 const resultPath = opt('result')
-if (!path || path.startsWith('--') || !existsSync(path) || !featureId || (!status && !resultPath)) {
-  console.error('usage: update-checklist.mjs <task-checklist.md> --feature F-001 (--status in-progress|skipped|pending|blocked [--reason r] | --result <kit-result.json> [--fallback <p>])')
+const approve = args.includes('--approve')
+const preflight = opt('preflight')
+if (!path || path.startsWith('--') || !existsSync(path) || (!approve && !preflight && (!featureId || (!status && !resultPath)))) {
+  console.error('usage: update-checklist.mjs <task-checklist.md> (--approve | --preflight accepted | --feature F-001 (--status in-progress|skipped|pending|blocked [--reason r] | --result <kit-result.json> [--fallback <p>]))')
   process.exit(2)
 }
 
@@ -41,18 +51,55 @@ if (!match) {
 }
 const front = parse(match[1])
 let body = raw.slice(match[0].length)
+const now = new Date().toISOString()
+const logs = []
+if (approve || preflight) {
+  if (approve) {
+    front.approved = now
+    front['approved-spec-ref'] = front['spec-ref'] ?? ''
+    logs.push(`- ${now} — checklist approved`)
+  }
+  if (preflight) {
+    if (preflight !== 'accepted') {
+      console.error('FATAL: --preflight must be accepted')
+      process.exit(2)
+    }
+    front.preflight = `accepted ${now}`
+    logs.push(`- ${now} — preflight accepted`)
+  }
+  front.updated = now
+  body = `${body.trimEnd()}\n${logs.join('\n')}\n`
+  writeAtomic(path, `---\n${stringify(front)}---\n${body}`)
+  console.log(JSON.stringify({ approved: front.approved ?? '', preflight: front.preflight ?? '' }))
+  process.exit(0)
+}
 const feature = (front.features ?? []).find((f) => f.id === featureId)
 if (!feature) {
   console.error(`FATAL: ${featureId} is not in ${path}`)
   process.exit(1)
 }
 
-const now = new Date().toISOString()
+function boardSlice(slug) {
+  if (!slug) return ''
+  const boardPath = join(dirname(path), '..', 'features', `${slug}.md`)
+  if (!existsSync(boardPath)) return ''
+  const found = readFileSync(boardPath, 'utf8').match(/^slice-ref:\s*(\S+)/m)
+  return found ? found[1].replace(/['"]/g, '') : ''
+}
+function envelopeMatches(env) {
+  if (env.feature_id) return env.feature_id === feature.id
+  if (feature.slug && env.slug === feature.slug) return true
+  const slice = boardSlice(env.slug)
+  if (slice && feature['slice-ref']) return slice === feature['slice-ref']
+  if (!feature.slug && slice && feature['slice-ref'] && slice !== feature['slice-ref']) return false
+  return !feature.slug && !slice
+}
+
 const from = feature.status
-const logs = []
 let next = 'continue'
 const setStatus = (to, detail = '') => {
   feature.status = to
+  feature.rerun = false
   logs.push(`- ${now} — ${featureId} status: ${from} → ${to}${detail ? ` (${detail})` : ''}`)
 }
 
@@ -65,14 +112,18 @@ if (status) {
   setStatus(status, opt('reason'))
 } else {
   const envPath = [resultPath, opt('fallback')].find((p) => p && existsSync(p))
-  const env = envPath ? JSON.parse(readFileSync(envPath, 'utf8')) : null
+  let env = envPath ? JSON.parse(readFileSync(envPath, 'utf8')) : null
+  if (env && !envelopeMatches(env)) {
+    logs.push(`- ${now} — ${featureId} stale envelope ignored (${env.slug || env.feature_id || envPath})`)
+    env = null
+  }
   if (!env) {
-    const retried = body.includes(`${featureId} no kit-result — re-running`)
-    if (retried) {
+    if (feature.rerun) {
       feature['blocked-reason'] = 'agent-failed'
       setStatus('blocked', 'agent-failed')
       next = 'ask'
     } else {
+      feature.rerun = true
       logs.push(`- ${now} — ${featureId} no kit-result — re-running`)
       next = 'rerun'
     }
@@ -99,5 +150,5 @@ if (status) {
 
 front.updated = now
 body = `${body.trimEnd()}\n${logs.join('\n')}\n`
-writeFileSync(path, `---\n${stringify(front)}---\n${body}`, 'utf8')
+writeAtomic(path, `---\n${stringify(front)}---\n${body}`)
 console.log(JSON.stringify({ feature: featureId, from, to: feature.status, next }))

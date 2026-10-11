@@ -55,7 +55,9 @@ Do not look for a `## UI Surface` heading in the app spec — it does not exist 
 | `ui-surface.screens[]` (incl. `page-type`, `primary-entity`, `roles`) | `## UI Surface` | **only** `SCREEN_REFS` |
 | `ui-surface.interactions[]` | `## UI Surface` | `screen-ref` is in `SCREEN_REFS` |
 | `user-stories[]` | `## Request` | `STORY_REFS`, else the stories of the kept ACs |
-| `acceptance-criteria[]` | `## Acceptance Criteria` | `AC_REFS`, always unioned with the slice's `done-when`; else (2.0) ACs of the screens' `story-refs` ∩ the slice's stories (a screen that is not one of the slice's screens keeps all its stories); else (1.x) keyword match on the screen |
+| `acceptance-criteria[]` | `## Acceptance Criteria` | `AC_REFS`, always unioned with the slice's `done-when`; else (2.0) ACs of the screens' `story-refs` ∩ the slice's stories (a screen that is not one of the slice's screens keeps all its stories); else (1.x) keyword match on the screen. When slices list `ac-refs` or `story-refs`, an AC another slice lists is not built |
+| `acceptance-criteria[]` | `### Acceptance criteria owned by other slices (context — do not build)` | `SLICE_REF` only, and only when slices list `ac-refs` or `story-refs`: one line each, `- AC-014 (SL-004): Given …, when …, then ….`. Specs without those refs keep the `AC_REFS` filter and write no section |
+| `user-stories[]` | `### Stories owned by other slices (context — do not build)` | same ownership rule, under `## Request`: `- US-009 (SL-004): <i-want>` |
 | `entities[]` (fields, `values`, `derived`) | `## API Contract / Data Model` | `ENTITY_REFS`; else screens' `primary-entity` plus the slice's `entity-refs` (2.0, same as the checklist); else names in `components[]` (1.x) |
 | `api-surface.endpoints[]` (roles, error codes + copy) | `## API Contract / Data Model` | screens' `api-refs` union the slice's `api-refs` (2.0); else path/body mentions a kept entity (1.x; `mutations` merged by id) |
 | `state-machines[]` | `### Status lifecycle` | machines of the kept entities |

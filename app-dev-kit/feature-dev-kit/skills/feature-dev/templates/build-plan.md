@@ -16,12 +16,11 @@ contract: every row becomes exactly one delegation, and every worker marks its o
 | 1 | 3 | shared | ui | Textarea, Dialog (shadcn) | shared-engineer | — | todo | |
 | 2 | 4 | entities | profile | api, model | entities-engineer | P1 | todo | |
 | 3 | 4 | entities | reviewer | api, model | entities-engineer | P1 | todo | |
-| 4 | 5 | features | decline-profile | model, api, ui | features-engineer | — | todo | |
+| 4 | 5 | features | decline-profile | models, hooks, api, ui | features-engineer | — | todo | |
 | 5 | 6 | widgets | profile-review-panel | ui | composition-engineer | P2 | todo | |
 | 6 | 6 | pages | profile-review | ui | composition-engineer | P2 | todo | |
 | 7 | 6 | pages | settings, help, about | ui (same empty layout) | composition-engineer | B1 | todo | |
 | 8 | 7 | app | — | routes, navigation | app-engineer | — | todo | |
-| 9 | 8 | — | all | tests | test-engineer | — | todo | |
 
 `Group` — rows sharing a group label run one after another on the feature branch.
 An empty group means the row runs alone. `Status` — `todo` → `in-progress` → `done` | `blocked`.
@@ -75,3 +74,5 @@ re-run discovery rather than starting the build.
    A batch row may touch more files when each slice repeats the same structure.
 5. **Every acceptance criterion is covered**, and the coverage table proves it.
 6. **State what is not being built** — the cheapest defence against scope invention.
+7. **Theme row.** When front matter `prototype-ref` is set and not `none`, row 1 (or the first `shared` row) is `shared-engineer` running `port-prototype-theme.mjs` against `src/shared/ui/theme/globals.css`. Note the prototype path.
+8. **Registry primitives are one batch.** Every shadcn primitive this feature still needs goes in one `shared` batch row. The worker installs them with one `shadcn add a b c` call, then re-homes each. Do not plan one row per primitive.

@@ -4,8 +4,15 @@
 // Usage: node write-kit-result.mjs --out <path> --kit <name> --outcome approved|aborted|error [fields]
 // Optional: --also <second-path>
 
-import { writeFileSync, mkdirSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { writeFileSync, mkdirSync, renameSync } from 'node:fs'
 import { dirname } from 'node:path'
+
+function writeAtomic(path, contents) {
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  writeFileSync(tmp, contents)
+  renameSync(tmp, path)
+}
 
 const args = process.argv.slice(2)
 function flag(name) {
@@ -46,6 +53,8 @@ const result = {
   slug: str('slug'),
   branch: str('branch'),
   parent_branch: str('parent-branch'),
+  feature_id: str('feature-id'),
+  slice_ref: str('slice-ref'),
   run_dir: str('run-dir'),
   reason: str('reason'),
   written: new Date().toISOString(),
@@ -53,7 +62,7 @@ const result = {
 
 function write(path) {
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, `${JSON.stringify(result, null, 2)}\n`, 'utf8')
+  writeAtomic(path, `${JSON.stringify(result, null, 2)}\n`)
   console.log(`OK: wrote ${path}`)
 }
 

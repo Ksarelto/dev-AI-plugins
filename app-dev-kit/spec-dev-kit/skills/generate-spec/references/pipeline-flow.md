@@ -54,7 +54,7 @@
 | 2b | Re-analysis | `spec-analyst` | sonnet / **xhigh** | folds answers back in; skill re-spawns orchestrator `MODE: resume` |
 | 3 | Pre-enrich gate | orchestrator + `gate-check.mjs` | — | **blocking-gap check BEFORE enrichment** (same script as the Station 2 exit) |
 | 4 | Enrichment | `build-enriched.mjs` + `spec-enricher` | sonnet / **xhigh** | script seeds one REQ per intake entry; agent writes only edits + other sections (`enriched.patch.json`); script merges into `artifacts/enriched.json` |
-| 5 | Completeness gate | `spec-completeness` + `score-completeness.mjs` | haiku | agent judges category credits (`completeness-credits.json`); script computes **source fidelity** (every intake requirement carried into `enriched.json`), score, and `gate_passes` into `artifacts/completeness.json`; fail → analysis re-entry → `CLARIFY_PACKET` |
+| 5 | Completeness gate | `spec-completeness` + `score-completeness.mjs` | haiku | agent judges category credits (`completeness-credits.json`); script computes **source fidelity** (every intake requirement carried into `enriched.json`), score, and `gate_passes` into `artifacts/completeness.json`; fail → one analysis re-entry → `CLARIFY_PACKET` only for askable gaps |
 | 6 | Synthesis | `spec-synthesizer` | sonnet / **xhigh** | schema 2.0 incl. `roles`, `permissions`, `business-rules`, `state-machines`, `notifications`, and the `delivery-plan`; writes `spec.md` (feature-only on continue) plus `artifacts/coverage.yaml`; `build-requirements.mjs` writes `requirements.yaml`; `write-changes.mjs` writes `changes.json`. `status: reviewing` |
 | 7 | Validation gate | orchestrator + `validate-spec.mjs` | — | Bash; structure + contract quality + coverage + delivery plan (rule codes in `spec-schema.md`); on fail ×2 return `ESCALATION_PACKET` |
 | 8 | Diagram generation | `render-spec-views.mjs` (run at Station 9) | — | no agent; state machines, screen navigation, API sequences, and must-story user flows as Mermaid in `spec.views.md` |
@@ -108,7 +108,8 @@ recomputes the score from `analysis.json` gaps and returns:
 | `PROCEED_WITH_ASSUMPTIONS` | round cap (3) reached | Station 3; open askable gaps become low-confidence assumptions **and** blocking `open-questions[]` |
 
 Assumable gaps never force a question, however many there are — they are logged as assumptions
-and shown at review.
+and shown at review. Follow-up gaps (`opened_by` an earlier answer) are never askable: one answer
+closes a topic, and what it left open is assumed.
 
 ---
 
@@ -126,19 +127,26 @@ Only when this gate passes does Station 4 run.
 ## Completeness Loop (Station 5 → analysis re-entry)
 
 An incomplete spec (`completeness_score < 85`) re-enters **Analysis**, not the interrogator
-directly.
+directly — **once**.
 
 ```
 Station 5: COMPLETENESS  (score ≥ 85 ? ──► EXIT to Station 6)
    │ (< 85)
    ▼
-Analyst MODE: completeness_gap_analysis → interrogator (max 4)
-   orchestrator returns CLARIFY_PACKET (resume_at: 5)
-   skill asks → resume: enricher update pass → Station 5 again
+completeness round already used ? ──YES──► enricher final pass → EXIT Station 6
+   │ (no)
+Analyst MODE: completeness_gap_analysis (delta) → gate-check.mjs --round 0
+   no askable gaps / conflicts ? ──YES──► enricher final pass → EXIT Station 6
    │
-   round < 3 ? ──YES──► back to Station 5
-   │ (≥ 3) add uncovered categories to open-questions[] → EXIT Station 6
+   interrogator (max 4) → CLARIFY_PACKET (resume_at: 5)
+   skill asks → resume: enricher update pass → Station 5 again
 ```
+
+The enricher final pass assumes the remaining assumable gaps and puts each still-missing
+category in `open-questions[]`; the review packet shows them. A user decision that a category
+needs nothing ("no response-time target", "the backend audits it") is full credit, and a category
+the `system_boundary` assigns to another system is `n/a` (`completeness-checklist.md`), so the
+gate is reachable with honest answers.
 
 ---
 

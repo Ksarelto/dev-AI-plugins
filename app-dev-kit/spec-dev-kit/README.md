@@ -108,6 +108,7 @@ spec-dev-kit/                              ← plugin root (KIT_DIR)
         render-spec-views.mjs              ← spec.views.md: tables + all Mermaid diagrams (Station 8)
         write-slice-briefs.mjs             ← slices/SL-NNN.yaml
         publish-spec.mjs / archive-context.mjs / write-kit-result.mjs / revert-increment.mjs
+        log-timing.mjs                     ← every station: artifacts/timings.jsonl
 ```
 
 `KIT_DIR` is the plugin root (this directory when installed). Scripts are

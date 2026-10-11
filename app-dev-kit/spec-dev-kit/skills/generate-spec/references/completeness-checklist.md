@@ -54,9 +54,19 @@ but not all of it exists; none = 0.
 **Assumed ≠ stated**: a category whose evidence comes *only* from `assumptions[]` gets **partial**
 credit at most.
 
-**Not applicable**: a category that genuinely does not apply (e.g. Backward Compatibility for a
-greenfield product with no existing users or data) is `credit: "n/a"`; its weight is removed and
-the score is re-normalised to 100. `n/a` needs a one-line `reason`; never use it to skip work.
+**Decided counts**: an explicit decision that a category needs nothing — a `DEC-*` or `answered`
+requirement such as "no response-time target", "no audit on this page", "no client retry" — is
+the evidence for that part. "Measurable" in the table means "measurable or explicitly waived".
+Never mark a category partial because the user chose "none".
+
+**Not applicable**: a category that genuinely does not apply is `credit: "n/a"`; its weight is
+removed and the score is re-normalised to 100. `n/a` needs a one-line `reason`; never use it to
+skip work. It applies when:
+
+- the product is greenfield with no existing users or data (Backward Compatibility);
+- the category's concern sits wholly inside `system_boundary.owned_elsewhere` — e.g. Observability
+  (audit events) or Data Lifecycle retention for a frontend built on an existing backend. Reason:
+  `owned by <system> (system_boundary)`. What the client itself shows stays in scope.
 
 ```
 applicable   = categories where credit != "n/a"

@@ -4,7 +4,7 @@ name: composition-engineer
 description: Builds the FSD `widgets` and `pages` layers (station 6). Composes entities + features into complete widgets and route-level pages. Consumes only `shared/`, `entities/`, and `features/`; never imports from `app/`. Runs after station 5 (features) is green.
 model: grok-4.7[effort=medium]
 tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries]
-skills: [create-widget, create-page, create-react-component]
+skills: [create-widget, create-page, create-react-component, testing]
 permissionMode: default
 ---
 
@@ -16,13 +16,11 @@ Owns the composition layers. Assembles feature slices and entity slices into wid
 
 ## Inputs
 
-Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
-leading text of every spawn prefix-cacheable.
+Read the fixed contract first, then your card (see `context-budget.md` § Per-worker input allowlist for why).
 
 **Fixed (same every spawn):**
 
-- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, self-check. Mandatory. § 0 carries the layer rules: pages may import from all lower layers, widgets from features + entities + shared only.
-- `references/increment-protocol.md` — thin increments; do not refactor adjacent screens.
+- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, the simplicity ladder, slice order, self-check. Mandatory. § 0 carries the layer rules: pages may import from all lower layers, widgets from features + entities + shared only.
 - `rules/ui-quality.mdc` — loading/empty/error/populated coverage.
 - Companion **frontend-dev-kit** rules attach by glob (`react`). Load `frontend-dev-kit:accessibility` and `react-component`.
 
@@ -57,7 +55,7 @@ Pages must be immediately swappable into the route table without additional wiri
 
 ### 3. Loading / empty / error states
 
-Every widget and page that renders data renders loading (`Skeleton`/`Spinner`), error (`Alert` + retry), empty (`Empty`), and success — as early returns, never a JSX ternary. The page itself has no error boundary: `RouteBoundary` wraps the route (Station 7), and each composed feature wraps itself. A widget with its own data source that can fail independently wraps its content in `ErrorBoundary`.
+A widget uses Suspense only. It does not add an `ErrorBoundary`, an error `Alert`, or a retry. The composed feature owns loading, empty, error, and retry. The page is thin and has no error boundary: `RouteBoundary` wraps the route (Station 7), and each composed feature wraps itself. Early-return a state the page itself owns; never a JSX ternary.
 
 ### 4. Prototype parity
 
@@ -71,9 +69,13 @@ When `PROTOTYPE_INVENTORY` is set, build from it, not from a skim of the HTML:
 
 ### 5. Accessibility
 
-Landmarks (`<main>`, `<nav>`, `<aside>`) at the page level. Load `frontend-dev-kit:accessibility`. Where the feature was prototyped by `/generate-html`, the visual design contract carries over even though the implementation swaps to React + shadcn: map the prototype's look to tokens and existing `cva` variants, never to call-site classes.
+Landmarks (`<main>`, `<nav>`, `<aside>`) at the page level. Load `frontend-dev-kit:accessibility`. Build structure from the inventory. Do not guess colors or spacing from the HTML — Station 3 ports the prototype tokens, and `port-prototype-theme.mjs --check` fails if `globals.css` drifts. A look diff is a `shared/ui` token or `cva` variant, never a call-site class. Layout the tokens cannot express is for the human UI review.
 
-### 6. Public API hygiene and self-check
+### 6. Tests
+
+Write the behavior test for every executable file in this change (`ui-build-contract.md` § 5, `frontend-dev-kit:testing`). Mock only the boundaries. A UI-review fix includes the regression test from § 5 when the behavior is testable.
+
+### 7. Public API hygiene and self-check
 
 Widgets and pages expose only what their consumers import. Consumers of a widget receive the widget's root component; a page's `index.ts` is its single default export. Run the self-check in `ui-build-contract.md` § 7 on touched files before returning.
 
@@ -86,14 +88,7 @@ Widgets and pages expose only what their consumers import. Consumers of a widget
 
 ## Handoff
 
-Write the return with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug>.md --name <agent>-<station> --outcome "<one line>" --paths <comma-separated files> --decisions "<one line>" --gates "<lint: pass>"`. It rejects more than 15 lines. Never copy gate output or the Build Plan note. Return only:
-
-```
-HANDOFF: <that path>
-CONTAINS: <one line>
-```
-
-If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+Write the return per `{KIT_DIR}/skills/feature-dev/references/handoff-format.md` (use `--name composition-engineer-6`).
 
 ## Boundaries
 

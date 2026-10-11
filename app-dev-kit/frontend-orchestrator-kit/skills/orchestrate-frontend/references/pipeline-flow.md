@@ -17,7 +17,7 @@
 | # | Station | Delegate to | Notes |
 |---|---------|-------------|-------|
 | 0 | Resume check | this skill *(inline)* | Read `.spec/app/current.json`, then `.spec/app/task-checklist.md`; if spec is newer, offer Station 2a re-derive before Station 3 |
-| 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` (go to 2a) or an `approved` spec already matches (go to 2). Pass `RESULT_OUT: .spec/app/results/generate-spec.json`. Requires `.spec/context/*.md` |
+| 1 | Spec | `spec-dev-kit:generate-spec` | Skip when `SKIP_UPSTREAM` (go to 2a) or an `approved` spec already matches (go to 2). Pass `RESULT_OUT: .spec/app/results/generate-spec.json` and `BUILDS: frontend`. Requires `.spec/context/*.md` |
 | 2 | Prototype | `html-generator-kit:generate-html` | Optional. Skip when `SKIP_UPSTREAM`. Pass `SPEC_PATH`. Capture `{dirname(SPEC_PATH)}/html-kit-result.json` |
 | 2a | Checklist derivation | `scripts/build-checklist.mjs` + this skill | **UI screens only.** Script reads `spec.md` from disk. Human confirms the list |
 | 3 | Task loop | `feature-dev-kit:feature-dev` (once per feature) | Paths + ids. Clean git tree required. Envelope → `done` / `pending` / `blocked` / leave `in-progress`. Missing envelope re-runs once |

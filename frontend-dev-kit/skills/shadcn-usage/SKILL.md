@@ -63,7 +63,7 @@ Hard constraints: `rules/shadcn.mdc` (bases) and `rules/styling.mdc` (call sites
 1. **Start from the registry demo.** Call `get_item_examples_from_registries` (`dialog-demo`, `alert-dialog-demo`, `select-demo`, `dropdown-menu-demo`) and keep its part order and nesting. Replace only the content: copy with `t()`, data with props, handlers with named functions.
 2. **Closed-set props use constants; defaults are omitted.** `variant={ButtonVariant.Outline}`, `type={ButtonType.Submit}`. A plain button writes neither `type` nor `variant`.
 3. **Call-site `className` is layout only** (margin, width, placement), from the caller's `styles.ts`. A different look is a new `cva` variant in the base — request it from the shared-UI step.
-4. **No motion at the call site.** No `animate-*`, `transition-*`, `duration-*`, `fade-*`, `slide-*`, or `zoom-*` on a primitive. Prototype effects (`reveal`, `hover-lift`) are not ported.
+4. **No motion at the call site.** No `animate-*`, `transition-*`, `duration-*`, `fade-*`, `slide-*`, or `zoom-*` on a primitive. Prototype effects (`reveal`, `hover-lift`) are rebuilt only as a `shared/ui` variant, never in a feature, widget, or page `styles.ts`.
 5. **Compose with `asChild`** instead of nesting: `<Button asChild><Link to={routes.orders}>…</Link></Button>` keeps one DOM element.
 6. **Dialogs are controlled.** The parent owns `open` + `onOpenChange` and passes named handlers (`handleOpenChange`), never an inline function.
 7. **Respect portals.** `Dialog`, `Popover`, `Select`, `Tooltip`, and `Dropdown` render outside the trigger's DOM ancestry. Style the content component through its own `className`, and use the primitive's callbacks (`onOpenChange`, `onSelect`) rather than parent event delegation.

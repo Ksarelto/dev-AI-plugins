@@ -14,4 +14,4 @@ alwaysApply: false
 - Pick the smallest state tool: local `useState`, then a feature store, then context for read-often values (theme, locale).
 - Layout is mobile-first (`sm:` / `md:` / `lg:`). Do not design a desktop-only screen.
 - Skeletons match the populated layout. A centered spinner on a list is the loading state only when the layout is unknown.
-- No decorative gradients, generic card grids, or placeholder copy that was not in the spec.
+- No decorative gradients, generic card grids, or placeholder copy that was not in the spec. A gradient the bound prototype uses is allowed as a `shared/ui` variant, not a call-site class.

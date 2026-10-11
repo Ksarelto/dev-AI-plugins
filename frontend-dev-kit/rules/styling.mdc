@@ -67,7 +67,8 @@ export const OrderCard = ({ order, className }: OrderCardProps): JSX.Element => 
 - Outside `shared/ui/`, no `animate-*`, `transition-*`, `duration-*`, `delay-*`, `ease-*`, `fade-*`,
   `slide-*`, `zoom-*` utility, and no new `@keyframes` or `--animate-*` in global CSS. These fight
   the primitive's own `data-state` animation.
-- Prototype motion (`reveal`, `hover-lift`, staggered entrances) is not ported. A spinner is
+- Prototype motion (`reveal`, `hover-lift`, staggered entrances) is rebuilt only as a `shared/ui`
+  variant. Do not put it in a feature, widget, or page `styles.ts`. A spinner is
   `@/shared/ui/spinner`; a placeholder is `@/shared/ui/skeleton`.
 
 ## Contract

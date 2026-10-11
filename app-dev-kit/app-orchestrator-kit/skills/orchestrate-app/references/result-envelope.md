@@ -42,6 +42,8 @@ If the orchestrator passes `RESULT_OUT`, the callee writes **that path as well**
   "slug": "demo",
   "branch": "",
   "parent_branch": "",
+  "feature_id": "",
+  "slice_ref": "",
   "run_dir": ".spec/spec/spec-20260920-120000_demo",
   "reason": "",
   "written": "2026-09-20T12:00:00.000Z"
@@ -63,6 +65,8 @@ Current runs live under `.spec/spec/spec-{tc}_{slug}/`, with the pointer in `.sp
 | `slug` | App slug or increment slug |
 | `branch` | `feature/{slug}` / `backend/{slug}` / `agent/{slug}` when created |
 | `parent_branch` | Branch the feature was cut from (`feature-dev` only). Empty for other kits |
+| `feature_id` | Checklist feature id (`F-001`). `feature-dev` only; empty otherwise. Lets the orchestrator reject a stale envelope |
+| `slice_ref` | Delivery slice (`SL-001`). `feature-dev` only; empty otherwise |
 | `run_dir` | Spec run folder, prototype dir, or increment dir |
 | `reason` | Short abort/error note; empty on success |
 

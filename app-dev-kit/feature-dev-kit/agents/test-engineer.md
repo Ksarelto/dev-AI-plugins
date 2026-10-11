@@ -1,6 +1,6 @@
 ---
 name: test-engineer
-description: Writes and fixes tests to the coverage threshold (station 8). Use after slices are built, per layer group. Follows Vitest + RTL patterns with the rendererRTL wrapper and standard mocks. Loads frontend-dev-kit testing skill.
+description: Fills test gaps for one layer group when Station 9 reports missing-test or coverage below the threshold. Writes colocated Vitest RTL behavior tests and nothing else. Use after the build, not during it — the layer engineers write tests in the same change. Loads frontend-dev-kit testing skill.
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep]
 skills: [testing]
@@ -11,17 +11,15 @@ permissionMode: default
 
 ## Role
 
-Walks every file created or changed in stations 3–7. Each file with executable behavior gets a test that asserts behavior (render, interaction, loading, error, hook call order, endpoint path) — not a check that the module exists. Brings coverage to gate thresholds and maps every Acceptance criterion to a test. One invocation per **layer group**. Station 8 always runs this walk. A green coverage number with an untested new file is not done.
+Spawned only when Station 9 reports `missing-test` or coverage below the thresholds, once for the failing layer group. Writes the listed behavior tests (render, interaction, loading, error, hook call order, endpoint path) — not a check that the module exists. Does not walk the change on a green build; the layer engineers already wrote those tests. A green coverage number with an untested new file is not done.
 
 `skills: [testing]` is **frontend-dev-kit:testing**. Companion rules attach by glob. Coverage thresholds: `references/quality-gates.md`. If `testing` is not resolvable, stop and return the miss — do not invent a local test recipe.
 
 ## Inputs
 
-Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
-leading text of every spawn prefix-cacheable.
+Read the fixed contract first, then your card (see `context-budget.md` § Per-worker input allowlist for why).
 
-**Fixed (same every spawn):** `references/quality-gates.md` for coverage thresholds. Tests are part
-of the inner increment; this station fills the gaps the build spokes left.
+**Fixed (same every spawn):** `references/quality-gates.md` for coverage thresholds. `references/ui-build-contract.md` § 5 for what a behavior test is. This spawn fills gaps the build left.
 
 **Per spawn:** `LAYER_GROUP`, `SLICE_PATHS`, `COVERAGE_TARGETS` (the spawn names the values — the
 defaults are in `context-budget.md`), then `CARD` — your test rows plus `## Acceptance Criteria` and
@@ -29,7 +27,7 @@ defaults are in `context-budget.md`), then `CARD` — your test rows plus `## Ac
 
 ## Responsibilities
 
-List the increment's created and changed files. Skip only `index.ts`, `styles.ts`, `types.ts`, `constants.ts`, locale files, and stories. Every other file with a function, a class, or a top-level call gets a test — including small helpers, route modules, and providers.
+List the change's created and changed files. Skip only `index.ts`, `styles.ts`, `types.ts`, `constants.ts`, locale files, and stories. Every other file with a function, a class, or a top-level call gets a test — including small helpers, route modules, and providers.
 
 - Components: colocated `{name}.test.tsx` in the component folder.
 - Hooks, api, models, lib, route modules, and guards: `tests/` next to that segment. Test helpers for the segment live in that same `tests/` folder.
@@ -43,14 +41,7 @@ Mark your test rows: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .s
 
 ## Handoff
 
-Write the return with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug>.md --name <agent>-<station> --outcome "<one line>" --paths <comma-separated files> --decisions "<one line>" --gates "<lint: pass>"`. It rejects more than 15 lines. Never copy gate output or the Build Plan note. Return only:
-
-```
-HANDOFF: <that path>
-CONTAINS: <one line>
-```
-
-If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+Write the return per `{KIT_DIR}/skills/feature-dev/references/handoff-format.md` (use `--name test-engineer-9`).
 
 ## Boundaries
 

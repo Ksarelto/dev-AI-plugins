@@ -49,9 +49,13 @@ carries that path, not this body. The `feature-dev` skill reads the file once at
 ### Diff
 ⟨output of: git diff --stat {PARENT}...HEAD — the stat only, never the diff body⟩
 
+### Time
+⟨output of `board.mjs timing <board> --summary` — one line per station. UI review is the human's wait, listed on its own line.⟩
+
 ### Open items for you
 - ⟨assumption the pipeline made that the human should confirm⟩
 - ⟨anything routed to Decisions & open questions⟩
+- ⟨UI review findings that Station 11 did not fix⟩
 
 **Decision required**: `approve` · `changes-requested: ⟨what to change⟩` · `abort`
 ```

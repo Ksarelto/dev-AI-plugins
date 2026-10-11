@@ -1,6 +1,6 @@
 # API layer and query keys
 
-One HTTP client, one key registry. Slice `api/` owns hooks, DTOs, mappers, and `endpoints.ts`. It does not own the gateway URL or key definitions.
+One HTTP client, one key registry. An entity `api/` owns hooks, DTOs, mappers, and `endpoints.ts`. A feature `api/` owns fetchers only; its query hooks live in `hooks/`. Neither owns the gateway URL or key definitions.
 
 ## Evaluate
 
@@ -11,7 +11,7 @@ One HTTP client, one key registry. Slice `api/` owns hooks, DTOs, mappers, and `
 - Feature/entity `api/` imports `httpClient` from `@/shared/api/base`. No `fetch(`, no `ky`, no `axios` in those layers.
 - `ky` client: `retry: 0` (Query owns retry); pass `signal` from the query into the request; no `.json()` on 204.
 - Versioned API: `httpClient.extend({ prefix: API_BASE.v2 })` — not a second `ky.create`.
-- Query keys: factories from `@/shared/api/query-keys/{domain}`. No inline `queryKey: [...]` outside `query-keys/`. One file per **business domain**, with an owner named at the top of the file.
+- Query keys: factories from `@/shared/api/query-keys/{domain}`. No inline `queryKey: [...]` outside `query-keys/`. One file per **business domain**. The filename is the owner — do not add an owner comment.
 - Every feature/entity `api/` has `endpoints.ts` with a `base` property (the path relative to `API_BASE.v1`). Other keys reuse `base`. A repeated path string or an absolute URL in that file is hard. Hooks do not hand-type path strings. A feature map lists only paths **that feature** calls — no copy of another slice's map.
 - Cross-feature refresh: mutation imports the shared key factory only — not `@/features/other`.
 - Invalidate only keys the mutation's business action legitimately affects. No blanket `invalidateQueries()` with no key.
@@ -20,7 +20,7 @@ One HTTP client, one key registry. Slice `api/` owns hooks, DTOs, mappers, and `
 
 **Judgment**
 
-- Domain ownership is a comment/CODEOWNERS issue.
+- Domain ownership is a CODEOWNERS issue, never a source comment.
 - Orphan `query-keys/` file with no importers after a feature delete.
 - Two registry files whose factory root is the same array (e.g. both `['orders']`) — collision is reviewable, not compiler-caught. A uniqueness test is recommended.
 

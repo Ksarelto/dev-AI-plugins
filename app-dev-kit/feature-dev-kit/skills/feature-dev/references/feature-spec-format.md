@@ -66,7 +66,7 @@ prototype-ref: .spec/prototype/{tc}_{slug}/        # or none
 
 A worker agent MUST update its owned section(s) before returning control to the orchestrator. Returning without writing to the spec is a protocol violation. The orchestrator will re-delegate if the section is missing.
 
-Pre-build workers (Stations 0–1b) edit their sections directly. Build workers (Stations 3–8) never
+Pre-build workers (Stations 0–1b) edit their sections directly. Build workers (Stations 3–7) never
 open the board: they read their work card (`board.mjs card`) and write back only with
 `board.mjs row` (their rows' Status and Note) and `board.mjs append` (`Reuse Map`,
 `Decisions & Open Questions`). Each write is one atomic script call, so no agent holds a stale copy.

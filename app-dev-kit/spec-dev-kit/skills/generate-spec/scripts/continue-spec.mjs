@@ -53,6 +53,8 @@ const prior = {
   screens: [],
   stories: [],
   entities: [],
+  roles: [],
+  permissions: [],
 }
 
 if (current?.spec_path) {
@@ -69,6 +71,8 @@ if (current?.spec_path) {
   prior.screens = screenIndex(fm)
   prior.stories = (fm['user-stories'] ?? []).map((story) => ({ id: story.id, 'i-want': story['i-want'] ?? '' }))
   prior.entities = (fm.entities ?? []).map((entity) => entity.name).filter(Boolean)
+  prior.roles = (fm.roles ?? []).map((role) => role.name).filter(Boolean)
+  prior.permissions = (fm.permissions ?? []).map((p) => ({ id: p.id, action: p.action ?? '', allow: p.allow ?? [] }))
 }
 
 const priorPath = join(runDir, 'artifacts/prior-index.json')

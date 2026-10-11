@@ -73,6 +73,9 @@ For each open gap the gate left to you (`GATE_DECISION`):
   the leftover default as one assumption; `gap_resolutions[]` gets `refs: [...]` for all of them.
 - `PROCEED_WITH_ASSUMPTIONS` and a gap with no safe default → low-confidence assumption with
   `requires-confirmation: true` **and** an `open_questions[]` entry with `blocking: true`.
+- A follow-up gap (`opened_by` an answer) → apply its default the way the answer points; with no
+  safe default, a low-confidence assumption plus a non-blocking `open_questions[]` entry. Never
+  re-ask it.
 
 **Assumption tiering** (`references/clarification-protocol.md` § Assumption Tiering): standard
 patterns → `confidence: high`, `requires-confirmation: false`; could be damaging if wrong →
@@ -89,7 +92,8 @@ assumptions; 100+ means you are restating conventions or splitting too finely.
 |---------|---------|------------------|
 | Loading state | skeleton matching the content | — |
 | Empty list state | explanation + call to action | — |
-| Network failure on an action | "did not go through — try again" with retry | — |
+| Network failure on an action | "did not go through — try again" with retry | `system_boundary.owned_elsewhere` covers the call (use the next row) |
+| Server-owned failure (error response, partial server work, overlap, a step inside an `owned_elsewhere` process) | show the server's error code / message (a plain failure when none), keep the previous data or draft, change no rows locally, no client retry or lock | source states its own client handling |
 | Confirmation before destructive actions | one-sentence confirm naming the action | source already lists confirmations |
 | Form validation timing | on blur, again on submit | — |
 | Accessibility baseline | WCAG 2.2 AA, status not by colour alone | source sets its own bar |

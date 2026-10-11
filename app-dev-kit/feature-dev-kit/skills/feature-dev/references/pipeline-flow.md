@@ -18,8 +18,8 @@ count, new package, new route). Do not read the upstream app spec to classify.
 
 | Tier | When | What runs |
 |------|------|-----------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree), then Station 8 (walk new executable files), then `run-gates.sh --until conventions`. Skip Stations 1, 1.5, 1a, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
-| **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. Skip Station 1.5. Layer gates are `--until fsd`. Station 8 always walks files created or changed in the increment. Build and coverage once at Station 9. Station 9.5 is `DIFF_SCOPE`. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | No `feature-orchestrator`. One `slice-engineer` (no worktree) writes the behavior tests in the same change, then `run-gates.sh --until conventions`, then the UI review when UI changed. Skip Stations 1, 1.5, 1a, 9 build/coverage, 9.5, and 10. Station 12 still happens. |
+| **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. Skip Station 1.5. Layer gates are `--until fsd`. Each builder writes behavior tests in the same change. Build and coverage once at Station 9. Stations 9.5 and 10 run in the same turn; 9.5 is `DIFF_SCOPE`. |
 | **full** | Six or more slices, or a new route plus a new entity | Same as standard, plus Station 1.5 scoped to `## FSD Impact` paths (not all of `src/`). Slices in one layer run one after another on the feature branch. One slice in a layer uses `slice-engineer`. |
 
 ---
@@ -57,35 +57,37 @@ Station 4    entities/    (entities-engineer × N)       ← one after another �
 Station 5    features/    (features-engineer × N)       ← one after another · GATE: layer-green
       ↓
 Station 6    widgets/ + pages/ (composition-engineer)   ← one after another · GATE: layer-green
-             fills prototype-inventory React target / Status  ← GATE: parity (--check)
+             fills prototype-inventory React target / Status  ← GATE: parity (inventory --check + theme --check)
       ↓
 Station 7    app/         (app-engineer)                ← GATE: layer-green
+             tests are inline in each layer; test-engineer only if Station 9 reports missing-test or coverage
       ↓
-Station 8    Tests (test-engineer × layer group)        ← always spawned: every new executable file
-      ↓
-  ⇢ RETURN CONTINUE_PACKET (build phase done) — the skill spawns a fresh orchestrator at Station 9
+  ⇢ RETURN CONTINUE_PACKET after Station 7 — the skill runs the UI review,
+    then spawns a fresh orchestrator at Station 9 (UI_FINDINGS when the review listed findings)
       ↓
 Station 9    Full gate sweep (run-gates.sh, orchestrator Bash) ← GATE: all-green (conventions + build + coverage once)
       ↓
-Station 9.5  Architecture-audit changed paths (architecture-auditor, REPORT_ONLY, DIFF_SCOPE)
+Station 9.5  Architecture-audit (architecture-auditor, REPORT_ONLY, DIFF_SCOPE)  ┐ same turn
+Station 10   Auto-review (code-reviewer)                                          ┘
       ↓
-Station 10   Auto-review (code-reviewer)                ← GATE: review-clean
-      ↓
-Station 11   Fix loop (owning engineer, one spawn per fix batch) ← max 3 iterations per gate
+Station 11   Fix rounds (cap 3). Snapshot before the fix. Then gates plus both
+             reviewers in MODE: verify, scoped to FIX_SCOPE (files the fix touched)
       ↓
   ⇢ RETURN REVIEW_PACKET or ESCALATION_PACKET to the feature-dev skill, then STOP
 ──────────────────────────────────────────────────────────────────
 
 ── feature-dev skill (main loop) ──────────────────────────────────
-Browser check   Chrome DevTools (`frontend-dev-kit:browser-debug`) before Station 12
-  • When UI changed, including patch. Dev server down → STOP and ask; do not skip
-  • Snapshot + screenshot, main actions, console, one adjacent route
-  • Prototype bound → inventory --check, then prototype vs React side by side per state
-  • Write `.spec/features/<slug>.context/browser-check.md`
-  • Failures → `MODE: revise`, not the human packet
+UI review    After CONTINUE_PACKET, before Stations 9–11, when UI changed (including patch)
+  • dev_url checked before the build; re-checked here. Down → ask to start it, do not stop the run
+  • navigate the feature route, read the console, open the prototype page beside it. No screenshots
+  • AskUserQuestion: Looks right / Comments / Abort. Write ui-review.md
+  • Findings pass as UI_FINDINGS into Station 11 (a patch sends them back to slice-engineer)
+  • A testable finding's fix includes a regression test
+  • Before Station 12, re-open the route only when ui-review.md had findings
 Station 12   🧑 HUMAN REVIEW GATE (max 3 cycles)
   • Approve         → status: done (human-only transition); tell the human to run /create-pr
-  • Request changes → re-spawn orchestrator MODE: revise → new packet → repeat
+  • Request changes → local UI: slice-engineer + --until conventions (+ verify reviewers on standard/full)
+                      otherwise re-spawn orchestrator MODE: revise → new packet → repeat
   • Abort           → stop; branch stays as-is
 ──────────────────────────────────────────────────────────────────
 
@@ -110,17 +112,18 @@ Each packet is small JSON plus a file path. The body lives in `.spec/features/<s
 | `dep-approved` | 1b→2 | Every package in `## Dependencies` marked human-approved | HARD STOP — `DEP_PACKET` |
 | `build-plan` | 2→3 | Build plan written, every affected slice assigned | STOP — re-run Station 1 |
 | `layer-green` | 3–7 | `run-gates.sh --until fsd` (types, lint, fsd) | Fix loop — never build the next layer on a red gate |
-| `parity` | 6→7 | When `prototype-inventory.md` exists: `extract-prototype-inventory.mjs --check` exits 0 (every row `done` with a React target or `n/a: <reason>`; every prototype state rendered) | `composition-engineer` (or the slice owner) builds the missing rows — never mark a row `n/a` to pass |
-| `behavior-tests` | 8 | Every new executable file has a behavior test in the right folder | `test-engineer` fills the gaps, then continue |
-| `conventions` | 9 (patch: after 8) | `check-conventions.mjs` zero errors — missing tests, comments, hardcoded copy, string maps, unused exports, inline classes/handlers, nested ternaries, magic props, motion outside `shared/ui` | Fix loop — route each finding to the slice owner (`missing-test` → `test-engineer`) |
+| `parity` | 6→7 | When `prototype-inventory.md` exists: `extract-prototype-inventory.mjs --check` exits 0 (every row `done` with a React target or `n/a: <reason>`; every prototype state rendered). When `prototype-ref` is set: `port-prototype-theme.mjs --check` exits 0 (every prototype `:root` token matches `globals.css`) | Inventory gaps → `composition-engineer` (or the slice owner) — never mark a row `n/a` to pass. Token gaps → `shared-engineer` |
+| `behavior-tests` | 3–7 (gap fill at 9) | Every new executable file has a behavior test in the right folder | The builder writes it. Station 9 `missing-test` → `test-engineer` for that layer group |
+| `conventions` | 9 (patch: after build) | `check-conventions.mjs` zero errors — missing tests, comments, hardcoded copy, string maps, unused exports, inline classes/handlers, nested ternaries, magic props, motion outside `shared/ui` | Fix loop — route each finding to the slice owner (`missing-test` → `test-engineer`) |
 | `coverage` | 9 | Thresholds in `quality-gates.md`; every AC has a test | Spawn `test-engineer` again for the failing layer group, then re-run coverage |
 | `all-green` | 9→9.5 | Full sweep, including build and coverage, once | Fix loop |
-| `architecture-clean` | 9.5→10 | `architecture-auditor` REPORT_ONLY + `DIFF_SCOPE`: zero hard violations on changed paths | Fix loop. Missing agent or companion skill → `ESCALATION_PACKET` |
+| `architecture-clean` | 9.5 (parallel with 10), then each Station 11 round | `architecture-auditor` REPORT_ONLY. First pass is `DIFF_SCOPE`. Later passes are `MODE: verify` on `FIX_SCOPE` | Zero hard violations. Missing agent or companion skill → `ESCALATION_PACKET` |
 | `review-clean` | 10→11 | No `[CRITICAL]`; no unresolved `[IMPORTANT]` | Owning engineer |
 | `human-approved` | 12 | Human replies `approve` | Skill sets `status: done` |
 
 **Gate bypass is never allowed.** A patch run still runs `--until conventions`. It does not run the package build
-or `test:auto`. Layer gates stop at `fsd` because tests arrive at Station 8.
+or `test:auto`. Layer gates stay `--until fsd`. Conventions, build, and coverage run once at Station 9.
+Builders self-check conventions, including `missing-test`, on the files they touched.
 
 Station 1.5 is full tier only. Scope is the paths in `## FSD Impact` plus their importers, not `src/`.
 Hard violations on those paths escalate. Unrelated legacy issues stay as notes.
@@ -132,8 +135,16 @@ Non-script gates (parity, architecture-audit, auto-review) are recorded with
 `board.mjs gate <board> --station "Station N" --gate <name> --result pass|fail --note "<handoff path>"`.
 Layer: `--until fsd`. Patch: `--until conventions`. Station 9: `--base {PARENT}`.
 
-After a fix, re-run the **failed** gate plus `types`. Re-run `fsd` only if the fix touched imports.
+Before each Station 11 fix, `board.mjs snapshot <board> --round <n>`. After it,
+`board.mjs changed <board> --since <n>` is `FIX_SCOPE` (write it to `fix-scope-<n>.txt`).
+Re-run `types`, `lint`, and `fsd`, plus `check-conventions.mjs --files <FIX_SCOPE>`.
 Re-run `coverage` only if the fix touched tests. Do not rebuild after a type error.
+Spawn **both** `architecture-auditor` and `code-reviewer` in one turn, `MODE: verify`,
+on `FIX_SCOPE` plus prior open findings — a reviewer that passed the full diff is not skipped,
+because the fix can break the other axis. A round with zero findings ends the loop.
+Cap 3 rounds, then `ESCALATION_PACKET`. Each fix-batch line is `path | rule | change`.
+A new finding whose `path | rule` is already in an earlier `fix-batch-*.md` means two rules
+are fighting: `ESCALATION_PACKET` citing both, no further fix.
 
 ---
 
@@ -142,9 +153,9 @@ Re-run `coverage` only if the fix touched tests. Do not rebuild after a type err
 | Loop | Location | Max cycles | Exit condition | On exceed |
 |------|----------|-----------|----------------|-----------|
 | Clarification | Station 0 | 3 rounds | Acceptance criteria unambiguous and testable | Unknowns → `## Decisions & Open Questions` |
-| Fix loop (per gate) | Station 11 | 3 attempts | The failing gate passes | `ESCALATION_PACKET` |
-| Coverage loop | Station 8 | 2 attempts | Every new executable file has a behavior test, and thresholds met | Escalate — never game coverage |
-| Auto-review loop | Station 10 | 2 attempts | No CRITICAL / unresolved IMPORTANT | Escalate with the finding list |
+| Fix loop | Station 11 | 3 rounds | Zero findings on `FIX_SCOPE` | `ESCALATION_PACKET` |
+| Oscillation | Station 11 | a `path \| rule` repeated from an earlier batch | — | `ESCALATION_PACKET` citing both rules |
+| Coverage loop | Station 9 | 2 attempts | Every new executable file has a behavior test, and thresholds met | Escalate — never game coverage |
 | Human review | Station 12 (skill) | 3 cycles | Human approves | Ask: accept-as-is, keep iterating, or abort |
 
 ---
@@ -158,13 +169,13 @@ Same-layer slices run one after another on the feature branch. Do not use a git 
 | 4 | one `entities-engineer` per entity slice, in order, when that layer has 2+ slices |
 | 5 | one `features-engineer` per feature slice, in order, when 2+ |
 | 6 | one `composition-engineer` per widget/page, in order, when 2+ — or one per **batch row** of same-shape pages/widgets |
-| 11 | one owning engineer per **fix batch** (findings grouped by agent + layer), not per finding or per slice |
+| 11 | one owning engineer per **fix batch**, then both reviewers in one turn on `FIX_SCOPE` |
 
 A single slice in a layer uses `slice-engineer`. Same-shape slices of one layer (pages with one
 layout, the same mechanical fix in N slices) are one batch row and one spawn (`build-plan.md` rule 1). Two slices that both edit
 `shared/lib/i18n/locales/common/en.json` are not independent — sequence them.
 
-Stations 1, 1.5, 2, 3, 7, 9, 9.5, and 10 stay sequential.
+Stations 1, 1.5, 2, 3, 7, and 9 stay sequential. Stations 9.5 and 10 run in the same turn, after Station 9.
 
 ---
 
@@ -183,11 +194,11 @@ Spokes return a handoff path, not a report. See `context-budget.md`.
 | `composition-engineer` | Checkpoint path + its card (its screen rows or batch row; names `prototype-inventory.md` when present) |
 | `app-engineer` | Checkpoint path + its card (the app row) |
 | `slice-engineer` | The one `LAYER` + `SLICE` |
-| `test-engineer` | Acceptance criteria path + `SLICE_PATHS` for one layer group |
+| `test-engineer` | Only on a Station 9 `missing-test` or coverage miss: acceptance criteria path + `SLICE_PATHS` for that layer group |
 | `architecture-auditor` | `MODE` + `SCOPE`. Diff mode also gets `DIFF_SCOPE` and `TOPICS` |
 | `code-reviewer` | Changed-file **list** + `prototype-inventory.md` path when present. It reads diffs per file |
 
-Stations 3–8 workers receive a **work card** instead of the blackboard:
+Stations 3–7 workers receive a **work card** instead of the blackboard:
 `board.mjs card <board> --row <n>[,<m>] --agent <name>` writes `<slug>.context/cards/row-<n>.md` with
 the rows plus the sections that agent builds from (UI Surface trimmed to the row's screens), and the
 paths to read on demand (glossary, prototype inventory and page, rule file). Workers write back only
@@ -201,13 +212,17 @@ worker with its card path plus one handoff link. It does not restate earlier spo
 ## Revise Re-entry Points
 
 When the human requests changes at Station 12, re-enter at the **lowest** station the change
-touches, then replay Stations 9, 9.5, and 10 before a new `REVIEW_PACKET`. Patch-tier revisions
-stay on `slice-engineer` plus `--until conventions` unless the change adds a dependency, a route, or a
-second layer — then promote to `standard`.
+touches. A **local UI** fix (one layer, at most two slices, no new dependency, route, or acceptance
+criterion) does not spawn the orchestrator: the skill runs `slice-engineer`, `--until conventions`,
+re-opens the route, and on standard/full spawns both reviewers in `MODE: verify` on `FIX_SCOPE`.
+Anything else replays Station 9 and, in one turn, Stations 9.5 and 10 before a new `REVIEW_PACKET`.
+Patch-tier revisions stay on `slice-engineer` plus `--until conventions` (no reviewers) unless the
+change adds a dependency, a route, or a second layer — then promote to `standard`.
 
 | Change type | Re-entry | Cascade |
 |-------------|----------|---------|
-| Copy, label, or text content | Owning slice | Re-run 9–10 (including 9.5) on standard/full |
+| Local UI fix (any tier) | Skill: `slice-engineer` on that slice | `--until conventions`, re-open the route, verify reviewers on `FIX_SCOPE` (standard/full only). No Station 9 sweep |
+| Copy, label, or text content | Owning slice, via the local-UI path when it qualifies | Otherwise re-run 9–10 (including 9.5) on standard/full |
 | Styling / component variant | Owning slice | Re-run from that layer up |
 | Interaction behaviour | Station 5 | Re-run 6–10 |
 | API contract or data shape | Station 4 | Re-run 5–10 |

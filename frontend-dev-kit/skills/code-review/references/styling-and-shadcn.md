@@ -15,7 +15,7 @@ Distilled from the `tailwind-styles` and `shadcn-usage` skills and `rules/stylin
 
 - `animate-*`, `transition-*`, `duration-*`, `delay-*`, `ease-*`, `fade-*`, `slide-*`, or `zoom-*` in any `styles.ts` outside `shared/ui/` — it overrides the registry base's `data-state` animation.
 - A new `@keyframes`, `--animate-*` token, or second animation library in global CSS, or `tw-animate-css` imported more than once.
-- Prototype motion (`reveal`, `hover-lift`, staggered entrances) recreated in the app.
+- Prototype motion (`reveal`, `hover-lift`, staggered entrances) recreated outside `shared/ui`. A `shared/ui` variant that rebuilds it is allowed.
 - A hand-rolled spinner (`Loader2` + `animate-spin`) instead of `@/shared/ui/spinner`.
 
 ## shadcn/ui

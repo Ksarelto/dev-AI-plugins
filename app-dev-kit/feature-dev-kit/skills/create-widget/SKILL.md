@@ -23,16 +23,13 @@ Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI bl
 4. **Build the widget component** at `widgets/<slice>/ui/<slice>/<slice>.tsx` (kebab-case folder, `styles.ts`, `index.ts`):
    - Import feature components (via `features/*/index.ts`) and entity display components (via `entities/*/index.ts`).
    - Use entity hooks for data — import them via the entity's `index.ts`.
-   - Classes in `styles.ts` via `frontend-dev-kit:tailwind-styles`. Four states via `rules/ui-quality.mdc`, as early returns — never a JSX ternary.
-   - Loading: `Skeleton` from `@/shared/ui/skeleton`, shaped like the populated layout.
-   - Error: `Alert` with `AlertVariant.Destructive`, translated title/description, and a retry `Button` wired to a named `handleRetry` (`refetch`). Never `error.message`.
-   - Empty: `Empty` from `@/shared/ui/empty` with translated copy and the prototype's call to action.
-   - A widget whose data source can fail on its own (a side panel, a chart) wraps its content in `ErrorBoundary` from `@/shared/ui/error-boundary`, so its crash leaves the page standing.
+   - Classes in `styles.ts` via `frontend-dev-kit:tailwind-styles`.
+   - Suspense only. The composed feature owns loading, empty, error, and retry. Do not add an `ErrorBoundary`, an error `Alert`, or a retry button on the widget.
    - With a prototype, build every row of `prototype-inventory.md` that belongs to this widget and mark it (`ui-build-contract.md` § 6).
 
 5. **Handle local UI state** (not API state) with `useState`: tab selection, sidebar open/close, active accordion. Do not manage API state — that belongs in entity/feature hooks.
 
-6. **Co-locate the component test** at `widgets/<slice>/ui/<slice>/<slice>.test.tsx`. Test all four states (loading, empty, error, populated) and any local UI state transitions.
+6. **Co-locate the component test** at `widgets/<slice>/ui/<slice>/<slice>.test.tsx`. Assert what the widget composes and any local UI state. Loading, empty, and error belong to the feature's test.
 
 7. **Update `widgets/<slice>/index.ts`** with named exports of what the page already imports:
    ```ts
@@ -46,7 +43,7 @@ Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI bl
 ## Pre-conditions
 
 - All feature and entity slices the widget composes exist with their `index.ts` public APIs.
-- `shared/ui` has `Skeleton`, `Empty`, `Alert`, `error-boundary`, and the other required primitives (missing → `shared-engineer`).
+- `shared/ui` has the primitives this widget composes (missing → `shared-engineer`).
 
 ## Outputs
 

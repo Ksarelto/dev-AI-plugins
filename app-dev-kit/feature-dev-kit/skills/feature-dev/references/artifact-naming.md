@@ -65,10 +65,10 @@ that segment rather than inventing a placeholder. Branch and commit conventions 
 |-------|-----------|---------|
 | Component file | kebab-case folder and file; PascalCase export | `ui/decline-profile-modal/decline-profile-modal.tsx` |
 | Test file | same stem, `.test.tsx` | `ui/decline-profile-modal/decline-profile-modal.test.tsx` |
-| Hook | `use<Thing>.ts`, camelCase | `model/useDeclineProfileForm.ts` |
-| Query/mutation hooks file | `<slice>.hooks.ts` | `api/profile.hooks.ts` |
+| Hook | `use-<thing>.ts`, kebab-case file | features: `hooks/use-decline-profile.ts`; entities: `api/use-profile.ts` |
+| Feature fetchers | `api/` has fetchers only, no hooks | `features/<slice>/api/` |
 | Query keys | central registry | `shared/api/query-keys/` (`frontend-dev-kit:react-query-hook`) |
-| Types | `<slice>.model.ts` or `types.ts` | `model/profile.model.ts` |
+| Types | `types.ts` | features: `models/types.ts`; entities: `model/types.ts` |
 | Public API | always `index.ts` | `features/decline-profile/index.ts` |
 | Copy | i18n keys | `frontend-dev-kit:i18n` via `add-text-content` |
 

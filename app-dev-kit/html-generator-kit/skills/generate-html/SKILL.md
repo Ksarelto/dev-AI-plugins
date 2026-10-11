@@ -136,7 +136,9 @@ Screen-generators receive only the delta screens, including `description`, `doma
 (`{ id, title, domain, description }`), not raw page-map pairs. If `entities_changed` is
 non-empty, the orchestrator runs `component-library-author` in update mode before those screens.
 
-Ask user (single AskUserQuestion):
+When the caller passed `CONFIRMED: true`, skip the question below and continue. This skips only this "Proceed?" question. The design-reference question and the review gate still run.
+
+Otherwise ask (single AskUserQuestion):
 > "Generating HTML prototype from `{spec-filename}`. Output → `.spec/prototype/{TIMECODE}_{SLUG}/`. Proceed?"
 
 If user declines: write an aborted envelope and STOP:

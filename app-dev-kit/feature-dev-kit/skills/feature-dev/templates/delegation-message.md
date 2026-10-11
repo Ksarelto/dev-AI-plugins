@@ -1,6 +1,6 @@
 # Template — Delegation Message
 
-The exact briefing the orchestrator sends to a worker agent (Stations 3–8). Every field is
+The exact briefing the orchestrator sends to a worker agent (Stations 3–7). Every field is
 mandatory; a missing field is how workers duplicate or overshoot each other's work.
 
 Before the spawn, write the worker's card:
@@ -58,7 +58,7 @@ RETURN:     HANDOFF: .spec/features/decline-profile.context/entities-engineer-4.
 | `TARGET` | Exactly one slice, or the slices of one batch row / fix batch (same layer, same change). |
 | `FINDINGS` | Station 11 only: the fix-batch file. One spawn per batch, never one per finding or per slice. |
 | `APPLY` | One skill. Do not name rule files or the pipeline references. |
-| `CONTRACT` | Always `ui-build-contract.md` for Stations 3–8 — the checklist the conventions gate and reviewer enforce. |
+| `CONTRACT` | Always `ui-build-contract.md` for Stations 3–7 — the checklist the conventions gate enforces. The reviewer checks acceptance, tests, parity, shadcn, and accessibility, not conventions. |
 | `PROTOTYPE_INVENTORY` | Pass to every worker that renders UI when the file exists. |
 | `BOUNDARY` | Always state what must **not** be touched, especially shared files two workers might both edit. |
 | `RETURN` | `HANDOFF` path plus one `CONTAINS` line, as the worker's final message. The detail is the file. |

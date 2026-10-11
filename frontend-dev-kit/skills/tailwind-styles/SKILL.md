@@ -152,7 +152,7 @@ Motion has exactly one source: the shadcn bases.
 - Dialog, drawer, sheet, popover, dropdown, tooltip, accordion, and the rest keep the registry’s open/close classes (`animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-*`, `duration-*`, `data-[state=open|closed]:…`) verbatim in `shared/ui/<name>/styles.ts`. Stripping them leaves the element static.
 - Those classes come from the animation stylesheet the CLI configured — `@import "tw-animate-css"` in global CSS on Tailwind v4. Read `package.json`, `components.json`, and the global CSS; do not add a second animation library or custom `@keyframes`. A missing package is a dependency to approve, not a class to delete.
 - A `styles.ts` outside `shared/ui/` contains **no** motion utility: no `animate-*`, `transition-*`, `duration-*`, `delay-*`, `ease-*`, `fade-*`, `slide-*`, `zoom-*`. Added at a call site, these utilities override the primitive's `data-state` animation — the "strange" enter/exit and hover effects that differ from the shadcn docs.
-- Prototype effects (`reveal`, `reveal-2`, `hover-lift`, staggered entrances) are not recreated.
+- Prototype effects (`reveal`, `reveal-2`, `hover-lift`, staggered entrances, gradients) are recreated only as a `shared/ui` variant or `tw-animate`. Not in a feature, widget, or page `styles.ts`.
 
 ## Call-site `className` on a primitive
 

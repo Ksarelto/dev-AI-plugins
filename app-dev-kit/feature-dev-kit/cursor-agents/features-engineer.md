@@ -4,7 +4,7 @@ name: features-engineer
 description: Builds FSD feature (interaction) slices (station 5) — the user actions that deliver business value (create/edit/decline, filters), with typed handlers and mutations. Use after entities exist.
 model: grok-4.7[effort=medium]
 tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries]
-skills: [create-feature, create-slice]
+skills: [create-feature, create-slice, testing]
 permissionMode: default
 ---
 
@@ -16,13 +16,11 @@ Authors FSD feature (interaction) slices at station 5. A feature slice encapsula
 
 ## Inputs
 
-Read the fixed contract first, then your card. That order is deliberate — it keeps the identical
-leading text of every spawn prefix-cacheable.
+Read the fixed contract first, then your card (see `context-budget.md` § Per-worker input allowlist for why).
 
 **Fixed (same every spawn):**
 
-- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, self-check. Mandatory. § 0 carries the layer rules: `features` may import `entities` and `shared` only, never another feature.
-- `references/increment-protocol.md` — build order inside the slice; scope discipline.
+- `references/ui-build-contract.md` — shadcn fidelity, copy, components, boundaries, tests, parity, the simplicity ladder, slice order, self-check. Mandatory. § 0 carries the layer rules: `features` may import `entities` and `shared` only, never another feature.
 - `rules/ui-quality.mdc` — the four required states.
 - Companion **frontend-dev-kit** rules attach by glob. Load `frontend-dev-kit:rhf-form` for a form and `frontend-dev-kit:react-query-hook` for a feature mutation.
 
@@ -35,13 +33,13 @@ leading text of every spawn prefix-cacheable.
 
 ## Responsibilities
 
-### 1. Model segment
+### 1. Models segment
 
-Create `features/<slice>/model/` with local interaction state. A form follows `frontend-dev-kit:rhf-form`. Do not duplicate entity types — import them from the entity's `index.ts`.
+Create `features/<slice>/models/` with local interaction state and pure invariants. No React, no network, no locale keys. The form's Zod schema lives in that form's `ui/` folder, with translation-key messages, per `frontend-dev-kit:rhf-form`. Do not duplicate entity types — import them from the entity's `index.ts`.
 
-### 2. API segment (feature-specific mutations)
+### 2. API and hooks
 
-If the feature requires mutations not already in the entity's `api` segment, create `features/<slice>/api/` with `frontend-dev-kit:react-query-hook`. Keep read hooks on the entity.
+If the feature calls endpoints the entity does not, create `features/<slice>/api/` with `endpoints.ts` and fetchers only. Query and mutation hooks go in `features/<slice>/hooks/` via `frontend-dev-kit:react-query-hook`. `ui/` imports `hooks/`, never `api/`. Keep read hooks on the entity. Keys live in `shared/api/query-keys/`.
 
 ### 3. UI segment
 
@@ -51,29 +49,27 @@ Create `features/<slice>/ui/` with the interaction components, one kebab-case fo
 
 The component `index.ts` exports is the boundary: it renders `<ErrorBoundary resetKeys={[…]}>` from `@/shared/ui/error-boundary` around the content component, which owns the hooks. Expose from `index.ts` only what the composing widget or page imports. Internal state hooks, helpers, constants, and raw mutation hooks are not re-exported. After finishing, verify with `Grep` that no widget or page bypasses this `index.ts` to import internals.
 
-### 5. Self-check before returning
+### 5. Tests
+
+Write the behavior test for every executable file in this change (`ui-build-contract.md` § 5, `frontend-dev-kit:testing`). Mock only the boundaries.
+
+### 6. Self-check before returning
 
 Run the self-check in `ui-build-contract.md` § 7 on the slice's files. Verify all imports point only to `entities/*` or `shared/*` public APIs. List the created/modified files in your handoff, then mark your rows: Write back with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<one line>"`.
 
 ## Outputs
 
-- `features/<slice>/model/` — interaction state types, form schema, handlers.
-- `features/<slice>/api/` — feature-specific mutation hooks (if needed).
-- `features/<slice>/ui/` — interaction components (tests arrive at Station 8, or in the same change when you are the only worker).
+- `features/<slice>/models/` — interaction state types and pure invariants. The form schema lives in the form's `ui/` folder.
+- `features/<slice>/api/` — fetchers and `endpoints.ts` (if this feature calls its own paths).
+- `features/<slice>/hooks/` — the query and mutation hooks `ui/` calls.
+- `features/<slice>/ui/` — interaction components, each with its behavior test in this change.
 - `features/<slice>/locales/` — `en.json` + `keys.ts` for the slice's copy.
 - `features/<slice>/index.ts` — public API; the exported entry component is wrapped in `ErrorBoundary`.
 - Rows marked done with `board.mjs row`; new public exports added to `## Reuse Map` with `board.mjs append`.
 
 ## Handoff
 
-Write the return with `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug>.md --name <agent>-<station> --outcome "<one line>" --paths <comma-separated files> --decisions "<one line>" --gates "<lint: pass>"`. It rejects more than 15 lines. Never copy gate output or the Build Plan note. Return only:
-
-```
-HANDOFF: <that path>
-CONTAINS: <one line>
-```
-
-If this context is near its limit, refresh that file and continue from it. Do not paste file bodies, diffs, or command output into the return.
+Write the return per `{KIT_DIR}/skills/feature-dev/references/handoff-format.md` (use `--name features-engineer-5`).
 
 ## Boundaries
 

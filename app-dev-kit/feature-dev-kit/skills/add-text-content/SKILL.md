@@ -20,7 +20,7 @@ Copy is **frontend-dev-kit:i18n** (`react-i18next`). Load it; this skill is the 
    | Used by one slice | `src/<layer>/<slice>/locales/en.json` + `keys.ts` (typed key paths) |
    | Used across slices / app chrome | `src/shared/lib/i18n/locales/common/en.json` + `keys.ts` |
    Register a new slice namespace the way `frontend-dev-kit:i18n` shows. `shared/config` holds no text.
-4. **Enums:** the enum stays in the slice `model/`. Add one key per value and an enum → key map (`LISTING_STATUS_KEY`), rendered with `t(LISTING_STATUS_KEY[status])`. Never `{ FREE: 'In cupboard' }`.
+4. **Enums:** the enum stays in the entity `model/` or the feature `models/`. Add one key per value and an enum → key map (`LISTING_STATUS_KEY`), rendered with `t(LISTING_STATUS_KEY[status])`. Never `{ FREE: 'In cupboard' }`. `models/` and `model/` never import keys.
 5. **Validation:** a zod message is the key (`z.string().min(1, keys.errors.nameRequired)`); `FormMessage` translates it.
 6. **Render** with `t(keys.…)` in the component. No literal JSX text, no literal copy attribute, no fallback English string.
 

@@ -1,6 +1,6 @@
 ---
 name: create-slice
-description: Core FSD scaffold. Create a <layer>/<slice>/{ui,model,api,lib,config,index.ts} structure with a correct public API. Foundation for create-entity/feature/widget/page. Use when placing new code into an FSD slice.
+description: Core FSD scaffold. Create a layer/slice with ui, models or model, api, hooks, lib, and index.ts and a correct public API. Foundation for create-entity/feature/widget/page. Use when placing new code into an FSD slice.
 argument-hint: <layer> <slice-name>
 disable-model-invocation: false
 allowed-tools: [Read, Write, Bash, Glob, Grep]
@@ -16,7 +16,7 @@ Any station that introduces a new FSD slice. This is the base scaffold that the 
 
 1. **Determine required segments**: based on what the slice needs, select only the segments that have content. Do not create empty directories. Common combinations:
    - Entity: `model/`, `api/`, `ui/`, `index.ts`
-   - Feature: `model/`, `api/` (if mutations needed), `ui/`, `lib/` (if validators), `index.ts`
+   - Feature: `models/`, `hooks/`, `api/` (fetchers only, when this feature calls its own paths), `ui/`, `lib/` (if validators), `index.ts`
    - Widget/Page: `ui/`, `index.ts`
 
 2. **Create the slice directory**: `src/<layer>/<slice>/`. Do not create the directory without at least one file in it.
@@ -24,11 +24,11 @@ Any station that introduces a new FSD slice. This is the base scaffold that the 
 3. **Create each required segment** with its real first file, per the higher-level skill. No placeholder files, no empty `export {}` modules.
 
 4. **Enforce downward-only imports** — by where you import from, not by writing it down (no header comments in segment files):
-   - Entity slice: may import from `shared/*`
+   - Entity slice: may import from `shared/*` and, for a cross-entity type, from `@/entities/{provider}/@x/{consumer}` only
    - Feature slice: may import from `entities/*/index.ts`, `shared/*`
    - Widget/Page slice: may import from `features/*/index.ts`, `entities/*/index.ts`, `shared/*`
 
-5. **Write `index.ts` last**, once the segments exist. It re-exports only the symbols a file outside the slice imports today — usually the one entry component (a feature's error-boundary-wrapped entry, a widget, a page) and, for an entity, its public hooks/types. No `export *`, no "may be useful later" exports, nothing only a test uses.
+5. **Stub `index.ts` first, finalize its exports last**, once the segments exist. It re-exports only the symbols a file outside the slice imports today — usually the one entry component (a feature's error-boundary-wrapped entry, a widget, a page) and, for an entity, its public hooks/types. No `export *`, no "may be useful later" exports, nothing only a test uses.
 
 6. **Run FSD boundary lint** after creating the slice: `yarn lint:fsd`. Fix any violations before returning.
 

@@ -15,11 +15,12 @@ Outer (hub — feature-orchestrator)
        → human review
 
 Inner (each build spoke, one slice)
-  model → api → lib → ui → index.ts
+  features: models → api → hooks → lib → ui → index.ts
+  entities: model → api → lib → ui → index.ts
   implement the slice → typecheck once → behavior test
 ```
 
-The inner loop is specified in `increment-protocol.md`. Name that file only if the station card says so.
+The inner loop is in `ui-build-contract.md` (simplicity ladder, inside the slice, § 5). Do not name a second file.
 
 ---
 
@@ -33,8 +34,8 @@ The inner loop is specified in `increment-protocol.md`. Name that file only if t
 | 4. Baseline architecture | 1.5 | `architecture-auditor` (REPORT_ONLY), **full tier only** | Summary + path on the blackboard; report in the context dir |
 | 5. Investigate | 1a–1b | `research-analyst` (conditional) + skill (human deps) | No unapproved packages |
 | 6. Plan | 2 | orchestrator | Build plan + AC coverage table |
-| 7. Layer cycle | 3–7 | layer engineers, or `slice-engineer` when the layer has one slice | `--until fsd` green before the next layer |
-| 8. Tests | 8 | `test-engineer` — always, every new executable file | Every new executable file has a behavior test |
+| 7. Layer cycle | 3–7 | layer engineers, or `slice-engineer` when the layer has one slice; each writes its behavior tests | `--until fsd` green before the next layer |
+| 8. Test gaps | 9 | `test-engineer` — only on `missing-test` or a coverage miss | Every new executable file has a behavior test |
 | 9. Gate sweep | 9 | `run-gates.sh` (orchestrator Bash) | All mechanical gates green |
 | 10. Architecture audit | 9.5 | `architecture-auditor` (REPORT_ONLY) | Zero hard violations on changed paths |
 | 11. Auto-review | 10 | `code-reviewer` | No `[CRITICAL]`, no unresolved `[IMPORTANT]` |
@@ -47,14 +48,16 @@ Do not start a higher FSD layer on a red `--until fsd` gate. Station 1.5 runs on
 
 ## Inner cycle (spoke)
 
-Inside one assigned slice, follow `increment-protocol.md`:
+Inside one assigned slice, follow `ui-build-contract.md`:
 
-1. `model/` types + schema — compiles, no `any`
-2. `api/` hooks or mutations — query keys + invalidation
-3. `lib/` pure helpers — unit-tested without rendering
-4. `ui/` happy path — renders with mock props
-5. `ui/` loading, empty, error — each state has a test
-6. `index.ts` public API — export only what consumers need
+1. Stub `index.ts` first.
+2. `models/` (features) or `model/` (entities) — types and pure invariants, no `any`. No React, no network, no locale keys. A form schema is `ui/<form>/schema.ts`.
+3. `api/` fetchers and `endpoints.ts`. Query keys stay in `shared/api/query-keys/`.
+4. `hooks/` (features only) — the query or mutation hook. `ui/` imports this, never `api/`.
+5. `lib/` pure helpers — unit-tested without rendering
+6. `ui/` happy path — renders with mock props
+7. `ui/` loading, empty, error — each state has a test. A widget does not own these; the feature does.
+8. Finalize `index.ts` — export only what consumers need. Pages default-export.
 
 When the assigned slice is complete: `yarn typecheck` once, then the behavior test (colocated `{name}.test.tsx` for a component; `tests/` for hooks, api, models, lib, route modules, and guards). Do not
 typecheck between segments.

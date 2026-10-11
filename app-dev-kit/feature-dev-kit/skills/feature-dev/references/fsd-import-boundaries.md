@@ -14,10 +14,10 @@ Rows = source layer. Columns = target layer. ✅ = allowed, ❌ = forbidden.
 | `pages` | ❌ | — | ✅ | ✅ | ✅ | ✅ |
 | `widgets` | ❌ | ❌ | ❌* | ✅ | ✅ | ✅ |
 | `features` | ❌ | ❌ | ❌ | ❌* | ✅ | ✅ |
-| `entities` | ❌ | ❌ | ❌ | ❌ | ❌* | ✅ |
+| `entities` | ❌ | ❌ | ❌ | ❌ | `@x` only | ✅ |
 | `shared` | ❌ | ❌ | ❌ | ❌ | ❌ | — |
 
-\* Cross-slice imports within the same layer are forbidden. A widget may not import from another widget; a feature from another feature; an entity from another entity.
+\* Cross-slice imports within the same layer are forbidden. A widget may not import from another widget; a feature from another feature. An entity may import another entity only through `@/entities/{provider}/@x/{consumer}` — never through the sibling `index.ts`. Steiger's recommended `fsd/forbidden-imports` (and `fsd/no-cross-imports`) allow that `@x` path and reject every other same-layer import. `fsd/no-public-api-sidestep` treats `@x` as a public API.
 
 Additional rules:
 - `shared` imports nothing above itself — no exceptions.
@@ -97,7 +97,7 @@ If Steiger is not yet installed, enforce the critical boundaries with ESLint zon
 
 ## Every Slice Must Have `index.ts`
 
-A slice without `index.ts` is a gate failure. No exceptions. Build workers must create `index.ts` as the first file in every new slice before writing any internal segment files.
+A slice without `index.ts` is a gate failure. No exceptions. Stub `index.ts` first (empty or minimal) and finalize its exports last, once the segments exist.
 
 ---
 
@@ -107,6 +107,7 @@ A slice without `index.ts` is a gate failure. No exceptions. Build workers must 
 |-----------|-----|
 | Upward import (e.g. `shared` importing from `entities`) | Move the shared code down: extract the domain-agnostic part into `shared/lib/` and keep domain logic in `entities/` |
 | Cross-slice import (`features/a` importing from `features/b`) | Extract the shared logic into `entities/` or `shared/`; neither feature should own the other |
-| Deep internal import (`import X from '@/entities/profile/api/profile.hooks'`) | Add `X` to `entities/profile/index.ts` and update the import path to `@/entities/profile` |
+| Entity imports a sibling `index.ts` | Move the shared type onto the provider's `entities/{provider}/@x/{consumer}.ts` and import that path. Do not import `@/entities/{provider}` from another entity |
+| Deep internal import (`import X from '@/entities/profile/api/use-profile'`) | Add `X` to `entities/profile/index.ts` and update the import path to `@/entities/profile`. A feature hook lives at `features/<slice>/hooks/use-…`, not `api/*.hooks.ts` |
 | Missing `index.ts` in a slice | Create `index.ts` and explicitly re-export every public symbol |
 | Wildcard re-export in `index.ts` | Replace `export * from './ui/X'` with named exports: `export { X } from './ui/X'` |

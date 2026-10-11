@@ -22,13 +22,18 @@ and `gate_passes`. Do not compute any of those.
 
 ## Steps
 
-1. Read `CHECKLIST_PATH` (Part 2 table) and `ENRICHED_PATH`.
+1. Read `CHECKLIST_PATH` (Part 2 table, **Decided counts**, **Not applicable**) and `ENRICHED_PATH`
+   (including `system_boundary` and `decisions`).
 2. For each of the 10 categories, decide `credit`: `full` / `partial` / `none` / `n/a`.
    - `evidence`: the ids that prove it (e.g. `"BR-001..BR-009, REQ-040"`). Assumption ids alone
-     are capped at partial by the script.
-   - `n/a` needs a one-line `reason` the source supports.
-   - For `partial` / `none`: one `gap_description` and one `example_question`.
-3. When in doubt, partial.
+     are capped at partial by the script. An explicit "none needed" decision (`DEC-*` from the
+     qa-log, an `answered` requirement) is evidence for full credit.
+   - `n/a` needs a one-line `reason` the source supports — greenfield, or the concern sits in
+     `system_boundary.owned_elsewhere`.
+   - For `partial` / `none`: one `gap_description` and one `example_question`, both about what
+     this system does — never about an `owned_elsewhere` system.
+3. Partial only when a concrete in-scope item is missing — not because the source or the user
+   chose "none".
 
 ## Output
 

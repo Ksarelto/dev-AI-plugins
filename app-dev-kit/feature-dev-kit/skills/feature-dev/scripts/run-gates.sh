@@ -5,6 +5,7 @@
 #
 # Usage:   run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>] [--base <ref>]
 #                       [--spec <blackboard.md> --station <label>]
+#                       [--fix <comma-separated files>]
 #   --from   start at this gate, skipping earlier ones (default: types)
 #   --until  stop after this gate, even when it passed (layer profile: --until fsd)
 #   --only   run exactly one gate (cannot combine with --from or --until)
@@ -76,6 +77,17 @@ log=".spec/.gate-log"
 base_ref=""
 spec=""
 station=""
+fix_files=""
+
+has_dep() {
+  node --input-type=module -e '
+    import { existsSync, readFileSync } from "node:fs"
+    if (!existsSync("package.json")) process.exit(1)
+    const pkg = JSON.parse(readFileSync("package.json", "utf8"))
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies }
+    process.exit(Object.hasOwn(deps, process.argv[1]) ? 0 : 1)
+  ' "$1"
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -86,9 +98,37 @@ while [[ $# -gt 0 ]]; do
     --base) base_ref="${2:-}"; shift 2 ;;
     --spec) spec="${2:-}"; shift 2 ;;
     --station) station="${2:-}"; shift 2 ;;
-    *) echo "usage: run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>] [--base <ref>] [--spec <md> --station <label>]" >&2; exit 2 ;;
+    --fix) fix_files="${2:-}"; shift 2 ;;
+    *) echo "usage: run-gates.sh [--from <gate>] [--until <gate>] [--only <gate>] [--log <path>] [--base <ref>] [--spec <md> --station <label>] [--fix <files>]" >&2; exit 2 ;;
   esac
 done
+
+if [[ -n "$fix_files" ]]; then
+  # Auto-fix only tools the host declared, and only the listed files. Never npx.
+  IFS=',' read -ra fix_list <<< "$fix_files"
+  ran_fix=false
+  if has_script lint:fix; then
+    case "$(pm_bin)" in
+      pnpm) pnpm run lint:fix -- "${fix_list[@]}" ;;
+      yarn) yarn run lint:fix "${fix_list[@]}" ;;
+      *) npm run lint:fix -- "${fix_list[@]}" ;;
+    esac
+    ran_fix=true
+  elif has_dep eslint && [[ -x node_modules/.bin/eslint ]]; then
+    node_modules/.bin/eslint --fix "${fix_list[@]}"
+    ran_fix=true
+  fi
+  if has_dep prettier && [[ -x node_modules/.bin/prettier ]]; then
+    node_modules/.bin/prettier --write "${fix_list[@]}"
+    ran_fix=true
+  fi
+  if [[ "$ran_fix" == false ]]; then
+    echo SKIP
+    exit 0
+  fi
+  echo FIXED
+  exit 0
+fi
 
 if [[ -n "$only" && ( -n "$from" || -n "$until" ) ]]; then
   echo "error: --only cannot be combined with --from or --until" >&2

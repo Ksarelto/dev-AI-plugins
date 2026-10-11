@@ -50,12 +50,12 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 - [ ] Uses design tokens and the spacing scale — no arbitrary pixel values
 - [ ] Every user-facing string comes from i18n keys (`add-text-content`), never a literal or a string map
 - [ ] shadcn primitives match the registry output — same parts, `data-slot`, classes, and open/close animation; no call-site motion or look overrides
-- [ ] With a prototype: `extract-prototype-inventory.mjs --check` passes and the browser check compared every prototype state side by side
+- [ ] With a prototype: `extract-prototype-inventory.mjs --check` and `port-prototype-theme.mjs --check` both pass
 
 ## Integration
 
 - [ ] Works inside the running app, not only in isolation or in tests
-- [ ] When UI changed, `.spec/features/<slug>.context/browser-check.md` records the real route, the main actions, and one adjacent route that still works
+- [ ] When UI changed, the human reviewed the running route and `.spec/features/<slug>.context/ui-review.md` records the route, the console, and any comments
 - [ ] Query invalidation covers every cache the mutation affects
 - [ ] Route, navigation entry, and permissions are wired where the feature needs them
 - [ ] Public interface changes to a shared slice are backward compatible or all call sites updated

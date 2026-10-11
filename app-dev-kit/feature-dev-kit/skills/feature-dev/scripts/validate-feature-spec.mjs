@@ -174,6 +174,20 @@ for (const c of criteria) {
   }
 }
 
+// A filtered-empty / "clear filters" state whose control belongs to another slice cannot be opened.
+function dropOwned(text) {
+  return text.split(/^(?=### )/m).filter((part) => !/^###[^\n]*owned by other slices/i.test(part)).join('')
+}
+const FILTER_NEED = /filtered[-\s]?empty|clear filters/i
+const FILTER_CONTROL = /\b(filters?|search|query)\b/i
+const acInScope = dropOwned(acRaw)
+const uiInScope = dropOwned(sections.get('ui surface') ?? '')
+const stateLines = uiInScope.split('\n').filter((l) => /^- states:/i.test(l.trim())).join('\n')
+const controlLines = uiInScope.split('\n').filter((l) => /^- components:|^- interactions:|^ {2}- /i.test(l)).join('\n')
+if ((FILTER_NEED.test(acInScope) || FILTER_NEED.test(stateLines)) && !FILTER_CONTROL.test(controlLines)) {
+  err('STATE_UNREACHABLE', 'a filtered-empty or clear-filters state has no filter, search, or query control in scope — drop the state or bring the control into this slice')
+}
+
 // --- Dependency approval (Station 1b) ---
 const deps = sections.get('dependencies') ?? ''
 if (/awaiting-human-approval/i.test(deps)) {

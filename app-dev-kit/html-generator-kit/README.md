@@ -162,6 +162,7 @@ html-generator-kit/                          ← plugin root (KIT_DIR)
         finalize-prototype.mjs               ← Station 8: README.md + page-map.json
         clone-prototype.mjs                  ← Step 2 append: copy prior prototype dir
         record-prototype.mjs                 ← Step 5: write prototype_ref into current.json
+        log-timing.mjs                       ← every station: timings.jsonl
         write-kit-result.mjs                 ← html-kit-result.json envelope
 ```
 

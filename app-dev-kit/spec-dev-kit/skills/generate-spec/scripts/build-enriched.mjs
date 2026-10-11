@@ -43,7 +43,8 @@ const OPTIONAL = /\b(nice[- ]to[- ]have|optional|later|eventually|if time|phase 
 const normText = (t) => String(t ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
 const firstByText = new Map()
 const unique = []
-for (const r of readJson(intakePath).raw_requirements ?? []) {
+const intake = readJson(intakePath)
+for (const r of intake.raw_requirements ?? []) {
   const key = normText(r.text)
   const first = key ? firstByText.get(key) : undefined
   if (first) {
@@ -104,7 +105,7 @@ function mergeInto(target, patch) {
   }
 }
 
-const enriched = {}
+const enriched = intake.system_boundary ? { system_boundary: intake.system_boundary } : {}
 const edits = { modify: [], add: [] }
 for (const p of patchPaths) {
   const patch = readJson(p)

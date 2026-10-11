@@ -189,16 +189,25 @@ Spawn spec-completeness (category credits only):
 Bash: node S/score-completeness.mjs --intake {INTAKE_REPORT_PATH} --enriched {RUN_DIR}/artifacts/enriched.json \
         --credits {RUN_DIR}/artifacts/completeness-credits.json --out {RUN_DIR}/artifacts/completeness.json
 Read the one-line stdout JSON (gate_passes, completeness_score). Open completeness.json only when it fails.
-if gate_passes OR completeness_rounds >= 3:
-  if not gate_passes: spawn spec-enricher once (patch enriched.patch.final.json, merged as in
-                      Station 4) to add missing categories to open_questions (blocking: true)
-  continue Station 6
+if gate_passes: continue Station 6
 
-completeness_rounds++
-Spawn spec-analyst MODE: completeness_gap_analysis (writes analysis.json)
-Spawn spec-interrogator (max 4 questions)
-Return CLARIFY_PACKET { resume_at: "5", questions, completeness_rounds } and STOP.
+if completeness_rounds < 1:
+  completeness_rounds++
+  Bash: cp {RUN_DIR}/artifacts/analysis.json {RUN_DIR}/artifacts/analysis.base.json
+  Spawn spec-analyst MODE: completeness_gap_analysis
+    COMPLETENESS_PATH: {RUN_DIR}/artifacts/completeness.json, ANALYSIS_OUT_PATH (delta), QA_LOG_PATH
+  gate = Bash: node S/gate-check.mjs {RUN_DIR}/artifacts/analysis.json --round 0
+  if gate.askable_gaps or gate.open_conflicts:
+    Spawn spec-interrogator (ASK_GAPS: gate.askable_gaps + gate.open_conflicts, max 4 questions)
+    Return CLARIFY_PACKET { resume_at: "5", questions, completeness_rounds } and STOP.
+
+Spawn spec-enricher once (patch enriched.patch.final.json, merged as in Station 4): assume the
+  open assumable gaps; add each category still missing to open_questions (blocking only when a
+  slice cannot start without it). Continue Station 6.
 ```
+
+One completeness question round at most. A second failure goes to the review packet as
+assumptions and open questions — the human sees them at Station 9 instead of in another round.
 
 `gate_passes` is false when the score is below 85 **or** `unmapped_source_requirements` is non-empty
 (the seed maps every intake id, so this only fires if the intake changed after Station 4).
@@ -206,7 +215,8 @@ Return CLARIFY_PACKET { resume_at: "5", questions, completeness_rounds } and STO
 ### Resume at 5
 
 Integrate `NEW_ANSWERS` via the spec-enricher update pass (writes `enriched.patch.{round}.json`),
-merge with `build-enriched.mjs` (all patches in order), then re-run completeness.
+merge with `build-enriched.mjs` (all patches in order), then re-run completeness. With
+`completeness_rounds` already 1, a failing score goes straight to the final enricher pass.
 
 ---
 

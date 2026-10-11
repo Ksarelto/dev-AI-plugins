@@ -34,7 +34,8 @@ git add -A -- . \
   ':(exclude)**/.env' \
   ':(exclude)**/.env.*' \
   ':(exclude)**/credentials.json' \
-  ':(exclude)**/*.pem'
+  ':(exclude)**/*.pem' \
+  ':(exclude).spec/app'
 git reset -q -- .env .env.* credentials.json 2>/dev/null || true
 
 if git diff --cached --quiet; then

@@ -34,7 +34,7 @@ const STATION_NEEDLES = [
   'Station 1a', 'research-analyst', 'Station 1b', 'DEP_PACKET',
   'Station 2', 'Station 3', 'shared-engineer', 'Station 4', 'entities-engineer',
   'Station 5', 'features-engineer', 'Station 6', 'composition-engineer',
-  'Station 7', 'app-engineer', 'Station 8', 'test-engineer',
+  'Station 7', 'app-engineer', 'test-engineer',
   'Station 9', 'run-gates.sh', 'Station 9.5', 'Station 10', 'code-reviewer',
   'Station 11', 'Station 12', 'slice-engineer', 'REVIEW_PACKET',
 ]
@@ -546,7 +546,7 @@ ui-surface:
       '**Strategy**: one engineer per layer.', '',
       '| # | Station | Layer | Slice | Segments | Agent | Group | Status | Note |',
       '|---|---------|-------|-------|----------|-------|-------|--------|------|',
-      '| 1 | 3 | shared | ui | Dialog | shared-engineer | — | todo | |',
+      '| 1 | 3 | shared | ui | Dialog, Button, Input | shared-engineer | — | todo | |',
       '| 2 | 6 | pages | settings, help | ui | composition-engineer | B1 | todo | |', '',
       '### Not building', '', '- Dark mode.',
     ].join('\n'))
@@ -561,6 +561,11 @@ ui-surface:
     if (!cardText.includes('- screen-ref: SCR-001') || !cardText.includes('- screen-ref: SCR-002')) fail('batch card dropped a screen of its batch row')
     else if (cardText.includes('- screen-ref: SCR-003')) fail('batch card kept a screen outside its batch row')
     else pass('batch card keeps exactly the screens of its batch row')
+    const sharedCard = b('card', board, '--row', '1', '--agent', 'shared-engineer')
+    const sharedPath = sharedCard.status === 0 ? JSON.parse(sharedCard.stdout).card : ''
+    const sharedText = sharedPath && existsSync(sharedPath) ? readFileSync(sharedPath, 'utf8') : ''
+    if (!sharedText.includes('Dialog, Button, Input') || sharedText.includes('| 2 | 6 | pages')) fail('shared batch card must list every primitive on one row')
+    else pass('shared batch row is one card listing every primitive')
     b('row', board, '--row', '2', '--status', 'in-progress', '--note', 'first')
     b('row', board, '--row', '2', '--status', 'done', '--note', 'pages built')
     const rowLine = readFileSync(board, 'utf8').split('\n').find((l) => l.startsWith('| 2 |')) ?? ''
@@ -579,12 +584,490 @@ ui-surface:
     const timings = existsSync(join(ctx, 'timings.jsonl')) ? readFileSync(join(ctx, 'timings.jsonl'), 'utf8').trim().split('\n') : []
     if (!timings.some((l) => l.includes('"event":"spawn"')) || !timings.some((l) => l.includes('"event":"gate"'))) fail('timings.jsonl missing spawn / gate events')
     else pass('timings.jsonl records spawns and gates')
+    b('timing', board, '--station', 'Station 3', '--event', 'start')
+    b('timing', board, '--station', 'Station 3', '--event', 'end')
+    const summary = b('timing', board, '--summary')
+    if (summary.status !== 0 || !/Station 3: \d+s/.test(summary.stdout)) fail(`timing --summary: ${summary.stdout}${summary.stderr}`)
+    else pass('timing --summary prints a station duration')
   } finally {
     rmSync(tmpBoard, { recursive: true, force: true })
   }
 }
 
-// --- 6. Packet fixtures ---
+// --- 5c. Theme port, token check, fix-scope snapshot ---
+{
+  const portScript = join(here, 'port-prototype-theme.mjs')
+  const boardScript = join(here, 'board.mjs')
+  const scratch = mkdtempSync(join(here, '.tmp-parity-'))
+  try {
+    const globals = join(scratch, 'globals.css')
+    copyFileSync(join(here, 'fixtures/theme/globals.css'), globals)
+    const port = () => node(portScript, ['--prototype', protoFixture, '--globals', globals])
+    const before = node(portScript, ['--check', '--prototype', protoFixture, '--globals', globals])
+    if (before.status !== 1 || !before.stdout.includes('DIFF --primary')) fail(`theme --check before port: ${before.status} ${before.stdout}`)
+    else pass('port-prototype-theme --check reports token diffs')
+    const first = port()
+    if (first.status !== 0) fail(`port-prototype-theme: ${first.stderr}`)
+    else {
+      const css = readFileSync(globals, 'utf8')
+      const second = port()
+      if (!css.includes('--primary: oklch(0.55 0.15 165)')) fail('port did not copy --primary')
+      else if (css.includes('oklch(0.18')) fail('port copied .dark')
+      else if (!css.includes('--color-success:')) fail('port missed @theme color mapping')
+      else if (second.status !== 0 || !/UNCHANGED/.test(second.stdout) || readFileSync(globals, 'utf8') !== css) fail('port second run was not a no-op')
+      else pass('port-prototype-theme copies :root, skips .dark, second run unchanged')
+      const after = node(portScript, ['--check', '--prototype', protoFixture, '--globals', globals])
+      if (after.status !== 0) fail(`theme --check after port: ${after.stdout}${after.stderr}`)
+      else pass('port-prototype-theme --check passes after the port')
+    }
+
+    const repo = join(scratch, 'repo')
+    const tpl = join(scratch, 'tpl')
+    mkdirSync(tpl)
+    mkdirSync(join(repo, '.spec/features'), { recursive: true })
+    const git = (args) => spawnSync('git', args, { cwd: repo, encoding: 'utf8' })
+    const init = git(['init', '-q', '--template', tpl])
+    if (init.status !== 0) fail(`git init for snapshot: ${init.stderr}`)
+    else {
+      git(['config', 'user.email', 't@t'])
+      git(['config', 'user.name', 't'])
+      const board = join(repo, '.spec/features/demo.md')
+      writeFileSync(board, '# board\n')
+      writeFileSync(join(repo, 'src.txt'), 'a\n')
+      git(['add', '-A'])
+      git(['commit', '-q', '-m', 'init'])
+      const snap = node(boardScript, ['snapshot', board, '--round', '1'])
+      writeFileSync(join(repo, 'src.txt'), 'b\n')
+      writeFileSync(join(repo, 'extra.txt'), 'new\n')
+      const changed = node(boardScript, ['changed', board, '--since', '1'])
+      const names = changed.stdout.trim().split(',').filter(Boolean).sort()
+      if (snap.status !== 0 || changed.status !== 0) fail(`snapshot: ${snap.stderr} ${changed.stderr}`)
+      else if (names.join(',') !== 'extra.txt,src.txt') fail(`changed files: ${names.join(',')}`)
+      else pass('board.mjs snapshot/changed lists only files touched after the snapshot')
+    }
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+// --- 5d. Unreachable state, AC ownership, slice-size warning ---
+{
+  const scratch = mkdtempSync(join(here, '.tmp-reach-'))
+  try {
+    const boardFor = (name, ac, ui) => {
+      const sections = ['Request', 'Clarifications', 'Acceptance Criteria', 'FSD Impact', 'API Contract / Data Model', 'UI Surface', 'Architecture Baseline', 'Reuse Map', 'Tech Investigation', 'Dependencies', 'Build Plan', 'Gate Log', 'Human Review', 'Decisions & Open Questions']
+      const bodies = {
+        Request: 'Show the document list to a signed-in resident.',
+        'Acceptance Criteria': ac,
+        'UI Surface': ui,
+      }
+      const path = join(scratch, `${name}.md`)
+      writeFileSync(path, `---\nslug: ${name}\nstatus: draft\ncreated: 2026-01-01\n---\n# Feature: ${name}\n\n${sections.map((s) => `## ${s}\n\n${bodies[s] ?? ''}\n`).join('\n')}`)
+      return path
+    }
+    const states = '- screen-ref: SCR-001\n- states: loading, empty, error, success, filtered-empty\n- components: DocumentTable'
+    const bad = node(validateScript, [boardFor('reach', '1. The page shows a filtered-empty state when no rows match.\n2. Clear filters returns the full list of documents.', states)])
+    if (bad.status !== 1 || !bad.stderr.includes('STATE_UNREACHABLE')) fail(`STATE_UNREACHABLE missing: ${bad.stderr || bad.stdout}`)
+    else pass('validate-feature-spec rejects a filtered-empty state with no filter control')
+    const ownedUi = '- screen-ref: SCR-001\n- states: loading, empty, error, success\n- components: DocumentTable\n\n### Filters owned by other slices (context — do not build)\n- filtered-empty and clear filters'
+    const owned = node(validateScript, [boardFor('owned', '1. The page shows the empty state when there are no documents.\n2. The page shows an error when the list request fails.', ownedUi)])
+    if (owned.status !== 0) fail(`owned-by-other filter state should pass: ${owned.stderr}`)
+    else pass('a filter state owned by another slice is not this slice\'s problem')
+    const ready = node(validateScript, [boardFor('ready', '1. The page shows a filtered-empty state when no rows match.\n2. Clear filters returns the full list of documents.', `${states}\n- components: filter`)])
+    if (ready.status !== 0) fail(`filter control in scope should pass: ${ready.stderr}`)
+    else pass('a filter control in scope clears STATE_UNREACHABLE')
+
+    const spec = join(scratch, 'spec.md')
+    writeFileSync(spec, `---
+spec-version: "2.0"
+type: app
+status: approved
+metadata:
+  title: Demo
+  slug: demo
+context:
+  goal: Show documents.
+ui-surface:
+  screens:
+    - id: SCR-001
+      title: Document list
+      route: /documents
+      states: [success]
+      components: [DocumentTable]
+user-stories:
+  - id: US-001
+    as: a resident
+    i-want: see the document list
+    so-that: I know what exists
+  - id: US-002
+    as: a resident
+    i-want: sort the document list
+    so-that: I find a row
+acceptance-criteria:
+  - id: AC-001
+    story-ref: US-001
+    given: the document list is empty
+    when: the page loads
+    then: the empty state is shown
+  - id: AC-002
+    story-ref: US-002
+    given: the document list has rows
+    when: the user sorts the table
+    then: the document list reorders
+delivery-plan:
+  slices:
+    - id: SL-001
+      title: List states
+      screen-refs: [SCR-001]
+      story-refs: [US-001]
+      ac-refs: [AC-001]
+    - id: SL-002
+      title: Table sort
+      screen-refs: [SCR-001]
+      story-refs: [US-002]
+      ac-refs: [AC-002]
+---
+# spec
+`)
+    const out = join(scratch, 'list-states.md')
+    const imported = node(importScript, ['--spec', spec, '--out', out, '--slug', 'list-states', '--slice-ref', 'SL-001', '--screen-ref', 'SCR-001', '--require-scoped'])
+    const board = imported.status === 0 && existsSync(out) ? readFileSync(out, 'utf8') : ''
+    if (imported.status !== 0) fail(`import ownership: ${imported.stderr || imported.stdout}`)
+    else if (!board.includes('1. [AC-001]') || /2\. \[AC-002\]/.test(board)) fail(`AC-002 should not be a built criterion:\n${board.slice(0, 1500)}`)
+    else if (!board.includes('AC-002 (SL-002)') || !board.includes('Acceptance criteria owned by other slices')) fail('AC-002 was not listed as owned by SL-002')
+    else if (!board.includes('US-002 (SL-002)')) fail('US-002 was not listed as owned by SL-002')
+    else pass('import keeps another slice\'s acceptance criterion and story as context')
+
+    const checklist = join(scratch, 'task-checklist.md')
+    writeFileSync(checklist, `---
+checklist-version: "1.1"
+updated: "2026-01-01T00:00:00Z"
+features:
+  - id: F-002
+    title: Documents
+    status: pending
+    priority: must
+    tasks:
+      - id: T-1
+        title: List states
+        screen-ref: SCR-1
+        ac-refs: [AC-1]
+        status: pending
+      - id: T-2
+        title: Table settings
+        screen-ref: SCR-1
+        ac-refs: [AC-2]
+        status: pending
+---
+`)
+    const summary = node(join(repoRoot, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/read-checklist.mjs'), [checklist, '--summary'])
+    if (summary.status !== 0 || !summary.stdout.includes('WARN slice-size: F-002 spans')) fail(`slice-size warning: ${summary.stdout}${summary.stderr}`)
+    else pass('read-checklist --summary warns when a feature spans two behaviors')
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+// --- 6. Resume, checklist, and write guards ---
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'flow-guards-'))
+  const updateScript = join(repoRoot, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/update-checklist.mjs')
+  const readScript = join(repoRoot, 'app-dev-kit/frontend-orchestrator-kit/skills/orchestrate-frontend/scripts/read-checklist.mjs')
+  const boardScript = join(here, 'board.mjs')
+  const spec = (id, parent, screens, slices) => `---
+metadata:
+  title: ${id}
+  slug: demo
+  ${parent ? `parent-spec: ${parent}` : ''}
+ui-surface:
+  screens:
+${screens}
+user-stories:
+  - id: US-001
+    priority: must
+    i-want: sign in
+  - id: US-002
+    priority: must
+    i-want: open documents
+acceptance-criteria:
+  - id: AC-001
+    story-ref: US-001
+    given: a
+    when: b
+    then: c
+  - id: AC-002
+    story-ref: US-002
+    given: a
+    when: b
+    then: c
+delivery-plan:
+  slices:
+${slices}
+---
+# ${id}
+`
+  try {
+    const baseDir = join(scratch, 'spec', 'spec-base')
+    const childDir = join(scratch, 'spec', 'spec-child')
+    mkdirSync(baseDir, { recursive: true })
+    mkdirSync(childDir, { recursive: true })
+    const baseSpec = join(baseDir, 'spec.md')
+    const childSpec = join(childDir, 'spec.md')
+    writeFileSync(baseSpec, spec('base', '', `    - id: SCR-001\n      title: Sign in\n      story-refs: [US-001]\n`, `    - id: SL-001\n      title: Sign in\n      tracks: [frontend]\n      screen-refs: [SCR-001]\n      story-refs: [US-001]\n      depends-on: []\n`))
+    writeFileSync(childSpec, spec('child', baseSpec, `    - id: SCR-010\n      title: Documents\n      story-refs: [US-002]\n`, `    - id: SL-002\n      title: Documents\n      tracks: [frontend]\n      screen-refs: [SCR-010]\n      story-refs: [US-002]\n      depends-on: [SL-001]\n`))
+    const featuresDir = join(scratch, 'features')
+    mkdirSync(featuresDir, { recursive: true })
+    writeFileSync(join(featuresDir, 'sign-in.md'), `---
+status: done
+slug: sign-in
+branch: feature/sign-in
+parent-branch: main
+feature-id: F-001
+slice-ref: SL-001
+---
+# Feature: sign-in
+`)
+    writeFileSync(join(featuresDir, 'sign-in.kit-result.json'), JSON.stringify({ outcome: 'approved', slug: 'sign-in', branch: 'feature/sign-in', parent_branch: 'main' }))
+    const dry = node(checklistScript, [childSpec, '--dry-run'], { cwd: scratch })
+    const dryOut = `${dry.stdout}\n${dry.stderr}`
+    if (dry.status !== 0) fail(`chain dry-run failed: ${dryOut}`)
+    else if (!dryOut.includes('- F-001 [done] SL-001') || !dryOut.includes('depends-on F-001') || !dryOut.includes('adopted: 1')) fail(`chain dry-run shape:\n${dryOut}`)
+    else pass('continue-only generate adopts done boards and resolves depends-on')
+
+    const reopenSpec = join(scratch, 'reopen.md')
+    writeFileSync(reopenSpec, spec('reopen', '', `    - id: SCR-001\n      title: Sign in\n      story-refs: [US-001]\n    - id: SCR-002\n      title: Sign in help\n      story-refs: [US-001]\n`, `    - id: SL-001\n      title: Sign in\n      tracks: [frontend]\n      screen-refs: [SCR-001, SCR-002]\n      story-refs: [US-001]\n`))
+    const reopenList = join(scratch, 'task-checklist.md')
+    writeFileSync(reopenList, `---
+checklist-version: "1.2"
+spec-ref: ${reopenSpec}
+approved: "2026-01-01T00:00:00.000Z"
+features:
+  - id: F-001
+    title: Sign in
+    slice-ref: SL-001
+    status: done
+    slug: sign-in
+    branch: feature/sign-in
+    tasks:
+      - id: T-001
+        title: Sign in
+        slice-ref: SL-001
+        screen-ref: SCR-001
+        status: done
+---
+# log
+`)
+    const reopened = node(checklistScript, [reopenSpec, '--dry-run'], { cwd: scratch })
+    const reopenOut = `${reopened.stdout}\n${reopened.stderr}`
+    if (!reopenOut.includes('- F-001 [pending] SL-001') || !reopenOut.includes('reopened: 1')) fail(`new screen did not reopen:\n${reopenOut}`)
+    else pass('a new screen in a done feature reopens it')
+
+    const aheadSpec = join(scratch, 'ahead.md')
+    writeFileSync(aheadSpec, spec('ahead', '', `    - id: SCR-001\n      title: First\n      story-refs: [US-001]\n    - id: SCR-002\n      title: Second\n      story-refs: [US-002]\n`, `    - id: SL-009\n      title: Both\n      tracks: [frontend]\n      screen-refs: [SCR-001, SCR-002]\n      story-refs: [US-001, US-002]\n`))
+    const aheadList = join(dirname(aheadSpec), 'task-checklist.md')
+    writeFileSync(aheadList, `---
+checklist-version: "1.2"
+spec-ref: ${aheadSpec}
+features:
+  - id: F-001
+    title: Both
+    slice-ref: SL-009
+    status: pending
+    tasks:
+      - id: T-001
+        title: Second
+        slice-ref: SL-009
+        screen-ref: SCR-002
+        status: pending
+---
+# log
+`)
+    node(checklistScript, [aheadSpec], { cwd: scratch })
+    const aheadDoc = parseFrontmatter(aheadList).fm
+    const ids = (aheadDoc?.features?.[0]?.tasks ?? []).map((task) => task.id)
+    if (new Set(ids).size !== ids.length) fail(`duplicate task ids: ${ids.join(',')}`)
+    else pass('a screen inserted ahead does not reuse an existing task id')
+
+    mkdirSync(join(scratch, 'app', 'results'), { recursive: true })
+    const staleList = join(scratch, 'app', 'task-checklist.md')
+    writeFileSync(staleList, `---
+checklist-version: "1.2"
+spec-ref: ${childSpec}
+features:
+  - id: F-002
+    title: Documents
+    slice-ref: SL-006
+    status: in-progress
+    tasks: []
+---
+# log
+`)
+    writeFileSync(join(scratch, 'app', 'results', 'F-002.json'), JSON.stringify({ outcome: 'approved', slug: 'sign-in', branch: 'feature/sign-in' }))
+    const stale = node(updateScript, [staleList, '--feature', 'F-002', '--result', join(scratch, 'app', 'results', 'F-002.json')], { cwd: scratch })
+    const staleDoc = parseFrontmatter(staleList).fm
+    if (stale.status !== 0 || staleDoc?.features?.[0]?.status === 'done' || !stale.stdout.includes('stale') && !readFileSync(staleList, 'utf8').includes('stale envelope ignored')) fail(`stale envelope applied: ${stale.stdout}${stale.stderr}`)
+    else pass('a stale envelope is ignored')
+
+    const planBoard = join(featuresDir, 'plan.md')
+    writeFileSync(planBoard, `---
+status: building
+parent-branch: none
+---
+# plan
+
+## Build Plan
+
+| # | Status |
+| --- | --- |
+| 1 | done |
+
+## FSD Impact
+
+- \`features/sign-in\`
+`)
+    const planFile = join(scratch, 'plan-body.md')
+    writeFileSync(planFile, '| # | Status |\n| --- | --- |\n| 1 | todo |\n')
+    const refused = node(boardScript, ['section', planBoard, '--put', 'Build Plan', '--from', planFile])
+    if (refused.status === 0) fail('Build Plan put over a done row was allowed')
+    else pass('Build Plan put over a done row is refused')
+
+    const fixed = spawnSync('bash', [join(here, 'run-gates.sh'), '--fix', 'src/a.ts'], { cwd: scratch, encoding: 'utf8' })
+    if (fixed.status !== 0 || !fixed.stdout.includes('SKIP')) fail(`run-gates --fix should SKIP: ${fixed.stdout}${fixed.stderr}`)
+    else pass('run-gates --fix skips when the host has no fixer')
+
+    const auditDir = join(featuresDir, 'plan.context')
+    mkdirSync(auditDir, { recursive: true })
+    writeFileSync(join(auditDir, 'architecture-auditor-9.5.md'), 'AUDITED-AT: deadbeef\nSCOPE-PATHS: features/sign-in\n')
+    writeFileSync(join(auditDir, 'gate-log.jsonl'), `${JSON.stringify({ gate: 'architecture-audit', result: 'fail' })}\n`)
+    const full = node(boardScript, ['audit-scope', planBoard, '--prior', join(auditDir, 'architecture-auditor-9.5.md')])
+    if (!full.stdout.includes('FULL')) fail(`audit-scope should be FULL when the prior audit failed: ${full.stdout}`)
+    else pass('audit-scope refuses a prior audit that did not pass')
+    writeFileSync(join(auditDir, 'gate-log.jsonl'), `${JSON.stringify({ gate: 'architecture-audit', result: 'pass' })}\n`)
+    const notAncestor = node(boardScript, ['audit-scope', planBoard, '--prior', join(auditDir, 'architecture-auditor-9.5.md')])
+    if (!notAncestor.stdout.includes('FULL')) fail(`audit-scope should be FULL when AUDITED-AT is not an ancestor: ${notAncestor.stdout}`)
+    else pass('audit-scope refuses a prior audit whose commit is not in HEAD')
+
+    const repo = join(scratch, 'repo')
+    mkdirSync(repo, { recursive: true })
+    const git = (args) => spawnSync('git', args, { cwd: repo, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t' } })
+    git(['init'])
+    git(['config', 'user.email', 't@t'])
+    git(['config', 'user.name', 't'])
+    writeFileSync(join(repo, 'README.md'), 'hi\n')
+    git(['add', 'README.md'])
+    git(['commit', '-m', 'init'])
+    mkdirSync(join(repo, '.spec', 'features'), { recursive: true })
+    writeFileSync(join(repo, '.spec', 'note.md'), 'orchestrator\n')
+    const clean = spawnSync('bash', [join(here, 'new-feature.sh'), 'demo', '', join(repo, '.spec/features')], { cwd: repo, encoding: 'utf8' })
+    if (clean.status !== 0 || !clean.stdout.includes('CREATED=true')) fail(`new feature with only .spec dirty should start: ${clean.stdout}${clean.stderr}`)
+    else pass('a dirty .spec does not block a new feature')
+    writeFileSync(join(repo, 'src.txt'), 'wip\n')
+    const resume = spawnSync('bash', [join(here, 'new-feature.sh'), 'demo', '', join(repo, '.spec/features')], { cwd: repo, encoding: 'utf8' })
+    if (resume.status !== 0 || !resume.stdout.includes('CREATED=false') || resume.stdout.includes('PARENT=feature/demo')) fail(`resume on a dirty feature branch: ${resume.stdout}${resume.stderr}`)
+    else pass('resuming the feature branch keeps uncommitted work and does not parent itself')
+
+    const sha = git(['rev-parse', 'HEAD']).stdout.trim()
+    const scopeBoard = join(repo, 'scope.md')
+    writeFileSync(scopeBoard, `---
+status: building
+parent-branch: main
+---
+# scope
+
+## FSD Impact
+
+- \`features/sign-in\`
+`)
+    const scopeReport = join(repo, 'audit.md')
+    const scopeLog = join(repo, 'gate-log.jsonl')
+    writeFileSync(scopeReport, `AUDITED-AT: ${sha}\nSCOPE-PATHS: features/sign-in\n`)
+    writeFileSync(scopeLog, '')
+    mkdirSync(dirname(scopeLog), { recursive: true })
+    writeFileSync(scopeLog, `${JSON.stringify({ gate: 'architecture-audit', result: 'pass' })}\n`)
+    const reuse = node(boardScript, ['audit-scope', scopeBoard, '--prior', scopeReport], { cwd: repo })
+    if (!reuse.stdout.includes(`REUSE ${scopeReport}`)) fail(`audit-scope should reuse an unchanged parent audit: ${reuse.stdout}${reuse.stderr}`)
+    else pass('audit-scope reuses a parent audit when nothing changed')
+    writeFileSync(scopeBoard, `---
+status: building
+parent-branch: main
+---
+# scope
+
+## FSD Impact
+
+- \`features/sign-in\`
+- \`widgets/nav\`
+`)
+    const outside = node(boardScript, ['audit-scope', scopeBoard, '--prior', scopeReport], { cwd: repo })
+    if (!outside.stdout.includes('widgets/nav')) fail(`audit-scope should print a path outside the prior scope: ${outside.stdout}`)
+    else pass('audit-scope prints a path outside the prior scope')
+    mkdirSync(join(repo, 'features', 'sign-in'), { recursive: true })
+    writeFileSync(join(repo, 'features', 'sign-in', 'a.ts'), 'export const a = 1\n')
+    git(['add', 'features/sign-in/a.ts'])
+    git(['commit', '-m', 'slice'])
+    const afterSha = git(['rev-parse', 'HEAD']).stdout.trim()
+    writeFileSync(scopeReport, `AUDITED-AT: ${afterSha}\nSCOPE-PATHS: features/sign-in\n`)
+    writeFileSync(scopeBoard, `---
+status: building
+parent-branch: main
+---
+# scope
+
+## FSD Impact
+
+- \`features/sign-in\`
+`)
+    writeFileSync(join(repo, 'features', 'sign-in', 'a.ts'), 'export const a = 2\n')
+    const changed = node(boardScript, ['audit-scope', scopeBoard, '--prior', scopeReport], { cwd: repo })
+    if (!changed.stdout.includes('features/sign-in/a.ts')) fail(`audit-scope should print a changed path: ${changed.stdout}${changed.stderr}`)
+    else pass('audit-scope prints a path that changed since the prior audit')
+
+    const skill = readFileSync(join(skillDir, 'SKILL.md'), 'utf8')
+    const shared = readFileSync(join(kitDir, 'agents/shared-engineer.md'), 'utf8')
+    const planDoc = readFileSync(join(skillDir, 'templates/build-plan.md'), 'utf8')
+    const sharedUi = readFileSync(join(kitDir, 'skills/create-shared-ui/SKILL.md'), 'utf8')
+    if (!skill.includes('kit-result.json` is missing, finish Step 6')) fail('feature-dev must finish Step 6 when a done feature has no envelope')
+    else pass('done with no envelope finishes Step 6')
+    if (!shared.includes('shadcn add a b c') || !planDoc.includes('shadcn add a b c') || !sharedUi.includes('add a b c')) fail('shared primitives must be one batch add')
+    else pass('shared primitives are one batch add')
+
+    const skipSpec = join(scratch, 'skip-spec.md')
+    writeFileSync(skipSpec, spec('skip', '', `    - id: SCR-001\n      title: Sign in\n      story-refs: [US-001]\n`, `    - id: SL-001\n      title: Sign in\n      tracks: [frontend]\n      screen-refs: [SCR-001]\n      story-refs: [US-001]\n`).replace('---\nmetadata:\n', '---\nstatus: approved\nmetadata:\n'))
+    const skipBoard = join(featuresDir, 'approved.md')
+    writeFileSync(skipBoard, `---
+status: approved
+slug: approved
+---
+# Feature: approved
+
+## Acceptance Criteria
+
+1. [AC-001] given a
+2. [AC-002] given a
+
+SCR-001 US-001
+`)
+    const skipped = node(importScript, ['--spec', skipSpec, '--out', skipBoard, '--slug', 'approved', '--slice-ref', 'SL-001', '--screen-ref', 'SCR-001'])
+    if (skipped.status !== 0 || !skipped.stdout.includes('SKIP: board at status approved')) fail(`import should skip an approved board: ${skipped.stdout}${skipped.stderr}`)
+    else pass('import skips an approved board')
+    writeFileSync(skipSpec, spec('skip', '', `    - id: SCR-001\n      title: Sign in\n      story-refs: [US-001]\n`, `    - id: SL-001\n      title: Sign in\n      tracks: [frontend]\n      screen-refs: [SCR-001]\n      story-refs: [US-001]\n`).replace('---\nmetadata:\n', '---\nstatus: approved\nmetadata:\n').replace('  - id: AC-002\n', '  - id: AC-009\n    story-ref: US-001\n    given: a\n    when: b\n    then: c\n  - id: AC-002\n'))
+    const warned = node(importScript, ['--spec', skipSpec, '--out', skipBoard, '--slug', 'approved', '--slice-ref', 'SL-001', '--screen-ref', 'SCR-001'])
+    if (!warned.stderr.includes('WARN upstream-changed: AC-009') && !warned.stdout.includes('WARN upstream-changed: AC-009')) fail(`import should warn when the spec adds an id: ${warned.stdout}${warned.stderr}`)
+    else pass('import warns when an approved board is missing an upstream id')
+
+    const original = readFileSync(planBoard, 'utf8')
+    for (let i = 0; i < 30; i++) writeFileSync(planFile, `| # | Status |\n| --- | --- |\n| 1 | round-${i} |\n`)
+    const puts = Array.from({ length: 30 }, (_, i) => node(boardScript, ['section', planBoard, '--put', 'Build Plan', '--from', planFile, '--force']))
+    const after = readFileSync(planBoard, 'utf8')
+    if (puts.some((result) => result.status !== 0) || !after.includes('## FSD Impact') || !after.startsWith('---')) fail('a board write dropped a section')
+    else if (original && !after.includes('round-29')) fail('the last board write did not land')
+    else pass('30 board writes left a complete file')
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+}
+
+// --- 7. Packet fixtures ---
 for (const type of PACKET_TYPES) {
   const p = join(packetsDir, `${type}.json`)
   if (!existsSync(p)) { fail(`missing packet fixture ${type}.json`); continue }

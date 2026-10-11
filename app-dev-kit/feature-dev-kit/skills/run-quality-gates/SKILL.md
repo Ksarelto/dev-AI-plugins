@@ -10,7 +10,7 @@ allowed-tools: [Bash, Read, Grep]
 
 ## When to use
 
-Station 9 runs the full sweep. After each layer, stop at FSD (`--until fsd`). A patch run stops at conventions (`--until conventions`) after its Station 8 walk. A fix re-runs the failed gate plus types. The orchestrator runs the fast path directly via Bash. This skill reports only — it never fixes. Do not paste the transcript.
+Station 9 runs the full sweep. After each layer, stop at FSD (`--until fsd`). A patch run stops at conventions (`--until conventions`); the slice engineer already wrote the tests. A Station 11 fix re-runs types, lint, and fsd on `FIX_SCOPE`, then both reviewers in `MODE: verify`. The orchestrator runs the fast path directly via Bash. This skill reports only — it never fixes. Do not paste the transcript.
 
 ## Fast path
 

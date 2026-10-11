@@ -22,10 +22,10 @@ orchestrator can emit `ESCALATION_PACKET` — do not improvise an audit.
 
 ## Inputs
 
-- `MODE` — `baseline` (Station 1.5) | `diff` (Station 9.5)
+- `MODE` — `baseline` (Station 1.5) | `diff` (Station 9.5) | `verify` (a failed 9.5, after the fix)
 - `SPEC_PATH` — blackboard; read `## FSD Impact` (baseline) or the changed-file list (diff)
 - `SCOPE` — FSD Impact paths plus importers (baseline), or
-  `git diff --name-only {base}...HEAD` plus importers (diff). Never all of `src/` unless that list is the whole tree.
+  `git diff --name-only {base}...HEAD` plus importers (diff). `verify` is `FIX_SCOPE` (the comma list of files the last fix touched) plus prior hard findings, not the whole diff. Never all of `src/` unless that list is the whole tree.
 - `DIFF_SCOPE` + `TOPICS` — diff mode only. Load only those architecture-audit references.
 - `KIT_DIR`
 
@@ -41,8 +41,11 @@ DIFF_SCOPE and TOPICS apply when present. Write the report to the handoff path. 
 1. Confirm `src/` has FSD layers. If not, return `skipped (empty tree)` — the orchestrator writes
    that into `## Architecture Baseline` and continues.
 2. Run the preloaded `architecture-audit` procedure through step 5 (report). Stop. Never step 6.
-   When the prompt contains `DIFF_SCOPE`, load only the `TOPICS` named there.
+   When the prompt contains `DIFF_SCOPE`, load only the `TOPICS` named there. `MODE: verify` checks
+   each prior hard finding on `FIX_SCOPE` and reports what is still hard, plus any new hard finding
+   on those files only. Do not re-walk untouched files.
 3. Write the report to `.spec/features/<slug>.context/architecture-auditor-<station>.md`.
+   The first two lines are `AUDITED-AT: <git rev-parse HEAD>` and `SCOPE-PATHS: <comma-separated paths audited>`.
    Station 9.5 returns every finding in this one pass, grouped by owning agent and layer
    (one group is one later fix batch). Do not stop after the first finding.
    Return only `HANDOFF` and one `CONTAINS` line (hard count, judgment count). Do not paste the report.

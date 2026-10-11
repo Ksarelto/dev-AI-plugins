@@ -9,8 +9,8 @@
 //   --base   also include files changed on the branch since <ref> (merge-base diff)
 //   --all    check every file under src/ instead of the changed set
 //   --files  comma-separated paths (relative to --root) instead of the changed set
-//   --ignore comma-separated rule ids to drop. Worker self-checks: missing-test before Station 8, and
-//            unused-export before Station 7 (later layers and app wiring import those exports).
+//   --ignore comma-separated rule ids to drop. Worker self-checks: unused-export before Station 7
+//            (later layers and app wiring import those exports). Builders do not ignore missing-test.
 //            Never passed by run-gates.sh — the gate always runs every rule.
 //   --json   print one JSON object instead of text lines
 //

@@ -12,7 +12,7 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 | [agent-dev-kit](app-dev-kit/agent-dev-kit/) | Rules + Skills + Agents + MCP | TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter; `/agent-dev` factory from a spec |
 | [backend-dev-kit](app-dev-kit/backend-dev-kit/) | Rules + Skills + Agents + MCP | Node.js APIs: Express 5, TypeScript, Drizzle, Zod, Vitest; `/backend-dev` factory from a spec |
 | [spec-dev-kit](app-dev-kit/spec-dev-kit/) | Skills + Agents | Raw `.spec/context/` requirements → approved hybrid YAML+Markdown spec |
-| [html-generator-kit](app-dev-kit/html-generator-kit/) | Skills + Agents | Validated spec → Alpine.js multi-page HTML prototype (CDN-free styling and scripting — Alpine is vendored; only Google Fonts loads from a CDN). A provided theme, brand, mockup, or layout is binding |
+| [html-generator-kit](app-dev-kit/html-generator-kit/) | Skills + Agents | Validated spec → Alpine.js multi-page HTML prototype (CDN-free styling; Alpine and Google Fonts load from a CDN). A provided theme, brand, mockup, or layout is binding |
 | [feature-dev-kit](app-dev-kit/feature-dev-kit/) | Skills + Agents + Rules + MCP | One React FSD feature per run (nested screen-tasks share the branch and commit) from a spec + optional prototype; hub-and-spoke; architecture-audit; never a PR |
 | [frontend-orchestrator-kit](app-dev-kit/frontend-orchestrator-kit/) | Skills | Spec → prototype → `/feature-dev` once per feature (nested screen-tasks share that call), tracked on a persisted checklist |
 | [app-orchestrator-kit](app-dev-kit/app-orchestrator-kit/) | Skills | Analyze spec + prototype, then dispatch backend / agent / frontend tracks against a work-plan |
@@ -74,7 +74,7 @@ Or reload inside a session after changes:
 |-----------|-------------|------------|
 | Skills | `skills/*/SKILL.md` | `/plugin-name:skill-name` |
 | Commands | `commands/*.md` | `/plugin-name:command-name` |
-| Agents | `agents/*.md` | Agent picker |
+| Agents | `agents/*.md` (Cursor: `agents/`, or `cursor-agents/` for spec, html, and feature kits) | Agent picker |
 | Rules | `rules/*.mdc` | Injected by Claude automatically |
 | MCP | `.mcp.json` | Available to all agents in plugin |
 
@@ -88,7 +88,7 @@ Or reload inside a session after changes:
 
 ## Cursor
 
-Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the same `rules/`, `skills/`, `commands/`, and MCP files as Claude Code. `agents` is `./agents/` in Cursor and `./agents/*.md` in Claude Code.
+Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the same `rules/`, `skills/`, `commands/`, and MCP files as Claude Code. Claude `agents` is `./agents/*.md`. Cursor `agents` is `./agents/`, except spec-dev-kit, html-generator-kit, and feature-dev-kit, which point at generated `./cursor-agents/`.
 
 ### Install from GitHub
 

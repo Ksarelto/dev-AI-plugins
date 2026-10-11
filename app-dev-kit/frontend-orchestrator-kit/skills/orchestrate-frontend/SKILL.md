@@ -70,8 +70,8 @@ This kit has **no agents of its own**.
 | `.spec/context/*.md` (new run with no approved spec and no `SKIP_UPSTREAM`) | `Glob(".spec/context/*.md")` | STOP — drop requirement `.md` files, then retry |
 | FSD host (before Station 3) | `src/app`, `src/pages`, `src/features`, `src/entities`, `src/shared` | STOP — feature-dev-kit does not clone a starter |
 | `frontend-dev-kit` (before Station 3) | `architecture-audit` skill resolvable | STOP — required companion |
-| Clean git tree (before each Station 3 spawn) | `git status --porcelain` | AskUserQuestion: commit, stash, or abort — do not invoke feature-dev |
-| Host setup (once per run, before the first Station 3 feature) | `node {KIT_DIR}/skills/orchestrate-frontend/scripts/preflight-host.mjs` (exit 0) | Exit 1: one `AskUserQuestion` listing each `ISSUE` and its `fix` — **Apply the fixes** · **Continue anyway** (pass `--preflight accepted` to every `read-checklist.mjs --payload` this run) · **Abort**. Apply means editing the host; a `lint:fsd` tool choice or a new package is the human's pick |
+| Clean git tree (before each Station 3 spawn of a feature that is not already `in-progress` on its own branch) | `git status --porcelain -- . ':(exclude).spec'` | AskUserQuestion: commit, stash, or abort — do not invoke feature-dev. Skip when the feature is `in-progress` and HEAD is `feature.branch`: that uncommitted work is the build being resumed, and stashing it would hide it |
+| Host setup (once per run, before the first Station 3 feature) | `node {KIT_DIR}/skills/orchestrate-frontend/scripts/preflight-host.mjs` (exit 0) | Exit 1: one `AskUserQuestion` listing each `ISSUE` and its `fix` — **Apply the fixes** · **Continue anyway** · **Abort**. Continue anyway runs `update-checklist.mjs {CHECKLIST_PATH} --preflight accepted` and passes `--preflight accepted` on every `--payload` this run. A clean preflight passes `--preflight passed` instead. Apply means editing the host; a `lint:fsd` tool choice or a new package is the human's pick |
 
 Do not pre-install a delegated kit’s own dependencies (`ui-ux-pro-max`, shadcn MCP) — each kit
 resolves those at run time.
@@ -114,15 +114,20 @@ A fresh session starts by reading `.spec/app/current.json`. Do not recover the s
 1. If `SPEC_PATH` was passed and that `spec.md` exists, use it. Else read `.spec/app/current.json`.
    When `spec_path` is set and the argument is omitted or equals `slug`, use that path.
    The checklist is `.spec/app/task-checklist.md` (not beside the spec folder).
-   If the argument matches `slug`:
+   If the argument matches `slug`, or the argument was omitted and `.spec/app/task-checklist.md` exists:
    - `node {KIT_DIR}/skills/orchestrate-frontend/scripts/read-checklist.mjs {CHECKLIST_PATH} --summary` —
      do not Read the checklist YAML.
    - `SPEC_PATH` = `spec-ref`. If that file is missing, STOP.
    - Read `status:` from the spec **front matter only**. If it is not `approved`, STOP — finish
      `/generate-spec` first.
-   - If the summary says `spec-newer-than-checklist: true`, or `build-checklist.mjs` would add/block
-     tasks: `AskUserQuestion` — **Re-derive checklist** (run Station 2a, keep existing
-     `done`/`skipped` ids) · **Resume as-is** · **Abort**.
+   - If the summary prints any `ERROR` line, STOP. Surface it and ask the human to fix or regenerate.
+     Do not start Station 3.
+   - If `approved:` is empty and every feature in the summary is `pending`, go to the Station 2a
+     approval question and re-present this summary. Do not rebuild. A checklist with no `approved`
+     and any row that is not `pending` was approved before the field existed — treat it as approved.
+   - If the summary says `spec-newer-than-checklist: true`, or
+     `build-checklist.mjs {SPEC_PATH} --dry-run` would add or reopen tasks: `AskUserQuestion` —
+     **Re-derive checklist** (run Station 2a, keep existing `done`/`skipped` ids) · **Resume as-is** · **Abort**.
    - `Glob(".spec/context/*.md")`. If any files exist they are **unprocessed requirements** (not yet
      archived by a publish run). Do not jump to Station 3 — fall through to Station 1 so
      spec-dev-kit can amend the spec with those new requirements. The existing `done`/`skipped` tasks
@@ -160,8 +165,8 @@ If none approved:
    `"No requirement files found in .spec/context/. Drop .md files there, then re-run /orchestrate-frontend."`
    Do **not** invoke generate-spec (it would stop the same way after loading its skill body).
 2. Invoke `spec-dev-kit:generate-spec` with the **slug/app name only** — never paste context-file
-   contents — plus `RESULT_OUT: .spec/app/results/generate-spec.json`. It owns its HITL gate. Wait
-   for it to return.
+   contents — plus `RESULT_OUT: .spec/app/results/generate-spec.json` and `BUILDS: frontend` (so
+   the spec does not ask how the backend behaves). It owns its HITL gate. Wait for it to return.
 3. After it returns, Read `RESULT_OUT` (fallback `{dirname(spec_path)}/kit-result.json` only when
    `current.json` `spec_path` is set). `current.json` is a pointer, not the envelope — it has no
    `outcome`.
@@ -184,7 +189,10 @@ spec, and wait for it to return:
 
 ```
 SPEC_PATH:    {SPEC_PATH}
+CONFIRMED:    true
 ```
+
+`CONFIRMED: true` means the human already chose to generate a prototype. generate-html skips only its "Proceed?" question. Its design-reference question and the review gate stay.
 
 Argument: the spec **folder name** (`spec-{tc}_{slug}`) or the `spec.md` path — generate-html
 treats an existing `spec.md` path as `SPEC_FILE` and will not glob for another spec.
@@ -223,12 +231,19 @@ Exit 1 — no buildable (non-`wont`) screens — report `SPEC_PATH` and stop.
 Exit 2 — parse/usage failure — report the error lines and stop.
 
 On exit 0, report the script's `kept` / `appended` / `reopened` line, then run
-`read-checklist.mjs {CHECKLIST_PATH} --summary` (do not Read the YAML). Present each
+`read-checklist.mjs {CHECKLIST_PATH} --summary` (do not Read the YAML). If the summary prints
+`WARN slice-size`, say so and offer to split that feature before approving. Present each
 feature **id, title, priority** and its nested task titles from that output via one `AskUserQuestion`: **Approve as-is** · **Edit** (relay free
 text; you may move a task between features in the YAML — keep the moved task's own `slice-ref`;
 re-present the summary) · **Abort**.
 
-After approval, the parent conversation holds the spec-dev and html-generator skill bodies. Say once:
+After approval, record it (a crash must not rebuild an unapproved checklist):
+
+```bash
+node {KIT_DIR}/skills/orchestrate-frontend/scripts/update-checklist.mjs {CHECKLIST_PATH} --approve
+```
+
+The parent conversation holds the spec-dev and html-generator skill bodies. Say once:
 `Checklist approved. For a smaller context, continue in a fresh chat: /orchestrate-frontend {slug}`.
 Then continue here unless the human stops.
 
@@ -248,15 +263,18 @@ Every checklist write in this station goes through one script (status, log line,
 1. If `status: blocked`, ask once whether to retry (`--status pending`) or keep skipping.
 2. If `status: in-progress` (crashed prior run): decide from its envelope as in Station 0. No
    envelope → resume this feature from its checkpoint; do not assume it finished.
-3. `git status --porcelain` — if dirty, `AskUserQuestion`: **Commit** (you wait; re-check) ·
-   **Stash** · **Abort this feature** (`--status blocked --reason "dirty tree"`). Never spawn feature-dev dirty.
-   `new-feature.sh` will exit 1 if you skip this.
+3. Dirty check, unless this feature is `in-progress` and `git rev-parse --abbrev-ref HEAD` equals
+   `feature.branch` (a resume — never offer **Stash**, it would hide the half-built work). Otherwise
+   `git status --porcelain -- . ':(exclude).spec'` — `.spec` is orchestrator state. If that is dirty,
+   `AskUserQuestion`: **Commit** (you wait; re-check) · **Stash** · **Abort this feature**
+   (`--status blocked --reason "dirty tree"`). Never spawn feature-dev dirty except that resume case.
+   `new-feature.sh` applies the same exclusion and the same resume exemption.
 4. `--status in-progress`.
    Do **not** check out the integration branch between features. Stay on the current HEAD.
 5. Print the field block — do not assemble the ref unions yourself:
 
    ```bash
-   node {KIT_DIR}/skills/orchestrate-frontend/scripts/read-checklist.mjs {CHECKLIST_PATH} --payload {feature.id} [--preflight accepted]
+   node {KIT_DIR}/skills/orchestrate-frontend/scripts/read-checklist.mjs {CHECKLIST_PATH} --payload {feature.id} --preflight passed|accepted
    ```
 
    Invoke `feature-dev-kit:feature-dev` with exactly that output (paths and ids only). Its fields:
@@ -274,10 +292,10 @@ Every checklist write in this station goes through one script (status, log line,
    PROTOTYPE_REF:  {checklist prototype-ref}
    CHECKLIST_PATH: {path to task-checklist.md}
    SLUG_HINT:      {feature.slug-hint}
-   PARENT_BRANCH:  {current HEAD when it is feature/*; empty on the first feature}
+   PARENT_BRANCH:  {feature.parent-branch when set; else current HEAD when it is feature/* and not this feature's own branch}
    RESULT_OUT:     {dirname(CHECKLIST_PATH)}/results/{feature.id}.json
    CHANGE:         remove   (only when a nested task change is remove)
-   PREFLIGHT:      accepted (only when the human chose Continue anyway at the preflight)
+   PREFLIGHT:      passed | accepted   (always; accepted only after Continue anyway, and it is stored on the checklist)
    ```
 
    The ref unions come from the checklist (after any Station 2a edit), so feature-dev builds exactly
@@ -373,7 +391,7 @@ Remaining: {pending titles} — re-run /orchestrate-frontend {slug} to continue.
 | Callee skill not found | Install the plugin, retry |
 | `build-checklist.mjs` exits 1 | Spec has no non-`wont` screens — revise the spec or use `/orchestrate-app` for backend/agent tracks |
 | `kit-result.json` missing after a Skill return | Re-run that station once from its checkpoint, then `blocked` / `agent-failed`. Do not guess paths from chat; do not mark the feature `done` |
-| Dirty tree blocks Station 3 | Commit or stash; `new-feature.sh` refuses a dirty worktree |
+| Dirty tree blocks Station 3 | Commit or stash `src/` (`.spec` is excluded). A resume already on its feature branch skips this check |
 | Checklist `blocked` after a spec edit | Source screen removed — confirm at Station 2a |
 | Want to restart one task | Set its row to `pending`, clear `slug`/`branch`, re-run |
 | Station order or context rules are unclear | Read `references/pipeline-flow.md` or `references/context-budget.md` for that step only |
