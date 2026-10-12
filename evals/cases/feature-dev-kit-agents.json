@@ -48,6 +48,10 @@
       "expect": "slice-engineer"
     },
     {
+      "prompt": "Apply the small Station 11 fix batch across the features and app layers in one worker with LAYER fix",
+      "expect": "slice-engineer"
+    },
+    {
       "prompt": "Have test-engineer fill a Station 9 missing-test and coverage-threshold gap for one layer group with colocated Vitest RTL tests",
       "expect": "test-engineer"
     },

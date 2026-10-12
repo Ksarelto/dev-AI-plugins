@@ -15,7 +15,7 @@ Layers run top-to-bottom. A layer may only import from layers **strictly below**
 | `widgets` | Large self-contained UI blocks reused across pages. Suspense only — no own error UI | `ui/`, optional `model/`, `index.ts` | `features`, `entities`, `shared` | `api/`, `models/`, routing, app providers |
 | `features` | Single user interaction / action per slice; the exported entry wraps itself in an error boundary | `ui/`, `models/`, `hooks/`, `api/`, `lib/`, `locales/`, `index.ts` | `entities`, `shared` | Multi-action business flows, widget composition |
 | `entities` | Business objects: their data, API hooks, and display UI. Another entity only via `@x` | `ui/`, `model/`, `api/`, `lib/`, `config/`, `index.ts` | `shared`, other entities via `@x` only | Feature logic, user-interaction handlers |
-| `shared` | Primitives, utilities, design system; domain-agnostic | `ui/`, `api/`, `lib/`, `config/`, `hooks/` | Nothing above it | Business domain concepts |
+| `shared` | Primitives, utilities, design system; domain-agnostic | `ui/`, `api/`, `lib/`, `config/`, `hooks/`, optional `model/` (non-business shapes only) | Nothing above it | Business domain concepts |
 
 ---
 
@@ -31,7 +31,7 @@ A **segment** partitions a slice by technical purpose:
 | `models/` | Features only. State, selectors, pure invariants. No React, no network, no locale keys. Form schemas live in the form's `ui/` folder |
 | `model/` | Entities (and optional widget UI state). Same job as `models/`, singular folder |
 | `hooks/` | Features only. TanStack Query hooks. The only segment `ui/` calls for data |
-| `api/` | Fetchers and `endpoints.ts`. Not query-key factories |
+| `api/` | Fetchers, `endpoints.ts`, and entity query hooks (`useProfile.ts`). Feature hooks live in `hooks/`. Not query-key factories |
 | `lib/` | Pure utilities, validators, formatters — no side effects |
 | `config/` | Non-text constants scoped to this slice (limits, ids, enum → locale-key maps) |
 | `locales/` | `en.json` + `keys.ts` — every user-visible string this slice renders (`frontend-dev-kit:i18n`) |
@@ -47,7 +47,7 @@ Every slice MUST have `index.ts`. It is the only file external code may import f
 // entities/profile/index.ts
 export type { Profile } from './model/types'
 export { ProfileCard } from './ui/profile-card'
-export { useProfile, useProfiles } from './api/use-profiles'
+export { useProfile, useProfiles } from './api/useProfiles'
 ```
 
 Rules:

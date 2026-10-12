@@ -70,5 +70,6 @@ lists `B-*` and `A-*` increment tasks plus track-level frontend status.
 ## Status lifecycle
 
 Same as the frontend checklist: `pending` → `in-progress` → `done` / `pending` (abort) /
-`blocked` (error, or `blocked-reason: agent-failed`) / leave `in-progress` (missing envelope;
-re-run once from its checkpoint, then blocks). Only a human writes `skipped`.
+`blocked` (error, or `blocked-reason: agent-failed`) / leave `in-progress` (missing envelope —
+re-run once from its checkpoint, then blocks — or `orchestrate-frontend` `reason: resume-in-new-chat`).
+Only a human writes `skipped`.

@@ -13,7 +13,7 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 const TYPES = ['feature', 'app', 'domain', 'integration']
 const STATUSES = [
   'draft', 'awaiting-clarification', 'analyzing', 'enriching',
-  'reviewing', 'approved', 'building', 'changes-requested', 'done',
+  'reviewing', 'approved', 'changes-requested',
 ]
 const SUPPORTED_SCHEMA_VERSIONS = ['1.0', '1.1', '1.2', '2.0']
 const REL_TYPES = ['one-to-one', 'one-to-many', 'many-to-one', 'many-to-many']

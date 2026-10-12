@@ -6,7 +6,6 @@
 shared/ui/pending-button/
 ├── pending-button.tsx
 ├── styles.ts
-├── types.ts
 ├── index.ts
 └── pending-button.test.tsx
 ```
@@ -20,10 +19,14 @@ export const root = (className?: string): string => cn('gap-2', className);
 
 ```tsx
 // pending-button.tsx
+import type { ComponentProps } from 'react';
 import { Button } from '@/shared/ui/button';
 import { Spinner } from '@/shared/ui/spinner';
 import * as styles from './styles';
-import type { PendingButtonProps } from './types';
+
+interface PendingButtonProps extends ComponentProps<typeof Button> {
+  pending?: boolean;
+}
 
 export const PendingButton = ({
   className,
@@ -56,7 +59,7 @@ export { PendingButton } from './pending-button';
 // features/catalogue/ui/listing-list/listing-list.tsx
 import { useTranslation } from 'react-i18next';
 import { ListingCard } from '@/entities/listing';
-import { useListings } from '../../hooks/use-listings';
+import { useListings } from '../../hooks/useListings';
 import { catalogueKeys } from '../../locales/keys';
 import { ListingListEmpty } from './listing-list-empty';
 import { ListingListError } from './listing-list-error';

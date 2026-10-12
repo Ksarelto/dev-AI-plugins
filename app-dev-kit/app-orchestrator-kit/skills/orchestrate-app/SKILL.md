@@ -94,6 +94,9 @@ Read `.spec/app/current.json` and `.spec/app/work-plan.md`. If the argument matc
   **Re-derive work-plan** · **Resume as-is** · **Abort**.
 - Else jump to the first track whose `status` is not `done` or `skipped` (and, for backend/agent,
   the first unfinished `B-*` / `A-*` task).
+- If the frontend track is `in-progress` and `{dirname(SPEC_PATH)}/frontend-kit-result.json`
+  `reason` is `resume-in-new-chat`, do not invoke `orchestrate-frontend` again. Tell the human:
+  `Open a new chat and run /orchestrate-frontend {slug}`. STOP.
 - An `in-progress` task: its `kit-result.json` exists → apply the outcome table in
   `result-envelope.md`. Absent → offer to resume it from its checkpoint (the
   `.spec/backend/{slug}.md` / `.spec/agents/{slug}.md` blackboard). Never mark it `done`.
@@ -127,7 +130,10 @@ On **Yes**: invoke `html-generator-kit:generate-html` with:
 
 ```
 SPEC_PATH:    {SPEC_PATH}
+CONFIRMED:    true
 ```
+
+`CONFIRMED: true` means the human already chose to generate a prototype. generate-html skips only its "Proceed?" question. Its design-reference question and the review gate stay.
 
 After return, Read `{dirname(SPEC_PATH)}/html-kit-result.json`. `approved` → `PROTOTYPE_REF` = `prototype_ref`. Envelope missing → re-run generate-html once from its checkpoint; still missing (`agent-failed`) → ask once: **Continue without prototype** or **Stop**. Do not treat a run without an envelope as a finished prototype. `aborted` / `error` → `PROTOTYPE_REF = ""`.
 
@@ -209,8 +215,11 @@ SKIP_UPSTREAM:  true
 RESULT_OUT:     .spec/app/results/frontend.json
 ```
 
-Wait for it to return; it handles missing feature-dev envelopes itself. Then Read `{dirname(SPEC_PATH)}/frontend-kit-result.json` (or `RESULT_OUT`). Apply the outcome table
-to the **frontend track** (not individual `T-*` rows — that kit owns `task-checklist.md`).
+Wait for it to return; it handles missing feature-dev envelopes itself. Then Read `{dirname(SPEC_PATH)}/frontend-kit-result.json` (or `RESULT_OUT`).
+
+- `reason: resume-in-new-chat` → leave the frontend track `in-progress`. Do not apply `aborted` as `pending`. Do not call `orchestrate-frontend` again in this chat. Tell the human: `Open a new chat and run /orchestrate-frontend {slug}`. STOP. Do not run Station 6.
+- `outcome: approved` → frontend track `done`. Continue to Station 6.
+- Otherwise apply the outcome table in `result-envelope.md` to the **frontend track** (not individual `T-*` rows — that kit owns `task-checklist.md`).
 
 ### Station 6 — Report
 
@@ -246,5 +255,5 @@ Remind `/create-pr` stays human-typed.
 1. Never bypass a delegated kit’s gate.
 2. Progress lives in `work-plan.md` + `kit-result.json`.
 3. Paths, not blobs.
-4. One increment at a time (backend/agent). One frontend-orchestrator invocation.
+4. One increment at a time (backend/agent). One frontend feature per `orchestrate-frontend` chat. A `resume-in-new-chat` envelope leaves the frontend track `in-progress`.
 5. Automation never ships.

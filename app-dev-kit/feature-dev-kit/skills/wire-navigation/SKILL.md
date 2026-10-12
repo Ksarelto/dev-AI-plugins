@@ -3,7 +3,7 @@ name: wire-navigation
 description: Add sidebar menu, navigation, and breadcrumb entries in the app layer for an already-routed screen. Use with add-route so the screen appears in the nav UI. Not for scaffolding the page slice.
 argument-hint: <PageName> <nav-label>
 disable-model-invocation: false
-allowed-tools: [Read, Edit, Glob, Grep]
+allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 ---
 
 # Wire Navigation

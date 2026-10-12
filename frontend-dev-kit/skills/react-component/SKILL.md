@@ -1,6 +1,6 @@
 ---
 name: react-component
-description: Scaffold a standalone React component folder with the mandatory files — kebab-case name.tsx (button.tsx, custom-button.tsx), styles.ts (required, no exceptions), index.ts, types.ts — following FSD layer conventions. Use when adding a single component outside a full feature slice or wrapping a shadcn primitive.
+description: Scaffold a standalone React component folder with the mandatory files — kebab-case name.tsx (button.tsx, custom-button.tsx), styles.ts (required, no exceptions), index.ts — and types.ts only for non-prop types. Follows FSD layer conventions. Use when adding a single component outside a full feature slice or wrapping a shadcn primitive.
 ---
 
 # React Component
@@ -32,12 +32,14 @@ Every component lives in its own kebab-case folder. This is the required layout 
 ```
 {TargetPath}/{name}/
 ├── index.ts                  — re-exports the component; a type or constant only if an outside file imports it
-├── {name}.tsx                — JSX implementation (button.tsx, custom-button.tsx)
+├── {name}.tsx                — one component, and its props interface (button.tsx, custom-button.tsx)
 ├── styles.ts                 — ALL Tailwind classes; never inline in JSX
-├── types.ts                  — {Name}Props interface (optional but common)
+├── types.ts                  — non-prop types only, and only when the component has them
 ├── constants.ts              — closed-set values and key maps (only when needed)
 └── {name}.test.tsx           — colocated behavior test, written in the same change
 ```
+
+One component per file. A second component gets its own folder. The only exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
 
 Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.stories.tsx` in that folder. A feature gets one story at `features/<slice>/<slice>.stories.tsx` for the public entry. Entity and widget folders do not get stories.
 
@@ -45,23 +47,16 @@ Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.s
 
 1. Determine the PascalCase export and kebab-case file stem (`CustomButton` / `custom-button`) and target path from the table above
 2. Read rules: `component-structure`, `react`, `styling`, `shadcn`, `i18n`, `testing`, `accessibility`. For FSD placement (`shared/ui` vs feature `ui/`), load `architecture-audit`.
-3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`, `types.ts`) **and** `{name}.test.tsx` in the same change.
+3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`) **and** `{name}.test.tsx` in the same change. Add `types.ts` only for non-prop types. Domain types go in the slice model folder (`models/types.ts` or `model/types.ts`), not in the component folder.
 4. Every visible string is `t(key)` from the slice's `locales/` or `commonKeys` (`i18n` skill). Server data renders as-is.
 5. Handlers are named (`handleX`) and declared above the return; JSX only passes the reference.
 6. Branches are computed before the return or written as early returns — no ternary in JSX, never a nested one.
 7. Closed-set props on primitives use their constants (`ButtonVariant.Outline`, `ButtonType.Submit`); omit a prop whose value is the default.
-8. The templates below carry no comments; the generated files must not either.
+8. Before finishing, scan the new file again for unexplained string and number literals (`rules/general-coding-principles.mdc`). A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
+9. When the component wraps or is created from an external library, confirm that library's animation is still the animation on the element (`shadcn-usage`). Do not add a second one.
+10. The templates below carry no comments; the generated files must not either.
 
 ## File templates
-
-**`types.ts`:**
-```ts
-export interface {Name}Props {
-  className?: string;
-  title: string;
-  onSelect: (id: string) => void;
-}
-```
 
 **`styles.ts` (mandatory — all Tailwind classes go here, never inline in JSX):**
 ```ts
@@ -81,7 +76,12 @@ import { useTranslation } from 'react-i18next';
 import { Button, ButtonVariant } from '@/shared/ui/button';
 import { ordersKeys } from '../../locales/keys';
 import * as styles from './styles';
-import type { {Name}Props } from './types';
+
+interface {Name}Props {
+  className?: string;
+  title: string;
+  onSelect: (id: string) => void;
+}
 
 export const {Name} = ({ className, title, onSelect }: {Name}Props): JSX.Element => {
   const { t } = useTranslation();
@@ -109,7 +109,7 @@ export const {Name} = ({ className, title, onSelect }: {Name}Props): JSX.Element
 export { {Name} } from './{name}';
 ```
 
-Add `export type { {Name}Props } from './types';` only when a file outside the folder imports the props type. Tests import from `./types` directly and are not a reason to re-export.
+Add `export type { {Name}Props } from './{name}';` only when a file outside the folder imports the props type. Tests are not a reason to re-export.
 
 ## shadcn/ui wrapper pattern
 
@@ -160,6 +160,8 @@ Pick the state with early returns before the main `return` — never a ternary c
 
 ## Checklist
 
+- [ ] One component in the file, unless the file configures an external library's compound parts
+- [ ] Props `interface` is in the component file; `types.ts` holds only other types, and only when they exist
 - [ ] Folder and files are kebab-case (`custom-button/custom-button.tsx`); the export is PascalCase (`CustomButton`)
 - [ ] `styles.ts` exists — zero class strings, `cn('…')`, or `style={{}}` in JSX
 - [ ] `index.ts` re-exports the component only, plus types/constants an outside file actually imports (not `export *`)
@@ -178,5 +180,7 @@ Pick the state with early returns before the main `return` — never a ternary c
 - [ ] No `React.memo`/`useMemo`/`useCallback` added preemptively — React Compiler handles it
 - [ ] Semantic token names only — no `text-slate-900`, no hex values, no `dark:` variants
 - [ ] No motion utilities outside `shared/ui/` bases
+- [ ] A component created from an external library still uses that library's animation classes, unchanged, and does not add a second animation
+- [ ] Second pass: no unexplained string or number literals
 
 See [examples.md](examples.md) for full worked examples.

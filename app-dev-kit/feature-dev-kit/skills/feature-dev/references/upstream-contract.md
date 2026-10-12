@@ -24,13 +24,13 @@ The `orchestrate-frontend` skill (or a human invoking `/feature-dev` with the sa
 | `SCREEN_REFS` | when the feature has screens | Nested `ui-surface.screens[].id` values, e.g. `SCR-001,SCR-002` |
 | `SLICE_REF` | spec 2.0 checklists | Delivery slice id, e.g. `SL-002`. The import reads `{spec dir}/slices/{SLICE_REF}.yaml` as the source for every section (the whole spec when the brief is missing, or when a passed ref is outside the brief — a screen moved into this feature at Station 2a; it prints `WARN [BRIEF_FALLBACK]`) for the goal, frontend steps, rules, and notifications. `done-when` AC bodies are always included. Slice `api-refs` are unioned with the screens' `api-refs`. With no `SCREEN_REFS`, the slice's screens are imported |
 | `STORY_REFS` / `AC_REFS` / `ENTITY_REFS` | from the checklist | Unions of the nested tasks' refs. When passed they win over any derivation. `AC_REFS` is still unioned with the slice's `done-when`. Checklist `entity-refs` already include the slice's `entity-refs` |
-| `CHANGE` | only for a removal | `remove` when a nested task `change` is `remove`. Pass `--change remove` to `import-upstream.mjs`. It writes `## Change request` (`Remove. Do not scaffold a replacement.`). Delete those screens' pages and routes |
+| `CHANGE` | only when every nested task is a removal | `remove` only then. Pass `--change remove` to `import-upstream.mjs`. It writes `## Change request` (`Remove. Do not scaffold a replacement.`) and those screens' pages and routes are deleted. A mixed feature omits `CHANGE`; import reads each task's `change` from `--checklist` and lists only the remove screens (`Remove these screens only. Build the rest.`) |
 | `PROTOTYPE_REF` | optional | `.spec/prototype/{proto-tc}_{slug}/` or empty — html-generator's own timecode |
 | `CHECKLIST_PATH` | optional | `task-checklist.md`. **Orchestrator-owned write-back** — this kit never edits it. Pass `--checklist` so import can see a `screen-ref` already `done` on another feature and write `Extend existing` into `## Change request` |
 | `SLUG_HINT` | yes for a checklist feature | kebab-case feature slug; never the app `metadata.slug` |
-| `PARENT_BRANCH` | when HEAD is already `feature/*` | Branch to `git checkout` before `checkout -b`. Empty on the first feature |
+| `PARENT_BRANCH` | when a stack parent exists | Branch to `git checkout` before `checkout -b`. The checklist sets it to the row's `parent-branch`, else HEAD when it is `feature/*` and not this row's branch, else the last `done` feature's branch. Empty on the first feature |
 | `RESULT_OUT` | optional | Extra copy of `kit-result.json` (orchestrator `{checklist dir}/results/{feature.id}.json`) |
-| `PREFLIGHT` | optional | `accepted` when the caller already showed the `preflight-host.mjs` issues and the human chose to continue — this skill reports them without asking again |
+| `PREFLIGHT` | from the orchestrator | `passed` after a clean host preflight, or `accepted` when the caller already showed the `preflight-host.mjs` issues and the human chose to continue. Either value skips this skill's preflight. A standalone `/feature-dev` omits it and still runs the script |
 | `KIT_DIR` | — | **Not passed.** This skill resolves the plugin root itself (see skill Step 0) |
 
 Direct `/feature-dev "free text"` with no feature fields: glob an approved spec **and** a

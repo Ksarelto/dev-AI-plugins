@@ -5,20 +5,25 @@
 //
 //   board.mjs section <board.md> --get "<Header>"                  print one section body
 //   board.mjs section <board.md> --put "<Header>" --from <file>    replace one section body
+//                     "Build Plan" is refused when it breaks templates/build-plan.md rules 4, 7, 8, or 10
 //   board.mjs append  <board.md> --section "<Header>" --line "<text>"   append one line (table row or bullet)
 //   board.mjs row     <board.md> --row 4[,5] --status todo|in-progress|done|blocked [--note "<text>"]
 //                     sets the Build Plan Status cell and replaces the row's single Note (no history)
-//   board.mjs card    <board.md> --row 4[,5] --agent <name> [--layer <layer>] [--kit <KIT_DIR>]
+//   board.mjs card    <board.md> --row 4[,5] --agent <name> [--layer <layer>] [--kit <KIT_DIR>] [--station <label>]
 //                     writes cards/common.md once (request, decisions, reuse map) and
 //                     cards/row-4[-5].md (rows, acceptance criteria, FSD Impact paths, this row's screens, scoped API).
 //   board.mjs handoff <board.md> --name <stem> --outcome <text> --paths <a,b> --decisions <a;b> --gates <text>
-//                     writes <slug>.context/<stem>.md, at most 15 lines.
+//                     writes <slug>.context/<stem>.md, at most 15 lines. A --gates "fail" is refused
+//                     unless --outcome starts with "blocked:" (and the row is marked blocked).
 //   board.mjs gate    <board.md> --station "<label>" (--json '<run-gates JSON>' | --gate <name> --result pass|fail [--note "<text>"])
 //                     appends to <slug>.context/gate-log.jsonl and rewrites gate-status.md (latest per gate)
-//   board.mjs timing  <board.md> --station "<label>" --event start|end
+//   board.mjs timing  <board.md> --station "<label>" --event start|end|spawn [--agent <name>]
 //                     appends to <slug>.context/timings.jsonl (card and gate append there too)
 //   board.mjs timing  <board.md> --summary
-//                     prints one line per station that has a start and an end (seconds)
+//                     seconds per station (each spawn runs until the next event) plus time between steps
+//   board.mjs parent-map <board.md>
+//                     writes FSD Impact + Reuse Map of the stack parent and of each feature-id named in
+//                     ## Change request to <slug>.context/parent-map.md; NONE, exit 1 when there is none
 //   board.mjs snapshot <board.md> --round <n>
 //                     writes the worktree hash (tracked + untracked) to <slug>.context/fix-round-<n>.tree
 //   board.mjs changed  <board.md> --since <n>
@@ -41,10 +46,15 @@ const opt = (name) => {
   return i >= 0 && rest[i + 1] !== undefined && !rest[i + 1].startsWith('--') ? rest[i + 1] : ''
 }
 const usage = (msg) => {
-  console.error(`usage: board.mjs section|append|row|card|handoff|gate|timing|snapshot|changed|audit-scope <board.md> … — ${msg}`)
+  console.error(`usage: board.mjs section|append|row|card|handoff|gate|timing|snapshot|changed|audit-scope|parent-map <board.md> … — ${msg}`)
   process.exit(2)
 }
-if (!cmd || !boardPath) usage('missing command or board path')
+if (!cmd || cmd === '--help' || cmd === 'help') {
+  const header = readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1)
+  console.log(header.slice(0, header.findIndex((l) => !l.startsWith('//'))).map((l) => l.replace(/^\/\/ ?/, '')).join('\n'))
+  process.exit(cmd ? 0 : 2)
+}
+if (!boardPath) usage('missing board path')
 if (!existsSync(boardPath)) usage(`no board at ${boardPath}`)
 
 const writeAtomic = (path, contents) => {
@@ -76,7 +86,11 @@ const body = (text, header) => {
   const at = locate(text, header)
   return at ? at.lines.slice(at.start + 1, at.end).join('\n').trim() : null
 }
-function putBody(text, header, content) {
+function putBody(text, header, rawContent) {
+  const own = rawContent.trim().split('\n')
+  const content = /^##\s+/.test(own[0]) && own[0].replace(/^##\s+/, '').trim().toLowerCase() === header.trim().toLowerCase()
+    ? own.slice(1).join('\n')
+    : rawContent
   const at = locate(text, header)
   if (!at) return `${text.trimEnd()}\n\n## ${header}\n\n${content.trim()}\n`
   const { lines, start, end } = at
@@ -99,31 +113,91 @@ function planTable(lines, start, end) {
 }
 const rowIds = () => String(opt('row')).split(',').map((s) => s.trim()).filter(Boolean)
 
-// Path list from ## FSD Impact, filtered to this card's slices. Placeholder template rows are dropped.
-function impactPaths(content, names, kebab) {
-  if (!content) return ''
-  const tableLines = content.split('\n').filter((line) => line.trim().startsWith('|'))
-  if (tableLines.length < 3) return ''
-  const head = cells(tableLines[0]).map((h) => h.toLowerCase())
-  const at = (vals, name) => {
-    const index = head.indexOf(name)
-    return index >= 0 ? String(vals[index] ?? '').trim() : ''
+// The templates/build-plan.md rules whose breach costs an extra worker spawn.
+function planErrors(content) {
+  const lines = content.split('\n')
+  const table = planTable(lines, 0, lines.length)
+  const head = table?.head.map((h) => h.toLowerCase()) ?? []
+  if (!head.includes('layer') || !head.includes('slice')) return []
+  const rows = lines.slice(table.first, table.last + 1).map(cells).map((vals) => {
+    const at = (name) => String(vals[head.indexOf(name)] ?? '').trim()
+    return { id: at('#'), layer: at('layer').toLowerCase(), slice: at('slice'), note: at('note'), text: `${at('slice')} ${at('segments')} ${at('note')}` }
+  })
+  const errors = []
+  const bySlice = new Map()
+  for (const r of rows.filter((r) => !['shared', 'app'].includes(r.layer))) {
+    const key = `${r.layer}/${r.slice}`
+    bySlice.set(key, [...(bySlice.get(key) ?? []), r.id])
   }
+  for (const [slice, ids] of bySlice) {
+    if (ids.length > 2) errors.push(`rule 4 — ${slice} is split over rows ${ids.join(', ')}. One slice is one row; past ~12 files, two (non-UI segments, then ui + locales)`)
+  }
+  const shared = rows.filter((r) => r.layer === 'shared' && !/hand-(written|authored)/i.test(r.note))
+  if (shared.length > 1) {
+    errors.push(`rule 8 — shared rows ${shared.map((r) => r.id).join(', ')} are one batch row (primitives in one shadcn add, theme port, query keys). Only a hand-written shared/ui component gets its own row, with "hand-written" in its Note`)
+  }
+  for (const r of rows) {
+    if (/^(confirm|verify|check)\b|\bconfirm (that|the existing)\b/i.test(r.note)) errors.push(`rule 10 — row ${r.id} only confirms existing code. Make it a preamble note; the gates still run over it`)
+  }
+  const themeRows = rows.filter((r) => r.layer === 'shared' && /\btheme\b|globals\.css|port-prototype-theme/i.test(r.text))
+  const ref = read().match(/^prototype-ref:\s*(.+)$/m)?.[1]?.trim().replace(/^['"]|['"]$/g, '')
+  const globals = 'src/shared/ui/theme/globals.css'
+  if (themeRows.length && ref && ref !== 'none' && existsSync(globals)) {
+    const script = join(dirname(fileURLToPath(import.meta.url)), 'port-prototype-theme.mjs')
+    const check = spawnSync(process.execPath, [script, '--check', '--prototype', ref, '--globals', globals], { encoding: 'utf8' })
+    if (check.status === 0) errors.push(`rule 7 — the theme is in sync (port-prototype-theme --check passed). Drop the theme port from row ${themeRows.map((r) => r.id).join(', ')} and write "Theme: in sync" in the preamble`)
+  }
+  return errors
+}
+
+// The board in the same folder whose `branch:` is this board's `parent-branch:`, or ''.
+function parentBoard() {
+  const unquote = (v) => (v ?? '').trim().replace(/^['"]|['"]$/g, '')
+  const parent = unquote(read().match(/^parent-branch:\s*(.*)$/m)?.[1])
+  if (!parent || parent === 'none') return ''
+  const featuresDir = dirname(boardPath)
+  for (const name of readdirSync(featuresDir)) {
+    if (!name.endsWith('.md')) continue
+    const candidate = join(featuresDir, name)
+    if (resolve(candidate) === resolve(boardPath)) continue
+    if (unquote(readFileSync(candidate, 'utf8').match(/^branch:\s*(.*)$/m)?.[1]) === parent) return candidate
+  }
+  return ''
+}
+
+// Rows of the ## FSD Impact table as `layer/slice` paths. The Slice cell may be bare (`profile`),
+// layer-prefixed (`entities/profile`), or src-prefixed. Placeholder template rows are dropped.
+function impactRows(content) {
+  const tableLines = (content ?? '').split('\n').filter((line) => line.trim().startsWith('|'))
+  if (tableLines.length < 3) return []
+  const head = cells(tableLines[0]).map((h) => h.toLowerCase())
   const real = (value) => value && !/^-+$/.test(value) && !/^<[^>]*>$/.test(value)
-  const rows = tableLines.slice(2).map((line) => cells(line)).filter((vals) => vals.some(real))
-  const sliceOf = (vals) => kebab(at(vals, 'slice').split('/').pop())
+  return tableLines.slice(2).map((line) => {
+    const vals = cells(line)
+    const at = (name) => {
+      const index = head.indexOf(name)
+      return index >= 0 ? String(vals[index] ?? '').trim() : ''
+    }
+    const layer = real(at('layer').replace(/`/g, '')) ? at('layer').replace(/`/g, '') : ''
+    const rawSlice = at('slice').replace(/`/g, '').replace(/^src\//, '')
+    const slice = real(rawSlice) ? rawSlice : ''
+    const path = layer && slice && !slice.startsWith(`${layer}/`) ? `${layer}/${slice}` : slice || layer
+    const extra = [at('segments'), at('change')].filter(real).join(' — ')
+    return { path, slice, extra }
+  }).filter((row) => row.path)
+}
+
+// Path list from ## FSD Impact, filtered to this card's slices.
+function impactPaths(content, names, kebab) {
+  const rows = impactRows(content)
+  const sliceOf = (row) => kebab(row.slice.split('/').pop())
   const matched = names.length
-    ? rows.filter((vals) => names.some((n) => {
-      const slice = sliceOf(vals)
+    ? rows.filter((row) => names.some((n) => {
+      const slice = sliceOf(row)
       return slice && (slice === n || slice.endsWith(`-${n}`) || n.endsWith(`-${slice}`))
     }))
     : []
-  return (matched.length ? matched : rows).map((vals) => {
-    const path = [at(vals, 'layer'), at(vals, 'slice')].filter(real).join('/')
-    if (!path) return ''
-    const extra = [at(vals, 'segments'), at(vals, 'change')].filter(real).join(' — ')
-    return `- \`${path}\`${extra ? ` — ${extra}` : ''}`
-  }).filter(Boolean).join('\n')
+  return (matched.length ? matched : rows).map((row) => `- \`${row.path}\`${row.extra ? ` — ${row.extra}` : ''}`).join('\n')
 }
 
 if (cmd === 'section') {
@@ -138,6 +212,11 @@ if (cmd === 'section') {
     }
     process.stdout.write(`${content}\n`)
   } else if (put && opt('from')) {
+    const errors = put === 'Build Plan' ? planErrors(readFileSync(opt('from'), 'utf8')) : []
+    if (errors.length) {
+      for (const e of errors) console.error(`REFUSED: Build Plan ${e}`)
+      process.exit(1)
+    }
     if (put === 'Build Plan' && !rest.includes('--force')) {
       const current = body(text, 'Build Plan') ?? ''
       const hasDone = current.split('\n').some((line) => {
@@ -285,10 +364,34 @@ if (cmd === 'section') {
     ...cellAt(l, 'note').split(/[^\w./-]+/),
   ]).filter((word) => word.length > 3)
   const apiAll = filled('API Contract / Data Model')
+  // Another slice's endpoints, rules, and permissions are scope guards here: ids and titles, not bodies.
+  const compactOwned = (block) => {
+    const [head, ...rest] = block.split('\n')
+    if (!/owned by other slices/i.test(head)) return block
+    const intro = rest.find((l) => l.trim() && !/^\s*-/.test(l)) ?? ''
+    const items = rest.filter((l) => /^- /.test(l)).map((l) => {
+      const title = l.split(' — ')[0]
+      return title.length > 100 ? `${title.slice(0, 100)}…` : title
+    })
+    return [head, '', intro, '', ...items].join('\n').replace(/\n{3,}/g, '\n\n').trim()
+  }
   const apiBody = apiAll.split(/\n(?=### )/).filter((block) =>
     needles.some((word) => block.toLowerCase().includes(word.toLowerCase())),
-  ).join('\n\n').trim()
-  const acBody = filled('Acceptance Criteria')
+  ).map(compactOwned).join('\n\n').trim()
+  // The plan's coverage table maps each criterion id to its rows. A criterion with no id, or one
+  // the table does not list, stays on every card.
+  const coverage = new Map()
+  for (const line of (planRest.match(/###\s+Acceptance-criteria coverage[\s\S]*?(?=\n###\s|$)/)?.[0] ?? '').split('\n')) {
+    if (!line.trim().startsWith('|')) continue
+    const [criterion, covered] = cells(line)
+    const acId = criterion?.match(/\bAC-\d+\b/)?.[0]
+    if (acId) coverage.set(acId, String(covered).split(/[^\d]+/).filter(Boolean))
+  }
+  const ownsAc = (line) => {
+    const acId = line.match(/\bAC-\d+\b/)?.[0]
+    return !acId || !coverage.has(acId) || coverage.get(acId).some((row) => ids.includes(row))
+  }
+  const acBody = filled('Acceptance Criteria').split('\n').filter(ownsAc).join('\n').trim()
   const wantsImpact = ['shared-engineer', 'entities-engineer', 'features-engineer', 'composition-engineer', 'app-engineer', 'slice-engineer', 'research-analyst'].includes(agent)
   const impactBody = wantsImpact ? impactPaths(filled('FSD Impact'), names, kebab) : ''
   const sections = [
@@ -339,12 +442,16 @@ if (cmd === 'section') {
   writeAtomic(out, card)
   const bytes = Buffer.byteLength(card)
   if (bytes > 12 * 1024) console.error(`WARN card ${out} is ${bytes} bytes (limit 12288)`)
-  const station = picked.map((l) => cells(l)[col('station')]).find(Boolean) ?? ''
+  const station = opt('station') || (picked.map((l) => cells(l)[col('station')]).find(Boolean) ?? '')
   jsonl('timings.jsonl', { event: 'spawn', station, rows: ids, agent })
   console.log(JSON.stringify({ card: out, common: commonPath, bytes, board_bytes: Buffer.byteLength(text) }))
 } else if (cmd === 'handoff') {
   const name = opt('name')
   if (!name) usage('handoff needs --name <stem>')
+  if (/\bfail/i.test(opt('gates')) && !/^blocked:/i.test(oneLine(opt('outcome')))) {
+    console.error('HANDOFF_RED: a self-check failed. Fix it inside BOUNDARY, or mark the row blocked (board.mjs row --status blocked) and pass --outcome "blocked: <what is missing, in which slice>".')
+    process.exit(1)
+  }
   const bullets = (flagName) => String(opt(flagName) || '').split(flagName === 'paths' ? ',' : ';').map((part) => oneLine(part)).filter(Boolean)
   const handoffLines = [
     `outcome: ${oneLine(opt('outcome')) || 'done'}`,
@@ -445,47 +552,69 @@ if (cmd === 'section') {
       console.log('(no timings)')
       process.exit(0)
     }
-    const open = new Map()
+    // Each interval between two events belongs to the earlier one: a spawn or a start owns it,
+    // anything after a gate or an end is orchestrator, skill, or human time.
+    const events = readFileSync(file, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line))
+      .sort((a, b) => Date.parse(a.at) - Date.parse(b.at))
+    const label = (station) => (/^\d/.test(String(station)) ? `Station ${station}` : String(station))
     const totals = new Map()
-    for (const line of readFileSync(file, 'utf8').split('\n').filter(Boolean)) {
-      const e = JSON.parse(line)
-      if (e.event === 'start') open.set(e.station, e.at)
-      else if (e.event === 'end' && open.has(e.station)) {
-        const ms = Date.parse(e.at) - Date.parse(open.get(e.station))
-        totals.set(e.station, (totals.get(e.station) ?? 0) + Math.max(0, ms))
-        open.delete(e.station)
-      }
+    const agents = new Map()
+    for (let i = 0; i < events.length - 1; i++) {
+      const e = events[i]
+      const key = e.event === 'spawn' || e.event === 'start' ? label(e.station) : 'between steps'
+      totals.set(key, (totals.get(key) ?? 0) + Math.max(0, Date.parse(events[i + 1].at) - Date.parse(e.at)))
+      if (e.event === 'spawn' && e.agent) agents.set(key, [...(agents.get(key) ?? []), e.agent])
     }
-    if (!totals.size) console.log('(no completed stations)')
-    else for (const [station, ms] of totals) console.log(`${station}: ${Math.round(ms / 1000)}s`)
+    if (!totals.size) console.log('(fewer than two events)')
+    for (const [key, ms] of totals) {
+      const spawned = agents.get(key) ?? []
+      const counts = [...new Set(spawned)].map((a) => `${a} ×${spawned.filter((x) => x === a).length}`).join(', ')
+      console.log(`${key}: ${Math.round(ms / 1000)}s${counts ? ` (${counts})` : ''}`)
+    }
+    const last = events.at(-1)
+    console.log(`total: ${Math.round((Date.parse(last.at) - Date.parse(events[0].at)) / 1000)}s · open: ${last.event} ${label(last.station)}${last.agent ? ` ${last.agent}` : ''}`)
   } else {
     const station = opt('station')
     const event = opt('event')
-    if (!station || !['start', 'end'].includes(event)) usage('timing needs --station and --event start|end, or --summary')
-    jsonl('timings.jsonl', { event, station })
+    if (!station || !['start', 'end', 'spawn'].includes(event)) usage('timing needs --station and --event start|end|spawn [--agent <name>], or --summary')
+    if (event === 'spawn' && !opt('agent')) usage('timing --event spawn needs --agent <name>')
+    jsonl('timings.jsonl', event === 'spawn' ? { event, station, agent: opt('agent') } : { event, station })
     console.log(`OK: ${station} ${event}`)
   }
+} else if (cmd === 'parent-map') {
+  // The stack parent plus every board whose feature-id the ## Change request names ("already built by F-002").
+  const text = read()
+  const featureId = (t) => (t.match(/^feature-id:\s*(.*)$/m)?.[1] ?? '').trim().replace(/^['"]|['"]$/g, '')
+  const named = new Set((body(text, 'Change request') ?? '').match(/\bF-\d+\b/g) ?? [])
+  named.delete(featureId(text))
+  const boards = new Set([parentBoard()].filter(Boolean))
+  for (const name of readdirSync(dirname(boardPath))) {
+    const candidate = join(dirname(boardPath), name)
+    if (!name.endsWith('.md') || resolve(candidate) === resolve(boardPath)) continue
+    if (named.has(featureId(readFileSync(candidate, 'utf8')))) boards.add(candidate)
+  }
+  const parts = [...boards].flatMap((path) => {
+    const t = readFileSync(path, 'utf8')
+    const impact = body(t, 'FSD Impact')
+    if (!impact || /^<[^>]*>$/.test(impact.trim())) return []
+    return [`# ${path}\n\n## FSD Impact\n\n${impact}\n\n## Reuse Map\n\n${body(t, 'Reuse Map') ?? ''}`]
+  })
+  if (!parts.length) {
+    console.log('NONE')
+    process.exit(1)
+  }
+  const out = join(contextDir, 'parent-map.md')
+  mkdirSync(contextDir, { recursive: true })
+  writeAtomic(out, `${parts.join('\n\n---\n\n')}\n`)
+  console.log(out)
 } else if (cmd === 'audit-scope') {
   const text = read()
-  const parent = (text.match(/^parent-branch:\s*(.*)$/m)?.[1] ?? '').trim().replace(/^['"]|['"]$/g, '')
-  const featuresDir = dirname(boardPath)
-  let priorPath = opt('prior')
-  if (!priorPath && parent && parent !== 'none') {
-    for (const name of readdirSync(featuresDir)) {
-      if (!name.endsWith('.md')) continue
-      const candidate = join(featuresDir, name)
-      if (resolve(candidate) === resolve(boardPath)) continue
-      const raw = readFileSync(candidate, 'utf8')
-      const branch = (raw.match(/^branch:\s*(.*)$/m)?.[1] ?? '').trim().replace(/^['"]|['"]$/g, '')
-      if (branch === parent) {
-        priorPath = join(candidate.replace(/\.md$/, '.context'), 'architecture-auditor-9.5.md')
-        break
-      }
-    }
-  }
+  const parentPath = opt('prior') ? '' : parentBoard()
+  const priorPath = opt('prior') || (parentPath ? join(parentPath.replace(/\.md$/, '.context'), 'architecture-auditor-9.5.md') : '')
   const impact = body(text, 'FSD Impact') ?? ''
-  const wanted = new Set()
-  for (const match of impact.matchAll(/`([^`\n]+)`/g)) {
+  const wanted = new Set(impactRows(impact).map((row) => row.path))
+  const prose = impact.split('\n').filter((line) => !line.trim().startsWith('|')).join('\n')
+  for (const match of prose.matchAll(/`([^`\n]+)`/g)) {
     const found = match[1].replace(/^src\//, '').trim()
     if (found.includes('/')) wanted.add(found)
   }

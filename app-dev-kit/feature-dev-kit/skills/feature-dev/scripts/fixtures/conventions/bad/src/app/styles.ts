@@ -1,1 +1,1 @@
-export const root = 'min-h-dvh'
+export const root = 'min-h-dvh dark:bg-background'

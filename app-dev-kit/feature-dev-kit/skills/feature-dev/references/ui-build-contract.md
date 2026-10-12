@@ -27,6 +27,8 @@ A gate and this file disagree → kit bug: escalate citing both, never flip the 
 
 Touch only `BOUNDARY`. Do not clean up, reformat, or modernize a file you are only reading. Do not add a prop, variant, or endpoint the spec does not ask for. Write it under `## Decisions & Open Questions` instead.
 
+A hook, export, or type you need from a lower layer is missing → stop. Do not build around it and do not drop the behavior. Mark the row `blocked` and hand off `--outcome "blocked: <name> missing in <layer>/<slice>"` (`handoff-format.md`); the orchestrator sends it to that slice's owner.
+
 The slice typechecks when you finish it. Prefer an additive change. If a public API must change, update every call site in the same change.
 
 ## 0. Layer boundaries — what your slice may import
@@ -40,7 +42,7 @@ A layer imports only from layers **strictly below** it. Never sideways, never up
   file (`@/entities/profile/@x/document`), never through the sibling `index.ts`. Anything wider
   goes down a layer.
 - Every other cross-slice import goes through the target slice's `index.ts`
-  (`@/entities/profile`, never `@/entities/profile/api/profile.hooks`).
+  (`@/entities/profile`, never `@/entities/profile/api/useProfile`).
 - Every slice has `index.ts`. Stub it first (empty or minimal) and finalize its exports last.
   Export only names a file **outside** the slice imports. No `export *`. Pages are the exception: `pages/*/index.ts` default-exports the page.
   Query keys live in `shared/api/query-keys/`, not the public API.
@@ -48,7 +50,7 @@ A layer imports only from layers **strictly below** it. Never sideways, never up
 Segments inside your slice:
 
 - `models/` (features only) — types, state, selectors, pure invariants. No React, no network, no side effects, no locale keys. A form's Zod schema lives in that form's `ui/` folder (`schema.ts`) with translation-key messages. Entities use singular `model/` for the same job. Widgets may have a singular `model/` for local UI state only. No `features/*/model/`, no `entities/*/models/`, no widget `models/` or `api/`.
-- `api/` — fetchers and `endpoints.ts`. Feature query/mutation hooks do not live here. No components, no UI state, no query-key factories.
+- `api/` — fetchers, `endpoints.ts`, and entity query hooks (`useProfile.ts`). Feature query/mutation hooks do not live here. No components, no UI state, no query-key factories.
 - `hooks/` (features only) — TanStack Query hooks. The only segment whose `ui/` may call them. `ui/` never imports `api/`.
 - `lib/` — pure formatters, validators, mappers. No React, no network.
 - `ui/` — components; imports `shared/ui`, own `models/` (or entity `model/`) for pure functions, and own `hooks/`. No direct fetch calls.
@@ -84,6 +86,7 @@ review judgment. If your slice needs something from a sibling slice, escalate �
   errors): `shared/lib/i18n/locales/common`. Reuse a common key before adding one. `add-text-content`.
 - No string maps (`{ FREE: 'In cupboard' }`) — an enum → key map (`LISTING_STATUS_KEY`) and `t()`.
 - With a prototype, the prototype text is the English value, verbatim.
+- A spec notice written as an instruction ("Show a plain failure. Keep the previous list…") is behavior, not copy. Never render it. The sentence comes from `## Clarifications`, the prototype, or a `common` key (generic error); none fits → a `common` key plus a line in `## Decisions & Open Questions`.
 
 ## 3. Components
 
@@ -114,7 +117,7 @@ The engineer that creates an executable file writes its behavior test in the sam
 
 - Components: colocated `<name>.test.tsx`. Hooks, api, `models/` or `model/`, lib, route modules, and guards: the segment's `tests/`.
 - Assert behavior (what renders, what was called, loading, empty, error), not that the module exists. Assert translated text through the locale value, not the key.
-- Mock only the boundaries: the fetcher module (`importOriginal` + override one export), the router, browser APIs. Keep entity hooks, the query client, i18n, and child components real.
+- Mock only the boundaries: inside the slice that owns the fetcher, its `api/fetchers` (`importOriginal` + override one export); in any other slice, `httpClient` in `@/shared/api/base`. Never mock another slice's `api/` path or its `index.ts`. Also the router and browser APIs. Keep entity hooks, the query client, i18n, and child components real.
 - A fix for a UI-review finding includes a regression test that fails on the reported behavior when that behavior is testable (a response longer than the page size, a control the page cannot reach).
 - `test-engineer` runs only when Station 9 reports `missing-test` or coverage below the thresholds in `quality-gates.md`, and only for that layer group.
 
@@ -123,7 +126,7 @@ The engineer that creates an executable file writes its behavior test in the sam
 When `.spec/features/<slug>.context/prototype-inventory.md` exists, it is the structure contract (copy, controls, fields, states) — not the look. For
 every row you render, set **React target** to the file and **Status** to `done`. `n/a: <reason>`
 only for sample server data, an emoji replaced by a lucide icon, or prototype-only chrome. Every
-prototype state (loading / empty / error / success / dialogs) must render. The look is the theme port at Station 3. A color, font, radius, or shadow diff is a `shared/ui` token or `cva` variant. Spacing and size are `styles.ts` layout. Layout the tokens cannot express is the human UI review, not a script. Verify:
+prototype state (loading / empty / error / success / dialogs) must render. Parity does not require the prototype's `reveal`, `hover-lift`, shimmer `@keyframes`, or `!important` reduced-motion block. Loading uses `@/shared/ui/skeleton`. Motion only ever becomes a `shared/ui` variant. The look is the theme port at Station 3. A color, font, radius, or shadow diff is a `shared/ui` token or `cva` variant. Spacing and size are `styles.ts` layout. Layout the tokens cannot express is the human UI review, not a script. Verify:
 
 ```bash
 node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --check .spec/features/<slug>.context/prototype-inventory.md
@@ -140,8 +143,11 @@ node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <touched
 
 Stations 3–6 pass `--ignore unused-export`: the layer above, or the Station 7 wiring, imports those
 exports later. From Station 7 on, drop it. Do not ignore `missing-test` — the test is part of this
-change. The Station 9 gate always runs every rule. `app-engineer` has no Bash; the layer gate and
-Station 9 run these commands.
+change. The Station 9 gate always runs every rule.
 
 Record the self-check in your handoff as one line (`self-check: typecheck pass, lint pass,
-conventions pass`). Do not copy gate output anywhere, and never onto the blackboard.
+conventions pass`). Do not copy gate output anywhere, and never onto the blackboard. A `fail` there
+is refused unless the row is `blocked` (`handoff-format.md`).
+
+`check-conventions.mjs --rules` lists every rule and its fix; `board.mjs --help` lists the board
+commands. Do not read the kit's script sources.

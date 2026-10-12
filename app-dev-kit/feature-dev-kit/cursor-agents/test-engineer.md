@@ -23,7 +23,7 @@ Read the fixed contract first, then your card (see `context-budget.md` § Per-wo
 **Fixed (same every spawn):** `references/quality-gates.md` for coverage thresholds. `references/ui-build-contract.md` § 5 for what a behavior test is. This spawn fills gaps the build left.
 
 **Per spawn:** `LAYER_GROUP`, `SLICE_PATHS`, `COVERAGE_TARGETS` (the spawn names the values — the
-defaults are in `context-budget.md`), then `CARD` — your test rows plus `## Acceptance Criteria` and
+defaults are in `context-budget.md`), then `CARD` — the layer group's build rows (already `done`) plus their `## Acceptance Criteria` and
 `## UI Surface` (`board.mjs card`). Read the card instead of the blackboard.
 
 ## Responsibilities
@@ -34,11 +34,9 @@ List the change's created and changed files. Skip only `index.ts`, `styles.ts`, 
 - Hooks, api, models, lib, route modules, and guards: `tests/` next to that segment. Test helpers for the segment live in that same `tests/` folder.
 - `shared/lib` uses one `shared/lib/tests/` folder. `shared/api` uses `shared/api/tests/`.
 
-Mock only the boundaries (`frontend-dev-kit:testing` → `references/mock-patterns.md`): the fetcher module via `importOriginal` overriding one export, the router, env, and browser APIs. Keep entity hooks, the query client, i18n, and child components real. A mocked module returns only the fields the code reads. Never mock the component under test, `@/shared/ui/*`, or `react-i18next`.
+Mock only the boundaries (`frontend-dev-kit:testing` → `references/mock-patterns.md`): inside the slice that owns the fetcher, its `api/fetchers` via `importOriginal` overriding one export; in any other slice, `httpClient` in `@/shared/api/base` (never another slice's `api/` path or `index.ts`); the router, env, and browser APIs. Keep entity hooks, the query client, i18n, and child components real. A mocked module returns only the fields the code reads. Never mock the component under test, `@/shared/ui/*`, or `react-i18next`.
 
-Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Assert translated text through the locale value, not the key. Tests have no comments. Run `yarn test:auto` scoped to the new tests, then `node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <SLICE_PATHS files>` — no `missing-test` may remain. Write coverage notes and any file that still lacks a behavior test into the row `--note` and the handoff. `## Gate Log` stays a pointer.
-
-Mark your test rows: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs row .spec/features/<slug>.md --row <n> --status done --note "<files tested, coverage — one line>"`.
+Use the project render wrapper, loading/empty/error states, and AC-traceable descriptions. Assert translated text through the locale value, not the key. Tests have no comments. Run `yarn test:auto` scoped to the new tests, then `node {KIT_DIR}/skills/feature-dev/scripts/check-conventions.mjs --files <SLICE_PATHS files>` — no `missing-test` may remain. Write coverage notes and any file that still lacks a behavior test into the handoff. Do not change the build rows. `## Gate Log` stays a pointer.
 
 ## Handoff
 

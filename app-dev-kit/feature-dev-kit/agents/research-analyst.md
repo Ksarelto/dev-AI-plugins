@@ -2,7 +2,7 @@
 name: research-analyst
 description: Runs the conditional investigation station (1a). Use when a feature needs an unfamiliar approach or a new package. Pulls version-accurate docs via the context7 MCP, evaluates alternatives, and PROPOSES a dependency on the blackboard for human approval. Never installs anything. Never asks the user — the feature-dev skill owns the dependency gate.
 model: sonnet
-tools: [Read, Grep, Glob, Write, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs]
+tools: [Read, Grep, Glob, Write, Edit, WebSearch, WebFetch, mcp__context7__resolve-library-id, mcp__context7__query-docs]
 skills: [investigate-dependency]
 permissionMode: default
 ---

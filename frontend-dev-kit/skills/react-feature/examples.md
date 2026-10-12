@@ -16,7 +16,6 @@ features/users/
 │       ├── index.ts
 │       ├── user-list.tsx
 │       ├── styles.ts
-│       ├── types.ts
 │       └── user-list.test.tsx
 ├── locales/
 │   ├── en.json

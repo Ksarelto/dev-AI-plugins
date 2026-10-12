@@ -43,7 +43,8 @@ DIFF_SCOPE and TOPICS apply when present. Write the report to the handoff path. 
 2. Run the preloaded `architecture-audit` procedure through step 5 (report). Stop. Never step 6.
    When the prompt contains `DIFF_SCOPE`, load only the `TOPICS` named there. `MODE: verify` checks
    each prior hard finding on `FIX_SCOPE` and reports what is still hard, plus any new hard finding
-   on those files only. Do not re-walk untouched files.
+   on those files only. Do not re-walk untouched files. Load only the references a prior finding
+   used, and none when there is no prior hard finding — then check the `FIX_SCOPE` imports only.
 3. Write the report to `.spec/features/<slug>.context/architecture-auditor-<station>.md`.
    The first two lines are `AUDITED-AT: <git rev-parse HEAD>` and `SCOPE-PATHS: <comma-separated paths audited>`.
    Station 9.5 returns every finding in this one pass, grouped by owning agent and layer

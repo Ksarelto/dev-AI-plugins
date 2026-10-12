@@ -13,6 +13,7 @@
 //            (later layers and app wiring import those exports). Builders do not ignore missing-test.
 //            Never passed by run-gates.sh — the gate always runs every rule.
 //   --json   print one JSON object instead of text lines
+//   --rules  print every rule id and its fix, then exit
 //
 // Exit: 0 no errors (warnings allowed) · 1 at least one error · 2 usage/setup error.
 
@@ -21,7 +22,32 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 
+const RULES = {
+  comment: 'no comments in code; a deliberate simplification goes in the handoff --decisions',
+  'lint-directive': '(warn) eslint-disable — fix the code instead',
+  'nested-ternary': 'no nested ternary — early return or a lookup map',
+  'jsx-ternary': '(warn) no ternary in JSX — compute a named const above return',
+  'export-star': 'no `export *` — re-export only the names another file imports',
+  'inline-class': 'no class string, className ternary, or style prop in JSX — styles.ts (cva for variants)',
+  'inline-handler': 'no inline onX arrow — declare handleX above return',
+  'hardcoded-copy': 'no English in JSX text, copy attributes, toasts, or zod messages — t(key)',
+  'magic-prop': 'closed-set prop (variant, size, type…) as a string — the primitive constant, or omit a default',
+  'string-map': 'no object of English copy — en.json plus an enum → key map',
+  'motion-utility': 'no animate-/transition/duration-/ease- classes outside shared/ui — primitives own motion',
+  'dark-variant': 'no dark: classes, including in a re-homed registry base',
+  'cross-slice-mock': "a test never mocks another slice — mock httpClient in @/shared/api/base, or this slice's own ../api/fetchers",
+  'inline-query-key': 'no queryKey array literal outside shared/api/query-keys — use the key factory',
+  'env-access': 'no import.meta.env / process.env outside shared/config (shared/api/config.ts reads the API origin)',
+  'missing-test': 'every executable file has a behavior test — colocated for a component, tests/ otherwise',
+  'unused-export': 'no export nothing else imports (index.ts: nothing outside the folder; registry bases: types only)',
+  'motion-css': '@keyframes / custom animation in CSS (warn); tw-animate-css imported twice (error)',
+}
+
 const args = process.argv.slice(2)
+if (args.includes('--rules')) {
+  for (const [id, fix] of Object.entries(RULES)) console.log(`${id.padEnd(17)} ${fix}`)
+  process.exit(0)
+}
 const opt = { root: process.cwd(), base: '', all: false, files: null, ignore: new Set(), json: false }
 
 for (let i = 0; i < args.length; i++) {
@@ -227,6 +253,24 @@ const checkAst = (file, sf) => {
       }
     }
 
+    if (test && ts.isCallExpression(n) && /^(vi|jest)\.(mock|doMock)$/.test(n.expression.getText(sf))) {
+      const spec = n.arguments[0] ? literalText(n.arguments[0]) : null
+      const target = spec?.match(/^@\/(entities|features|widgets|pages)\/([^/]+)/)
+      if (target && !rel(file).startsWith(`src/${target[1]}/${target[2]}/`)) {
+        report(file, sf, n.getStart(sf), 'error', 'cross-slice-mock', `mock of '${spec}' — never mock another slice; mock httpClient in @/shared/api/base`)
+      }
+    }
+
+    if (!test && ts.isPropertyAssignment(n) && n.name.getText(sf) === 'queryKey' && ts.isArrayLiteralExpression(unwrap(n.initializer))
+      && !rel(file).startsWith('src/shared/api/query-keys/')) {
+      report(file, sf, n.getStart(sf), 'error', 'inline-query-key', 'queryKey array literal — use the factory in shared/api/query-keys')
+    }
+
+    if (!test && !story && ts.isPropertyAccessExpression(n) && /^(import\.meta|process)\.env$/.test(n.getText(sf))
+      && !/^src\/shared\/(config\/|api\/config\.ts$)/.test(rel(file))) {
+      report(file, sf, n.getStart(sf), 'error', 'env-access', `${n.getText(sf)} outside shared/config — read the parsed value from shared/config/env.ts`)
+    }
+
     if (ts.isExportDeclaration(n) && !n.exportClause && n.moduleSpecifier) {
       report(file, sf, n.getStart(sf), 'error', 'export-star', '`export *` — re-export only the names another file imports')
     }
@@ -345,6 +389,13 @@ const checkAst = (file, sf) => {
       }
     }
 
+    if (styles && (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n))) {
+      const dark = n.text.split(/\s+/).filter((tok) => tok.split(':').slice(0, -1).includes('dark'))
+      if (dark.length) {
+        report(file, sf, n.getStart(sf), 'error', 'dark-variant', `${dark.join(' ')} — one light palette; drop dark: classes, including from a re-homed registry base`)
+      }
+    }
+
     ts.forEachChild(n, visit)
   }
   visit(sf)
@@ -444,25 +495,27 @@ const exportedNames = (sf) => {
   const isDefault = (n) => mods(n).some((m) => m.kind === ts.SyntaxKind.DefaultKeyword)
   for (const st of sf.statements) {
     if (ts.isVariableStatement(st) && isExported(st)) {
-      st.declarationList.declarations.forEach((d) => ts.isIdentifier(d.name) && out.push([d.name.text, d]))
+      st.declarationList.declarations.forEach((d) => ts.isIdentifier(d.name) && out.push([d.name.text, d, false]))
     } else if ((ts.isFunctionDeclaration(st) || ts.isClassDeclaration(st) || ts.isInterfaceDeclaration(st)
       || ts.isTypeAliasDeclaration(st) || ts.isEnumDeclaration(st)) && isExported(st) && !isDefault(st) && st.name) {
-      out.push([st.name.text, st])
+      out.push([st.name.text, st, ts.isInterfaceDeclaration(st) || ts.isTypeAliasDeclaration(st)])
     } else if (ts.isExportDeclaration(st) && st.exportClause && ts.isNamedExports(st.exportClause)) {
-      st.exportClause.elements.forEach((e) => e.name.text !== 'default' && out.push([e.name.text, e]))
+      st.exportClause.elements.forEach((e) => e.name.text !== 'default' && out.push([e.name.text, e, st.isTypeOnly || e.isTypeOnly]))
     }
   }
   return out
 }
 
+// Registry bases in shared/ui export every part by design, so only their type exports are checked.
 const checkUnusedExports = (files, usage, testUsage) => {
   for (const file of files) {
-    if (isTest(file) || isStory(file) || inSharedUi(file) || base(file) === 'main') continue
+    if (isTest(file) || isStory(file) || base(file) === 'main') continue
+    const sharedUi = inSharedUi(file)
     const { sf } = parse(file)
     const used = new Set([...(usage.get(file) ?? []), ...(base(file) === 'index' ? [] : testUsage.get(file) ?? [])])
     if (used.has('*')) continue
-    for (const [name, node] of exportedNames(sf)) {
-      if (used.has(name)) continue
+    for (const [name, node, isType] of exportedNames(sf)) {
+      if (used.has(name) || (sharedUi && !isType)) continue
       const where = base(file) === 'index' ? 'nothing outside this folder imports it' : 'no other file imports it'
       report(file, sf, node.getStart(sf), 'error', 'unused-export', `export "${name}" — ${where}; drop the export`)
     }

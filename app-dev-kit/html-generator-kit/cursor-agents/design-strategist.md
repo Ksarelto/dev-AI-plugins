@@ -213,7 +213,7 @@ left behind. End the brief with the template's `## Slots` JSON block carrying th
 
 A COMPACT file (max 40 lines) at `{OUTPUT_DIR}/ux-directives.md` — the UX rules screen generators
 receive. Distil query 4's guidelines (and query 6's, if run) into imperative, buildable bullets.
-Drop anything this kit cannot express (native gestures, GSAP choreography, external assets) and
+Drop anything this kit cannot express (native gestures, GSAP choreography, external assets other than the brief's Google Fonts import and the Alpine CDN) and
 anything already guaranteed by `accessibility.md`.
 
 With a binding reference, every **structure** row from `## Binding reference` (nav order, header

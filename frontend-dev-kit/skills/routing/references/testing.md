@@ -24,9 +24,9 @@ beforeEach(() => {
 ## Asserting navigation after an action
 
 ```ts
+// The real useCreateUser runs; its fetcher is mocked (`react-query-hook` → references/testing.md).
 it('navigates to user detail after successful creation', async () => {
-  const mockMutate = vi.fn((_input, options) => options?.onSuccess?.({ id: 'new-id' }))
-  vi.mocked(useCreateUser).mockReturnValue({ mutate: mockMutate, isPending: false } as ReturnType<typeof useCreateUser>)
+  vi.mocked(createUser).mockResolvedValue({ id: 'new-id' })
 
   render(<CreateUserForm />)
 
@@ -34,7 +34,7 @@ it('navigates to user detail after successful creation', async () => {
   await userEvent.type(nameInput, 'Alice')
   await userEvent.click(screen.getByRole('button', { name: /create/i }))
 
-  expect(mockNavigate).toHaveBeenCalledWith('/users/new-id')
+  await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/users/new-id'))
 })
 ```
 

@@ -20,8 +20,7 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
    - Pages are thin composition — they import widgets, features, and entities via their `index.ts` and arrange them on the screen.
    - No business logic, no direct API calls, no form handling — delegate those to feature and entity slices.
    - Local layout state (e.g. selected tab from URL params) is acceptable with `useState` or `useSearchParams`.
-   - Handle the full-page loading state with a viewport-filling skeleton.
-   - Handle the full-page error state with a translated `Alert` and a retry `Button` (named `handleRetry`).
+   - Data loading, empty, error, and retry stay in the feature or entity shell. The page does not render a full-page skeleton, `Alert`, or `handleRetry` for that data. `RouteBoundary` covers render crashes.
    - Page headings and any page-owned copy come from `pages/<slice>/locales/` or `commonKeys` — no literals (`rules/i18n.mdc`).
    - Classes live in the page folder's `styles.ts`.
    - Use the page layout conventions consistent with existing pages (read existing page files first).
@@ -45,7 +44,7 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
    ```
    The `app` layer uses this with `lazyFeature('profiles-page', () => import('@/pages/profiles-page'))`.
 
-5. **Co-locate the page test** at `pages/<slice>/ui/<page-name>/<page-name>.test.tsx`. Mock only fetchers; assert the page shows its heading and each widget's visible content, and that the loading and error states render their copy. "Renders without crashing" is not a test.
+5. **Co-locate the page test** at `pages/<slice>/ui/<page-name>/<page-name>.test.tsx`. A page owns no fetchers: mock `httpClient` in `@/shared/api/base` and let every feature's hook run (`rules/testing.mdc`); assert the page shows its heading and each composed feature or widget's visible content. Loading, empty, and error copy belong to that feature's test. "Renders without crashing" is not a test.
 
 6. **Run `yarn typecheck`**: fix all TypeScript errors.
 

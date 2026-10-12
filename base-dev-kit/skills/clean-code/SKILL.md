@@ -5,6 +5,8 @@ description: Clean code principles — naming, function size, complexity, magic 
 
 # Clean Code
 
+When an installed kit ships its own rule for comments or syntax, that rule wins. frontend-dev-kit and feature-dev-kit forbid comments in `src/`, including `// Arrange` labels and TODOs, and require arrow functions.
+
 This skill embodies the principles of "Clean Code" by Robert C. Martin (Uncle Bob). Use it to transform "code that works" into "code that is clean."
 
 > "Code is clean if it can be read, and enhanced by a developer other than its original author." — Grady Booch

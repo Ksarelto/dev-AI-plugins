@@ -72,12 +72,14 @@ ending in `:` prefix their children), and requirement-bearing **paragraph** (con
 prose lines), routes sections by heading (glossary, decisions, success measures, out of scope,
 copy, open questions, narrative), and sets `kind_hint` / `role_hint` / `scope_hint` / `confidence`
 by keyword. The skill then fills only `type_hint`, `consolidated_entities`,
-`consolidated_user_roles`, `potential_conflicts`, `terminology_drift`, and `system_boundary`.
+`consolidated_user_roles`, `potential_conflicts`, `terminology_drift`, and
+`system_boundary.owned_elsewhere` plus its `source_lines`. Leave `system_boundary.builds`
+as the script wrote it.
 Compound statements ("A and B") stay one entry; the enricher splits them.
 
 `system_boundary` says what this run builds and what another system already owns:
-`builds` is the tracks this spec delivers (`frontend` / `backend` / `agent`; a caller's `BUILDS`
-hint wins), `owned_elsewhere` lists behaviour the source assigns to an existing system (e.g.
+`builds` is the tracks this spec delivers (`frontend` / `backend` / `agent`), written by
+`extract-intake.mjs --builds` from the caller's `BUILDS`. `owned_elsewhere` lists behaviour the source assigns to an existing system (e.g.
 "backend API: validation, import steps, persistence, audit, retention"), `source_lines` the
 lines that say so. Leave `owned_elsewhere` empty when the source builds everything. Later stations
 never ask how an `owned_elsewhere` system behaves — only how this client reacts to its answer.

@@ -95,9 +95,9 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
   .cursor-plugin/plugin.json                 ← same fields as Claude; agents is ./cursor-agents/
   agents/                                    # 13 pipeline agents (Claude). Cursor loads cursor-agents/
     feature-orchestrator.md                  ← opus | sequences stations 1–11; packets only; blackboard + context Write; never src/
-    architecture-auditor.md                  ← sonnet high | Stations 1.5 / 9.5 REPORT_ONLY; no Write; preloads architecture-audit
+    architecture-auditor.md                  ← sonnet high | Stations 1.5 / 9.5 REPORT_ONLY; writes only its report; preloads architecture-audit
     spec-analyst.md                          ← sonnet | request → testable spec; CLARIFY_PACKET; never approved
-    code-explorer.md                         ← haiku | reuse/impact mapping; blackboard Write only
+    code-explorer.md                         ← haiku | reuse/impact mapping; edits blackboard sections only
     research-analyst.md                      ← sonnet | context7 investigation; proposes deps, never installs
     slice-engineer.md                        ← sonnet | small-scope consolidated builder (LAYER + SLICE)
     shared-engineer.md                       ← sonnet | shared/ layer; the only agent that may install approved packages
@@ -106,7 +106,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
     composition-engineer.md                  ← sonnet | widgets + pages
     app-engineer.md                          ← haiku | routes, navigation, providers
     test-engineer.md                         ← sonnet | Station 9 test gaps only; frontend-dev-kit:testing
-    code-reviewer.md                         ← sonnet high | conventions + AC coverage; FSD audit is station 9.5
+    code-reviewer.md                         ← sonnet high | behavior + AC coverage (conventions are the gate's); FSD audit is station 9.5
   skills/
     feature-dev/                             ← the pipeline entry point
       SKILL.md                               ← prerequisites, resume table, the skill-owned human gates

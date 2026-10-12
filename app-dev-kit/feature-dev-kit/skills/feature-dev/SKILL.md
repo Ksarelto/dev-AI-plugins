@@ -62,7 +62,7 @@ All script and reference paths are `{KIT_DIR}/skills/feature-dev/…`. Never har
 | `scripts/extract-prototype-inventory.mjs` | this skill (Station 0, Bash) | prototype page → `.context/prototype-inventory.md` when `prototype-page:` is set |
 | `scripts/validate-feature-spec.mjs` | this skill (Station 0.5, Bash) | deterministic blackboard validation |
 | `scripts/run-gates.sh` | orchestrator, this skill on patch (Bash) | runs the gate sequence, emits JSON; `--spec` records each gate in `<slug>.context/gate-status.md` + `gate-log.jsonl` (not on the board) |
-| `scripts/board.mjs` | orchestrator, build workers (Bash) | section get/put, `card`, `row`, `append`, `gate`, `timing`, `snapshot`, `changed` |
+| `scripts/board.mjs` | orchestrator, build workers (Bash) | section get/put, `card`, `row`, `append`, `gate`, `timing`, `snapshot`, `changed`, `audit-scope`, `parent-map` |
 | `scripts/port-prototype-theme.mjs` | `shared-engineer` (Station 3); orchestrator (Station 6 `--check`) | copy prototype `:root` tokens into `globals.css`; `--check` diffs them and does not write |
 | `scripts/preflight-host.mjs` | this skill (Step 1, Bash) | reports host setup gaps (gate scripts, `.spec` lint ignore, git-ignored transcripts) before any build |
 | `scripts/commit-feature.sh` | this skill (Station 12, Bash) | `--stage-only` before review; one commit on approve |
@@ -121,7 +121,7 @@ Structured fields (from frontend-orchestrator-kit or the human) may accompany th
 `FEATURE_ID`, `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`,
 `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`, `PREFLIGHT`.
 `REQUEST` may be a one-line pointer when `UPSTREAM_SPEC` + `FEATURE_ID` are set — do not expect
-an inlined spec body. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
+an inlined spec body. Pass `CHANGE=remove` only when every nested task `change` is `remove`.
 See `references/upstream-contract.md`.
 
 ```
@@ -160,7 +160,8 @@ Do not read `pipeline-flow.md` into this conversation. The tier table below is t
 | `approved` | Station 1 |
 | `awaiting-dep-approval` | Station 1b |
 | `building` | Re-spawn the orchestrator with `RESUME_AT: build`. It continues at the first Build Plan row that is not `done`. It does not re-plan |
-| `review`, `changes-requested` | Station 11 |
+| `review` | Re-spawn the orchestrator with `RESUME_AT: 9` (gates and reviews re-run, then Station 11) |
+| `changes-requested` | The Station 12 changes-requested path with the change recorded under `## Human Review`: the local UI fix, or `MODE: revise` |
 | `awaiting-human` | Station 12 |
 | `done` | If `.spec/features/{slug}.kit-result.json` is missing, finish Step 6 (commit if anything is staged, then write the envelope) and stop. If the envelope exists, report and stop — unless the checklist row is `pending` with `blocked-reason: spec changed`. Then import with `--changes` and resume at Station 1 |
 
@@ -197,7 +198,7 @@ node {KIT_DIR}/skills/feature-dev/scripts/import-upstream.mjs \
   --changes {dirname(UPSTREAM_SPEC)}/artifacts/changes.json
 ```
 
-Pass `--changes` only when that file exists. Pass `--checklist` when `CHECKLIST_PATH` is set — import reads it and does not edit it. Pass `--change remove` only when `CHANGE=remove`. `--require-scoped` is mandatory when the upstream spec `type` is `app` or has more than one
+Pass `--changes` only when that file exists. Pass `--checklist` when `CHECKLIST_PATH` is set — import reads it and does not edit it. Pass `--change remove` only when `CHANGE=remove` (every nested task is a removal). A mixed feature omits it; import reads each task's `change` from the checklist. `--require-scoped` is mandatory when the upstream spec `type` is `app` or has more than one
 screen. Standalone requests omit it.
 
 If import prints `SKIP: board at status`, the board is left as it is. If it also prints `WARN upstream-changed`, ask once: **Re-import** (re-run the same command with `--force`, set `status: approved`, then run Station 0.5 again) or **Keep my edits** (continue from the status table above). Do not overwrite a human's Split or Edit silently.
@@ -208,7 +209,7 @@ When the board has a `prototype-page:` line, build the parity contract (it print
 node {KIT_DIR}/skills/feature-dev/scripts/extract-prototype-inventory.mjs --spec {SPEC_PATH}
 ```
 
-It writes `.spec/features/{slug}.context/prototype-inventory.md` — every string, control, field, state, and dialog on the prototype page. Station 6 fills its React target / Status columns. See `references/upstream-contract.md` § Prototype inventory. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement. Import writes that instruction into `## Change request` (`Remove` / `Extend existing`), which Station 1 obeys.
+It writes `.spec/features/{slug}.context/prototype-inventory.md` — every string, control, field, state, and dialog on the prototype page. Station 6 fills its React target / Status columns. See `references/upstream-contract.md` § Prototype inventory. After import, re-read frontmatter `status`. If it is `approved` and the board has `## Change request`, skip Stations 0 and 0.5 and spawn the orchestrator at Station 1. When `CHANGE=remove`, delete the existing pages and routes for those screen refs. Do not scaffold a replacement. When `## Change request` says `Remove these screens only`, delete only the listed screens and build the rest. Import writes that instruction (`Remove` / `Remove these screens only` / `Extend existing`), which Station 1 obeys.
 
 Then spawn `spec-analyst` with `SPEC_PATH` — the import already wrote the scoped slice (screens,
 stories, ACs, entities, prototype page) into the blackboard. Do not paste the slice.
@@ -244,7 +245,7 @@ When the feature renders UI, resolve `dev_url` before the first build spawn. Rea
 
 | Tier | When | What this skill does |
 |------|------|----------------------|
-| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree) in the foreground per Spawning below. Pass `LAYER`, `SLICE`, and one `create-*` skill. It writes behavior tests in the same change. Then `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions --spec {SPEC_PATH} --station patch`. If UI changed, run the UI review below before Step 5. Comments go back to `slice-engineer` with `ui-review.md`. Before that re-spawn, `run-gates.sh --fix` on the changed files (`SKIP` means the host has no fixer). A testable finding includes a regression test (`ui-build-contract.md` § 5), then re-run that gate. |
+| **patch** | One layer, at most two slices, no new dependency, no new route | Do **not** spawn `feature-orchestrator`. Spawn one `slice-engineer` (no worktree; `shared-engineer` when the layer is `shared`) in the foreground per Spawning below. Pass `LAYER`, `SLICE`, and one `create-*` skill. It writes behavior tests in the same change. Then `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until conventions --spec {SPEC_PATH} --station patch`. If UI changed, run the UI review below before Step 5. Comments go back to `slice-engineer` with `ui-review.md`. Before that re-spawn, `run-gates.sh --fix` on the changed files (`SKIP` means the host has no fixer). A testable finding includes a regression test (`ui-build-contract.md` § 5), then re-run that gate. |
 | **standard** | One screen, up to five slices | Spawn `feature-orchestrator` with `TIER: standard`. |
 | **full** | Six or more slices, or a new route plus a new entity | Spawn `feature-orchestrator` with `TIER: full`. |
 
@@ -261,6 +262,7 @@ KIT_DIR:     {resolved plugin root}
 SESSION:     .spec/features/{slug}.context/session.md   (omit if it does not exist)
 RESUME_AT:   build   (when the board status is building — continue the plan, do not re-plan)
 RESUME_AT:   9   (only when re-spawning after a CONTINUE_PACKET)
+RESUME_AT:   2   (only when re-spawning after DEP_PACKET verdicts)
 UI_FINDINGS: .spec/features/{slug}.context/ui-review.md   (omit when that file has no findings)
 
 Read pipeline-flow.md once. Run the stations for this TIER.
@@ -274,6 +276,8 @@ Do NOT pass the upstream spec body or any worker report — spokes return a HAND
 
 Spawn every agent (orchestrator, `slice-engineer`, `test-engineer`) in the foreground and wait for the Agent call to return. Do not background it, sleep, or poll. The orchestrator's final message is its packet; a worker's final message is its HANDOFF / CONTAINS lines.
 
+Once the board exists, log each spawn first: `board.mjs timing {SPEC_PATH} --station "<station or step>" --event spawn --agent <name>`. Without it, `timing --summary` counts the agent's time as "between steps".
+
 If an Agent call errors or returns without a result, retry it once from the checkpoint path (`.spec/features/{slug}.context/orchestrator-checkpoint.md`, or the blackboard). Do not paste the old transcript. If the retry also fails, write the envelope `--outcome error --reason agent-failed` and stop.
 
 If this conversation is near its limit (several clarify rounds, a revise cycle, or a packet plus a long spec), write `.spec/features/{slug}.context/session.md` first (status, pending packet path, links only) and pass that path. Do not replay the prior conversation into the spawn.
@@ -282,7 +286,7 @@ Loop on the returned packet's `type`. Every re-spawn follows Spawning above.
 
 | Packet | This skill |
 |--------|------------|
-| `DEP_PACKET` | Present each package; Approve / Reject — find an alternative / Abort. Record verdicts in `## Dependencies`, re-spawn `MODE: build` from Station 2. |
+| `DEP_PACKET` | Present each package; Approve / Reject — find an alternative / Abort. Record verdicts in `## Dependencies` (`Status`: `approved` or `rejected`), re-spawn `MODE: build` with `RESUME_AT: 2`. |
 | `CONTINUE_PACKET` | Run the UI review below, then re-spawn with `RESUME_AT: 9`. Pass `UI_FINDINGS` when `ui-review.md` has findings. Findings are Station 11 input, not a revise cycle. |
 | `REVIEW_PACKET` | Step 5. If `ui-review.md` had findings, open the route again first so the human can confirm the fixes. |
 | `ESCALATION_PACKET` | `AskUserQuestion` with `errors[]` and `options[]`. Apply the choice or STOP. |
@@ -317,11 +321,11 @@ Before the Station 12 question, if `ui-review.md` has findings, `navigate_page` 
    - **Approve** → set `status: done` (human-only transition), go to Step 6.
    - **Request changes** → write `session.md` (the change request and `review_path`, not the review body). **Local UI** is one layer, at most two slices, and no new dependency, route, or acceptance criterion. Patch, and a local UI change on standard or full, do not spawn the orchestrator:
     1. `board.mjs snapshot {SPEC_PATH} --round <n>`
-    2. One `slice-engineer` (no worktree) with `LAYER`, `SLICE`, and the change text.
+    2. One `slice-engineer` (no worktree; `shared-engineer` for a `shared` slice) with `LAYER`, `SLICE`, and the change text.
     3. `run-gates.sh --fix` on the changed files, then `run-gates.sh --until conventions --spec {SPEC_PATH} --station revise`. `SKIP` means the host has no fixer.
     4. `board.mjs changed {SPEC_PATH} --since <n>` is `FIX_SCOPE`. Write it to `fix-scope-<n>.txt`.
     5. Re-open the route (step 3 of the UI review). Do not ask the full question again unless the human still has comments; those go back to `slice-engineer` once.
-    6. On standard and full, spawn `architecture-auditor` and `code-reviewer` in one turn, `MODE: verify`, on `FIX_SCOPE`. Patch skips both.
+    6. On standard and full, spawn `architecture-auditor` and `code-reviewer` in one turn, `MODE: verify`, on `FIX_SCOPE`. Patch skips both. Each prompt names its agent file (`{KIT_DIR}/agents/<name>.md`) and carries `SPEC_PATH`, the `fix-scope-<n>.txt` path, the agent's latest handoff in `<slug>.context/`, and the change request as the finding to verify.
     Anything else (a dependency, a route, a second layer, or an acceptance-criterion change) re-spawns the orchestrator. The orchestrator re-enters at the lowest affected station, replays Stations 9–10 (including 9.5), and returns a fresh packet.
      ```
      MODE:           revise

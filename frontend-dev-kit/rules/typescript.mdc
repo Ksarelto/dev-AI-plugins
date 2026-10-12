@@ -136,7 +136,12 @@ export type ProfileStatusValue = (typeof ProfileStatus)[keyof typeof ProfileStat
 ## Function & Component Types
 
 - Exported functions and components must have explicit return types — don't let inference leak into the public API.
-- Type props with an `interface`, not inline object types, once there is more than one prop.
+- Type props with an `interface` declared in the component file, above the component, once there is
+  more than one prop. Do not put that interface in `types.ts`.
+- Other types go in `types.ts`: component-local non-prop types in the component folder, domain types
+  in the slice model folder (`features/*/models/types.ts`, `entities/*/model/types.ts`). Skip
+  `types.ts` when the props interface was the only type. A `VariantProps` type derived from `cva`
+  stays in `styles.ts`.
 - Prefer a single options object over long positional parameter lists (3+ params).
 
 ```ts

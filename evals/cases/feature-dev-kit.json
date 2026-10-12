@@ -15,7 +15,7 @@
     { "prompt": "Scaffold a presentational component in the correct FSD layer with matching tests", "expect": "create-react-component" },
     { "prompt": "Scaffold the interaction slice for editing a record with typed handlers and mutations", "expect": "create-feature" },
     { "prompt": "Add sidebar menu, navigation, and breadcrumb entries for this already-routed screen", "expect": "wire-navigation" },
-    { "prompt": "Rebase this approved feature over develop and open the PR via gh", "expect": "create-pr" },
+    { "prompt": "Rebase this approved feature onto its parent branch and open the PR via gh", "expect": "create-pr" },
     { "prompt": "Create the base layer and slice folder structure with a correct public API", "expect": "create-slice" },
     { "prompt": "Turn this raw feature request into a structured testable spec with clarifying questions", "expect": "generate-feature-spec" }
   ]

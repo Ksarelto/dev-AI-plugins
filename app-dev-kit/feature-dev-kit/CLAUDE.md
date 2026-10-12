@@ -2,9 +2,9 @@
 
 ## Git
 
-- Branch: `feature/<ticket>-<slug>` or `nt-<slug>`. Slug is lowercase and hyphenated.
+- Branch: `feature/<ticket>-<slug>` or `feature/<slug>`. Slug is lowercase and hyphenated.
 - Commit: `[TICKET] imperative summary`. One logical change. No `WIP`, `fix`, or `update`.
-- Humans rebase onto the integration branch and push with `--force-with-lease`. Never `--force`. Agents do not push.
+- Humans rebase onto the board's `parent-branch` (`develop` when empty) and push with `--force-with-lease`. Never `--force`. Agents do not push.
 - Do not commit to `main`, `master`, or `develop` directly.
 - Shipping is `/create-pr`, typed by a human after spec status is `done`. No agent pushes or opens a PR.
 - A PR body comes from the spec (summary, acceptance criteria, FSD impact, test plan). The procedure is the `create-pr` skill.

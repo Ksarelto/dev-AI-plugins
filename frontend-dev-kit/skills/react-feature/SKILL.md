@@ -33,11 +33,12 @@ features/{feature}/
 ├── ui/
 │   └── {name}/                   — kebab-case of the export (custom-button/)
 │       ├── index.ts              — re-exports component (sole public surface of folder)
-│       ├── {name}.tsx            — JSX implementation (custom-button.tsx)
+│       ├── {name}.tsx            — one component; props interface lives in this file
 │       ├── styles.ts             — ALL Tailwind classes, never inline in JSX
-│       ├── types.ts              — local prop types (optional)
+│       ├── types.ts              — non-prop types only, when the component has them
 │       └── {name}.test.tsx       — colocated RTL test (required)
 ├── models/               — add only when real client state or business logic exists
+│   ├── types.ts          — domain types, when the slice has them
 │   ├── store.ts          — Zustand v5 store (session-scoped, cleared on logout)
 │   ├── validation.ts     — business invariants as pure functions
 │   └── tests/            — unit tests for pure model logic
@@ -75,9 +76,9 @@ Every component inside `ui/` follows this structure — no exceptions, even for 
 ```
 ui/{name}/
 ├── index.ts               — export { ComponentName } from './{name}'
-├── {name}.tsx             — JSX only, all classes via styles.ts (button.tsx, custom-button.tsx)
+├── {name}.tsx             — one component; the props interface is declared here
 ├── styles.ts              — ALL classes defined here
-├── types.ts               — {ComponentName}Props interface (optional)
+├── types.ts               — non-prop types only, when the component has them
 └── {name}.test.tsx        — colocated RTL test
 ```
 
@@ -103,9 +104,15 @@ export const button = cva('inline-flex items-center rounded-md', {
 
 ```tsx
 import * as styles from './styles';
-import type { OrderCardProps } from './types';
 
-export const OrderCard = ({ order, className }: OrderCardProps) => (
+interface OrderCardProps {
+  order: {
+    id: string;
+  };
+  className?: string;
+}
+
+export const OrderCard = ({ order, className }: OrderCardProps): JSX.Element => (
   <div className={cn(styles.root, className)}>
     <p className={styles.title}>{order.id}</p>
   </div>
@@ -129,7 +136,9 @@ export type { PlaceOrderPayload } from './api/dto';
 - [ ] Query keys in `shared/api/query-keys/{domain}.ts` — no per-feature `queryKeys.ts`
 - [ ] `api/endpoints.ts` holds backend paths — no hand-typed URLs in hooks or components
 - [ ] `api/fetchers.ts` uses `httpClient` only — no `fetch()`, `ky`, or `axios`
-- [ ] Every component folder is kebab-case (`custom-button/custom-button.tsx`) with `styles.ts` — no Tailwind classes inline in JSX
+- [ ] Every component folder is kebab-case (`custom-button/custom-button.tsx`) with `styles.ts` — one component per file, props interface in that file, no Tailwind classes inline in JSX
+- [ ] Second pass: no unexplained string or number literals
+- [ ] A component created from an external library still uses that library's animation, and does not add its own
 - [ ] `models/` and `hooks/` segments are earned, not scaffolded empty
 - [ ] `ui/` never imports `api/` — queries and mutations go through `hooks/`; a form schema may call `models/` pure functions
 - [ ] Forms use React Hook Form + zod; validation in three levels (wire shape / input constraints / business invariants)

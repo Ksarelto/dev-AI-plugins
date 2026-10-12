@@ -5,7 +5,7 @@ Organize a test file in this order. `vi.mock()` calls come **before** imports �
 1. `vi.mock()` calls — boundaries only (`mock-patterns.md`)
 2. Testing library (`@testing-library/react`, `@testing-library/user-event`)
 3. Aliased app imports (`@/…`), including `render` / `renderHook` from `@/shared/lib/rendererRTL`
-4. Relative imports — the unit under test, its types, the mocked fetcher
+4. Relative imports — the unit under test, and its props type from the component file when the test names that type
 
 ```ts
 vi.mock('@/shared/config/env', () => ({
@@ -25,7 +25,7 @@ import userEvent from '@testing-library/user-event'
 import { render } from '@/shared/lib/rendererRTL'
 import { fetchProfiles } from '../../api/fetchers'
 import { ProfilesList } from './profiles-list'
-import type { ProfilesListProps } from './types'
+import type { ProfilesListProps } from './profiles-list'
 ```
 
 The block is written without comments; the numbered list above is the documentation.

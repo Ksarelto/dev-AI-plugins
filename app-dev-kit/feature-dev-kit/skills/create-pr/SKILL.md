@@ -1,6 +1,6 @@
 ---
 name: create-pr
-description: HUMAN-ONLY ship command. Run after the human approved the feature at station 12. Verifies gates are green, rebases over develop, force-with-lease pushes, and opens a PR via gh with a body templated from the feature spec. Never auto-triggers.
+description: HUMAN-ONLY ship command. Run after the human approved the feature at station 12. Verifies gates are green, rebases onto the board's parent-branch (develop when empty), force-with-lease pushes, and opens a PR via gh against that base with a body templated from the feature spec. Never auto-triggers.
 argument-hint: "[feature-slug]"
 disable-model-invocation: true
 allowed-tools: [Bash, Read]
@@ -18,10 +18,10 @@ Only after a human sets the spec status to `done` at station 12 (human approval)
    - Read the spec file: `status` must be `done`. If status is anything else, print an error and stop.
    - Confirm all gates are green: `.spec/features/<slug>.context/gate-status.md` must show `pass` for every gate (boards from before gate-status.md existed: the most recent `## Gate Log` entry).
 
-2. **Rebase over `develop`**:
+2. **Rebase over the parent branch.** Read `parent-branch` from the board front matter (`.spec/features/<slug>.md`). Empty, missing, or `none` means `develop`.
    ```bash
-   git fetch origin develop
-   git rebase origin/develop
+   git fetch origin <parent-branch>
+   git rebase origin/<parent-branch>
    ```
    If rebase conflicts exist, stop and report them — do not force-resolve conflicts.
 
@@ -62,7 +62,7 @@ Only after a human sets the spec status to `done` at station 12 (human approval)
    🤖 Generated with Claude Code
    EOF
    )" \
-     --base develop
+     --base <parent-branch>
    ```
 
 6. **Return the PR URL** so the human can open it immediately.
@@ -76,8 +76,8 @@ Only after a human sets the spec status to `done` at station 12 (human approval)
 
 ## Outputs
 
-- Branch rebased over `develop` and pushed.
-- Pull request opened against `develop` with the body templated from the spec.
+- Branch rebased over `parent-branch` (`develop` when the board leaves it empty) and pushed.
+- Pull request opened against that base with the body templated from the spec. A stack ships as stacked PRs.
 - PR URL returned.
 
 ## What this skill does NOT do

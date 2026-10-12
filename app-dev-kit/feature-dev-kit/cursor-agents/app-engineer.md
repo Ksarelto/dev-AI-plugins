@@ -3,7 +3,7 @@
 name: app-engineer
 description: Wires the FSD `app` layer (station 7) — routing table, lazy page imports, navigation/menu/breadcrumb entries, and providers. Use last in the build spine, after pages exist.
 model: composer-2.5[fast=false]
-tools: [Read, Write, Edit, Glob, Grep]
+tools: [Read, Write, Edit, Bash, Glob, Grep]
 skills: [add-route, wire-navigation, testing]
 permissionMode: default
 ---
@@ -49,13 +49,13 @@ The `app` layer must not contain business logic, API calls, or presentation comp
 
 ### 5. Tests
 
-Write the behavior test for every executable file you create — a route module, a guard, a provider (`ui-build-contract.md` § 5, `frontend-dev-kit:testing`). This agent has no Bash; Station 9 runs the tests.
+Write the behavior test for every executable file you create — a route module, a guard, a provider (`ui-build-contract.md` § 5, `frontend-dev-kit:testing`). Station 9 runs the tests.
 
 ### 6. Self-check before returning
 
-This agent has no `Bash`. Typecheck and lint are run by the orchestrator's layer gate and Station 9 `conventions`.
+Run the self-check in `ui-build-contract.md` § 7 without `--ignore unused-export` — Station 7 is where every export gets its importer.
 
-Use `Grep` to check that every `element:` in the changed route files goes through `withRouteBoundary` (`rg -n "element:" src/app/router` — each hit must wrap its page). Use `Read` to verify lazy imports are syntactically correct (each `lazyFeature()` call resolves to the correct page path). Write the list of modified files into the spec's "Build plan" before returning.
+Use `Grep` to check that every `element:` in the changed route files goes through `withRouteBoundary` (`rg -n "element:" src/app/router` — each hit must wrap its page). Use `Read` to verify lazy imports are syntactically correct (each `lazyFeature()` call resolves to the correct page path).
 
 ## Outputs
 

@@ -29,10 +29,11 @@ Directory: `.spec/features/<slug>.context/`
 | `orchestrator-checkpoint.md` | `feature-orchestrator` | current station, status, decisions, next action, links to spoke handoffs |
 | `session.md` | `feature-dev` skill | where the human-facing run left off, which packet is pending, links only |
 | `cards/row-<n>.md` | `board.mjs card` (orchestrator) | one delegation's rows plus the sections that agent builds from — the worker's only view of the board |
-| `fix-batch-<n>.md` | `feature-orchestrator` (Station 11) | one owning agent's findings, one line each |
+| `fix-batch-<n>.md` | `feature-orchestrator` (Station 11) | one fixer's findings under `## <layer>` headings, one line each |
 | `gate-status.md`, `gate-log.jsonl` | `run-gates.sh --spec` / `board.mjs gate` | latest result per gate; full gate history |
 | `glossary.md` | `import-upstream.mjs` | the spec glossary, read by path by workers that write copy |
-| `timings.jsonl` | `board.mjs` (card, gate, timing) | spawn and gate timeline per station — `timing --summary` prints it |
+| `timings.jsonl` | `board.mjs` (card, gate, timing) | spawn and gate timeline per station — `timing --summary` prints seconds per station and the time between steps |
+| `parent-map.md` | `board.mjs parent-map` (orchestrator, Station 1) | FSD Impact + Reuse Map of the stack parent and the features the change request names, so `code-explorer` maps only the delta |
 | `ui-review.md` | `feature-dev` skill | route, console result, human comments — Station 11 input (`UI_FINDINGS`) |
 
 A handoff file is **at most 15 lines**: outcome, paths touched, decisions, gates. Write it with
@@ -65,7 +66,7 @@ The spec file at `.spec/features/<slug>.md` is the shared state for decisions. C
 
 - The Read tool cannot open one section of a file, so "read sections X, Y" alone still costs the
   whole board. Section access is a script: `scripts/board.mjs`.
-- Pre-build workers (Stations 0–1b) edit their assigned sections directly.
+- Pre-build workers (Stations 0–1b) edit their assigned sections directly with `Edit` — never rewrite the whole board with `Write`.
 - Build workers (Stations 3–7, and `test-engineer` on a Station 9 gap) get a **work card** — `board.mjs card <board> --row <n> --agent <name>`
   writes `<slug>.context/cards/row-<n>.md` with their rows and the sections in the table below,
   verbatim. They never Read or Edit the board. They write back with `board.mjs row` (Status + one
@@ -107,12 +108,15 @@ either makes each prefix unique and loses the discount.
 Every card also carries Request, Clarifications, and Decisions & Open Questions (binding human
 input), the Build Plan preamble, and its `### Not building` list. `board.mjs` owns the exact map.
 Build cards also include a path list from `## FSD Impact` (`layer/slice`), filtered to that row's
-slices, so a builder does not open the board to see where the row lands.
+slices, so a builder does not open the board to see where the row lands. Acceptance criteria are the
+ones the plan's coverage table maps to the card's rows (a criterion with no id, or one the table does
+not list, stays on every card). API subsections *owned by other slices* carry ids and titles only —
+they are scope guards, not build input.
 
 | Worker | reads (card for Stations 3–7) | writes |
 |--------|------------------------------|--------|
 | `spec-analyst` | Request, Clarifications, Acceptance criteria, UI surface, API contract | those same sections; never status `approved` |
-| `code-explorer` | Request, Acceptance criteria, UI surface | FSD Impact, Reuse map, UI surface (refine), Decisions |
+| `code-explorer` | Request, Acceptance criteria, UI surface, plus `parent-map.md` when the feature extends a parent | FSD Impact, Reuse map, UI surface (refine), Decisions |
 | `research-analyst` | FSD Impact, API contract, UI surface | Tech Investigation, Dependencies |
 | `shared-engineer` | card: Acceptance criteria, FSD Impact, API contract, Reuse map, Dependencies | `board.mjs row` (its rows), `append` Reuse Map |
 | `entities-engineer` | card: Acceptance criteria, FSD Impact, API contract, Reuse map | `board.mjs row`, `append` Reuse Map |
@@ -120,7 +124,7 @@ slices, so a builder does not open the board to see where the row lands.
 | `composition-engineer` | card: Acceptance criteria, FSD Impact, API contract, UI surface (its screens), Reuse map | `board.mjs row`, `append` Reuse Map |
 | `app-engineer` | card: Acceptance criteria, FSD Impact, UI surface (route map), Reuse map | `board.mjs row` |
 | `slice-engineer` | card: every build section | `board.mjs row`, `append` Reuse Map |
-| `test-engineer` | card: Acceptance criteria, UI surface | `board.mjs row` (test rows) |
+| `test-engineer` | card over the failing group's build rows: Acceptance criteria, UI surface | handoff only (build rows stay `done`) |
 | `architecture-auditor` | FSD Impact paths (full-tier baseline) or changed-file list (diff) | **none on the blackboard** — writes the report to its handoff file |
 | `feature-orchestrator` | Build plan, `gate-status.md`, status, Human Review, checkpoint — via `board.mjs section --get` | `.spec/features/<slug>.md` and `.spec/features/<slug>.context/` (never `src/`) |
 
@@ -156,10 +160,12 @@ A batch row (same-shape slices, `build-plan.md` rule 1) is one card and one work
 
 ## Fix batches (Station 11)
 
-Group every open finding (gate, architecture-audit, code-review, parity, UI review) by owning agent and layer.
-Write each group to `<slug>.context/fix-batch-<n>.md` (one line per finding: path, rule, what to
-change) and spawn **one** owning engineer per batch with that path and a card for the affected
-rows. The same finding in N sibling slices is one batch, not N spawns.
+Group every open finding (gate, architecture-audit, code-review, parity, UI review) by layer.
+A small round (at most 15 finding lines, no new slice or route) is one `<slug>.context/fix-batch-<n>.md`
+and one `slice-engineer` spawn (`LAYER: fix`) across every affected layer. A larger round writes one
+batch per owning agent and layer and spawns **one** owning engineer per batch. Each batch line is
+path, rule, what to change; each spawn gets that path and a card for the affected rows. The same
+finding in N sibling slices is one batch, not N spawns.
 
 ## Prototype inventory
 
@@ -188,7 +194,7 @@ read only by `composition-engineer` (and the UI review, by path), never by the o
 | Say "follow the project conventions" instead of naming rule files | An unnamed rule loads nothing — that is starvation |
 | Inline the same reference into every parallel worker | Pass the path; each worker loads it in its own window |
 | Point a build worker at the blackboard | Pass its card (`board.mjs card`); the board holds every other row and section |
-| Spawn one fixer per finding or per slice for the same change | One fix batch per owning agent + layer |
+| Spawn one fixer per finding or per slice for the same change | One fix batch per round when it is small; otherwise one per owning agent + layer |
 | Write gate rows or row history onto the board | `gate-status.md` / `gate-log.jsonl`; one current Note per row |
 
 ## When context conflicts
