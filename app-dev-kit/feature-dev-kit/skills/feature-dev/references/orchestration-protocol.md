@@ -94,7 +94,7 @@ After each layer group completes, run `run-gates.sh --until fsd`. If that fails,
 
 | Feature complexity | Worker strategy |
 |--------------------|-----------------|
-| 1–2 slices, single layer | Single `slice-engineer` handles all segments |
+| One slice in an entities–pages layer | `slice-engineer` handles all segments (`build-plan.md` § `Agent`) |
 | 3–5 slices across 2 layers | One engineer per layer group |
 | 6+ slices or cross-cutting concern | One engineer per slice, one after another, on the feature branch |
 
@@ -108,14 +108,15 @@ When a layer has more than one slice, run those slices one after another on the 
 Open findings (gates, audit, review, parity, UI review)
        │
        ▼
-Group by owning agent + layer → fix-batch-<n>.md
+Small round (≤15 lines, no new slice/route) → one fix-batch-<n>.md, `## <layer>` groups
+Larger round → one batch per owning agent + layer
 one line each: path | rule | change
        │  path|rule already in an earlier batch? → ESCALATION (rules fighting)
        ▼
 board.mjs snapshot --round <n>
        │
        ▼
-One fix engineer per batch
+Small: one slice-engineer, LAYER: fix · Larger: owners in layer order
        │
        ▼
 FIX_SCOPE = board.mjs changed --since <n>
@@ -133,7 +134,8 @@ A round with zero findings ends the loop. Cap 3. Do not continue past an oscilla
 
 One finding repeated across sibling slices (the same re-export in eight pages, the same missing
 key in five forms) is **one** batch for one spawn, with `BOUNDARY` listing every affected slice —
-never one spawn per slice. Split a batch only when two owners or two layers are involved.
+never one spawn per slice. A larger round splits batches by owner and layer; a small round never
+splits (`feature-orchestrator.md` § Station 11).
 
 ---
 
@@ -141,7 +143,7 @@ never one spawn per slice. Split a batch only when two owners or two layers are 
 
 When the orchestrator finishes Station 11:
 1. Set spec status to `awaiting-human`.
-2. Return a `REVIEW_PACKET` (`references/packets.md`) and append the markdown to `## Human Review`.
+2. Return a `REVIEW_PACKET` (`references/packets.md`) and record its `review_path` under `## Human Review`.
 3. Stop all automation. Do not invoke `/create-pr`, do not push, do not merge, do not `AskUserQuestion`.
 4. The **feature-dev skill** presents the packet and waits for the human.
 
@@ -173,9 +175,11 @@ excerpt. Skeleton for orientation:
 ### Gates (from <slug>.context/gate-status.md)
 | Gate | Result |
 |------|--------|
-| typecheck | PASS |
+| types | PASS |
 | lint | PASS |
-| fsd-boundaries | PASS |
+| fsd | PASS |
+| conventions | PASS |
+| parity | PASS |
 | build | PASS |
 | coverage | PASS |
 | auto-review | PASS |
@@ -186,5 +190,6 @@ excerpt. Skeleton for orientation:
 **Decision required**: reply `approve` or `changes-requested: <description>`
 ```
 
-The orchestrator **returns** this packet to the `feature-dev` skill and stops. It also appends the
-packet to the spec's `## Human Review` section so a resumed run can find it.
+The orchestrator writes this body to `feature-orchestrator-12.md`, **returns** the packet with that
+path to the `feature-dev` skill, and stops. It records the path (never the body) under `## Human
+Review` so a resumed run can find it.

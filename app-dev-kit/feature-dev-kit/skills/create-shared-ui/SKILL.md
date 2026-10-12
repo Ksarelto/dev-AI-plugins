@@ -26,24 +26,23 @@ Adaptation is **frontend-dev-kit:shadcn-usage**. File layout is **frontend-dev-k
    - Move the file(s) to `shared/ui/<name>/` (`button/button.tsx`). Delete the leftover flat file under the CLI output path so `@/components/ui/*` is not a second copy.
    - Keep every exported part, prop, `data-slot` attribute, and the Radix import exactly as generated.
    - Move every class string into `styles.ts` verbatim and in the same order, the `cva()` table unchanged — including `animate-in`/`animate-out`, `fade-*`, `zoom-*`, `slide-in-from-*`, `duration-*`, and every `data-[state=*]:` class. Diff the moved strings against the CLI output; a missing or reordered class is a bug.
-   - Allowed edits only: deleting the registry's comments, kebab-case file names, props types to `types.ts`, closed-set constants in `constants.ts` (`ButtonVariant`, `ButtonSize`, `ButtonType`, …) derived from the `cva` table, user-facing literals (`sr-only` "Close") to `t(commonKeys…)`, and `Button`'s default `type`. Do not "improve" colors, spacing, radius, or motion.
+   - Allowed edits only: deleting the registry's comments, deleting every `dark:` class (one light palette), kebab-case file names, props interfaces stay in the component file, closed-set constants in `constants.ts` (`ButtonVariant`, `ButtonSize`, `ButtonType`, …) derived from the `cva` table, user-facing literals (`sr-only` "Close") to `t(commonKeys…)`, and `Button`'s default `type`. Do not "improve" colors, spacing, radius, or motion.
    - Confirm global CSS imports the animation stylesheet the CLI configured (`@import "tw-animate-css"` on Tailwind v4) exactly once. If that package is missing, record it for Station 1b. No custom `@keyframes`, no `--animate-*`, no second animation library.
    - Read the registry demo (`get_item_examples_from_registries`, e.g. `dialog-demo`) and note its part order in the handoff so composers follow it.
 
-5. **Path B — No registry match**: hand-author via `shadcn-usage` and `tailwind-styles` only after the search returns no fit. Log in `## Tech Investigation`: `"<ComponentName> hand-authored: no registry match because <reason>"`.
+5. **Path B — No registry match**: hand-author via `shadcn-usage` and `tailwind-styles` only after the search returns no fit. Log it with `board.mjs append … --section "Decisions & Open Questions" --line "- <ComponentName>: hand-authored — <reason>"`.
 
 6. **Create the component file structure**:
    ```
    shared/ui/<name>/
      <name>.tsx
-     types.ts
      styles.ts
      constants.ts        (when the base has a closed-set prop)
      <name>.test.tsx
      <name>.stories.tsx
      index.ts
    ```
-   `{name}` is kebab-case (`button/button.tsx`). Named export stays PascalCase. `index.ts` exports the parts and constants consumers import — not the props type unless a consumer imports it.
+   `{name}` is kebab-case (`button/button.tsx`). Named export stays PascalCase. `index.ts` exports every registry part and constant (an unused part is not a finding) — but a type only when a consumer imports it (the conventions gate flags unused type exports).
 
 7. **Verify accessibility**: do not remove Radix props. Load `frontend-dev-kit:accessibility`.
 
@@ -59,12 +58,11 @@ Adaptation is **frontend-dev-kit:shadcn-usage**. File layout is **frontend-dev-k
 ## Outputs
 
 - `shared/ui/<name>/<name>.tsx` — named PascalCase export, kebab-case file. Radix structure, parts, and `data-slot` exactly as the CLI generated them.
-- `shared/ui/<name>/types.ts` — props type for the base.
-- `shared/ui/<name>/styles.ts` — the registry's class strings verbatim, including open/close animation classes.
+- `shared/ui/<name>/styles.ts` — the registry's class strings verbatim, including open/close animation classes. Props interfaces stay in `<name>.tsx`. Add `types.ts` only for a non-prop type.
 - `shared/ui/<name>/constants.ts` — closed-set prop constants derived from the `cva` table.
 - `shared/ui/<name>/<name>.test.tsx` — colocated behavior test.
 - `shared/ui/<name>/<name>.stories.tsx` — story for this primitive alone.
-- `shared/ui/<name>/index.ts` — exports the parts and constants consumers import. No `shared/ui/index.ts` barrel.
+- `shared/ui/<name>/index.ts` — exports every registry part and constant; types only when imported. No `shared/ui/index.ts` barrel.
 
 ## What this skill does NOT do
 

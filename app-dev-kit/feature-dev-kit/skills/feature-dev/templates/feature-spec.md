@@ -40,8 +40,8 @@ Packets: ../references/packets.md.
 
 ## Acceptance Criteria
 
-1. <testable outcome — a rendered state, an API call made, a validation error shown>
-2. <each must be verifiable by a test or an explicit manual check>
+1. [AC-001] <testable outcome — a rendered state, an API call made, a validation error shown>
+2. [AC-002] <each must be verifiable by a test or an explicit manual check>
 
 ## FSD Impact
 

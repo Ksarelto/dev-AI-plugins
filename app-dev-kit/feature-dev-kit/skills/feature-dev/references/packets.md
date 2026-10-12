@@ -15,7 +15,7 @@ Every packet has `type` and `spec_path`. Extra fields depend on the type.
 | `type` | Returned by | Skill does |
 |--------|-------------|------------|
 | `CLARIFY_PACKET` | `spec-analyst` (Station 0) | `AskUserQuestion` with `questions[]`; write answers into `## Clarifications`; re-spawn analyst |
-| `DEP_PACKET` | `feature-orchestrator` (Station 1b) | Per-package Approve / Reject-alternative / Abort; write verdicts; re-spawn `MODE: build` from Station 2 |
+| `DEP_PACKET` | `feature-orchestrator` (Station 1b) | Per-package Approve / Reject-alternative / Abort; write verdicts; re-spawn `MODE: build` with `RESUME_AT: 2` |
 | `CONTINUE_PACKET` | `feature-orchestrator` (end of Station 7) | UI review (route + console + prototype tab), then `RESUME_AT: 9`. Pass `UI_FINDINGS` when `ui-review.md` has findings |
 | `REVIEW_PACKET` | `feature-orchestrator` (end of 11) | Read `review_path` once; Approve / Request changes / Abort (Station 12) |
 | `ESCALATION_PACKET` | `feature-orchestrator` or a spoke that cannot proceed | `AskUserQuestion` with `errors[]` and `options[]` |

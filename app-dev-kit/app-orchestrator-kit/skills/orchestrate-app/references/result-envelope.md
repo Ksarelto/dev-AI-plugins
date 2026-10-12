@@ -65,8 +65,8 @@ Current runs live under `.spec/spec/spec-{tc}_{slug}/`, with the pointer in `.sp
 | `slug` | App slug or increment slug |
 | `branch` | `feature/{slug}` / `backend/{slug}` / `agent/{slug}` when created |
 | `parent_branch` | Branch the feature was cut from (`feature-dev` only). Empty for other kits |
-| `feature_id` | Checklist feature id (`F-001`). `feature-dev` only; empty otherwise. Lets the orchestrator reject a stale envelope |
-| `slice_ref` | Delivery slice (`SL-001`). `feature-dev` only; empty otherwise |
+| `feature_id` | Checklist feature id (`F-001`). `feature-dev` only; empty otherwise. An omitted key means the same as `""`. Lets the orchestrator reject a stale envelope |
+| `slice_ref` | Delivery slice (`SL-001`). `feature-dev` only; empty otherwise. An omitted key means the same as `""` |
 | `run_dir` | Spec run folder, prototype dir, or increment dir |
 | `reason` | Short abort/error note; empty on success |
 
@@ -80,6 +80,7 @@ Empty string means “not applicable”, never `null`. Additive fields may be `"
 |--------------------|--------------------------------|
 | `approved` | `done` (record `slug` / `branch`) |
 | `aborted` | `pending` |
+| `aborted` with `reason: resume-in-new-chat` (`orchestrate-frontend` only) | leave the frontend track `in-progress`. Do not call that skill again in this chat |
 | `error` | `blocked` + `blocked-reason` |
 | missing envelope after return | leave `in-progress` and re-run that call once from its checkpoint |
 | missing envelope after that re-run | `blocked` + `blocked-reason: agent-failed`. Ask once. Do not start the next feature or the next work-plan task |
@@ -93,3 +94,6 @@ Empty string means “not applicable”, never `null`. Additive fields may be `"
    `agent-failed`).
 3. Keep in working memory **only** the fields in this file (plus work-plan / checklist ids).
 4. Discard callee HITL transcripts from further spawns. The artifacts on disk are the record.
+5. `orchestrate-frontend` with `reason: resume-in-new-chat` is not a failed abort. Leave the
+   frontend track `in-progress` and do not spawn that skill again in this chat. The human
+   continues with `/orchestrate-frontend {slug}` in a new chat.

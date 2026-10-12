@@ -25,6 +25,10 @@ This agent is spawned as a subagent. Never call `AskUserQuestion`. Never run `/c
 
 Spawn every worker in the foreground and wait for the Agent call to return. Do not background it, sleep, or poll. The worker's final message is its HANDOFF / CONTAINS lines.
 
+The spawn prompt names the worker's agent file (`{KIT_DIR}/agents/<name>.md`) and carries the delegation block. Do not `Read` worker agent files or the kit's script sources yourself — `board.mjs --help` lists every board command.
+
+Write a card (`board.mjs card`) immediately before its spawn, never several ahead — the card logs the spawn time. A spawn without a card (`code-explorer`, `research-analyst`, `architecture-auditor`, `code-reviewer`) is logged first with `board.mjs timing {SPEC_PATH} --station "Station N" --event spawn --agent <name>`.
+
 Stations 9.5 and 10 are the exception: spawn `architecture-auditor` and `code-reviewer` in the same turn, then wait for both. Do not start Station 11 until both have returned.
 
 If an Agent call errors or returns without a result, retry it once from the checkpoint path. Do not paste the old transcript. If the retry also fails, return `ESCALATION_PACKET` with reason `agent-failed`.
@@ -34,7 +38,7 @@ Your own final message is the packet (paths only). Then STOP.
 ## Inputs
 
 - `MODE` — `build` | `revise` (default `build`)
-- `RESUME_AT` — `9` when the skill re-spawns this agent after a `CONTINUE_PACKET` (verify phase); `build` when the board status is `building`; omit otherwise
+- `RESUME_AT` — `2` after a `DEP_PACKET` verdict; `9` when the skill re-spawns this agent after a `CONTINUE_PACKET` (verify phase); `build` when the board status is `building`; omit otherwise
 - `TIER` — `standard` | `full` (patch does not spawn this agent)
 - `SLUG`, `SPEC_PATH`, `BRANCH`, `PARENT` (the branch this one was cut from — the conventions `--base`), `KIT_DIR`
 - `revise` also gets `CHANGE_REQUEST` and, when it exists, `session.md`
@@ -45,6 +49,7 @@ Do not accept an inlined upstream spec body or a worker report. Workers return a
 ### Mode dispatch
 
 - `MODE == revise` → lowest re-entry station from `pipeline-flow.md`, then replay 9, 9.5, 10. A local UI fix does not spawn this agent — the skill runs it.
+- `RESUME_AT: 2` → read the checkpoint and `## Dependencies`, then Station 2. Do not re-run Stations 1–1b; a `rejected` row means plan without that package.
 - `RESUME_AT: 9` → read the checkpoint and `board.mjs section {SPEC_PATH} --get "Build Plan"`, then Station 9.
 - `RESUME_AT: build` → read the checkpoint and the Build Plan. Continue at the first row whose status is not `done`. Do not rewrite the plan.
 - else → Station 1.
@@ -70,11 +75,13 @@ See `{KIT_DIR}/skills/feature-dev/references/packets.md`.
 
 ### Station 1 — Discovery
 
-If `## Change request` exists, obey its first line. `Remove.` means do not scaffold a replacement — the skill already deleted those pages and routes. `Extend existing.` or `Spec changed.` means edit the existing slice. Do not scaffold a second page, entity, or feature.
+If `## Change request` exists, obey its first line. `Remove.` means do not scaffold a replacement — the skill already deleted those pages and routes. `Remove these screens only.` means delete only the listed screens and build the rest. `Extend existing.` or `Spec changed.` means edit the existing slice. Do not scaffold a second page, entity, or feature.
 
 Before spawning, check if `## FSD Impact` is already populated with slice paths and `## Reuse Map` is non-empty: run `board.mjs section {SPEC_PATH} --get "FSD Impact"` and `board.mjs section {SPEC_PATH} --get "Reuse Map"`, then verify each listed slice path exists in `src/` with `Glob`. If all three conditions hold, skip `code-explorer` and proceed to Station 1a.
 
-Otherwise, spawn `code-explorer` with `SPEC_PATH` and `SPEC_SECTIONS` (Request, Acceptance criteria, UI surface). It writes `## FSD Impact` and `## Reuse Map`, and a handoff file. Re-delegate if those sections are still placeholders.
+Otherwise, when the change request is `Extend existing.` or `Spec changed.`, run `board.mjs parent-map {SPEC_PATH}`. A printed path holds the FSD Impact and Reuse Map of the stack parent and of each feature the change request names — pass it as `PARENT_MAP`. `NONE` means no such board; omit it.
+
+Spawn `code-explorer` with `SPEC_PATH`, `SPEC_SECTIONS` (Request, Acceptance criteria, UI surface), and `PARENT_MAP` when set. It writes `## FSD Impact` and `## Reuse Map`, and a handoff file. Re-delegate if those sections are still placeholders.
 
 ### Station 1.5 — Baseline architecture-audit (full tier only)
 
@@ -110,11 +117,13 @@ If any `## Dependencies` row is `awaiting-human-approval`, set `status: awaiting
 
 ### Station 2 — Build plan
 
-Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. If `## Request` has *Slice steps* (from the spec's delivery plan — a **delivery slice** is a spec unit of work, not an FSD slice), the plan follows them. Rows under *Rules owned by other slices* and *Permissions owned by other slices* are context — do not plan them; when an approved acceptance criterion of this feature cannot pass without one, plan it and record why under `## Decisions & Open Questions`. Every *Rules the UI must surface*, *Permissions*, *Status lifecycle*, and *Notifications (copy)* row under `## API Contract / Data Model` maps to a plan step: the violation copy is shown, controls are hidden or disabled for other roles, status words come from the lifecycle values, and notice copy is used verbatim. When front matter `prototype-ref` is set and not `none`, the first `shared` row is the theme port (`port-prototype-theme.mjs`, note the prototype path). Every shadcn primitive the feature still needs is one `shared` batch row (`build-plan.md` rule 8), installed with one `shadcn add` call — not one row per primitive. Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. A layer with one slice uses `slice-engineer`. Two or more slices in one layer use that layer's specialist engineer. Same-layer slices run one after another (`pipeline-flow.md` § Parallelism). Do not spawn two slice workers in the same turn, and do not use a git worktree. Same-shape slices of one layer (pages that share one layout, widgets of one pattern) are **one batch row** (`templates/build-plan.md` rule 1). Do not use a git worktree and do not merge. Write the plan to a file and `board.mjs section {SPEC_PATH} --put "Build Plan" --from <file>`. In `MODE: revise`, pass `--force` — a plan that already has a `done` row is refused without it. Set `status: building`. Rewrite the checkpoint.
+Confirm `status` is `approved` (or continuing after dep approval). Write `## Build Plan`. If `## Request` has *Slice steps* (from the spec's delivery plan — a **delivery slice** is a spec unit of work, not an FSD slice), the plan follows them. Rows under *Rules owned by other slices* and *Permissions owned by other slices* are context — do not plan them; when an approved acceptance criterion of this feature cannot pass without one, plan it and record why under `## Decisions & Open Questions`. Every *Rules the UI must surface*, *Permissions*, *Status lifecycle*, and *Notifications (copy)* row under `## API Contract / Data Model` maps to a plan step: the violation copy is shown, controls are hidden or disabled for other roles, status words come from the lifecycle values, and quoted notice copy is used verbatim (a notice written as an instruction is behavior, not copy — `ui-build-contract.md` § 2). When front matter `prototype-ref` is set and not `none`, run `port-prototype-theme.mjs --check` first (`build-plan.md` rule 7): exit 0 means no theme work. Primitives, the theme port when it drifted, and query-key changes are one `shared` batch row (rule 8), primitives installed with one `shadcn add` call. One slice is one row, split in two only past ~12 files (rule 4). A layer with nothing to change gets no row (rule 10). Order: `shared` → `entities` → `features` → `widgets+pages` → `app`. Agent per row: `templates/build-plan.md` § `Agent` (one slice in entities–pages → `slice-engineer`; `shared` and `app` always their own engineer). Same-layer slices run one after another (`pipeline-flow.md` § Parallelism). Do not spawn two slice workers in the same turn, and do not use a git worktree. Same-shape slices of one layer (pages that share one layout, widgets of one pattern) are **one batch row** (`templates/build-plan.md` rule 1). Do not use a git worktree and do not merge. Plan from `## FSD Impact` and `## Reuse Map`, not by browsing `src/`; a gap there is a `code-explorer` re-delegation. Write the plan to a file and `board.mjs section {SPEC_PATH} --put "Build Plan" --from <file>`. A `REFUSED: Build Plan rule N` line means the plan breaks that rule — fix the plan, do not reword it past the check. In `MODE: revise`, pass `--force` — a plan that already has a `done` row is refused without it. Set `status: building`. Rewrite the checkpoint.
 
 ### Stations 3–7 — Delegation
 
 Before each spawn, write the worker's card: `node {KIT_DIR}/skills/feature-dev/scripts/board.mjs card {SPEC_PATH} --row <n>[,<m>] --agent <agent>`. Spawn workers in the foreground with `templates/delegation-message.md`, passing `CARD` (never the board path as something to read). `APPLY` is one skill. Workers mark their own rows with `board.mjs row`; do not re-edit them. After each layer, run the layer gate yourself via Bash — no agent: `bash {KIT_DIR}/skills/feature-dev/scripts/run-gates.sh --until fsd --spec {SPEC_PATH} --station "Station N"`; read only the JSON line it prints (and the log, for the failed gate). Red gate → Station 11, never the next layer. Then refresh the checkpoint.
+
+A handoff whose outcome is `blocked: <name> missing in <layer>/<slice>` stops the layer. Re-delegate that slice's row with the missing piece as a one-line `FINDINGS` batch, re-run its layer gate, then re-spawn the blocked row. Do not start the next row first.
 
 Sequencing within a layer, and where gate results are recorded, are in `pipeline-flow.md` (§ Station Sequence, § Gates). Do not restate them here.
 
@@ -122,7 +131,7 @@ Station 6 parity: when `.spec/features/<slug>.context/prototype-inventory.md` ex
 
 ### Tests
 
-Layer engineers write behavior tests in the same change (`ui-build-contract.md` § 5). Do not spawn `test-engineer` during the build. Station 9 `missing-test` or a coverage miss spawns it once for the failing layer group.
+Layer engineers write behavior tests in the same change (`ui-build-contract.md` § 5). Do not spawn `test-engineer` during the build. Station 9 `missing-test` or a coverage miss spawns it once for the failing layer group, with a card over that group's build rows: `board.mjs card {SPEC_PATH} --row <rows> --agent test-engineer --station "Station 9"`.
 
 ### End of build phase — CONTINUE_PACKET (`MODE: build` only)
 
@@ -159,7 +168,12 @@ First run `run-gates.sh --fix` on the changed files, then re-run `types`, `lint`
 
 Everything still open: red gates, architecture-audit hard findings, code-review `[CRITICAL]` / unresolved `[IMPORTANT]`, parity, and UI review findings. Read `UI_FINDINGS` only when that file lists findings. A UI-review line names the behavior; the fix batch tells the owner to add a regression test when the behavior is testable (`ui-build-contract.md` § 5).
 
-Group by owning agent and layer. Write each group to `.spec/features/<slug>.context/fix-batch-<n>.md` — one line per finding: `path | rule | change`. A `path | rule` that was marked fixed in a prior batch but re-appears in the current batch is two rules fighting: `ESCALATION_PACKET` citing both, no further fix. Spawn **one** owning engineer per batch with `FINDINGS: <that path>`, a card for the affected rows, and a `BOUNDARY` listing every affected slice. The worker's return is one `board.mjs handoff` (15 lines), not a file per finding. The same change in N sibling slices is one batch, never N spawns.
+Write the findings as `.spec/features/<slug>.context/fix-batch-<n>.md` — one line per finding: `path | rule | change`, grouped under one `## <layer>` heading per layer. A `path | rule` that was marked fixed in a prior batch but re-appears in the current batch is two rules fighting: `ESCALATION_PACKET` citing both, no further fix.
+
+- **Small round** — at most 15 finding lines and no finding needs a new slice or a new route: one batch file for the whole round and **one** `slice-engineer` spawn, `LAYER: fix`, with `FINDINGS: <that path>`, a card for the affected rows (`board.mjs card … --station "Station 11"`), and a `BOUNDARY` listing every affected slice in every layer.
+- **Larger round** — one batch file per owning agent and layer, one spawn per batch, in layer order, each with its card written `--station "Station 11"`.
+
+The worker's return is one `board.mjs handoff` (15 lines), not a file per finding. The same change in N sibling slices is one batch, never N spawns.
 
 Before the spawn: `board.mjs snapshot {SPEC_PATH} --round <n>`. After it: `board.mjs changed {SPEC_PATH} --since <n>` → write that comma list to `fix-scope-<n>.txt` (`FIX_SCOPE`). Re-run `types`, `lint`, and `fsd`, plus `check-conventions.mjs --files` that list. Then spawn **both** reviewers in one turn, `MODE: verify`, with `FIX_SCOPE` plus their prior handoff. Do not skip a reviewer that passed the full-diff pass. Repeat while a round still has findings. Cap 3 rounds, then `status: awaiting-human` and `ESCALATION_PACKET`.
 

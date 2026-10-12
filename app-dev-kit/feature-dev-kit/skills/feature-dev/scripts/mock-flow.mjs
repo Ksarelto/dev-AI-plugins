@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { parse as parseYaml } from 'yaml'
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const kitDir = join(here, '../../..')
@@ -267,7 +267,8 @@ if (goodRun.status === 2) {
   const rules = new Set((bad.findings ?? []).map((f) => f.rule))
   const expected = [
     'comment', 'inline-class', 'nested-ternary', 'jsx-ternary', 'inline-handler', 'hardcoded-copy', 'magic-prop',
-    'missing-test', 'unused-export', 'export-star', 'motion-utility', 'string-map', 'motion-css',
+    'missing-test', 'unused-export', 'export-star', 'motion-utility', 'string-map', 'motion-css', 'dark-variant',
+    'cross-slice-mock', 'inline-query-key', 'env-access',
   ]
   const missing = expected.filter((r) => !rules.has(r))
   if (badRun.status !== 1) fail(`check-conventions must exit 1 on the bad fixture (got ${badRun.status})`)
@@ -293,6 +294,15 @@ if (goodRun.status === 2) {
     else pass('unused-export counts tests for segment files, not for index.ts')
     if ((run(['--ignore', 'unused-export']).findings ?? []).some((f) => f.rule === 'unused-export')) fail('--ignore unused-export did not drop the rule')
     else pass('--ignore unused-export drops the rule for layer self-checks')
+
+    const tableDir = join(scratch, 'src/shared/ui/data-table')
+    mkdirSync(tableDir, { recursive: true })
+    writeFileSync(join(tableDir, 'types.ts'), 'export interface DataTableProps {\n  caption: string\n}\n')
+    writeFileSync(join(tableDir, 'index.ts'), "export const DataTablePart = 'part'\nexport type { DataTableProps } from './types'\n")
+    const sharedUnused = (run([]).findings ?? []).filter((f) => f.rule === 'unused-export' && f.file.includes('shared/ui/data-table'))
+    if (sharedUnused.some((f) => f.message.includes('DataTablePart'))) fail('unused-export flagged a shared/ui value export (registry parts are exempt)')
+    else if (!sharedUnused.some((f) => f.message.includes('DataTableProps'))) fail('unused-export must flag an unused shared/ui type export')
+    else pass('unused-export in shared/ui checks type exports only')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
@@ -525,6 +535,26 @@ ui-surface:
       const unscoped = node(importScript, ['--spec', groupedSpec, '--require-scoped', '--stdout-only'])
       if (unscoped.status === 0) fail('unscoped two-screen dump should fail --require-scoped')
       else pass('unscoped two-screen dump still fails --require-scoped')
+
+      const clPath = join(tmp, 'grouped', 'task-checklist.md')
+      const clDoc = parseFrontmatter(clPath).fm
+      clDoc.features[0].tasks.find((t) => t['screen-ref'] === 'SCR-002').change = 'remove'
+      const clBody = readFileSync(clPath, 'utf8').replace(/^---\r?\n[\s\S]*?\r?\n---/, `---\n${stringifyYaml(clDoc)}---`)
+      writeFileSync(clPath, clBody)
+      const mixed = node(importScript, [
+        '--spec', groupedSpec,
+        '--out', join(tmp, 'mixed.md'),
+        '--slug', 'mixed',
+        '--feature-id', gFeatures[0].id,
+        '--screen-refs', 'SCR-001,SCR-002',
+        '--checklist', clPath,
+        '--require-scoped',
+      ])
+      const mixedBoard = mixed.status === 0 ? readFileSync(join(tmp, 'mixed.md'), 'utf8') : ''
+      if (mixed.status !== 0) fail(`mixed remove import failed: ${mixed.stderr || mixed.stdout}`)
+      else if (!mixedBoard.includes('Remove these screens only') || !mixedBoard.includes('- SCR-002') || /^change: remove$/m.test(mixedBoard) || !mixedBoard.includes('SCR-001')) {
+        fail(`mixed feature must remove only SCR-002 and keep SCR-001: ${mixedBoard.slice(0, 800)}`)
+      } else pass('mixed feature removes only the checklist task marked remove')
     }
   } finally {
     rmSync(tmp, { recursive: true, force: true })
@@ -589,6 +619,29 @@ ui-surface:
     const summary = b('timing', board, '--summary')
     if (summary.status !== 0 || !/Station 3: \d+s/.test(summary.stdout)) fail(`timing --summary: ${summary.stdout}${summary.stderr}`)
     else pass('timing --summary prints a station duration')
+    const badPlan = join(tmpBoard, 'bad-plan.md')
+    writeFileSync(badPlan, [
+      '| # | Station | Layer | Slice | Segments | Agent | Group | Status | Note |',
+      '|---|---------|-------|-------|----------|-------|-------|--------|------|',
+      '| 1 | 3 | shared | ui | Dialog | shared-engineer | — | todo | |',
+      '| 2 | 3 | shared | api | query-keys | shared-engineer | — | todo | |',
+      '| 3 | 3 | shared | ui | data-table | shared-engineer | — | todo | Hand-written headless shell. |',
+      '| 4 | 5 | features | orders | model | slice-engineer | — | todo | |',
+      '| 5 | 5 | features | orders | api | slice-engineer | — | todo | |',
+      '| 6 | 5 | features | orders | ui | slice-engineer | — | todo | |',
+      '| 7 | 7 | app | router | routes | app-engineer | — | todo | Confirm the route is mounted. |',
+    ].join('\n'))
+    const lint = b('section', board, '--put', 'Build Plan', '--from', badPlan, '--force')
+    if (lint.status === 0 || !lint.stderr.includes('rule 4 — features/orders is split over rows 4, 5, 6') || !lint.stderr.includes('shared rows 1, 2 are')
+      || !lint.stderr.includes('rule 10 — row 7')) fail(`Build Plan lint: ${lint.status} ${lint.stderr}`)
+    else pass('Build Plan put refuses a split slice, split shared rows, and a confirm-only row')
+    const red = b('handoff', board, '--name', 'red', '--outcome', 'built', '--gates', 'typecheck: fail')
+    const blocked = b('handoff', board, '--name', 'red', '--outcome', 'blocked: useOrders missing in entities/order', '--gates', 'typecheck: fail')
+    if (red.status === 0 || !red.stderr.includes('HANDOFF_RED') || blocked.status !== 0) fail(`handoff red guard: ${red.status} ${blocked.status} ${blocked.stderr}`)
+    else pass('handoff refuses a failed self-check unless the outcome is blocked')
+    const help = b('--help')
+    if (help.status !== 0 || !help.stdout.includes('handoff')) fail(`board.mjs --help: ${help.status} ${help.stderr}`)
+    else pass('board.mjs --help prints the command list')
   } finally {
     rmSync(tmpBoard, { recursive: true, force: true })
   }
@@ -619,7 +672,34 @@ ui-surface:
       const after = node(portScript, ['--check', '--prototype', protoFixture, '--globals', globals])
       if (after.status !== 0) fail(`theme --check after port: ${after.stdout}${after.stderr}`)
       else pass('port-prototype-theme --check passes after the port')
+      mkdirSync(join(scratch, 'src/shared/ui/theme'), { recursive: true })
+      copyFileSync(globals, join(scratch, 'src/shared/ui/theme/globals.css'))
+      writeFileSync(join(scratch, 'demo.md'), `---\nprototype-ref: ${protoFixture}\n---\n\n## Build Plan\n\n_tbd_\n`)
+      writeFileSync(join(scratch, 'plan.md'), '| # | Layer | Slice | Segments | Note |\n|---|---|---|---|---|\n| 1 | shared | ui | Button, theme port | |\n')
+      const synced = node(boardScript, ['section', 'demo.md', '--put', 'Build Plan', '--from', 'plan.md'], { cwd: scratch })
+      if (synced.status === 0 || !synced.stderr.includes('rule 7')) fail(`Build Plan lint must refuse a theme row when the theme is in sync: ${synced.status} ${synced.stderr}`)
+      else pass('Build Plan put refuses a theme row when port-prototype-theme --check passes')
+      const formatted = readFileSync(globals, 'utf8').replace('--primary: oklch(0.55 0.15 165)', '--primary: oklch(0.550 0.150 165.0)')
+      writeFileSync(globals, formatted)
+      const reformatted = node(portScript, ['--check', '--prototype', protoFixture, '--globals', globals])
+      const rePort = port()
+      if (reformatted.status !== 0) fail(`theme --check failed on a formatter-only change: ${reformatted.stdout}`)
+      else if (!/UNCHANGED/.test(rePort.stdout)) fail('port rewrote a token that differs only in number format')
+      else pass('port-prototype-theme ignores formatter-only differences')
     }
+
+    const dup = join(scratch, 'dup.css')
+    writeFileSync(dup, '@import "tailwindcss";\n\n:root {\n  --radius: 0.625rem;\n  --chart-1: oklch(0.6 0.2 40);\n}\n\n.dark {\n  --primary: #000;\n}\n\n:root {\n  --radius: 6px;\n  --lift:\n    0 4px 12px #0001;\n}\n')
+    const dupBefore = node(portScript, ['--check', '--prototype', protoFixture, '--globals', dup])
+    const dupPort = node(portScript, ['--prototype', protoFixture, '--globals', dup])
+    const merged = readFileSync(dup, 'utf8')
+    const dupAfter = node(portScript, ['--check', '--prototype', protoFixture, '--globals', dup])
+    if (dupBefore.status !== 1 || !dupBefore.stdout.includes('DUPLICATE :root')) fail(`theme --check missed duplicate :root: ${dupBefore.stdout}`)
+    else if (dupPort.status !== 0) fail(`port on duplicate :root: ${dupPort.stderr}`)
+    else if ((merged.match(/:root\s*\{/g) || []).length !== 1) fail(`port left ${merged}`)
+    else if (!merged.includes('--chart-1: oklch(0.6 0.2 40)') || !merged.includes('--lift: 0 4px 12px #0001') || !merged.includes('--radius: 1rem') || !merged.includes('.dark')) fail(`port merge lost tokens: ${merged}`)
+    else if (dupAfter.status !== 0) fail(`theme --check after merge: ${dupAfter.stdout}`)
+    else pass('port-prototype-theme merges duplicate :root blocks; --check flags them first')
 
     const repo = join(scratch, 'repo')
     const tpl = join(scratch, 'tpl')
@@ -1001,6 +1081,22 @@ parent-branch: main
     const outside = node(boardScript, ['audit-scope', scopeBoard, '--prior', scopeReport], { cwd: repo })
     if (!outside.stdout.includes('widgets/nav')) fail(`audit-scope should print a path outside the prior scope: ${outside.stdout}`)
     else pass('audit-scope prints a path outside the prior scope')
+    writeFileSync(scopeBoard, `---
+status: building
+parent-branch: main
+---
+# scope
+
+## FSD Impact
+
+| Slice | Layer | Segments | Change |
+|-------|-------|----------|--------|
+| \`sign-in\` | features | \`models/\`, \`ui/\` | modified |
+| \`src/widgets/nav\` | widgets | \`ui/\` | new |
+`)
+    const table = node(boardScript, ['audit-scope', scopeBoard, '--prior', scopeReport], { cwd: repo })
+    if (!table.stdout.includes('widgets/nav') || table.stdout.includes('models/')) fail(`audit-scope should read layer/slice from the FSD Impact table, not segments: ${table.stdout}`)
+    else pass('audit-scope reads layer/slice from the FSD Impact table')
     mkdirSync(join(repo, 'features', 'sign-in'), { recursive: true })
     writeFileSync(join(repo, 'features', 'sign-in', 'a.ts'), 'export const a = 1\n')
     git(['add', 'features/sign-in/a.ts'])

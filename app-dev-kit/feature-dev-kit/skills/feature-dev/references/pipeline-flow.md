@@ -99,7 +99,7 @@ Station 12   🧑 HUMAN REVIEW GATE (max 3 cycles)
 **Why every human gate is skill-owned:** the orchestrator is a subagent, and a subagent's
 `AskUserQuestion` never reaches the real user. The orchestrator returns a packet; it never asks.
 
-**Packets:** `CLARIFY_PACKET`, `DEP_PACKET`, `REVIEW_PACKET`, `ESCALATION_PACKET` — see `packets.md`.
+**Packets:** `CLARIFY_PACKET`, `DEP_PACKET`, `CONTINUE_PACKET`, `REVIEW_PACKET`, `ESCALATION_PACKET` — see `packets.md`.
 Each packet is small JSON plus a file path. The body lives in `.spec/features/<slug>.context/`.
 
 ---
@@ -169,7 +169,7 @@ Same-layer slices run one after another on the feature branch. Do not use a git 
 | 4 | one `entities-engineer` per entity slice, in order, when that layer has 2+ slices |
 | 5 | one `features-engineer` per feature slice, in order, when 2+ |
 | 6 | one `composition-engineer` per widget/page, in order, when 2+ — or one per **batch row** of same-shape pages/widgets |
-| 11 | one owning engineer per **fix batch**, then both reviewers in one turn on `FIX_SCOPE` |
+| 11 | a small round (≤15 finding lines, no new slice or route) is one batch and one `slice-engineer` (`LAYER: fix`) across layers; otherwise one owning engineer per **fix batch**, in layer order. Then both reviewers in one turn on `FIX_SCOPE` |
 
 A single slice in a layer uses `slice-engineer`. Same-shape slices of one layer (pages with one
 layout, the same mechanical fix in N slices) are one batch row and one spawn (`build-plan.md` rule 1). Two slices that both edit
@@ -186,7 +186,7 @@ Spokes return a handoff path, not a report. See `context-budget.md`.
 | Agent | Receives |
 |-------|----------|
 | `spec-analyst` | `SPEC_PATH` (already holds the imported slice), or the standalone request |
-| `code-explorer` | Acceptance criteria + Request section paths |
+| `code-explorer` | Acceptance criteria + Request section paths, plus `PARENT_MAP` when extending a parent feature |
 | `research-analyst` | The capability gap only |
 | `shared-engineer` | Checkpoint path + its card (its build-plan rows) |
 | `entities-engineer` | Checkpoint path + its card (its entity rows) |
@@ -226,7 +226,7 @@ change adds a dependency, a route, or a second layer — then promote to `standa
 | Styling / component variant | Owning slice | Re-run from that layer up |
 | Interaction behaviour | Station 5 | Re-run 6–10 |
 | API contract or data shape | Station 4 | Re-run 5–10 |
-| New route / navigation | Station 7 | Re-run 8–10 |
+| New route / navigation | Station 7 | Re-run 9–10 |
 | Architecture-audit hard violation | Owning engineer, then 9.5 | Re-run 9–10 |
 | Acceptance criteria changed | Station 0 | Full re-plan |
 

@@ -33,9 +33,11 @@ carries that path, not this body. The `feature-dev` skill reads the file once at
 ### Gates (from `.spec/features/<slug>.context/gate-status.md`)
 | Gate | Result | Note |
 |------|--------|------|
-| typecheck | ✅ | — |
+| types | ✅ | — |
 | lint | ✅ | — |
-| fsd-boundaries | ✅ | — |
+| fsd | ✅ | — |
+| conventions | ✅ | — |
+| parity | ✅ | prototype inventory + theme check (when `prototype-ref` is set) |
 | build | ✅ | — |
 | coverage | ✅ | branches 79% / functions 84% / lines 91% / statements 90% |
 | architecture-audit | ✅ | 0 hard / N judgment (see spec § Architecture Baseline + Human review) |

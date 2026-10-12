@@ -99,9 +99,10 @@ screenshot-to-text transcriptions, email/Slack transcripts.
 | Argument | Required | Description |
 |----------|----------|-------------|
 | `[feature-name]` | Optional | Hint for the spec slug. If omitted, slug is derived from context files per `references/artifact-naming.md`. |
+| `BUILDS` | Optional | Comma-separated tracks this run delivers: `frontend`, `backend`, `agent`. Written to `intake.json` `system_boundary.builds` by `extract-intake.mjs --builds`. |
 
 Parents (`orchestrate-frontend`, `orchestrate-app`) also pass `RESULT_OUT: .spec/app/results/generate-spec.json`.
-`orchestrate-frontend` passes `BUILDS: frontend` — written to `intake.json` `system_boundary.builds`.
+`orchestrate-frontend` passes `BUILDS: frontend`.
 Every envelope write (`approved`, `aborted`, `error`) uses `--also {RESULT_OUT}` so the parent can
 read `outcome` without treating `current.json` as an envelope.
 
@@ -145,15 +146,16 @@ Use `APP_SLUG` as the app slug from here on (`MODE=continue` keeps the existing 
 
 ```bash
 node {KIT_DIR}/skills/generate-spec/scripts/extract-intake.mjs --context .spec/context \
-  --out {RUN_DIR}/artifacts/intake.json --timecode {TIMECODE}
+  --out {RUN_DIR}/artifacts/intake.json --timecode {TIMECODE} --builds {BUILDS}
 ```
 
-   It writes every `raw_requirements` entry (`R-NNN`, `source_line`, keyword hints), the glossary,
-   decisions, success metrics, copy examples, and open questions. Do not re-extract or summarise.
+   Omit `--builds` when the caller did not pass `BUILDS`. It writes every `raw_requirements` entry
+   (`R-NNN`, `source_line`, keyword hints), the glossary, decisions, success metrics, copy examples,
+   and open questions. Do not re-extract or summarise.
 2. Read `intake.json` and the context files once, then fill **only** the judgement fields with one
    edit: `type_hint`, `consolidated_entities`, `consolidated_user_roles`, `potential_conflicts`,
-   `terminology_drift`, `system_boundary` (`references/context-protocol.md` § Atomic Extraction
-   Rules; a caller's `BUILDS` sets `builds`).
+   `terminology_drift`, `system_boundary.owned_elsewhere` (`references/context-protocol.md` § Atomic
+   Extraction Rules). Leave `system_boundary.builds` as the script wrote it.
 3. Ensure `{RUN_DIR}/artifacts/qa-log.md` exists (empty file is fine).
 
 ### Step 4 — Drive the orchestrator until publish

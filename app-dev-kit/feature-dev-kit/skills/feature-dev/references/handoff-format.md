@@ -13,6 +13,7 @@ node {KIT_DIR}/skills/feature-dev/scripts/board.mjs handoff .spec/features/<slug
 
 Rules:
 - The command rejects files longer than 15 lines.
+- It also rejects a `fail` in `--gates` unless `--outcome` starts with `blocked:`. A red self-check is fixed before the handoff. When the fix is outside `BOUNDARY` (a lower layer is missing a hook, export, or type you need), mark the row `blocked` with `board.mjs row … --status blocked --note "<what is missing>"` and pass `--outcome "blocked: <name> missing in <layer>/<slice>"`.
 - Never copy gate output or the Build Plan note.
 - Return to the orchestrator:
 

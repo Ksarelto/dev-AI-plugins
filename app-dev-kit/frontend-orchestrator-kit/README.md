@@ -64,12 +64,14 @@ Also install **frontend-dev-kit** — `feature-dev-kit` requires it.
 ## Quick start
 
 1. Run `/orchestrate-frontend my-app` (or just `/orchestrate-frontend` and answer the prompt).
-2. Approve the spec at its review gate (owned by spec-dev-kit), unless one is already approved.
-3. Approve the prototype at its review gate (owned by html-generator-kit), or skip it.
-4. Approve the derived **UI** task checklist (owned by this kit).
-5. For each feature, `/feature-dev` runs once (nested screen-tasks share that call) and stops at
-   **its own** human review gate. Approve commits that feature; Continue cuts the next branch on top.
-6. Re-run `/orchestrate-frontend my-app` any time to resume from the first unfinished feature.
+   That chat authors the spec and then stops.
+2. Open a new chat and run `/orchestrate-frontend my-app` again. Approve the prototype at its
+   review gate (owned by html-generator-kit), or skip it. That chat then stops.
+3. Open a new chat and run `/orchestrate-frontend my-app`. Approve the derived **UI** task
+   checklist (owned by this kit) if it is not approved yet. This chat runs one `/feature-dev`
+   (nested screen-tasks share that call) and stops at **its** human review gate.
+4. Each remaining feature is another new chat with the same command. The next branch is cut on
+   top of the previous feature branch. When none remain, that chat writes the run report.
 
 ---
 

@@ -28,7 +28,14 @@ export const amount = 'ms-auto text-sm font-semibold text-foreground';
 // features/orders/ui/order-card/order-card.tsx
 import { Card } from '@/shared/ui/card';
 import * as styles from './styles';
-import type { OrderCardProps } from './types';
+
+interface OrderCardProps {
+  order: {
+    reference: string;
+    formattedTotal: string;
+  };
+  className?: string;
+}
 
 export const OrderCard = ({ order, className }: OrderCardProps): JSX.Element => (
   <Card className={styles.root(className)}>

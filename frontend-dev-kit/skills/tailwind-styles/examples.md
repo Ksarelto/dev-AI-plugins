@@ -16,9 +16,16 @@ export const meta = 'mt-2 text-sm text-muted-foreground';
 ```tsx
 // features/users/ui/user-card/user-card.tsx
 import * as styles from './styles';
-import type { UserCardProps } from './types';
 
-export const UserCard = ({ user, className }: UserCardProps) => (
+interface UserCardProps {
+  user: {
+    name: string;
+    email: string;
+  };
+  className?: string;
+}
+
+export const UserCard = ({ user, className }: UserCardProps): JSX.Element => (
   <div className={styles.root(className)}>
     <p className={styles.title}>{user.name}</p>
     <p className={styles.meta}>{user.email}</p>

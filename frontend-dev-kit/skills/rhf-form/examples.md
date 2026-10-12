@@ -15,29 +15,6 @@ export type FieldOrientationValue = (typeof FieldOrientation)[keyof typeof Field
 ```
 
 ```ts
-// shared/ui/form/types.ts
-import type { ReactNode } from 'react';
-import type { ControllerRenderProps, FieldPath, FieldValues, UseFormReturn } from 'react-hook-form';
-import type { FieldOrientationValue } from './constants';
-
-export interface FormProps<TValues extends FieldValues> {
-  form: UseFormReturn<TValues>;
-  onSubmit: (values: TValues) => void;
-  className?: string;
-  children: ReactNode;
-}
-
-export interface FormFieldProps<TValues extends FieldValues, TName extends FieldPath<TValues>> {
-  name: TName;
-  label?: string;
-  description?: string;
-  className?: string;
-  orientation?: FieldOrientationValue;
-  children: (field: ControllerRenderProps<TValues, TName>) => ReactNode;
-}
-```
-
-```ts
 // shared/ui/form/styles.ts
 import { cn } from '@/shared/lib/utils';
 
@@ -51,9 +28,10 @@ export const inlineLabel = 'font-normal';
 
 ```tsx
 // shared/ui/form/form.tsx
-import type { FieldPath, FieldValues } from 'react-hook-form';
+import type { ReactNode } from 'react';
+import type { ControllerRenderProps, FieldPath, FieldValues, UseFormReturn } from 'react-hook-form';
 import { useFormContext } from 'react-hook-form';
-import { FieldOrientation } from './constants';
+import { FieldOrientation, type FieldOrientationValue } from './constants';
 import {
   Form as FormProvider,
   FormControl,
@@ -64,7 +42,22 @@ import {
   FormMessage,
 } from './primitives';
 import * as styles from './styles';
-import type { FormFieldProps, FormProps } from './types';
+
+interface FormProps<TValues extends FieldValues> {
+  form: UseFormReturn<TValues>;
+  onSubmit: (values: TValues) => void;
+  className?: string;
+  children: ReactNode;
+}
+
+interface FormFieldProps<TValues extends FieldValues, TName extends FieldPath<TValues>> {
+  name: TName;
+  label?: string;
+  description?: string;
+  className?: string;
+  orientation?: FieldOrientationValue;
+  children: (field: ControllerRenderProps<TValues, TName>) => ReactNode;
+}
 
 const FormRoot = <TValues extends FieldValues>({
   form,
@@ -174,13 +167,6 @@ export type CreateUserFormValues = z.infer<typeof createUserSchema>;
 ```
 
 ```ts
-// features/users/ui/create-user-form/types.ts
-export interface CreateUserFormProps {
-  onSuccess: () => void;
-}
-```
-
-```ts
 // features/users/ui/create-user-form/constants.ts
 import { UserRole } from '@/entities/user';
 import type { CreateUserFormValues } from './schema';
@@ -205,11 +191,14 @@ import { Button, ButtonType } from '@/shared/ui/button';
 import { Form } from '@/shared/ui/form';
 import { Input, InputType } from '@/shared/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { useCreateUser } from '../../hooks/use-create-user';
+import { useCreateUser } from '../../hooks/useCreateUser';
 import { usersKeys } from '../../locales/keys';
 import { DEFAULT_VALUES } from './constants';
 import { createUserSchema, type CreateUserFormValues } from './schema';
-import type { CreateUserFormProps } from './types';
+
+interface CreateUserFormProps {
+  onSuccess: () => void;
+}
 
 export const CreateUserForm = ({ onSuccess }: CreateUserFormProps): JSX.Element => {
   const { t } = useTranslation();
@@ -328,8 +317,8 @@ import { Button, ButtonType } from '@/shared/ui/button';
 import { Form } from '@/shared/ui/form';
 import { Input, InputType } from '@/shared/ui/input';
 import { Skeleton } from '@/shared/ui/skeleton';
-import { useProfile } from '../../hooks/use-profile';
-import { useUpdateProfile } from '../../hooks/use-update-profile';
+import { useProfile } from '../../hooks/useProfile';
+import { useUpdateProfile } from '../../hooks/useUpdateProfile';
 import { settingsKeys } from '../../locales/keys';
 import { DEFAULT_VALUES } from './constants';
 import * as styles from './styles';
@@ -477,13 +466,14 @@ Type guards narrow the server's field names to the form's own `Path` without a c
 
 ```tsx
 // features/users/ui/create-user-form/create-user-form.test.tsx
-vi.mock('@/entities/user/api/fetchers', () => ({
+vi.mock('../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/fetchers')>()),
   createUser: vi.fn(),
 }));
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createUser } from '@/entities/user/api/fetchers';
+import { createUser } from '../../api/fetchers';
 import { render } from '@/shared/lib/rendererRTL';
 import { CreateUserForm } from './create-user-form';
 

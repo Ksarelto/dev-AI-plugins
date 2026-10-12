@@ -34,7 +34,7 @@ The inner loop is in `ui-build-contract.md` (simplicity ladder, inside the slice
 | 4. Baseline architecture | 1.5 | `architecture-auditor` (REPORT_ONLY), **full tier only** | Summary + path on the blackboard; report in the context dir |
 | 5. Investigate | 1a–1b | `research-analyst` (conditional) + skill (human deps) | No unapproved packages |
 | 6. Plan | 2 | orchestrator | Build plan + AC coverage table |
-| 7. Layer cycle | 3–7 | layer engineers, or `slice-engineer` when the layer has one slice; each writes its behavior tests | `--until fsd` green before the next layer |
+| 7. Layer cycle | 3–7 | layer engineers, or `slice-engineer` when an entities–pages layer has one slice (`build-plan.md` § `Agent`); each writes its behavior tests | `--until fsd` green before the next layer |
 | 8. Test gaps | 9 | `test-engineer` — only on `missing-test` or a coverage miss | Every new executable file has a behavior test |
 | 9. Gate sweep | 9 | `run-gates.sh` (orchestrator Bash) | All mechanical gates green |
 | 10. Architecture audit | 9.5 | `architecture-auditor` (REPORT_ONLY) | Zero hard violations on changed paths |

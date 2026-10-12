@@ -16,7 +16,7 @@ An entity is a real-life business noun that **two or more features** need. A sin
 
 **Judgment**
 
-- Promote to `entities/{name}/` when ≥2 features need the noun; one consumer is premature.
+- Promote to `entities/{name}/` when ≥2 features need the noun; one consumer is premature. An entity the upstream spec declares and that 2 or more delivery slices reference is not premature — Station 4 creates it.
 - Nested concept still inside `entities/order/model/` vs split `entities/{name}/` — split on the second **independent** consumer.
 - Whether an `api/` method is canonical vs a feature operation.
 

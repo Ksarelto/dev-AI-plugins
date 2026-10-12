@@ -3,7 +3,7 @@ name: add-route
 description: Wire the routing table and lazy page import in the app layer, with every route wrapped in a route error boundary. Use after a page slice is created to make it reachable.
 argument-hint: <route-path> <PageName>
 disable-model-invocation: false
-allowed-tools: [Read, Edit, Glob, Grep]
+allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 ---
 
 # Add Route

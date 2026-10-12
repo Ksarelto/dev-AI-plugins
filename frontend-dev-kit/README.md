@@ -41,7 +41,7 @@ The others attach only when a matching file is in context.
 | `general-coding-principles` | `**/*.{ts,tsx}` | Naming, function design, no comments, no magic values or closed-set literals, quality bar |
 | `typescript` | `**/*.{ts,tsx}` | Interfaces vs types, strictness, narrowing, utility types, explicit public signatures |
 | `react` | `**/*.tsx` | Purity, hooks, no JSX ternaries, named handlers, effects, keys, memoization under the Compiler, refs, error boundaries |
-| `component-structure` | `**/{features,widgets,entities,pages}/**/ui/**`, `**/shared/ui/**` (`*.ts`, `*.tsx`) | Kebab-case component folders and files; PascalCase export; `index.ts` exports only what an outside file imports |
+| `component-structure` | `**/{features,widgets,entities,pages}/**/ui/**`, `**/shared/ui/**` (`*.ts`, `*.tsx`) | One component per file (external-library compound parts excepted); props interface in the component file; other types in `types.ts` |
 | `styling` | `**/styles.ts`, `**/*.tsx`, `**/*.css` | All Tailwind classes in `styles.ts`, none inline; motion only from shadcn bases; look from theme tokens |
 | `shadcn` | `**/shared/ui/**`, `**/components.json`, `**/globals.css` | Registry source verbatim (parts, `data-slot`, classes, `tw-animate-css` motion); closed-set constants (`ButtonVariant`) |
 | `i18n` | `**/*.tsx`, `**/locales/**`, `constants.ts`, `config/`, `model/` | Every user-visible string from typed keys — `shared/lib/i18n/locales/common` or the slice's `locales/`; no string maps |

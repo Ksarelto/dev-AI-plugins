@@ -55,7 +55,7 @@ RETURN:     HANDOFF: .spec/features/decline-profile.context/entities-engineer-4.
 | `OBJECTIVE` | One sentence, one deliverable. Two sentences means two workers — except a batch row, where one sentence names the same change for every listed slice. |
 | `CARD` | Always a `board.mjs card` path. Never the blackboard path — see `references/context-budget.md`. |
 | `WRITE_BACK` | `board.mjs row` for the worker's rows; `board.mjs append` for Reuse Map / Decisions. No Edit on the board. |
-| `TARGET` | Exactly one slice, or the slices of one batch row / fix batch (same layer, same change). |
+| `TARGET` | Exactly one slice, or the slices of one batch row (same layer, same change), or every path of one Station 11 fix batch (a small round may span layers, `LAYER: fix`). |
 | `FINDINGS` | Station 11 only: the fix-batch file. One spawn per batch, never one per finding or per slice. |
 | `APPLY` | One skill. Do not name rule files or the pipeline references. |
 | `CONTRACT` | Always `ui-build-contract.md` for Stations 3–7 — the checklist the conventions gate enforces. The reviewer checks acceptance, tests, parity, shadcn, and accessibility, not conventions. |

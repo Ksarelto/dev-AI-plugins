@@ -17,6 +17,8 @@ Be specific: explain why something is a problem and what the impact is. Provide 
 ## Component file names
 
 - One folder per component under `ui/`. Folder and implementation file are kebab-case of the export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`.
+- One component per file. A second component gets its own folder. The only exception is a re-homed shadcn/Radix file that configures the library's compound parts (`Dialog`, `DialogTrigger`, `DialogContent`, …).
+- The props `interface` is declared in the component file. Other types go in `types.ts` in the component folder, or in the slice model folder (`models/types.ts`, `model/types.ts`). Do not add `types.ts` only to hold the props interface.
 - Same stem for the colocated test: `custom-button.test.tsx`. Every component folder ships its test in the same change.
 - `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names.
 - The named export is PascalCase (`export const CustomButton`). Import the folder through `index.ts`, never the `.tsx` file.
@@ -62,6 +64,7 @@ Do not write comments in application or test code — no `//`, `/* */`, JSDoc, o
 - No credentials, tokens, or secrets in source files.
 - User-controlled data must never be passed to `dangerouslySetInnerHTML`.
 - No hardcoded UI strings — use `t(key)`. No `const LABELS = { save: 'Save' }` objects.
+- No unexplained string or number literals. After writing a component, scan the file again for them. A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
 
 ---
 
@@ -115,7 +118,7 @@ This stack runs React 19 with the React Compiler. **Do not add `React.memo`, `us
 
 - Use existing components first. Compose, don't reinvent.
 - The `style` in `components.json` is the app's only style. Add every primitive with `shadcn add` against that config. Never paste a component from another style or a blog post.
-- Keep every exported part, prop, `data-slot` attribute, and Radix import exactly as generated.
+- Keep every exported part, prop, `data-slot` attribute, and Radix import exactly as generated. Props interfaces stay in that file. After re-homing, the library's animation classes are still the classes on the element.
 - A new look is a new `cva` variant in the base's `styles.ts` — never a call-site `className` override of color, radius, border, shadow, padding, or typography.
 - Use semantic colors: `bg-primary`, `text-muted-foreground` — never raw values like `bg-blue-500`.
 
@@ -146,7 +149,7 @@ Every component folder has a `styles.ts`. The component file owns structure and 
 ## TypeScript
 
 - `strict: true`. No `any`. No `as` casts to silence errors.
-- `interface` for object shapes, component props; `type` for unions, intersections, mapped types.
+- `interface` for object shapes and component props, declared in the component file; `type` for unions, intersections, mapped types. Other types live in `types.ts` (component folder or slice model folder).
 - No `I` prefix on new interfaces.
 - Exported functions and components must have explicit return types.
 - Use discriminated unions to model state instead of optional fields that can drift out of sync.

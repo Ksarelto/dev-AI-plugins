@@ -40,9 +40,13 @@ The conventions gate enforces the mechanically checkable frontend-dev-kit rules 
 | `hardcoded-copy` | error | JSX text; string literals rendered in JSX; literal `aria-label`/`alt`/`title`/`placeholder`/`label`/`description`; `notify`/`toast` literals; zod message literals |
 | `string-map` | error | Object literal with English copy values outside `locales/` |
 | `magic-prop` | error | Literal `variant`/`size`/`type`/`side`/`align`/`orientation`/`intent` on a component outside `shared/ui` |
-| `unused-export` | error | Export (or `index.ts` re-export) no other non-test `src` file imports. `shared/ui` is exempt |
+| `unused-export` | error | Export (or `index.ts` re-export) no other non-test `src` file imports. In `shared/ui` only type exports are checked — registry bases export every part by design |
 | `export-star` | error | `export * from` |
 | `motion-utility` | error | `animate-*`, `transition*`, `duration-*`, `delay-*`, `ease-*`, `fade-*`, `slide-*`, `zoom-*` in a `styles.ts` outside `shared/ui` |
+| `dark-variant` | error | A `dark:` class in any `styles.ts`, `shared/ui` included — one light palette; re-homing a registry base deletes them |
+| `cross-slice-mock` | error | A test mocks another slice (`@/entities|features|widgets|pages/…`). Mock `httpClient` in `@/shared/api/base`, or this slice's own `api/fetchers` |
+| `inline-query-key` | error | A `queryKey` array literal outside `shared/api/query-keys` |
+| `env-access` | error | `import.meta.env` / `process.env` outside `shared/config` (`shared/api/config.ts` may read the API origin) |
 | `motion-css` | warn / error | `@keyframes`, `--animate-*`, `animation:` in CSS (warn); `tw-animate-css` imported twice (error) |
 
 It loads the host app's `typescript` package (5.x/6.x compiler API). TypeScript 7 ships no JS API — add `typescript-api@npm:typescript@^6` as a dev dependency. The script exits 2 when neither resolves; report that as a setup failure, never as a pass.
@@ -74,6 +78,10 @@ Human gates (not automated commands):
 | Conventions | `unused-export` | Drop the `export` keyword or the `index.ts` line — do not add an import to justify it |
 | Conventions | `hardcoded-copy` / `string-map` | Move the text to the slice's `locales/en.json` + `keys.ts` (or `common`), render `t(key)` (`add-text-content`) |
 | Conventions | `inline-class` / `motion-utility` | Move classes to `styles.ts`; remove motion from non-`shared/ui` styles — the primitive animates itself |
+| Conventions | `dark-variant` | Delete the `dark:` classes; keep every other registry class as generated |
+| Conventions | `cross-slice-mock` | Mock `httpClient` in `@/shared/api/base`; inside the owning slice, mock that slice's `api/fetchers` |
+| Conventions | `inline-query-key` | Use the factory in `shared/api/query-keys` |
+| Conventions | `env-access` | Read the parsed value from `shared/config/env.ts` |
 | Conventions | `inline-handler` / `nested-ternary` / `jsx-ternary` | Named `handleX` above the return; compute the branch before the return or use early returns |
 | Conventions | `magic-prop` | Import the constant from the primitive (`ButtonVariant.Outline`); drop props set to their default |
 | Build | OOM during build | `yarn build` already sets `--max-old-space-size=4096`; check for circular deps |
@@ -89,7 +97,7 @@ Human gates (not automated commands):
 
 ## Fix Loop
 
-1. Collect every open finding: the failed gate (transcript in `.spec/.gate-log` — pass the **path**, not the transcript), architecture-audit hard findings, code-review `[CRITICAL]` / unresolved `[IMPORTANT]`, parity, and UI review findings. Group by owning agent and layer.
+1. Collect every open finding: the failed gate (transcript in `.spec/.gate-log` — pass the **path**, not the transcript), architecture-audit hard findings, code-review `[CRITICAL]` / unresolved `[IMPORTANT]`, parity, and UI review findings. A small round (≤15 lines, no new slice or route) is one batch for one `slice-engineer` with `LAYER: fix`; a larger round is one batch per owning agent and layer.
 2. `board.mjs snapshot <board> --round <n>` before the fix. Each batch line is `path | rule | change`. If that `path | rule` is already in an earlier `fix-batch-*.md`, stop and escalate — two rules are fighting.
 3. The engineer applies the smallest diff that clears its batch. A UI-review line includes a regression test that fails on the reported behavior when that behavior is testable.
 4. `board.mjs changed <board> --since <n>` is `FIX_SCOPE`. Write it to `fix-scope-<n>.txt`.

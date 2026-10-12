@@ -11,10 +11,11 @@ alwaysApply: false
 
 ## Mock the boundary, not the graph
 
-- Mock only what the test cannot run in jsdom: the HTTP layer (the slice's `api/` fetchers or `@/shared/api/base`), navigation (`useNavigate`), browser APIs jsdom lacks, and time.
+- Mock only what the test cannot run in jsdom: the HTTP layer, navigation (`useNavigate`), browser APIs jsdom lacks, and time.
+- Which HTTP mock: a test inside the slice that owns the fetcher mocks that slice's `api/fetchers` by relative path. Every other test (a feature, widget, page, or route test that runs another slice's query) mocks `httpClient` in `@/shared/api/base`. Never mock another slice's internal path (`@/entities/x/api/fetchers` is a deep import) or its public `index.ts` (that replaces the real hook).
 - Partial mocks keep the rest real: `vi.mock(path, async (importOriginal) => ({ ...(await importOriginal()), fetchUsers: vi.fn() }))`.
 - Never mock: `@/shared/ui/*` primitives, `react-hook-form`, `zod`, i18n (the render wrapper loads `en`), `cn`, the component's own children, its own `model/` functions, or the store it owns. Render them for real.
-- Mock the fetcher and let the real query hook run through `rendererRTL`'s `QueryClient`, even when the query belongs to another slice. Mocking a query hook forces a cast or a full `UseQueryResult` stub.
+- Let the real query hook run through `rendererRTL`'s `QueryClient`, including another slice's hook. Mocking a query hook forces a cast or a full `UseQueryResult` stub.
 - A mocked module, hook, or context returns only the fields the code under test reads. Wire data given to a typed fetcher mock is typed once at the top of the file, never cast.
 - Assert on the English copy from `en.json` (what the user sees), not on translation keys.
 

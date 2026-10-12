@@ -1,120 +1,68 @@
 # React Query — Testing Reference
 
-## Mocking query hooks
+Hooks run for real through `rendererRTL`'s `QueryClient` (`retry: false`). Mock the HTTP boundary
+below them, never the hook (`rules/testing.mdc`). Full patterns: `frontend-dev-kit:testing` →
+`references/mock-patterns.md`.
 
-Always mock the hook module, not the fetcher or `queryClient`. Mirror the full shape the component reads.
+## Inside the slice that owns the fetcher
+
+Mock this slice's own `api/fetchers` by relative path, keeping the rest real:
 
 ```ts
-import { useUsers } from '@/features/users/hooks/useUsers';
-
-vi.mock('@/features/users/hooks/useUsers')
-
-const mockUseUsers = vi.mocked(useUsers)
+vi.mock('../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+  fetchUsers: vi.fn(),
+  createUser: vi.fn(),
+}))
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockUseUsers.mockReturnValue({
-    data: mockUsers,
-    isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
-  } as ReturnType<typeof useUsers>)
+  vi.mocked(fetchUsers).mockResolvedValue([mockUser])
 })
 ```
 
-## Mocking mutation hooks
+## A query another slice owns
+
+A feature, widget, page, or route test mocks `httpClient` in `@/shared/api/base`. Never mock
+`@/entities/x/api/fetchers` (deep import) or `@/entities/x` (replaces the real hook):
 
 ```ts
-import { useCreateUser } from '@/features/users/hooks/useCreateUser';
+const mockGetJson = vi.hoisted(() => vi.fn())
 
-vi.mock('@/features/users/hooks/useCreateUser')
-
-const mockMutate = vi.fn()
-
-vi.mocked(useCreateUser).mockReturnValue({
-  mutate: mockMutate,
-  mutateAsync: vi.fn(),
-  isPending: false,
-  isError: false,
-  reset: vi.fn(),
-} as ReturnType<typeof useCreateUser>)
+vi.mock('@/shared/api/base', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/api/base')>()),
+  httpClient: { get: vi.fn(() => ({ json: mockGetJson })) },
+}))
 ```
 
-## Testing loading state
+## States
 
 ```ts
-it('shows loading spinner while fetching', () => {
-  mockUseUsers.mockReturnValue({
-    data: undefined,
-    isLoading: true,
-    isError: false,
-  } as ReturnType<typeof useUsers>)
-
+it('shows the error state when the request fails', async () => {
+  vi.mocked(fetchUsers).mockRejectedValueOnce(new Error('boom'))
   render(<UserList />)
 
-  const spinner = screen.getByRole('status')
-  expect(spinner).toBeInTheDocument()
+  const alert = await screen.findByRole('alert')
+
+  expect(alert).toBeInTheDocument()
 })
-```
 
-## Testing error state
-
-```ts
-it('shows error message when fetch fails', () => {
-  mockUseUsers.mockReturnValue({
-    data: undefined,
-    isLoading: false,
-    isError: true,
-  } as ReturnType<typeof useUsers>)
-
-  render(<UserList />)
-
-  const errorMsg = screen.getByRole('alert')
-  expect(errorMsg).toBeInTheDocument()
-})
-```
-
-## Testing mutation call
-
-```ts
-it('calls mutate with correct payload when form is submitted', async () => {
+it('disables submit while the mutation is pending', async () => {
+  vi.mocked(createUser).mockReturnValue(new Promise(() => {}))
   render(<CreateUserForm />)
+  await userEvent.type(screen.getByLabelText('Name'), 'Alice')
 
-  const nameInput = screen.getByLabelText('Name')
-  await userEvent.type(nameInput, 'Alice')
+  await userEvent.click(screen.getByRole('button', { name: 'Submit' }))
 
-  const submitButton = screen.getByRole('button', { name: 'Submit' })
-  await userEvent.click(submitButton)
-
-  expect(mockMutate).toHaveBeenCalledWith(
-    expect.objectContaining({ name: 'Alice' })
-  )
+  expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
 })
 ```
 
-## Per-test override
-
-```ts
-it('disables submit while mutation is pending', () => {
-  vi.mocked(useCreateUser).mockReturnValueOnce({
-    mutate: vi.fn(),
-    mutateAsync: vi.fn(),
-    isPending: true,
-    isError: false,
-    reset: vi.fn(),
-  } as ReturnType<typeof useCreateUser>)
-
-  render(<CreateUserForm />)
-
-  const submitButton = screen.getByRole('button', { name: 'Submit' })
-  expect(submitButton).toBeDisabled()
-})
-```
+Loading: assert the skeleton or `status` role before awaiting data. Mutation payload: assert the
+fetcher mock was called with it (`expect(createUser).toHaveBeenCalledWith(expect.objectContaining({ name: 'Alice' }))`).
 
 ## Rules
 
-- Mock at the **hook level**, not the fetcher or `queryClient`
-- Always mirror **all properties the component reads** — missing keys cause runtime errors
-- Use `vi.mocked(hook).mockReturnValueOnce(...)` to vary state between tests
-- Never wrap components in a real `QueryClientProvider` in unit tests — mock the hooks instead
-- Full integration (real `QueryClientProvider` + MSW) belongs in Storybook or E2E, not component tests
+- Never mock a query or mutation hook — it forces a cast (`as ReturnType<typeof useX>`) or a full `UseQueryResult` stub
+- Type mock data as the fetcher's wire type once; `mockResolvedValue` checks it without a cast
+- Vary state per test with `mockResolvedValueOnce` / `mockRejectedValueOnce` on the fetcher or `httpClient`

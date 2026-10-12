@@ -18,7 +18,7 @@
 | 2a | Analyze | `scripts/analyze-capabilities.mjs` | Writes `work-plan.md`. Human confirms tracks |
 | 3 | Backend loop | `backend-dev-kit:backend-dev` | One `B-*` task at a time. Skip if track not needed / skipped |
 | 4 | Agent loop | `agent-dev-kit:agent-dev` | One `A-*` task at a time. Skip if track not needed / skipped |
-| 5 | Frontend | `frontend-orchestrator-kit:orchestrate-frontend` | Owns the `T-*` loop. Pass `SKIP_UPSTREAM` |
+| 5 | Frontend | `frontend-orchestrator-kit:orchestrate-frontend` | Pass `SKIP_UPSTREAM`. One feature, then it returns. `reason: resume-in-new-chat` leaves the track `in-progress` and the human continues in a new chat |
 | 6 | Report | this skill | Write `app-kit-result.json`; paths + counts |
 
 Track order is **backend → agent → frontend**. Do not fan out tracks that share a host tree

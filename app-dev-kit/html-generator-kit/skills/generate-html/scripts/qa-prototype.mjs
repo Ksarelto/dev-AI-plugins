@@ -83,7 +83,8 @@ for (const { id, html } of pages) {
     if (!/\bsrc=/.test(attrs) && content.trim().length > 20) critical.push(`${id}.html: contains inline <script>`)
   }
   if (!/<main\b/.test(html)) critical.push(`${id}.html: missing <main> landmark`)
-  if (!/<nav\b/.test(html)) critical.push(`${id}.html: missing <nav> landmark`)
+  const navs = [...html.matchAll(/<nav\b[^>]*>/g)]
+  if (!navs.length || navs.some((m) => !/\baria-label=/.test(m[0]))) critical.push(`${id}.html: missing <nav> landmark with aria-label`)
   if (/\$store\.modal\.open/.test(html) && !/data-modal-open/.test(html)) warnings.push(`${id}.html: modal trigger without data-modal-open (untestable)`)
   if (/class="[^"]*\bmodal\b/.test(html) && !/data-modal-close/.test(html)) warnings.push(`${id}.html: modal without data-modal-close (untestable)`)
   if (/<form\b/.test(html) && !(/\brequired\b/.test(html) && /type="submit"/.test(html))) warnings.push(`${id}.html: form without required/submit (validation untestable)`)

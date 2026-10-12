@@ -27,7 +27,7 @@ FSD placement only. Procedures live in **frontend-dev-kit**. Load them; do not r
 
 Export through the slice `index.ts` only what a file outside the folder already imports. Four states: `rules/ui-quality.mdc` (attached by glob).
 
-One kebab-case folder per component (`profile-card/profile-card.tsx`, `styles.ts`, `types.ts` when there are props, `index.ts`, `profile-card.test.tsx`). Never a flat `ProfileCard.tsx`.
+One kebab-case folder per component (`profile-card/profile-card.tsx`, `styles.ts`, `index.ts`, `profile-card.test.tsx`). The props interface stays in the component file. Add `types.ts` only for a non-prop type. Never a flat `ProfileCard.tsx`.
 
 If the piece is a shadcn/Radix primitive (button, dialog, drawer, and the rest) and `shared/ui/<name>` is missing, stop and hand it to `shared-engineer`. Do not author a second copy. Compose `@/shared/ui/<name>` in the part order of its registry demo.
 

@@ -12,7 +12,7 @@ Two kinds of block below:
   all of them produces a busy, styleless prototype; the brief picks **1–3**.
 
 Every rule uses existing tokens (`var(--primary)`, `var(--card)`, `var(--radius)`, …) so the layer
-inherits the brief's palette automatically. **Zero Tailwind. Zero CDN assets. Zero JS dependencies.**
+inherits the brief's palette automatically. **Zero Tailwind.** Google Fonts and Alpine come from a CDN. No other JS dependencies.
 
 Whatever you emit, list its class names in `design-system-ref.md` — `screen-generator` may only use
 classes that appear there.

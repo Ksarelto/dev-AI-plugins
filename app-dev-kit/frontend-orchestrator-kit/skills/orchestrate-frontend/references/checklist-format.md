@@ -90,7 +90,7 @@ pending ──► in-progress ──► done          (envelope outcome: approve
    │             ├──► blocked             (envelope outcome: error, or dirty-tree abort)
    │             └──► in-progress         (no envelope — crash; resume re-offers)
    │
-   └──► skipped                           (human at Station 2a or between-feature prompt)
+   └──► skipped                           (human at Station 2a or the blocked-feature question)
    │
    └──► blocked                           (source screen removed on re-derivation)
 ```

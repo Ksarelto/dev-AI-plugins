@@ -10,7 +10,7 @@ allowed-tools: [Read, Write, Edit, Bash, Glob, Grep]
 
 ## When to use
 
-Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI block that composes features and entities. Used by `composition-engineer`. Examples: `profile-reconciliation-panel`, `document-review-widget`, `profiles-list-widget`.
+Station 6, and only when a second route already reuses the same composition. One page mounts its features directly — do not invent a widget for it. Invoke to author `widgets/<slice>/` — a large, self-contained UI block that composes features and entities. Used by `composition-engineer`. Examples: `profile-reconciliation-panel`, `document-review-widget`, `profiles-list-widget`.
 
 ## Steps
 
@@ -22,7 +22,7 @@ Station 6. Invoke to author `widgets/<slice>/` — a large, self-contained UI bl
 
 4. **Build the widget component** at `widgets/<slice>/ui/<slice>/<slice>.tsx` (kebab-case folder, `styles.ts`, `index.ts`):
    - Import feature components (via `features/*/index.ts`) and entity display components (via `entities/*/index.ts`).
-   - Use entity hooks for data — import them via the entity's `index.ts`.
+   - Data comes through the composed features; the widget calls no query hook (a widget that fetches has become a feature — `architecture-audit` § the six layers).
    - Classes in `styles.ts` via `frontend-dev-kit:tailwind-styles`.
    - Suspense only. The composed feature owns loading, empty, error, and retry. Do not add an `ErrorBoundary`, an error `Alert`, or a retry button on the widget.
    - With a prototype, build every row of `prototype-inventory.md` that belongs to this widget and mark it (`ui-build-contract.md` § 6).

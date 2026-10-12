@@ -8,7 +8,7 @@
 //     acceptance criteria onto one screen.
 //   node read-checklist.mjs <task-checklist.md> --payload F-001 [--preflight accepted]
 //     the Station 3 feature-dev field block: ids and paths only, ref unions in task order,
-//     PARENT_BRANCH from the row's parent-branch, else the current HEAD when it is feature/* and not this row's branch.
+//     PARENT_BRANCH from the row's parent-branch, else the current HEAD when it is feature/* and not this row's branch, else the branch of the last done feature before this row.
 // Exit 0 ok, 1 unknown feature, 2 usage error.
 
 import { execFileSync } from 'node:child_process'
@@ -171,10 +171,11 @@ const lines = [
   ['CHECKLIST_PATH', path],
   ['SLUG_HINT', feature['slug-hint'] ?? ''],
   ['PARENT_BRANCH', feature['parent-branch']
-    ? feature['parent-branch']
-    : (head.startsWith('feature/') && head !== (feature.branch ?? '') ? head : '')],
+    || (head.startsWith('feature/') && head !== (feature.branch ?? '') ? head : '')
+    || [...features.slice(0, features.indexOf(feature))].reverse().find((f) => f.status === 'done' && f.branch)?.branch
+    || ''],
   ['RESULT_OUT', join(dirname(path), 'results', `${feature.id}.json`)],
-  ['CHANGE', tasks.some((t) => t.change === 'remove') ? 'remove' : ''],
+  ['CHANGE', tasks.length && tasks.every((t) => t.change === 'remove') ? 'remove' : ''],
   ['PREFLIGHT', opt('preflight') || (String(front.preflight ?? '').startsWith('accepted') ? 'accepted' : '')],
 ].filter(([key, value]) => value !== '' || ['PARENT_BRANCH', 'PROTOTYPE_REF'].includes(key))
 const width = Math.max(...lines.map(([k]) => k.length)) + 2

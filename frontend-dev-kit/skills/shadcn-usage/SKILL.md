@@ -20,13 +20,14 @@ Hard constraints: `rules/shadcn.mdc` (bases) and `rules/styling.mdc` (call sites
 
 ### Adding a base (`shared/ui/<name>/`)
 
-1. **Registry first.** Search the registry (`search_items_in_registries`) before writing UI. Hand-write only after a recorded miss (`## Tech Investigation`: `"<Name> hand-authored: no registry match because <reason>"`).
+1. **Registry first.** Search the registry (`search_items_in_registries`) before writing UI. Hand-write only after a recorded miss (`"<Name>: hand-authored — <reason>"`; under feature-dev, in `## Decisions & Open Questions` via `board.mjs append`).
 2. **Install against the project's one style.** `npx shadcn@latest add <component>` (or `get_add_command_for_items`) reads `components.json`. Never paste a component from another style, registry, blog, or the HTML prototype.
 3. **Re-home, do not rewrite.** Move the generated file into `shared/ui/<name>/<name>.tsx`. Keep every exported part, prop, `data-slot`, and the Radix import the CLI wrote. Delete the leftover under the CLI output path so `@/components/ui/*` is not a second copy. No `shared/ui/index.ts` mega-barrel.
-4. **Move classes verbatim.** Every class string goes to `styles.ts` in the same order, the `cva()` table unchanged — including `animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-in-from-*`, `duration-*`, and every `data-[state=*]:` class. Diff the moved strings against the CLI output; any missing class is a bug.
+4. **Move classes verbatim.** Every class string goes to `styles.ts` in the same order, the `cva()` table unchanged — including `animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-in-from-*`, `duration-*`, and every `data-[state=*]:` class. The one deletion is every `dark:` class (one light palette). Diff the moved strings against the CLI output; any other missing class is a bug.
 5. **Keep the motion running.** Confirm global CSS imports the stylesheet the CLI configured (`@import "tw-animate-css"` on Tailwind v4) once. Do not add `@keyframes`, `--animate-*`, or another animation library. A missing package is a dependency approval, not a silent skip.
-6. **Translate registry literals.** `sr-only` text such as "Close" becomes `t(commonKeys.actions.close)`.
-7. **Export closed-set constants.** Add `constants.ts` derived from the `cva` table, and use them in `index.ts`:
+6. **Check the library's animation on the element.** Diff `styles.ts` against the CLI output. Every `animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-in-from-*`, `duration-*`, and `data-[state=*]` class the library shipped is still present, in the same order, and is the class the element uses — not dropped, reordered, or replaced by a custom animation. A feature, widget, or page that composes this primitive adds none of those utilities.
+7. **Translate registry literals.** `sr-only` text such as "Close" becomes `t(commonKeys.actions.close)`.
+8. **Export closed-set constants.** Add `constants.ts` derived from the `cva` table, and use them in `index.ts`:
 
    ```ts
    // shared/ui/button/constants.ts
@@ -56,7 +57,7 @@ Hard constraints: `rules/shadcn.mdc` (bases) and `rules/styling.mdc` (call sites
    ```
 
    Copy the keys from the installed `cva` table — the list above is the common `new-york` set, not a guarantee. `Button` defaults `type` to `ButtonType.Button` (a native `<button>` defaults to `submit`, which submits any enclosing form). With `asChild`, the default is not applied.
-8. **If `shared/ui/<name>` is missing while composing, stop.** Hand the primitive to the shared-UI step (`create-shared-ui` / `shared-engineer`). Do not author a second dialog, button, or drawer.
+9. **If `shared/ui/<name>` is missing while composing, stop.** Hand the primitive to the shared-UI step (`create-shared-ui` / `shared-engineer`). Do not author a second dialog, button, or drawer.
 
 ### Composing a primitive
 
@@ -97,7 +98,10 @@ import {
 import { commonKeys } from '@/shared/lib/i18n/locales/common/keys';
 import { Button, ButtonVariant } from '@/shared/ui/button';
 import { ordersKeys } from '../../locales/keys';
-import type { ConfirmDeleteOrderProps } from './types';
+
+interface ConfirmDeleteOrderProps {
+  onConfirm: () => void;
+}
 
 export const ConfirmDeleteOrder = ({ onConfirm }: ConfirmDeleteOrderProps): JSX.Element => {
   const { t } = useTranslation();
@@ -166,6 +170,7 @@ const handleOpenChange = (nextOpen: boolean): void => {
 - [ ] Installed with `shadcn add` against `components.json`; no component from another style or registry
 - [ ] Base lives in `shared/ui/<name>/`, imported as `@/shared/ui/<name>` — no `@/components/ui`, no mega-barrel
 - [ ] Parts, props, `data-slot`, Radix import, and every class string match the CLI output (classes moved to `styles.ts` verbatim)
+- [ ] The library's animation classes are still the classes on the element — not dropped, reordered, or replaced — and global CSS imports that stylesheet once
 - [ ] Global CSS imports the CLI's animation stylesheet once; no extra `@keyframes` / `--animate-*`
 - [ ] No motion utility or look override (`color`, `radius`, `shadow`, `padding`) on a primitive at a call site
 - [ ] Composition follows the registry demo's part order

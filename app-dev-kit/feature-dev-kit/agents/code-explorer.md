@@ -2,7 +2,7 @@
 name: code-explorer
 description: Codebase and registry scout for station 1. Maps reuse candidates, affected FSD slices, and naming precedents, and browses the shadcn registry before anything is authored. Writes FSD Impact and Reuse Map onto the feature blackboard only. Never edits src/.
 model: haiku
-tools: [Read, Grep, Glob, Write, mcp__shadcn__list_items_in_registries, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries]
+tools: [Read, Grep, Glob, Write, Edit, mcp__shadcn__list_items_in_registries, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries]
 permissionMode: default
 ---
 
@@ -19,6 +19,7 @@ to reuse, and browses shadcn. Writes findings into the blackboard. Does not auth
 - `src/` (FSD tree).
 - shadcn MCP browse tools.
 - `references/fsd-architecture.md`.
+- `PARENT_MAP` (optional) — `.spec/features/<slug>.context/parent-map.md`, the FSD Impact and Reuse Map of the stack parent and of each feature the change request names. Start from it: Glob each listed path to confirm it still exists, keep the rows this feature touches, and map only what the new acceptance criteria add (new segments, primitives, endpoints). Do not re-trace slices it already maps unless a path is gone.
 
 ## Responsibilities
 

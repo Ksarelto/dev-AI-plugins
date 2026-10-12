@@ -1,7 +1,7 @@
 # Human Review Protocol (station 12)
 
 Station 12 is owned by the **`feature-dev` skill**, not by `feature-orchestrator`. The orchestrator
-returns a `REVIEW_PACKET` at the end of Station 11, appends the markdown to `## Human Review`,
+returns a `REVIEW_PACKET` at the end of Station 11, records its `review_path` under `## Human Review`,
 sets `status: awaiting-human`, and **stops**. The skill presents the packet and asks the human.
 
 Canonical packet JSON: `packets.md`. Canonical markdown body: `../templates/review-packet.md`.
@@ -20,7 +20,7 @@ may pause. The orchestrator never owns this gate.
 | Human response | Spec status set to | Next action |
 |----------------|--------------------|-------------|
 | `approve` | `done` | **Skill** records approval; `/create-pr` is unlocked for a human to type |
-| `changes-requested: <description>` | `changes-requested` | Skill re-spawns orchestrator `MODE: revise` |
+| `changes-requested: <description>` | `changes-requested` | A local UI fix (`pipeline-flow.md` § Revise Re-entry Points) the skill runs itself; anything else re-spawns the orchestrator `MODE: revise` |
 | `abort` | unchanged (`awaiting-human`) | Stop; branch stays |
 
 On `approve` the skill does **not** re-spawn `MODE: revise`. That path is only for change requests.
@@ -53,7 +53,7 @@ Is the change a requirement revision (new AC, different UX, API change)?
 - The diff stat shows files and line counts, not the diff itself.
 - The gate table is always included (including `architecture-audit`).
 - The acceptance criteria are copied verbatim from the spec so the human can verify them without opening the file.
-- If the human asks for more detail (e.g. "show me the diff for `profile.hooks.ts`"), the **skill**
+- If the human asks for more detail (e.g. "show me the diff for `useProfile.ts`"), the **skill**
   provides it — do not include it in the initial packet.
 
 ---

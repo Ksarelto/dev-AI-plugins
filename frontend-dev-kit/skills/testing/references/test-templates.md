@@ -15,7 +15,7 @@ import userEvent from '@testing-library/user-event'
 import { render } from '@/shared/lib/rendererRTL'
 import { submitReview } from '../../api/fetchers'
 import { ReviewForm } from './review-form'
-import type { ReviewFormProps } from './types'
+import type { ReviewFormProps } from './review-form'
 
 const mockSubmitReview = vi.mocked(submitReview)
 const mockOnDone = vi.fn()
@@ -88,7 +88,7 @@ vi.mock('../api/fetchers', async (importOriginal) => ({
 import { waitFor } from '@testing-library/react'
 import { renderHook } from '@/shared/lib/rendererRTL'
 import { fetchReviews } from '../api/fetchers'
-import { useReviews } from '../hooks/use-reviews'
+import { useReviews } from '../hooks/useReviews'
 
 const mockFetchReviews = vi.mocked(fetchReviews)
 

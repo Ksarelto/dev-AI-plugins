@@ -19,8 +19,14 @@ Delegated kits own theirs. After a callee returns, Read its envelope file (paths
 `references/result-envelope.md`) — do not keep its transcript, spec body, or prototype files in
 this context.
 
+**One step per chat.** Spec creation, prototype creation, and each feature creation start in a
+new chat with an empty context. This chat does exactly one of those, writes the result to disk,
+then stops. The next chat resumes from `.spec/app/current.json`, the checklist, and the envelopes.
+Not opening that chat is the pause.
+
 Invokable by a human (`/orchestrate-frontend`) **or** by `app-orchestrator-kit:orchestrate-app`
-(pass `SPEC_PATH` / `PROTOTYPE_REF` / `SKIP_UPSTREAM` so this skill skips Stations 1–2).
+(pass `SPEC_PATH` / `PROTOTYPE_REF` / `SKIP_UPSTREAM` so this skill skips Stations 1–2 and is the
+feature chat).
 
 ---
 
@@ -107,6 +113,26 @@ Do not load `references/pipeline-flow.md` or `references/context-budget.md` up f
 when a Troubleshooting row names it. This chat holds envelopes and `read-checklist.mjs --summary`
 lines, not spec or prototype bodies.
 
+### Which step this chat owns
+
+Read `.spec/app/current.json` and, when the file exists, `{dirname(spec_path)}/html-kit-result.json`.
+The prototype step is **settled** when any of these is true:
+
+- `SKIP_UPSTREAM` was passed
+- `current.json` `prototype_ref` is non-empty
+- `html-kit-result.json` `outcome` is `approved`, or its `reason` is `skipped`
+- `.spec/app/task-checklist.md` exists
+
+Route once, then do not start another step in this chat:
+
+- Spec is not `approved`, or `.spec/context/*.md` is non-empty (unprocessed requirements) → **spec chat**. Station 1 only, then stop.
+- Spec is `approved` and the prototype is not settled → **prototype chat**. Station 2 only, then stop.
+- Otherwise → **feature chat**. Station 0, Station 2a when the checklist is missing or unapproved, then exactly one feature. Station 4 only when that feature leaves none remaining.
+
+A stop between steps writes the run envelope with `outcome: aborted` and `reason: resume-in-new-chat`
+(Station 4 still writes `approved` when no feature remains) and tells the human:
+`Open a new chat and run /orchestrate-frontend {slug}`.
+
 ### Station 0 — Resume check
 
 A fresh session starts by reading `.spec/app/current.json`. Do not recover the spec from chat.
@@ -114,7 +140,7 @@ A fresh session starts by reading `.spec/app/current.json`. Do not recover the s
 1. If `SPEC_PATH` was passed and that `spec.md` exists, use it. Else read `.spec/app/current.json`.
    When `spec_path` is set and the argument is omitted or equals `slug`, use that path.
    The checklist is `.spec/app/task-checklist.md` (not beside the spec folder).
-   If the argument matches `slug`, or the argument was omitted and `.spec/app/task-checklist.md` exists:
+   If that file exists, and the argument matches `slug` or the argument was omitted:
    - `node {KIT_DIR}/skills/orchestrate-frontend/scripts/read-checklist.mjs {CHECKLIST_PATH} --summary` —
      do not Read the checklist YAML.
    - `SPEC_PATH` = `spec-ref`. If that file is missing, STOP.
@@ -129,35 +155,39 @@ A fresh session starts by reading `.spec/app/current.json`. Do not recover the s
      `build-checklist.mjs {SPEC_PATH} --dry-run` would add or reopen tasks: `AskUserQuestion` —
      **Re-derive checklist** (run Station 2a, keep existing `done`/`skipped` ids) · **Resume as-is** · **Abort**.
    - `Glob(".spec/context/*.md")`. If any files exist they are **unprocessed requirements** (not yet
-     archived by a publish run). Do not jump to Station 3 — fall through to Station 1 so
-     spec-dev-kit can amend the spec with those new requirements. The existing `done`/`skipped` tasks
+     archived by a publish run). Do not jump to Station 3 — this chat is the spec chat. Run Station 1,
+     then stop. Do not continue to Station 2 or Station 3 here. The existing `done`/`skipped` tasks
      will be preserved by `build-checklist.mjs` after the amended spec is approved.
-   - Otherwise jump to **Station 3** at the summary's `first-open` feature.
+   - Otherwise jump to **Station 3** at the summary's `first-open` feature. This chat builds that
+     one feature and then stops.
      Treat leftover `in-progress` as the first item to re-offer (do not mark it `done`).
      When that feature is `in-progress`, decide from its envelope (`.spec/app/results/{feature.id}.json`,
      fallback `.spec/features/{slug}.kit-result.json`): present → run the Station 3 step 6
      `update-checklist.mjs --result` call. Absent → offer to resume it at Station 3 from its checkpoint
      (`.spec/features/{slug or slug-hint}.md` blackboard); do not mark `done`.
      Report: `"Resuming frontend {slug} — {done}/{total} features done."`
-2. Otherwise this is a new run — continue to Station 1. When `SKIP_UPSTREAM` is set, skip
-   Stations 1–2 (keep passed `SPEC_PATH` / `PROTOTYPE_REF`) and go to Station 2a.
+2. Otherwise this is a new run. Follow **Which step this chat owns**. When `SKIP_UPSTREAM` is set,
+   this is the feature chat: keep the passed `SPEC_PATH` / `PROTOTYPE_REF`, skip Stations 1–2, and
+   go to Station 2a when the checklist is missing or unapproved, otherwise Station 3 for one feature.
 
 ### Station 1 — Spec
 
-If `SKIP_UPSTREAM` is set, skip Stations 1–2 and go to Station 2a.
+Only the spec chat enters here. If `SKIP_UPSTREAM` is set, do not enter: go to the feature chat
+(Station 2a or Station 3).
 
 Read `.spec/app/current.json`. If `spec_path` exists and the spec `status` is `approved`, set
 `SPEC_PATH` to that file. Then check for unprocessed requirements:
 
 - `Glob(".spec/context/*.md")`.
-  - **Empty** → skip to Station 2. No new requirements to incorporate.
+  - **Empty** → the spec step is already done. Stop. Do not start Station 2.
+    `Spec is already approved at {SPEC_PATH}. Open a new chat and run /orchestrate-frontend {slug}`.
   - **Files present** → these are unprocessed requirements that have not been archived by a prior
     publish run. Fall through to step 1 below so spec-dev-kit can amend the spec. It will append
     new ids (continuing from the last `SL-NNN`, `US-NNN`, etc.) and archive the inbox on publish.
-    Do **not** skip to Station 2 in this case.
+    Do **not** start Station 2 in this chat.
 
-    The amended spec is feature-only (`metadata.parent-spec`, new ids). Station 2a appends
-    checklist rows for the new slices and reopens only what `changes.json` marks modified.
+    The amended spec is feature-only (`metadata.parent-spec`, new ids). The next chat's Station 2a
+    appends checklist rows for the new slices and reopens only what `changes.json` marks modified.
 
 If none approved:
 
@@ -170,16 +200,34 @@ If none approved:
 3. After it returns, Read `RESULT_OUT` (fallback `{dirname(spec_path)}/kit-result.json` only when
    `current.json` `spec_path` is set). `current.json` is a pointer, not the envelope — it has no
    `outcome`.
-   - `outcome: approved` → `SPEC_PATH` = envelope `spec_path`.
+   - `outcome: approved` → `SPEC_PATH` = envelope `spec_path`. Write the run envelope
+     (`outcome: aborted`, `reason: resume-in-new-chat`) and STOP. Do not ask about a prototype
+     and do not invoke `generate-html`.
+     `Spec approved at {SPEC_PATH}. Open a new chat and run /orchestrate-frontend {slug}`.
    - Envelope missing → re-run generate-spec once (it resumes from its own checkpoint). Still
      missing → STOP with `agent-failed`. Ask once. Nothing downstream can run.
    - `aborted` / `error`, or no envelope path at all → STOP. Nothing downstream can run.
 
-Do not Read `spec.md` body here.
+Do not Read `spec.md` body here. On `outcome: approved` only, before stopping:
+
+```bash
+node {KIT_DIR}/skills/orchestrate-frontend/scripts/write-kit-result.mjs \
+  --out {dirname(SPEC_PATH)}/frontend-kit-result.json \
+  --kit orchestrate-frontend \
+  --outcome aborted \
+  --reason resume-in-new-chat \
+  --spec-path {SPEC_PATH} \
+  --prototype-ref "" \
+  --slug {slug} \
+  --run-dir {dirname(SPEC_PATH)}
+```
+
+If `RESULT_OUT` was passed, add `--also {RESULT_OUT}`.
 
 ### Station 2 — Prototype (optional)
 
-If `SKIP_UPSTREAM` is set, this station is skipped — keep passed `PROTOTYPE_REF` and go to 2a.
+Only the prototype chat enters here. If `SKIP_UPSTREAM` is set, do not enter: the prototype is
+already settled. Go to the feature chat.
 
 `AskUserQuestion` — "Generate a clickable HTML prototype before building features? (recommended for
 apps with more than one screen)" — **Yes** / **Skip**.
@@ -200,13 +248,34 @@ treats an existing `spec.md` path as `SPEC_FILE` and will not glob for another s
 After return, Read `{dirname(SPEC_PATH)}/html-kit-result.json`:
 
 - `outcome: approved` → `PROTOTYPE_REF` = envelope `prototype_ref` (the **new** prototype
-  timecode folder — not the spec folder’s timecode).
+  timecode folder — not the spec folder’s timecode). Do not overwrite this envelope.
 - Envelope missing → re-run generate-html once from its checkpoint. Still missing
   (`agent-failed`) → ask once: **Continue without prototype** or **Stop**. Do not treat a run
   without an envelope as a finished prototype.
-- `aborted` / `error` → `PROTOTYPE_REF = ""` and continue to Station 2a.
+- `aborted` / `error` → ask once: **Continue without prototype** or **Stop**.
 
-On **Skip**: `PROTOTYPE_REF = ""`.
+On **Skip**, or when the human chooses **Continue without prototype**, persist the decision so
+the next chat does not ask again. `PROTOTYPE_REF = ""`.
+
+```bash
+node {KIT_DIR}/skills/orchestrate-frontend/scripts/write-kit-result.mjs \
+  --out {dirname(SPEC_PATH)}/html-kit-result.json \
+  --kit generate-html \
+  --outcome aborted \
+  --reason skipped \
+  --spec-path {SPEC_PATH} \
+  --prototype-ref "" \
+  --slug {slug} \
+  --run-dir {dirname(SPEC_PATH)}
+```
+
+On **Stop**, leave the prototype unsettled and STOP. Do not write `reason: skipped`.
+
+After an approved prototype, a skip, or continue-without, write the run envelope
+(`outcome: aborted`, `reason: resume-in-new-chat`, `--prototype-ref` set to `PROTOTYPE_REF`)
+the same way Station 1 does, then STOP. Do not derive the checklist and do not invoke `feature-dev`.
+
+`Prototype {PROTOTYPE_REF or "skipped"}. Open a new chat and run /orchestrate-frontend {slug}`
 
 Never Read prototype HTML into this conversation.
 
@@ -243,19 +312,20 @@ After approval, record it (a crash must not rebuild an unapproved checklist):
 node {KIT_DIR}/skills/orchestrate-frontend/scripts/update-checklist.mjs {CHECKLIST_PATH} --approve
 ```
 
-The parent conversation holds the spec-dev and html-generator skill bodies. Say once:
-`Checklist approved. For a smaller context, continue in a fresh chat: /orchestrate-frontend {slug}`.
-Then continue here unless the human stops.
+Then continue to Station 3 in this chat and run exactly one feature. Do not stop between the
+checklist and that feature. Spec-dev and html-generator are not in this chat.
 
 ### Station 3 — Feature loop
 
 Before the first feature of this run, run the host preflight (Prerequisites table) once.
 
-For each feature in checklist order, skipping `done` / `skipped`. One `feature-dev` call per
-feature. Nested tasks are not separate calls, branches, or commits.
+This chat runs the first feature that is not `done` or `skipped`. One `feature-dev` call. Nested
+tasks are not separate calls, branches, or commits. Do not start a second feature here.
 
 0. If the feature has `depends-on` ids that are not `done`, do not start it: ask once whether to
-   build the dependency first (recommended) or skip this feature for now.
+   build the dependency first (recommended) or skip this feature for now. Building the dependency
+   is this chat's one feature. Skipping does not start another feature here — record the skip and
+   stop with the resume line.
 Every checklist write in this station goes through one script (status, log line, `updated`):
 `node {KIT_DIR}/skills/orchestrate-frontend/scripts/update-checklist.mjs {CHECKLIST_PATH} --feature {id} …`
 — never hand-edit the YAML here.
@@ -270,7 +340,7 @@ Every checklist write in this station goes through one script (status, log line,
    (`--status blocked --reason "dirty tree"`). Never spawn feature-dev dirty except that resume case.
    `new-feature.sh` applies the same exclusion and the same resume exemption.
 4. `--status in-progress`.
-   Do **not** check out the integration branch between features. Stay on the current HEAD.
+   This skill stays on the current HEAD. It does not check out `develop`, `main`, or `master` between features. feature-dev may check out `PARENT_BRANCH` before it cuts the branch.
 5. Print the field block — do not assemble the ref unions yourself:
 
    ```bash
@@ -292,9 +362,9 @@ Every checklist write in this station goes through one script (status, log line,
    PROTOTYPE_REF:  {checklist prototype-ref}
    CHECKLIST_PATH: {path to task-checklist.md}
    SLUG_HINT:      {feature.slug-hint}
-   PARENT_BRANCH:  {feature.parent-branch when set; else current HEAD when it is feature/* and not this feature's own branch}
+   PARENT_BRANCH:  {row parent-branch, else HEAD when it is feature/* and not this row's branch, else the last done feature's branch}
    RESULT_OUT:     {dirname(CHECKLIST_PATH)}/results/{feature.id}.json
-   CHANGE:         remove   (only when a nested task change is remove)
+   CHANGE:         remove   (only when every nested task change is remove)
    PREFLIGHT:      passed | accepted   (always; accepted only after Continue anyway, and it is stored on the checklist)
    ```
 
@@ -311,19 +381,29 @@ Every checklist write in this station goes through one script (status, log line,
    - `rerun` → re-invoke this feature once from its checkpoint (`.spec/features/{slug}.md`).
    - `ask` → ask once (retry or skip). Do not start the next feature.
    - `stop` → STOP. Do not start the next feature.
-7. If features remain: `AskUserQuestion` —
-   "Feature {n}/{total} is committed on {branch}. The next feature is cut with checkout -b on top
-   of this one. Continue in a fresh chat (recommended), continue here, pause, or abort?"
-   - **Fresh chat** (recommended) → write the run-level envelope as for **Pause**, then tell the
-     human: `Open a new chat and run /orchestrate-frontend {slug}` — Station 0 resumes at the next
-     feature from the checklist and envelopes. This chat carries every prior feature's skill text
-     and returns; a new one starts empty. STOP.
-   - **Continue here** → next feature (stacked on the current feature branch).
-   - **Pause** → write the run-level envelope (`outcome: approved` if any feature `done`, else
-     `aborted`) and STOP. Re-running `/orchestrate-frontend {slug}` resumes here.
-   - **Abort** → write envelope `aborted`; STOP; checklist stays as-is.
+7. If no features remain, go to Station 4.
 
-**No second feature starts on `next: continue` until that question is answered.**
+   If features remain, write the run envelope and STOP. Do not ask to continue here.
+
+   ```bash
+   node {KIT_DIR}/skills/orchestrate-frontend/scripts/write-kit-result.mjs \
+     --out {dirname(SPEC_PATH)}/frontend-kit-result.json \
+     --kit orchestrate-frontend \
+     --outcome aborted \
+     --reason resume-in-new-chat \
+     --spec-path {SPEC_PATH} \
+     --prototype-ref "{PROTOTYPE_REF}" \
+     --slug {slug} \
+     --run-dir {dirname(SPEC_PATH)}
+   ```
+
+   If `RESULT_OUT` was passed, add `--also {RESULT_OUT}`.
+
+   `Feature {id} is committed on {branch}. Open a new chat and run /orchestrate-frontend {slug}`
+   Station 0 in that chat resumes at the next feature. The checklist is unchanged apart from
+   this feature's `done` row.
+
+**No second feature starts in this chat.** `next: continue` with features remaining is a stop, not a loop.
 
 ### Station 4 — Report
 
@@ -375,10 +455,10 @@ Remaining: {pending titles} — re-run /orchestrate-frontend {slug} to continue.
 
 ## Non-negotiables
 
-1. **Never bypass a delegated kit’s gate.** Wait; do not pre-approve.
+1. **Never bypass a delegated kit’s review gate.** `CONFIRMED: true` skips only a question this skill already asked. It does not pre-approve a review.
 2. **Progress lives in `task-checklist.md` + `kit-result.json`, not in chat.**
 3. **Paths, not blobs** — `references/context-budget.md`.
-4. **One feature sub-run at a time**, with confirmation between each. Nested tasks share that run.
+4. **One step per chat.** Spec, prototype, and each feature are separate chats. This chat never starts the next one. Nested tasks share the one feature run.
 5. **Automation never ships.** `/create-pr` stays human-typed.
 6. **UI screen-tasks only.** Do not spawn feature-dev for API-only or agent-only stories.
 
@@ -395,3 +475,4 @@ Remaining: {pending titles} — re-run /orchestrate-frontend {slug} to continue.
 | Checklist `blocked` after a spec edit | Source screen removed — confirm at Station 2a |
 | Want to restart one task | Set its row to `pending`, clear `slug`/`branch`, re-run |
 | Station order or context rules are unclear | Read `references/pipeline-flow.md` or `references/context-budget.md` for that step only |
+| Next step would start in this chat | Stop. The human opens a new chat and runs `/orchestrate-frontend {slug}` |

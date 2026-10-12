@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Copy a prototype's light :root tokens into shared/ui/theme/globals.css.
-// Skips .dark. Second run writes nothing new.
+// Skips .dark. Merges every extra :root block in globals.css into the first one.
+// Second run writes nothing new.
 //
 //   node port-prototype-theme.mjs --prototype <dir> --globals <globals.css>
 //   node port-prototype-theme.mjs --check --prototype <dir> --globals <globals.css>
-//     diff :root tokens; print each missing or mismatched token; exit 1. Does not write.
+//     diff :root tokens; print each missing or mismatched token or a duplicate :root; exit 1. Does not write.
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -27,19 +28,42 @@ if (!existsSync(tokensPath)) {
   process.exit(1)
 }
 
-function block(css, re) {
-  const m = re.exec(css)
-  if (!m) return null
-  const open = css.indexOf('{', m.index)
+function blockAt(css, start) {
+  const open = css.indexOf('{', start)
   let depth = 0
   for (let i = open; i < css.length; i++) {
     if (css[i] === '{') depth++
     else if (css[i] === '}') {
       depth--
-      if (depth === 0) return { start: m.index, bodyStart: open + 1, bodyEnd: i, end: i + 1 }
+      if (depth === 0) return { start, bodyStart: open + 1, bodyEnd: i, end: i + 1 }
     }
   }
   return null
+}
+
+function block(css, re) {
+  const m = re.exec(css)
+  return m ? blockAt(css, m.index) : null
+}
+
+function roots(css) {
+  return [...css.matchAll(/(?:^|[^\w.-])(:root\s*\{)/g)]
+    .map((m) => blockAt(css, m.index + m[0].length - m[1].length))
+    .filter(Boolean)
+}
+
+function statements(body) {
+  return body
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .split(';')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => {
+      const i = s.indexOf(':')
+      const name = s.slice(0, i).trim()
+      if (i <= 0 || !/^[\w-]+$/.test(name)) return null
+      return [name, s.slice(i + 1).trim().replace(/\s+/g, ' ')]
+    })
 }
 
 function decls(body) {
@@ -49,6 +73,18 @@ function decls(body) {
     if (m) out.push([m[1], m[2]])
   }
   return out
+}
+
+// Formatter-neutral form for --check: Prettier rewrites 0.10 → 0.1, .5 → 0.5, 'Inter' → "Inter",
+// and spacing after commas; none of those change the token.
+function sameValue(a, b) {
+  const norm = (v) => v
+    .replace(/#[0-9a-f]{3,8}\b|(-?\d*\.\d+|-?\d+)/gi, (m, num) => (num === undefined ? m.toLowerCase() : String(Number(num))))
+    .replace(/'/g, '"')
+    .replace(/\s*([,()/])\s*/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return norm(a) === norm(b)
 }
 
 function hasDecl(body, name) {
@@ -77,12 +113,14 @@ if (!root) {
 const props = decls(tokens.slice(root.bodyStart, root.bodyEnd))
 if (check) {
   const hostCss = existsSync(globalsPath) ? readFileSync(globalsPath, 'utf8') : ''
-  const hostRoot = hostCss ? block(hostCss, /(?:^|[^\w.-]):root\s*\{/) : null
+  const hostRoots = roots(hostCss)
+  const hostRoot = hostRoots[0]
   const host = new Map(hostRoot ? decls(hostCss.slice(hostRoot.bodyStart, hostRoot.bodyEnd)) : [])
   const diffs = []
+  if (hostRoots.length > 1) diffs.push(`DUPLICATE :root: globals has ${hostRoots.length} blocks; re-run the port to merge them, do not delete one by hand`)
   for (const [name, value] of props) {
     if (!host.has(name)) diffs.push(`MISSING ${name}`)
-    else if (host.get(name) !== value) diffs.push(`DIFF ${name}: globals ${host.get(name)} != prototype ${value}`)
+    else if (!sameValue(host.get(name), value)) diffs.push(`DIFF ${name}: globals ${host.get(name)} != prototype ${value}`)
   }
   if (diffs.length) {
     console.log(diffs.join('\n'))
@@ -93,13 +131,26 @@ if (check) {
 }
 let css = existsSync(globalsPath) ? readFileSync(globalsPath, 'utf8') : '@import "tailwindcss";\n'
 
-let host = block(css, /(?:^|[^\w.-]):root\s*\{/)
+let [host, ...extra] = roots(css)
 if (!host) {
   css = `${css.trimEnd()}\n\n:root {\n}\n`
-  host = block(css, /(?:^|[^\w.-]):root\s*\{/)
+  host = roots(css)[0]
 }
 let body = css.slice(host.bodyStart, host.bodyEnd)
-for (const [name, value] of props) body = upsert(body, name, value)
+for (const r of extra) {
+  for (const stmt of statements(css.slice(r.bodyStart, r.bodyEnd))) {
+    if (!stmt) {
+      console.error(`cannot merge the :root block at offset ${r.start} in ${globalsPath}: unparsable declaration. Merge it into the first :root by hand, then re-run.`)
+      process.exit(1)
+    }
+    body = upsert(body, stmt[0], stmt[1])
+  }
+}
+const current = new Map(decls(body))
+for (const [name, value] of props) {
+  if (!current.has(name) || !sameValue(current.get(name), value)) body = upsert(body, name, value)
+}
+for (const r of extra.reverse()) css = css.slice(0, r.start).replace(/\s*$/, '') + css.slice(r.end)
 css = css.slice(0, host.bodyStart) + body + css.slice(host.bodyEnd)
 
 const isColor = (value) => /oklch|rgba?\(|hsla?\(|#|color-mix/i.test(value)

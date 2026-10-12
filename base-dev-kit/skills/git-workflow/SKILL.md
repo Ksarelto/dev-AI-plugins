@@ -5,6 +5,8 @@ description: Git workflow standards — commit message format, branch naming, at
 
 # Git Workflow
 
+When an installed kit ships its own rule for commits, branches, or pull requests, that rule wins. feature-dev-kit uses `feature/<ticket>-<slug>` branches, `[TICKET] imperative summary` commits and PR titles, no `WIP` subjects, and rebases onto the board's `parent-branch`.
+
 ## When to use
 
 - Writing a commit message.

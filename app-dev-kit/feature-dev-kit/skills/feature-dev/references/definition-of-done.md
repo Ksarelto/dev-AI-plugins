@@ -17,7 +17,7 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 ## Correctness
 
 - [ ] Every acceptance criterion in the spec has a test that fails without the change
-- [ ] Every new or changed executable file has a behavior test; tests mock only the fetcher, router, env, and browser APIs
+- [ ] Every new or changed executable file has a behavior test; tests mock only the HTTP boundary (own `api/fetchers`, else `httpClient` in `@/shared/api/base`), router, env, and browser APIs
 - [ ] The feature was exercised at runtime, not merely typechecked
 - [ ] Existing tests still pass — no regressions
 - [ ] Loading, empty, and error states are implemented, not just the happy path
@@ -49,7 +49,7 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 - [ ] Renders correctly at 320 / 768 / 1024 / 1440 px
 - [ ] Uses design tokens and the spacing scale — no arbitrary pixel values
 - [ ] Every user-facing string comes from i18n keys (`add-text-content`), never a literal or a string map
-- [ ] shadcn primitives match the registry output — same parts, `data-slot`, classes, and open/close animation; no call-site motion or look overrides
+- [ ] shadcn primitives match the registry output — same parts, `data-slot`, classes (minus the `shadcn.mdc` allowed edits, e.g. no `dark:`), and open/close animation; no call-site motion or look overrides
 - [ ] With a prototype: `extract-prototype-inventory.mjs --check` and `port-prototype-theme.mjs --check` both pass
 
 ## Integration

@@ -5,6 +5,8 @@ description: Test-driven development — red/green/refactor, reproduction tests 
 
 # Test-Driven Development
 
+When an installed kit ships its own rule for test order or syntax, that rule wins. feature-dev-kit writes the behavior test in the same change after the slice typechecks, uses arrow functions, and puts no comments in `src/`.
+
 Write a failing test before writing the code that makes it pass. For bug fixes, reproduce the bug with a test before attempting a fix. Tests are proof — "seems right" is not done.
 
 ## When to use

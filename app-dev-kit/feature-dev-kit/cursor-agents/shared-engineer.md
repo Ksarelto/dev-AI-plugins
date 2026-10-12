@@ -27,13 +27,13 @@ Read the fixed contract first, then your card (see `context-budget.md` § Per-wo
 **Per spawn:**
 
 - `CARD` — your work card (`.spec/features/<slug>.context/cards/row-<n>.md`): your Build Plan rows plus the spec sections you build from, verbatim, and the paths to read on demand. Read it instead of the blackboard; do not open `.spec/features/<slug>.md`.
-- From the card: your `shared` rows, and `## Dependencies` — only packages with `approved? (y)` may be installed.
+- From the card: your `shared` rows, and `## Dependencies` — only rows whose `Status` is `approved` may be installed.
 
 ## Responsibilities
 
 ### 1. shadcn registry sourcing
 
-Missing registry primitives are one batch. Add them with one `shadcn add a b c` call, then re-home each. Do not spawn or install them one at a time. For every UI component needed in `shared/ui`, first browse the shadcn registry via the shadcn MCP using the `create-shared-ui` skill. If a matching primitive exists, add it via the MCP and re-home it to `shared/ui/<name>/` with the registry source verbatim — parts, props, `data-slot`, Radix imports, and class strings moved into `styles.ts` in the same order with every `data-[state=*]` animation class. Allowed edits only (`rules/shadcn.mdc`): deleting the registry's comments, kebab-case file names, props types to `types.ts`, a `constants.ts` for each closed-set prop derived from the `cva` table (`ButtonVariant`, `ButtonSize`, `ButtonType`, …), translated `sr-only` text, `FormMessage` through `translateMessage`, `Button`'s default `type`. Never swap the registry's animation classes for custom keyframes or a Motion wrapper, and never add a second `tw-animate-css` import. Read `get_item_examples_from_registries` for the component's demo and record the part order in the handoff so feature/composition engineers compose it the same way. Consumers import `@/shared/ui/<name>`. Do not add a `shared/ui` barrel and do not leave a second copy under `@/components/ui`. Document the import in `## Reuse Map`.
+Missing registry primitives are one batch. Add them with one `shadcn add a b c` call, then re-home each. Do not spawn or install them one at a time. For every UI component needed in `shared/ui`, first browse the shadcn registry via the shadcn MCP using the `create-shared-ui` skill. If a matching primitive exists, add it via the MCP and re-home it to `shared/ui/<name>/` with the registry source verbatim — parts, props, `data-slot`, Radix imports, and class strings moved into `styles.ts` in the same order with every `data-[state=*]` animation class. Allowed edits only (`rules/shadcn.mdc`): deleting the registry's comments, deleting every `dark:` class (one light palette), kebab-case file names, props interfaces stay in the component file, a `constants.ts` for each closed-set prop derived from the `cva` table (`ButtonVariant`, `ButtonSize`, `ButtonType`, …), translated `sr-only` text, `FormMessage` through `translateMessage`, `Button`'s default `type`. Never swap the registry's animation classes for custom keyframes or a Motion wrapper, and never add a second `tw-animate-css` import. Read `get_item_examples_from_registries` for the component's demo and record the part order in the handoff so feature/composition engineers compose it the same way. Consumers import `@/shared/ui/<name>`. Do not add a `shared/ui` barrel and do not leave a second copy under `@/components/ui`. Document the import in `## Reuse Map`.
 
 ### 2. Hand-authoring shared UI (exception path)
 
@@ -41,11 +41,11 @@ When the shadcn registry has no suitable primitive, hand-author via `frontend-de
 
 ### 3. Approved dependency installation
 
-For each package in the card's `## Dependencies` section with `approved? (y)`, install `<package>@<version>` with the lockfile's package manager (`pnpm add`, `yarn add`, or `npm install`; add `-D` for dev dependencies). Never install a package that is not in the spec or has `approved? (n)`. After installation, confirm the lockfile is updated and run the project's typecheck to verify the package's types integrate cleanly.
+For each row in the card's `## Dependencies` section whose `Status` is `approved`, install `<package>@<version>` with the lockfile's package manager (`pnpm add`, `yarn add`, or `npm install`; add `-D` for dev dependencies). Never install a package that is not in the spec or has any other status. After installation, confirm the lockfile is updated and run the project's typecheck to verify the package's types integrate cleanly.
 
 ### 4. Prototype theme
 
-When your row is the theme port, run this and do not hand-edit the values it wrote. It copies `:root` from the prototype (no `.dark`) into `globals.css` and is a no-op the second time.
+When your row includes the theme port, run this and do not hand-edit the values it wrote. It copies `:root` from the prototype (no `.dark`) into `globals.css`, merges any extra `:root` block into the first, and is a no-op the second time. A duplicate-`:root` or hex finding on `globals.css` is fixed by re-running it, never by deleting a block.
 
 ```bash
 node {KIT_DIR}/skills/feature-dev/scripts/port-prototype-theme.mjs --prototype <prototype-ref> --globals src/shared/ui/theme/globals.css
@@ -61,7 +61,7 @@ Write the behavior test for every executable file in this change (`ui-build-cont
 
 ### 7. Public API hygiene
 
-After all `shared` work is complete, verify that each `index.ts` exports only what another file imports and that nothing internal is exposed. Run the self-check in `ui-build-contract.md` § 7 before returning.
+After all `shared` work is complete, verify that nothing internal is exposed: a registry base's `index.ts` exports every part, but a type only when another file imports it; every other `shared` `index.ts` exports only what another file imports. Run the self-check in `ui-build-contract.md` § 7 before returning.
 
 ## Outputs
 

@@ -11,7 +11,7 @@ alwaysApply: false
 - With a bound prototype, `prototype-inventory.md` is the contract: every row is rendered with the same copy, control, variant, field, and state, or marked `n/a: <reason>`.
 - Compose existing primitives. Do not build a config-driven table or form factory for one screen.
 - One component, one job. A container fetches; a presentational child renders.
-- Pick the smallest state tool: local `useState`, then a feature store, then context for read-often values (theme, locale).
-- Layout is mobile-first (`sm:` / `md:` / `lg:`). Do not design a desktop-only screen.
+- Pick the smallest state tool: local `useState`, then a feature store, then context for read-often values (locale). No theme context and no `ThemeProvider`.
+- Layout is mobile-first (`sm:` / `md:` / `lg:`). Do not design a desktop-only screen. A bound prototype's sidebar shell applies at `lg+` and becomes a shadcn `Sheet` below that.
 - Skeletons match the populated layout. A centered spinner on a list is the loading state only when the layout is unknown.
 - No decorative gradients, generic card grids, or placeholder copy that was not in the spec. A gradient the bound prototype uses is allowed as a `shared/ui` variant, not a call-site class.

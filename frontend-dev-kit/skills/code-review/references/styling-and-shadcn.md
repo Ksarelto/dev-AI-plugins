@@ -9,7 +9,7 @@ Distilled from the `tailwind-styles` and `shadcn-usage` skills and `rules/stylin
 - A hardcoded color hex value or raw palette class (`bg-blue-500`) instead of a semantic token or a `globals.css` CSS variable.
 - Inline `style={{}}`, a CSS module, or vanilla-extract introduced alongside the Tailwind system.
 - `!important` used to override shadcn composition.
-- A `dark:` variant — dark mode is token swaps in `globals.css`, not per-class overrides.
+- A `dark:` variant or a `.dark` block — one light palette. Prototype `.dark` is not ported, and dark mode is not token swaps in `globals.css`.
 
 ## Motion
 
@@ -21,8 +21,9 @@ Distilled from the `tailwind-styles` and `shadcn-usage` skills and `rules/stylin
 ## shadcn/ui
 
 - A shadcn component hand-written, pasted from another style/registry/the prototype, or imported from `@/components/ui/` instead of the `shared/ui/<name>/` base.
-- A re-homed base whose parts, props, `data-slot` attributes, Radix import, or class strings differ from the registry output (classes reordered, trimmed, or "cleaned up").
+- A re-homed base whose parts, props, `data-slot` attributes, Radix import, or class strings differ from the registry output (classes reordered, trimmed, or "cleaned up"). Deleted `dark:` classes are an allowed edit (`rules/shadcn.mdc`), not a divergence.
 - Open/close `animate-*` or `data-[state=*]` classes stripped from a dialog, drawer, sheet, popover, dropdown, or tooltip, or global CSS missing the animation stylesheet those classes need.
+- A component created from an external library whose animation classes are missing, reordered, or replaced. Every `animate-*`, `fade-*`, `zoom-*`, `slide-*`, `duration-*`, and `data-[state=*]` class the library shipped is still the class on the element, and that library's animation stylesheet (`tw-animate-css` for shadcn) is imported once. A feature, widget, or page that composes the component adds none of those utilities.
 - A second dialog, button, drawer, or other registry primitive authored beside `shared/ui/<name>/`.
 - A call-site `className` on a primitive that changes color, radius, border, shadow, padding, or typography — a new look is a `cva` variant in the base. Layout utilities (width, margin, grid placement) are fine.
 - Parts composed in a different order or nesting than the registry demo (`DialogHeader` missing, `DialogFooter` outside `DialogContent`, `DialogClose` not `asChild`).
@@ -38,4 +39,4 @@ Distilled from the `tailwind-styles` and `shadcn-usage` skills and `rules/stylin
 
 ## Severity
 
-Portal-styling/event bugs and controlled/uncontrolled `<Select>` mixing are **Must fix** (they break at runtime). A modified registry base, stripped motion, or motion/look overrides at a call site are **Must fix** (they are the visible divergence from the registry). Everything else here is a **Should fix** convention.
+Portal-styling/event bugs and controlled/uncontrolled `<Select>` mixing are **Must fix** (they break at runtime). A modified registry base, stripped or replaced library animation, or motion/look overrides at a call site are **Must fix** (they are the visible divergence from the registry). Everything else here is a **Should fix** convention.

@@ -14,7 +14,7 @@ a step needs is addressable by id.
 
 1. Read `.spec/app/current.json` → `spec_path`. Never glob for the newest spec.
 2. Check `status: approved` (feature-dev's importer refuses anything else; others must too).
-3. Check `spec-version`: `2.0` → this contract; `1.x` → § Legacy specs.
+3. This contract applies when `delivery-plan.slices` is present (publish requires that for `spec-version` 2.x). Absent slices → § Legacy specs. `spec-version` alone does not select the mode.
 
 Files next to `spec_path`:
 

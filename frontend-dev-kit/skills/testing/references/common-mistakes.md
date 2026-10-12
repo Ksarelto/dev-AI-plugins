@@ -47,6 +47,7 @@
 | `vi.mock('react-hook-form')` / a stubbed `useForm` | Type into the real inputs and submit |
 | `vi.mock('@/shared/ui/button')`, `vi.mock('react-i18next')`, `vi.mock('@/shared/lib/utils')` | Real primitives, real i18n (`rendererRTL` loads `en`), real `cn` |
 | `vi.mock('../hooks/useProfiles')` + `as ReturnType<typeof useProfiles>` | Mock the fetcher; let the real hook run |
+| `vi.mock('@/entities/profile/api/fetchers')` or `vi.mock('@/entities/profile')` from another slice | Mock `httpClient` in `@/shared/api/base`; the entity's hook and fetcher run for real |
 | `vi.mock(path, () => ({ onlyThis: vi.fn() }))` wiping the module | `importOriginal` partial mock |
 | A mocked hook/context returning fields nobody reads | Return only what the code under test reads |
 | Wrapping the component in an extra test-only Provider | `rendererRTL` already wraps the app providers |

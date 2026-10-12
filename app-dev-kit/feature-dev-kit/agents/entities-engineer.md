@@ -33,9 +33,10 @@ Read the fixed contract first, then your card (see `context-budget.md` § Per-wo
 ### 1. Per-entity api/ segment
 
 For each entity slice, build:
-- `api/{entity}.types.ts` — request/response interfaces mirrored from the card's API contract.
-- `api/{entity}.hooks.ts` — one hook per endpoint via `frontend-dev-kit:react-query-hook`. Keys live in `shared/api/query-keys/`.
-- `api/index.ts` — public surface only.
+- `api/endpoints.ts` — path strings from the card's API contract.
+- `api/fetchers.ts` — typed `httpClient` calls (`frontend-dev-kit:api-client`); wire types in `model/types.ts`.
+- `api/useProfile.ts` (one file per hook, camelCase) — via `frontend-dev-kit:react-query-hook`. Keys live in `shared/api/query-keys/`.
+- No `api/index.ts` — the slice's public surface is its root `index.ts`.
 
 Every hook must return typed data. Never leak `any` or unchecked assertions. Errors flow through the shared error handler.
 
@@ -43,7 +44,7 @@ Every hook must return typed data. Never leak `any` or unchecked assertions. Err
 
 - Pure domain types and mapped types (`type Status = typeof STATUS[keyof typeof STATUS]`).
 - Pure transforms: parsing, formatting, deriving read models from raw API responses.
-- An enum shown to users gets an enum → locale-key map (`LISTING_STATUS_KEY`) and slice locale keys — never an enum → English string map.
+- An enum shown to users gets an enum → locale-key map (`LISTING_STATUS_KEY`) in `config/` and slice locale keys — never an enum → English string map, and no locale keys in `model/`.
 - Zero side effects. No React, no Axios, no ENV.
 
 ### 3. Per-entity ui/ segment

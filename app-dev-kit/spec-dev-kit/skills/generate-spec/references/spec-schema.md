@@ -308,12 +308,12 @@ Optional sections may be omitted when empty: `glossary`, `context.success-metric
 ## Status Lifecycle
 
 ```
-draft → (awaiting-clarification ⇄ analyzing) → enriching → reviewing → approved → building → done
+draft → (awaiting-clarification ⇄ analyzing) → enriching → reviewing → approved
                                                             └── changes-requested ──┘
 ```
 
 The synthesizer emits `reviewing`. Only `publish-spec.mjs` (after explicit human approval) sets
-`approved`. Downstream kits may set `building` / `done`.
+`approved`, and the spec stays there. `done` is a feature-board and checklist status, not an app-spec status.
 
 ---
 

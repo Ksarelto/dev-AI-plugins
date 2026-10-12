@@ -24,7 +24,7 @@ Companion schema: `result-envelope.md` (canonical copy lives in
    `SLICE_REF`, `TASK_IDS`, `SCREEN_REFS`, `STORY_REFS`, `AC_REFS`, `ENTITY_REFS`,
    `PROTOTYPE_REF`, `CHECKLIST_PATH`, `SLUG_HINT`, `PARENT_BRANCH`, `CHANGE`, `RESULT_OUT`,
    `PREFLIGHT`. Not file contents. `read-checklist.mjs --payload` prints the block; this skill does
-   not assemble the unions. Pass `CHANGE=remove` only when a nested task `change` is `remove`.
+   not assemble the unions. Pass `CHANGE=remove` only when every nested task `change` is `remove`.
 4. `REQUEST` to feature-dev is at most **one line** naming the task id and the files to read.
    `import-upstream.mjs` already writes stories/ACs onto the blackboard from `UPSTREAM_SPEC`.
 5. `build-checklist.mjs` reads `spec.md` from disk. This skill does not parse YAML stories
@@ -32,9 +32,10 @@ Companion schema: `result-envelope.md` (canonical copy lives in
 6. Station 0 and 2a read `read-checklist.mjs --summary`, never the checklist YAML, and present
    **id / title / priority** and task titles from it — not the spec body.
 7. Station 4 report is paths + checklist counts + branch names from `read-checklist.mjs --summary`.
-8. Between features, offer a fresh chat (`/orchestrate-frontend {slug}` resumes from the checklist
-   and envelopes). The callee skill bodies and returns of every finished feature stay in this
-   conversation otherwise.
+8. Spec, prototype, and each feature are separate chats. After the step this chat owns, stop and
+   tell the human to open a new chat: `/orchestrate-frontend {slug}` resumes from the checklist
+   and envelopes. Do not offer to continue here. A mid-loop stop writes `outcome: aborted` and
+   `reason: resume-in-new-chat`. Station 4 writes `approved` only when no feature remains.
 
 ---
 
@@ -72,6 +73,7 @@ path instead. There is no legitimate reason for this skill to exceed that.
 ## HITL vs isolation
 
 This skill and the three callees all run in the **main conversation** so `AskUserQuestion`
-reaches the user (sibling kits assert a subagent gate does not). Isolation is achieved by
-**filesystem handoff**, not by `context: fork` on the callees. Do not add `context: fork` here
-until a forked skill’s `AskUserQuestion` is verified live.
+reaches the user (sibling kits assert a subagent gate does not). Each of spec, prototype, and
+feature-dev is a different chat, so this conversation never holds more than one callee's skill
+body. Isolation inside a chat is still **filesystem handoff**, not `context: fork` on the callees.
+Do not add `context: fork` here until a forked skill’s `AskUserQuestion` is verified live.

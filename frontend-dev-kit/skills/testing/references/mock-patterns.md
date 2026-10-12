@@ -4,7 +4,7 @@ Mock the boundary the test cannot run in jsdom — nothing else. Everything the 
 
 | Mock | Keep real |
 |------|-----------|
-| The slice's `api/` fetchers, or `@/shared/api/base` | Query and mutation hooks the component owns (they run through `rendererRTL`'s `QueryClient`) |
+| Inside the slice that owns the fetcher: its `api/fetchers`. Anywhere else: `httpClient` in `@/shared/api/base` | Every query and mutation hook, including another slice's (they run through `rendererRTL`'s `QueryClient`) |
 | `useNavigate` (and `useParams` when the test sets a route param) | The rest of `react-router` |
 | Browser APIs jsdom lacks (`matchMedia`, `ResizeObserver`, `scrollIntoView`) | `@/shared/ui/*` primitives, Radix |
 | Time (`vi.useFakeTimers()`) | `react-hook-form`, `zod`, i18n (`rendererRTL` loads `en`) |
@@ -81,16 +81,23 @@ it('calls the decline endpoint with the profile id', async () => {
 
 ## A query the component does not own
 
-A widget or page test that consumes an entity's query still mocks the **entity's fetcher**, not its hook. The real hook runs and the test needs no `UseQueryResult` stub:
+A feature, widget, or page test that runs an entity's query mocks **`httpClient`**, not the entity's fetcher or hook. `@/entities/profile/api/fetchers` is a deep import into another slice, and mocking `@/entities/profile` replaces the real hook. With `httpClient` mocked, the real hook, fetcher, and mapper all run:
 
 ```ts
-vi.mock('@/entities/profile/api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('@/entities/profile/api/fetchers')>()),
-  fetchProfile: vi.fn(),
+const mockGetJson = vi.hoisted(() => vi.fn())
+
+vi.mock('@/shared/api/base', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/shared/api/base')>()),
+  httpClient: { get: vi.fn(() => ({ json: mockGetJson })) },
 }))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  mockGetJson.mockResolvedValue([wireProfile])
+})
 ```
 
-Mocking a query hook forces a full `UseQueryResult` shape or a cast (`as ReturnType<typeof useProfile>`). Both are wrong — mock one level lower.
+`wireProfile` is the server payload (the shape before the entity's mapper), typed once at the top of the file. Mocking a query hook forces a full `UseQueryResult` shape or a cast (`as ReturnType<typeof useProfile>`). Both are wrong — mock the HTTP client below it.
 
 ## React Router
 

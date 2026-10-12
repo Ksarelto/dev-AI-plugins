@@ -7,7 +7,7 @@
 // consolidated_entities, consolidated_user_roles, potential_conflicts, terminology_drift,
 // system_boundary.
 //
-// Usage: node extract-intake.mjs --context <dir> --out <intake.json> [--timecode <tc>]
+// Usage: node extract-intake.mjs --context <dir> --out <intake.json> [--timecode <tc>] [--builds frontend,backend,agent]
 //        node extract-intake.mjs --context <dir> --slug-hint     # print the derived slug only
 // Exit 0 on success, 1 when no non-empty .md file exists, 2 on usage error.
 
@@ -25,7 +25,14 @@ const contextDir = value('context') || '.spec/context'
 const outPath = value('out')
 const slugOnly = args.includes('--slug-hint')
 if (!slugOnly && !outPath) {
-  console.error('usage: extract-intake.mjs --context <dir> --out <intake.json> [--timecode <tc>] | --slug-hint')
+  console.error('usage: extract-intake.mjs --context <dir> --out <intake.json> [--timecode <tc>] [--builds frontend,backend,agent] | --slug-hint')
+  process.exit(2)
+}
+const BUILDS = ['frontend', 'backend', 'agent']
+const builds = value('builds').split(',').map((s) => s.trim()).filter(Boolean)
+const badBuilds = builds.filter((b) => !BUILDS.includes(b))
+if (badBuilds.length) {
+  console.error(`FATAL: --builds must be ${BUILDS.join(', ')} (got ${badBuilds.join(', ')})`)
   process.exit(2)
 }
 
@@ -291,7 +298,7 @@ const intake = {
   consolidated_user_roles: [],
   potential_conflicts: [],
   terminology_drift: [],
-  system_boundary: { builds: [], owned_elsewhere: [], source_lines: [] },
+  system_boundary: { builds, owned_elsewhere: [], source_lines: [] },
   context_starved_categories: Object.entries(CATEGORY_SIGNAL).filter(([, re]) => !re.test(allText)).map(([c]) => c),
   raw_open_questions: openQuestions,
 }

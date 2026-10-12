@@ -665,8 +665,8 @@ if (reopen) {
   replaceFm('prior-branch', fmValue('branch') || 'none')
 }
 
-function doneScreenOwners(checklistFlag) {
-  if (!checklistFlag || checklistFlag === true) return []
+function loadChecklist(checklistFlag) {
+  if (!checklistFlag || checklistFlag === true) return null
   const checklistPath = String(checklistFlag).startsWith('/') ? String(checklistFlag) : join(process.cwd(), String(checklistFlag))
   if (!existsSync(checklistPath)) {
     console.error(`FATAL: checklist not found: ${checklistPath}`)
@@ -674,8 +674,11 @@ function doneScreenOwners(checklistFlag) {
   }
   const raw = readFileSync(checklistPath, 'utf8')
   const front = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/)
-  if (!front) return []
-  const doc = parse(front[1])
+  return front ? parse(front[1]) : null
+}
+
+function doneScreenOwners(doc) {
+  if (!doc) return []
   const owners = []
   for (const feature of doc.features ?? []) {
     if (feature.status !== 'done') continue
@@ -692,16 +695,27 @@ function doneScreenOwners(checklistFlag) {
   return owners
 }
 
-const owners = doneScreenOwners(checklistArg)
-const extending = changeArg === 'remove' ? [] : selectedScreens.flatMap((screen) => {
-  const hit = owners.find((owner) => owner.screen === screen.id)
-  return hit ? [{ id: screen.id, ...hit }] : []
-})
+const checklistDoc = loadChecklist(checklistArg)
+const owners = doneScreenOwners(checklistDoc)
+const selectedIds = new Set(selectedScreens.map((screen) => screen.id))
+const partialRemoves = changeArg === 'remove' || !checklistDoc || !featureId ? [] : (checklistDoc.features ?? [])
+  .filter((feature) => feature.id === featureId)
+  .flatMap((feature) => feature.tasks ?? [])
+  .filter((task) => task.change === 'remove' && selectedIds.has(String(task['screen-ref'] ?? '')))
+  .map((task) => String(task['screen-ref']))
+const extending = (changeArg === 'remove' ? [] : selectedScreens)
+  .filter((screen) => !partialRemoves.includes(screen.id))
+  .flatMap((screen) => {
+    const hit = owners.find((owner) => owner.screen === screen.id)
+    return hit ? [{ id: screen.id, ...hit }] : []
+  })
 const notes = []
 if (changeArg === 'remove') {
   const ids = selectedScreens.map((screen) => screen.id).filter(Boolean)
   replaceFm('change', 'remove')
   notes.push(`Remove. Do not scaffold a replacement.\n\n${ids.map((id) => `- ${id}`).join('\n')}`)
+} else if (partialRemoves.length) {
+  notes.push(`Remove these screens only. Build the rest.\n\n${partialRemoves.map((id) => `- ${id}`).join('\n')}`)
 } else if (extending.length) {
   notes.push(`Extend existing. Do not scaffold a second page, entity, or feature.\n\n${extending.map((item) => `- ${item.id} already built by ${item.feature}${item.title ? ` (${item.title})` : ''}`).join('\n')}`)
 }

@@ -1,5 +1,5 @@
 ---
-description: Component folders and files are kebab-case (button.tsx, custom-button.tsx); the export stays PascalCase. index.ts exports only what an outside file imports.
+description: One component per file, except an external library's compound parts. The props interface stays in the component file; other types go in types.ts. Folders and files are kebab-case; the export stays PascalCase.
 globs: ["**/features/**/ui/**/*.{ts,tsx}", "**/widgets/**/ui/**/*.{ts,tsx}", "**/entities/**/ui/**/*.{ts,tsx}", "**/pages/**/ui/**/*.{ts,tsx}", "**/shared/ui/**/*.{ts,tsx}"]
 alwaysApply: false
 ---
@@ -9,8 +9,17 @@ alwaysApply: false
 - One folder per component under `ui/`. Folder and implementation file are kebab-case of the
   export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`.
   Never `Button.tsx`, `CustomButton.tsx`, or `itemCard.tsx`.
+- One component per file. A second component gets its own kebab-case folder (including a nested
+  `ui/{sub}/`). The only exception is a file that configures an external library's compound parts:
+  a re-homed shadcn/Radix primitive keeps `Dialog`, `DialogTrigger`, `DialogContent`, and the rest
+  in one file. Those exports are the library's configuration surface, not app components you authored.
 - Same stem for the colocated test: `custom-button.test.tsx`. Every component folder ships its test in the same change. A story file is not required in every component folder — `shared/ui/<name>/<name>.stories.tsx` for a shared primitive, and one `features/<slice>/<slice>.stories.tsx` for the feature. No stories for inner feature parts, entities, or widgets.
 - `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names. `constants.ts` holds the closed-set values a caller passes as props (`ButtonVariant`, `ButtonType`).
+- The props `interface` is declared in the component file, above the component. It does not go in
+  `types.ts`. Other types do: component-local non-prop types (a view union, a row model) live in
+  that folder's `types.ts`; domain types live in the slice model folder (`features/*/models/types.ts`,
+  `entities/*/model/types.ts`). Do not add `types.ts` when the props interface was the only type.
+  A `VariantProps` type derived from `cva` stays in `styles.ts`.
 - The named export is PascalCase (`export const CustomButton`). Import the folder through
   `index.ts`, never the `.tsx` file.
 - A component folder's `index.ts` exports the component. It exports the props type or a constant

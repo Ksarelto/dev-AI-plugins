@@ -68,10 +68,9 @@ Build it once. Every route and feature uses it; nobody imports `react-error-boun
 
 ```
 shared/ui/error-boundary/
-  error-boundary.tsx      — ErrorBoundary (library boundary + shared fallback + logging)
+  error-boundary.tsx      — ErrorBoundary (library boundary + shared fallback + logging); props interface in this file
   error-fallback.tsx      — ErrorFallback (shadcn Alert + retry Button, translated)
   styles.ts
-  types.ts
   error-boundary.test.tsx
   index.ts                — exports ErrorBoundary, and ErrorFallback for the route fallback
 ```
@@ -122,10 +121,14 @@ export const ErrorFallback = ({ resetErrorBoundary }: FallbackProps): JSX.Elemen
 
 ```tsx
 // shared/ui/error-boundary/error-boundary.tsx
-import type { ErrorInfo } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { ErrorBoundary as LibraryErrorBoundary } from 'react-error-boundary';
 import { ErrorFallback } from './error-fallback';
-import type { ErrorBoundaryProps } from './types';
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  resetKeys?: unknown[];
+}
 
 const logRenderError = (error: unknown, info: ErrorInfo): void => {
   console.error(error, info.componentStack);
@@ -152,7 +155,10 @@ The component `features/<f>/index.ts` exports wraps the feature's content. Hooks
 // features/decline-profile/ui/decline-profile/decline-profile.tsx
 import { ErrorBoundary } from '@/shared/ui/error-boundary';
 import { DeclineProfileDialog } from '../decline-profile-dialog';
-import type { DeclineProfileProps } from './types';
+
+interface DeclineProfileProps {
+  profileId: string;
+}
 
 export const DeclineProfile = (props: DeclineProfileProps): JSX.Element => (
   <ErrorBoundary resetKeys={[props.profileId]}>
@@ -167,10 +173,14 @@ export const DeclineProfile = (props: DeclineProfileProps): JSX.Element => (
 
 ```tsx
 // app/router/route-boundary/route-boundary.tsx
-import { Suspense } from 'react';
+import { Suspense, type ReactNode } from 'react';
 import { useLocation } from 'react-router';
 import { ErrorBoundary } from '@/shared/ui/error-boundary';
-import type { RouteBoundaryProps } from './types';
+
+interface RouteBoundaryProps {
+  children: ReactNode;
+  fallback: ReactNode;
+}
 
 export const RouteBoundary = ({ children, fallback }: RouteBoundaryProps): JSX.Element => {
   const location = useLocation();
