@@ -29,18 +29,19 @@ Distilled from `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/
 
 ## Magic strings and numbers
 
-Scan the changed file again, not only the closed-set props above. An unexplained string or number literal is **Must fix**: a timeout, page size, status string, z-index, or any other value whose meaning is not in its name (`30000`, `'declined'`). Extract it to a named constant in the owning slice.
+Scan the changed file again, not only the closed-set props above. An unexplained string or number literal is **Must fix**: a timeout, page size, status string, z-index, or any other value whose meaning is not in its name (`30000`, `'declined'`). A literal that copies a constant already defined in `shared/api`, the slice `config/`, or the component `constants.ts` is **Must fix** even when it appears once. Extract a new value to a named constant in the owning place; import the existing one.
 
 A literal used once in an obvious spot stays: `array.length - 1`, `0`, and `1`. Import paths, translation calls through a keys object (`t(usersKeys.list.title)`), and `as const` constant values are not findings.
 
 ## Structure
 
-- A component folder missing `styles.ts` or its test.
-- A second authored component in the same `.tsx`. It gets its own kebab-case folder. The exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
+- A component folder missing `styles.ts` or `tests/{name}.test.tsx`. A test file sitting beside `{name}.tsx` is the wrong place.
+- A second authored component in the same `.tsx`, or a nested component that is not under `{component}/ui/{child}/`. The exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
+- A helper or view mapper dropped next to `{name}.tsx`. It belongs in `{component}/lib/`. DTO mappers belong in the slice `api/`.
 - A props `interface` in `types.ts`. It is declared in the component file. `types.ts` holds other types only: component-local non-prop types, or domain types in the slice model folder (`models/types.ts`, `model/types.ts`).
 - A new feature entry component that does not render `<ErrorBoundary>`, or a route element not wrapped in `RouteBoundary`.
 - A hook called in a feature's entry above its boundary (a throw there escapes the boundary).
 
 ## Severity
 
-Missing error boundaries and hooks above a boundary are **Must fix** (a crash takes down the page). Comments, unnecessary exports, JSX ternaries, inline handlers, literal closed-set props, unexplained string or number literals, a second authored component in one file, and a props interface living in `types.ts` are **Must fix** convention breaches in this kit — the user-facing standard is explicit about each. Report every instance with its file and line; do not collapse them into "several places".
+Missing error boundaries and hooks above a boundary are **Must fix** (a crash takes down the page). Comments, unnecessary exports, JSX ternaries, inline handlers, literal closed-set props, unexplained string or number literals, a literal that copies an existing constant, a second authored component in one file, and a props interface living in `types.ts` are **Must fix** convention breaches in this kit — the user-facing standard is explicit about each. Report every instance with its file and line; do not collapse them into "several places".

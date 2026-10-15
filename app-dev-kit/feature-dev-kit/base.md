@@ -20,4 +20,4 @@
 | **Architecture** | layered (`pages/containers/components/api/utils`) | **Feature-Sliced Design** (see pipeline-flow.md) |
 | **UI primitives** | Ant Design 5 | **shadcn/ui** (Radix + Tailwind + CVA) via shadcn MCP |
 | **Styling** | styled-components 6, `theme.color.*`, rem | **Tailwind + CVA + shadcn tokens** |
-| Conventions | named exports, `: JSX.Element`, colocated `.tsx/.styles/.test/index.ts`, no comments, `ENV` proxy, `isErrorResponse` guard | **inherited verbatim** — carried onto shadcn/FSD units. `TextContent` string maps replaced by react-i18next locales |
+| Conventions | named exports, `: JSX.Element`, colocated `.tsx` / `.styles` / `.test` / `index.ts`, no comments, `ENV` proxy, `isErrorResponse` guard | `{component}/{name}.tsx` + `styles.ts` + `tests/{name}.test.tsx` + `index.ts`; nested components in `ui/`; server entities use zod in `api/schema.ts` (invalid body notifies and returns `null`) instead of `isErrorResponse`. `TextContent` string maps replaced by react-i18next locales |

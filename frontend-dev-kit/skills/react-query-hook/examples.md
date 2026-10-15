@@ -21,8 +21,7 @@ import { fetchOrders } from '../api/fetchers';
 export const useOrderList = (filters?: OrderFilters) =>
   useQuery({
     queryKey: orderKeys.list(filters),
-    queryFn: ({ signal }) => fetchOrders(filters, signal), // fetchOrders forwards signal to httpClient
-    staleTime: 30_000,
+    queryFn: ({ signal }) => fetchOrders(filters, signal),
   });
 ```
 

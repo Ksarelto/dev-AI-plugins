@@ -15,16 +15,16 @@ Before writing `vi.mock`, answer: *what breaks if this runs for real?* If the an
 ## Fetchers (preferred over mocking a query hook)
 
 ```ts
-vi.mock('../../api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+vi.mock('../../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/fetchers')>()),
   fetchProfiles: vi.fn(),
 }))
 
 import { screen } from '@testing-library/react'
 import { ProfileStatus, type Profile } from '@/entities/profile'
 import { render } from '@/shared/lib/rendererRTL'
-import { fetchProfiles } from '../../api/fetchers'
-import { ProfilesList } from './profiles-list'
+import { fetchProfiles } from '../../../api/fetchers'
+import { ProfilesList } from '../profiles-list'
 
 const mockFetchProfiles = vi.mocked(fetchProfiles)
 
@@ -63,8 +63,8 @@ The real `useProfiles` runs, so loading, error, and data states are exercised th
 ## Mutations
 
 ```ts
-vi.mock('../../api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+vi.mock('../../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/fetchers')>()),
   declineProfile: vi.fn(),
 }))
 

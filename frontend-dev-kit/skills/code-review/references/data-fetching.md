@@ -1,15 +1,16 @@
 # react-query — review checklist
 
-Distilled from the `react-query-hook` skill. Applies to any changed `api/`, `**/hooks/use*.ts`, or
-mutation touching cached server data.
+Distilled from the `react-query-hook` skill and `rules/api-contract.mdc`. Applies to any changed `api/`, `**/hooks/use*.ts`, or
+mutation touching cached server data. Read the rule file as well as this checklist.
 
 ## Queries
 
 - A query key built as an inline array, or a per-feature `api/queryKeys.ts`, instead of a factory in `shared/api/query-keys/{domain}.ts`.
 - The fetcher isn't a separate pure async function in `api/fetchers.ts` (no React imports) — it's inlined in the hook or the component calls `useQuery` directly.
+- The fetcher casts `.json<Dto>()` or checks entity fields by hand instead of `parseEntity` against `api/schema.ts`. An invalid body must notify and return `null`, and the UI must not check those fields again.
 - A query with possibly-undefined params has no `enabled` guard.
-- No explicit `staleTime` set (relying on the global default when this query needs its own policy).
-- `retry` left on for a non-network `AppError`, or the query function doesn't forward `signal` through to the request.
+- `timeout`, `retry`, `prefixUrl`, or `Authorization` passed on `httpClient`, or a `staleTime` / `retry` literal in the hook that copies a value already set in `shared/api`. A different policy is a named constant imported from `shared/api`.
+- The query function doesn't forward `signal` through to the request.
 
 ## Mutations
 
@@ -26,5 +27,5 @@ mutation touching cached server data.
 
 ## Severity
 
-A per-feature `queryKeys.ts`, a cross-feature import, a thrown domain error, and server-state
-copied out of the cache are **Must fix**. `staleTime`/`enabled`/retry-policy gaps are **Should fix**.
+A per-feature `queryKeys.ts`, a cross-feature import, a thrown domain error, a hand-rolled entity shape check, a restated `httpClient` option, and server-state
+copied out of the cache are **Must fix**. `enabled` gaps are **Should fix**.

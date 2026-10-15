@@ -33,8 +33,8 @@ The shadcn MCP server connects the factory directly to the shadcn component regi
 
 1. Agent browses the registry via MCP for the required component.
 2. If a match exists: agent calls the MCP add command (equivalent to `npx shadcn add <component>`).
-3. Agent re-homes the file into `shared/ui/<name>/` with named export, props interfaces in the component file, `styles.ts` (animation classes kept), and `index.ts`. No `shared/ui` mega-barrel. No second copy under `@/components/ui`.
-4. If the search has no fit, hand-author and record the miss. Do not skip the search.
+3. Agent re-homes the file into `shared/ui/<name>/` with named export, props interfaces in the component file, `styles.ts` (animation classes kept), `tests/<name>.test.tsx`, and `index.ts`. No `shared/ui` mega-barrel. No second copy under `@/components/ui`.
+4. If the search has no fit, hand-author and record the miss. Button, Skeleton, Table, and any other control the registry has are never hand-authored. A custom control is allowed only when the user explicitly requested one. Do not skip the search.
 
 Adaptation checklist: `frontend-dev-kit:shadcn-usage`.
 

@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 
 ## Principles
-- Use existing components first. Use npx shadcn@latest search to check registries before writing custom UI. Check community registries too.
+- Use existing components first. Use npx shadcn@latest search to check registries before writing custom UI. Check community registries too. Button, Skeleton, Table, and any other control the registry provides are the `@/shared/ui` primitive. Do not reimplement them with raw elements. Another library or a custom control only when the user explicitly requested that.
 - Compose, don't reinvent. Settings page = Tabs + Card + form controls. Dashboard = Sidebar + Card + Chart + Table.
 - Use built-in variants before custom styles: `variant={ButtonVariant.Outline}`, `size={ButtonSize.Small}`, etc.
 - Use semantic colors. bg-primary, text-muted-foreground — never raw values like bg-blue-500.

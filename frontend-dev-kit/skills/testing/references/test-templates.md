@@ -5,17 +5,17 @@ Templates carry no comments — the generated test file must not either (`rules/
 ## Component Test
 
 ```tsx
-vi.mock('../../api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+vi.mock('../../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/fetchers')>()),
   submitReview: vi.fn(),
 }))
 
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { render } from '@/shared/lib/rendererRTL'
-import { submitReview } from '../../api/fetchers'
-import { ReviewForm } from './review-form'
-import type { ReviewFormProps } from './review-form'
+import { submitReview } from '../../../api/fetchers'
+import { ReviewForm } from '../review-form'
+import type { ReviewFormProps } from '../review-form'
 
 const mockSubmitReview = vi.mocked(submitReview)
 const mockOnDone = vi.fn()

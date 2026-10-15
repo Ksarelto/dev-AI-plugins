@@ -7,7 +7,8 @@ shared/ui/pending-button/
 ├── pending-button.tsx
 ├── styles.ts
 ├── index.ts
-└── pending-button.test.tsx
+└── tests/
+    └── pending-button.test.tsx
 ```
 
 ```ts
@@ -61,9 +62,9 @@ import { useTranslation } from 'react-i18next';
 import { ListingCard } from '@/entities/listing';
 import { useListings } from '../../hooks/useListings';
 import { catalogueKeys } from '../../locales/keys';
-import { ListingListEmpty } from './listing-list-empty';
-import { ListingListError } from './listing-list-error';
-import { ListingListSkeleton } from './listing-list-skeleton';
+import { ListingListEmpty } from './ui/listing-list-empty';
+import { ListingListError } from './ui/listing-list-error';
+import { ListingListSkeleton } from './ui/listing-list-skeleton';
 import * as styles from './styles';
 
 export const ListingList = (): JSX.Element => {
@@ -102,7 +103,7 @@ export const ListingList = (): JSX.Element => {
 };
 ```
 
-Each state component (`listing-list-skeleton`, `listing-list-error`, `listing-list-empty`) is its own file in the folder with its own test. Error and empty copy come from `catalogueKeys`, and the error state uses `Alert` + `Button`.
+Each state component (`listing-list-skeleton`, `listing-list-error`, `listing-list-empty`) is its own folder under `ui/`, with `tests/{name}.test.tsx`. Error and empty copy come from `catalogueKeys`, and the error state uses `Alert` + `Button`.
 
 ## Bad → Good
 

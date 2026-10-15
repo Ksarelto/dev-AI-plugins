@@ -1,6 +1,6 @@
 ---
 name: api-client
-description: Set up the HTTP layer using ky (httpClient from shared/api/base.ts), AppError normalization, and the central query-key registry. Use when establishing the HTTP layer, adding new API endpoints, or wiring auth headers. Never use raw fetch, axios, or import ky directly in feature code.
+description: Set up the HTTP layer using ky (httpClient from shared/api/base.ts), AppError normalization, zod schemas for server entities, and the central query-key registry. Use when establishing the HTTP layer, adding new API endpoints, validating a response, or wiring auth headers. An invalid body notifies and returns null. Never use raw fetch, axios, or import ky directly in feature code.
 ---
 
 # API Client
@@ -19,6 +19,7 @@ description: Set up the HTTP layer using ky (httpClient from shared/api/base.ts)
 - Auth token is read from `shared/lib/auth/token.ts` (a module-level accessor, not a React hook).
 - The API base URL comes from `shared/api/config.ts` (`API_BASE.v1` / `API_BASE.v2`) — features never read `import.meta.env` for the URL.
 - Feature query keys are defined in `shared/api/query-keys/` (one file per business domain), never hand-typed inline.
+- Each server entity has one zod schema in `api/schema.ts`. The fetcher parses with `parseEntity`. Failure notifies and returns `null`. Callers check `null`. They do not re-validate fields. Constraint: `rules/api-contract.mdc`.
 
 ## Shared API setup
 
@@ -204,61 +205,125 @@ export const ORDERS_ENDPOINTS = {
 
 `base` is the path relative to `API_BASE.v1`. Every other key reuses it. Do not repeat the path string and do not put an absolute URL in this file.
 
-### `features/orders/api/dto.ts` — wire shape and mapper
+### `shared/api/parse.ts` — one boundary parse
+
+`httpClient` already throws `AppError` for HTTP failures. This helper only runs on a body. Each fetcher calls it. Do not copy the notify into the fetcher, and do not add a field-by-field guard next to it.
+
+```typescript
+// shared/api/parse.ts
+import i18next from 'i18next';
+import type { ZodType } from 'zod';
+import { commonKeys } from '@/shared/lib/i18n/locales/common/keys';
+import { notify } from '@/shared/lib/notify';
+
+export const parseEntity = <T>(schema: ZodType<T>, json: unknown): T | null => {
+  const parsed = schema.safeParse(json);
+
+  if (!parsed.success) {
+    notify.error(i18next.t(commonKeys.errors.invalidResponse));
+    return null;
+  }
+
+  return parsed.data;
+};
+```
+
+`commonKeys.errors.invalidResponse` is the shared copy for a body that does not match the contract (`i18n` skill). Add it to `common/en.json` and `keys.ts` when the helper is introduced.
+
+### `features/orders/api/schema.ts` — wire schema
+
+The wire type is `z.infer`. Do not keep a parallel `interface` of the same fields.
+
+```typescript
+// features/orders/api/schema.ts
+import { z } from 'zod';
+
+export const orderSchema = z.object({
+  order_id: z.string(),
+  status: z.string(),
+  total_amount: z.number(),
+});
+
+export const orderListSchema = z.array(orderSchema);
+
+export type OrderDto = z.infer<typeof orderSchema>;
+```
+
+### `features/orders/api/dto.ts` — domain type and mapper
+
+The mapper renames a parsed DTO. It does not check fields. `models/` does not validate this shape again.
 
 ```typescript
 // features/orders/api/dto.ts
-// Wire shape (snake_case from server)
-export interface OrderDto {
-  order_id:     string;
-  status:       string;
-  total_amount: number;
-}
+import type { OrderDto } from './schema';
 
-// Domain type (camelCase, what the app uses)
 export interface Order {
-  id:          string;
-  status:      string;
+  id: string;
+  status: string;
   totalAmount: number;
 }
 
 export interface OrderFilters {
   status?: string;
-  page?:   number;
+  page?: number;
 }
 
 export const mapOrder = (dto: OrderDto): Order => ({
-  id:          dto.order_id,
-  status:      dto.status,
+  id: dto.order_id,
+  status: dto.status,
   totalAmount: dto.total_amount,
 });
 ```
 
 ### `features/orders/api/fetchers.ts` — pure async functions
 
+Pass `signal` through. Do not pass `timeout`, `retry`, `prefixUrl`, or an `Authorization` header — `shared/api/base.ts` already sets those. Do not call `.json<OrderDto>()` and treat the cast as validation.
+
 ```typescript
 // features/orders/api/fetchers.ts
 import { httpClient } from '@/shared/api/base';
+import { parseEntity } from '@/shared/api/parse';
 import { ORDERS_ENDPOINTS } from './endpoints';
-import { mapOrder, type Order, type OrderFilters, type OrderDto } from './dto';
+import { mapOrder, type Order, type OrderFilters } from './dto';
+import { orderListSchema, orderSchema } from './schema';
 
-export const fetchOrders = async (filters?: OrderFilters): Promise<Order[]> => {
-  const dtos = await httpClient
-    .get(ORDERS_ENDPOINTS.list, { searchParams: filters as Record<string, string | number> })
-    .json<OrderDto[]>();
+export const fetchOrders = async (filters?: OrderFilters, signal?: AbortSignal): Promise<Order[] | null> => {
+  const json = await httpClient
+    .get(ORDERS_ENDPOINTS.list, { searchParams: filters, signal })
+    .json();
+  const dtos = parseEntity(orderListSchema, json);
+
+  if (dtos === null) {
+    return null;
+  }
+
   return dtos.map(mapOrder);
 };
 
-export const fetchOrder = async (id: string): Promise<Order> => {
-  const dto = await httpClient.get(ORDERS_ENDPOINTS.detail(id)).json<OrderDto>();
+export const fetchOrder = async (id: string, signal?: AbortSignal): Promise<Order | null> => {
+  const json = await httpClient.get(ORDERS_ENDPOINTS.detail(id), { signal }).json();
+  const dto = parseEntity(orderSchema, json);
+
+  if (dto === null) {
+    return null;
+  }
+
   return mapOrder(dto);
 };
 
-export const placeOrder = async (payload: PlaceOrderInput): Promise<Order> => {
-  const dto = await httpClient.post(ORDERS_ENDPOINTS.place, { json: payload }).json<OrderDto>();
+export const placeOrder = async (payload: PlaceOrderInput, signal?: AbortSignal): Promise<Order | null> => {
+  const json = await httpClient.post(ORDERS_ENDPOINTS.place, { json: payload, signal }).json();
+  const dto = parseEntity(orderSchema, json);
+
+  if (dto === null) {
+    return null;
+  }
+
   return mapOrder(dto);
 };
 ```
+
+A 204 endpoint does not parse a body and does not notify. Parse only when the contract returns an entity.
 
 ## Error narrowing in hooks
 
@@ -287,7 +352,11 @@ Every other kind is handled by the global `QueryClient` handler — do not dupli
 - [ ] `toAppError` helper exists in `errors.ts` and handles `HTTPError`, `TimeoutError`, and network errors
 - [ ] All feature API calls go through `features/{name}/api/fetchers.ts`
 - [ ] `endpoints.ts` has a `base` path relative to `API_BASE.v1`, and every other key reuses it — no full URLs in hooks
-- [ ] `dto.ts` holds wire shapes (DTOs) and domain types + mapper functions
+- [ ] `api/schema.ts` is the only shape check for each server entity; `dto.ts` maps a parsed DTO and does not re-check fields
+- [ ] Every entity fetcher calls `parseEntity`; failure notifies and returns `null`; callers check `null` and do not re-validate
+- [ ] No `.json<Dto>()` cast standing in for validation
+- [ ] Feature and entity calls do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` — those live on `httpClient`
+- [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`
 - [ ] Query keys come from `shared/api/query-keys/{domain}.ts` — no inline array literals
 - [ ] `getToken()` called from `shared/lib/auth/token.ts` in `httpClient`'s `beforeRequest` hook
 

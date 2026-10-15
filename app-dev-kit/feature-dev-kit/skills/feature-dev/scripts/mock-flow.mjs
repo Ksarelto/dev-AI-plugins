@@ -268,7 +268,7 @@ if (goodRun.status === 2) {
   const expected = [
     'comment', 'inline-class', 'nested-ternary', 'jsx-ternary', 'inline-handler', 'hardcoded-copy', 'magic-prop',
     'missing-test', 'unused-export', 'export-star', 'motion-utility', 'string-map', 'motion-css', 'dark-variant',
-    'cross-slice-mock', 'inline-query-key', 'env-access',
+    'cross-slice-mock', 'inline-query-key', 'env-access', 'client-option',
   ]
   const missing = expected.filter((r) => !rules.has(r))
   if (badRun.status !== 1) fail(`check-conventions must exit 1 on the bad fixture (got ${badRun.status})`)
@@ -286,7 +286,7 @@ if (goodRun.status === 2) {
       .replace("import { placeOrder } from '../fetchers'", "import { ordersPath, placeOrder } from '../fetchers'")
       .replace("expect(http.post).toHaveBeenCalledWith('orders'", 'expect(http.post).toHaveBeenCalledWith(ordersPath'))
     writeFileSync(join(orders, 'index.ts'), "export { PlaceOrder } from './ui/place-order'\nexport { placeOrder } from './api/fetchers'\n")
-    writeFileSync(join(orders, 'ui/place-order/place-order.test.tsx'), `import { placeOrder } from '@/features/orders'\n${readFileSync(join(orders, 'ui/place-order/place-order.test.tsx'), 'utf8')}\nvoid placeOrder\n`)
+    writeFileSync(join(orders, 'ui/place-order/tests/place-order.test.tsx'), `import { placeOrder } from '@/features/orders'\n${readFileSync(join(orders, 'ui/place-order/tests/place-order.test.tsx'), 'utf8')}\nvoid placeOrder\n`)
     const run = (extra) => JSON.parse(node(conventionsScript, ['--root', scratch, '--all', '--json', ...extra]).stdout || '{}')
     const unused = (run([]).findings ?? []).filter((f) => f.rule === 'unused-export')
     if (unused.some((f) => f.file.endsWith('api/fetchers.ts'))) fail('unused-export flagged a segment export that its own test imports')

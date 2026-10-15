@@ -52,14 +52,14 @@ Inside one assigned slice, follow `ui-build-contract.md`:
 
 1. Stub `index.ts` first.
 2. `models/` (features) or `model/` (entities) — types and pure invariants, no `any`. No React, no network, no locale keys. A form schema is `ui/<form>/schema.ts`.
-3. `api/` fetchers and `endpoints.ts`. Query keys stay in `shared/api/query-keys/`.
+3. `api/` — `schema.ts`, fetchers, and `endpoints.ts`. Query keys stay in `shared/api/query-keys/`.
 4. `hooks/` (features only) — the query or mutation hook. `ui/` imports this, never `api/`.
 5. `lib/` pure helpers — unit-tested without rendering
 6. `ui/` happy path — renders with mock props
 7. `ui/` loading, empty, error — each state has a test. A widget does not own these; the feature does.
 8. Finalize `index.ts` — export only what consumers need. Pages default-export.
 
-When the assigned slice is complete: `yarn typecheck` once, then the behavior test (colocated `{name}.test.tsx` for a component; `tests/` for hooks, api, models, lib, route modules, and guards). Do not
+When the assigned slice is complete: `yarn typecheck` once, then the behavior test (`{component}/tests/{name}.test.tsx` for a component; the segment `tests/` for hooks, api, models, lib, route modules, and guards). Do not
 typecheck between segments.
 
 ---

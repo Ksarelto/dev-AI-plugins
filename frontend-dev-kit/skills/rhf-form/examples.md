@@ -465,17 +465,17 @@ Type guards narrow the server's field names to the form's own `Path` without a c
 ## Example 5 — Test with the real form
 
 ```tsx
-// features/users/ui/create-user-form/create-user-form.test.tsx
-vi.mock('../../api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+// features/users/ui/create-user-form/tests/create-user-form.test.tsx
+vi.mock('../../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/fetchers')>()),
   createUser: vi.fn(),
 }));
 
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { createUser } from '../../api/fetchers';
+import { createUser } from '../../../api/fetchers';
 import { render } from '@/shared/lib/rendererRTL';
-import { CreateUserForm } from './create-user-form';
+import { CreateUserForm } from '../create-user-form';
 
 describe('CreateUserForm', () => {
   it('shows the required message when name is empty', async () => {

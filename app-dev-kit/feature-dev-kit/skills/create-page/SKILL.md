@@ -44,7 +44,7 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
    ```
    The `app` layer uses this with `lazyFeature('profiles-page', () => import('@/pages/profiles-page'))`.
 
-5. **Co-locate the page test** at `pages/<slice>/ui/<page-name>/<page-name>.test.tsx`. A page owns no fetchers: mock `httpClient` in `@/shared/api/base` and let every feature's hook run (`rules/testing.mdc`); assert the page shows its heading and each composed feature or widget's visible content. Loading, empty, and error copy belong to that feature's test. "Renders without crashing" is not a test.
+5. **Write the page test** at `pages/<slice>/ui/<page-name>/tests/<page-name>.test.tsx`. A page owns no fetchers: mock `httpClient` in `@/shared/api/base` and let every feature's hook run (`rules/testing.mdc`); assert the page shows its heading and each composed feature or widget's visible content. Loading, empty, and error copy belong to that feature's test. "Renders without crashing" is not a test.
 
 6. **Run `yarn typecheck`**: fix all TypeScript errors.
 
@@ -60,7 +60,7 @@ Station 6. Invoke to author `pages/<slice>/` route screens. Used by `composition
 ## Outputs
 
 - `pages/<slice>/ui/<page-name>/<page-name>.tsx` — the route screen component (default export).
-- `pages/<slice>/ui/<page-name>/<page-name>.test.tsx` — colocated behavior test.
+- `pages/<slice>/ui/<page-name>/tests/<page-name>.test.tsx` — behavior test.
 - `pages/<slice>/index.ts` — public API (re-exports the default for lazy import).
 
 ## What this skill does NOT do

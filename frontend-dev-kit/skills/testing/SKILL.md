@@ -21,7 +21,7 @@ Vitest, not Jest: `vi`, never `jest`.
 | `entities/{e}/api/`, `model/` | `…/tests/` |
 | `widgets/{w}/hooks/`, `model/` | `…/tests/` |
 | `app/router/{auth,error,root,guards}/` executable modules | `…/tests/` |
-| Component folders under `ui/` | colocated `{name}.test.tsx` (the only colocated exception) |
+| Component folders under `ui/` | `{name}/tests/{name}.test.tsx` — not beside `{name}.tsx` |
 | `shared/lib/*` | one `shared/lib/tests/` for every unit |
 | `shared/api/` | `shared/api/tests/` |
 
@@ -37,7 +37,7 @@ Rules (constraints: `rules/testing.mdc`):
 ## Steps
 
 1. **Determine which files need tests** — see [File Selection](references/file-selection.md)
-2. **Check for an existing test** in the location from the table above — component tests sit in the component folder; everything else sits in that segment's `tests/`
+2. **Check for an existing test** in the location from the table above — component tests sit in `{component}/tests/`; everything else sits in that segment's `tests/`
 3. **Create or update tests** that assert behavior. A test that only imports the module and expects it to be defined does not count
 4. **Run and fix** until tests pass and coverage thresholds hold
 
@@ -78,7 +78,7 @@ yarn test:ci                                 # CI mode
 
 ## Pre-Submission Checklist
 
-- [ ] Tests placed in `tests/` inside the source segment (colocated for components)
+- [ ] Tests placed in `{component}/tests/` for a component, or `tests/` inside the source segment otherwise
 - [ ] No `__fixtures__/` directories — mocks declared inline in test files
 - [ ] No cross-slice imports in tests
 - [ ] No MSW — module boundary mocked with `vi.mock`

@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import OrdersPage from './orders-page'
+import OrdersPage from '../orders-page'
 
 describe('OrdersPage', () => {
   it('shows the place-order action', () => {

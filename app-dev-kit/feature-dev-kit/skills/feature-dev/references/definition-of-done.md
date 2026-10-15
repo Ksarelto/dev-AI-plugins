@@ -17,7 +17,7 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 ## Correctness
 
 - [ ] Every acceptance criterion in the spec has a test that fails without the change
-- [ ] Every new or changed executable file has a behavior test; tests mock only the HTTP boundary (own `api/fetchers`, else `httpClient` in `@/shared/api/base`), router, env, and browser APIs
+- [ ] Every new or changed executable file has a behavior test. A component's test is `{component}/tests/{name}.test.tsx`. Hooks, fetchers, and slice `lib/` use the segment `tests/` folder. Tests mock only the HTTP boundary (own `api/fetchers`, else `httpClient` in `@/shared/api/base`), router, env, and browser APIs
 - [ ] The feature was exercised at runtime, not merely typechecked
 - [ ] Existing tests still pass — no regressions
 - [ ] Loading, empty, and error states are implemented, not just the happy path
@@ -49,7 +49,9 @@ Read by the orchestrator before Station 12 and by `code-reviewer` at Station 10.
 - [ ] Renders correctly at 320 / 768 / 1024 / 1440 px
 - [ ] Uses design tokens and the spacing scale — no arbitrary pixel values
 - [ ] Every user-facing string comes from i18n keys (`add-text-content`), never a literal or a string map
+- [ ] Button, Skeleton, Table, and any other shadcn registry control are the `@/shared/ui` primitive. A different library or a custom control only when the user explicitly requested that
 - [ ] shadcn primitives match the registry output — same parts, `data-slot`, classes (minus the `shadcn.mdc` allowed edits, e.g. no `dark:`), and open/close animation; no call-site motion or look overrides
+- [ ] Each server entity is parsed with its zod schema in `api/schema.ts`. An invalid body notifies and returns `null`. Callers do not re-check entity fields. Feature code does not restate `timeout`, `retry`, `prefixUrl`, or `Authorization` from `shared/api`
 - [ ] With a prototype: `extract-prototype-inventory.mjs --check` and `port-prototype-theme.mjs --check` both pass
 
 ## Integration

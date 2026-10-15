@@ -1,6 +1,6 @@
 ---
 name: react-query-hook
-description: Create TanStack Query v5 hooks with the central query-key registry, typed fetchers via httpClient, and cache invalidation across features. Use when adding data fetching, mutations, or API integration. Cross-feature cache invalidation goes through shared/api/query-keys/, never through another feature's exports.
+description: Create TanStack Query v5 hooks with the central query-key registry, typed fetchers via httpClient, and cache invalidation across features. Use when adding data fetching, mutations, or API integration. Trust a parsed response or null; do not restate timeout, retry, prefixUrl, or Authorization from shared/api. Cross-feature cache invalidation goes through shared/api/query-keys/, never through another feature's exports.
 ---
 
 # React Query Hook
@@ -18,6 +18,8 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 - Hooks live in `features/{name}/hooks/` — they wrap `useQuery`/`useMutation` and may call `models/` functions
 - Cross-feature cache invalidation: import the shared key from `shared/api/query-keys/` and call `invalidateQueries` — never import from another feature
 - `ui/` components never call `useQuery`/`useMutation` directly — always through a `hooks/` wrapper
+- Read `shared/api/base.ts`, `config.ts`, and `query-client.ts` before adding a hook option. Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on `httpClient`. Do not copy `staleTime` or `retry` as a literal — a different policy is a named constant in `shared/api`.
+- A fetcher returns the domain value or `null` (`parseEntity` failed and already notified). The hook does not parse again. UI branches on `isPending`, `isError`, and `data === null`. It does not check entity fields.
 
 ## Step-by-step
 
@@ -35,22 +37,34 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
    } as const;
    ```
 
-2. **Add fetcher** in `features/{name}/api/fetchers.ts` — pure async function, no React imports:
+2. **Add fetcher** in `features/{name}/api/fetchers.ts` — pure async function, no React imports. Schema and `parseEntity` are the `api-client` skill. Forward `signal`. Do not set client options the base client already owns.
    ```ts
    // features/orders/api/fetchers.ts
    import { httpClient } from '@/shared/api/base';
+   import { parseEntity } from '@/shared/api/parse';
    import { ORDERS_ENDPOINTS } from './endpoints';
    import { mapOrder, type Order, type OrderFilters } from './dto';
+   import { orderListSchema } from './schema';
 
-   export const fetchOrders = async (filters?: OrderFilters): Promise<Order[]> => {
-     const dtos = await httpClient.get(ORDERS_ENDPOINTS.list, {
-       searchParams: filters as Record<string, string | number>,
-     }).json<OrderDto[]>();
+   export const fetchOrders = async (
+     filters?: OrderFilters,
+     signal?: AbortSignal,
+   ): Promise<Order[] | null> => {
+     const json = await httpClient.get(ORDERS_ENDPOINTS.list, {
+       searchParams: filters,
+       signal,
+     }).json();
+     const dtos = parseEntity(orderListSchema, json);
+
+     if (dtos === null) {
+       return null;
+     }
+
      return dtos.map(mapOrder);
    };
    ```
 
-3. **Create query hook** in `features/{name}/hooks/`:
+3. **Create query hook** in `features/{name}/hooks/`. Omit `staleTime` and `retry` when `createQueryClient` already has the policy.
    ```ts
    // features/orders/hooks/useOrderList.ts
    import { useQuery } from '@tanstack/react-query';
@@ -61,11 +75,12 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
    export const useOrderList = (filters?: OrderFilters) => {
      return useQuery({
        queryKey: orderKeys.list(filters),
-       queryFn:  () => fetchOrders(filters),
-       staleTime: 30_000,
+       queryFn: ({ signal }) => fetchOrders(filters, signal),
      });
    };
    ```
+
+   `data === null` is an invalid payload (already notified). `isError` is an `AppError`. Do not add an `onError` that toasts the generic message again.
 
 4. **Create mutation hook** in `features/{name}/hooks/`:
    ```ts
@@ -127,9 +142,12 @@ Default to `invalidateQueries`. Use `setQueryData` only when the payload has an 
 ## Query hook checklist
 
 - [ ] Key uses factory from `shared/api/query-keys/` — no inline `['orders', 'list']` literals
-- [ ] Fetcher is a separate pure function in `api/fetchers.ts`
-- [ ] `staleTime` set explicitly
+- [ ] Fetcher is a separate pure function in `api/fetchers.ts` and returns `T | null` after `parseEntity`
+- [ ] No `timeout`, `retry`, `prefixUrl`, or `Authorization` on the request — already set in `shared/api`
+- [ ] A different `staleTime` or `retry` is a named constant imported from `shared/api`, not a literal in the hook
+- [ ] UI checks `isError` and `data === null`; it does not re-check entity fields
 - [ ] `enabled` guard when params may be undefined
+- [ ] Second pass: no unexplained string or number literals, and no literal that copies a `shared/api` constant
 - [ ] Hook lives in `features/{name}/hooks/`, not directly in a component
 
 ## Mutation hook checklist

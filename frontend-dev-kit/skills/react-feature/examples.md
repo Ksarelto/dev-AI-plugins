@@ -6,6 +6,7 @@ Minimum slice: `api/` + `ui/` + `index.ts`. Add `models/` and `hooks/` only when
 features/users/
 ├── api/
 │   ├── endpoints.ts
+│   ├── schema.ts
 │   ├── dto.ts
 │   └── fetchers.ts
 ├── hooks/
@@ -16,7 +17,8 @@ features/users/
 │       ├── index.ts
 │       ├── user-list.tsx
 │       ├── styles.ts
-│       └── user-list.test.tsx
+│       └── tests/
+│           └── user-list.test.tsx
 ├── locales/
 │   ├── en.json
 │   └── keys.ts

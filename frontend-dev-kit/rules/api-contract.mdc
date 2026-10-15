@@ -1,0 +1,16 @@
+---
+description: Trust the API contract. One zod schema per server entity; an invalid body notifies and returns null. Do not restate options already set on the shared HTTP client.
+globs: ["**/api/**/*.{ts,tsx}", "**/hooks/**/*.{ts,tsx}"]
+alwaysApply: false
+---
+
+# API contract
+
+- A server entity is parsed once, with its zod schema in that slice's `api/schema.ts`. No handwritten field guards, `typeof` chains, or `models/` shape checks for the same entity.
+- `safeParse` failure notifies (`notify.error` with `commonKeys.errors.invalidResponse`) and returns `null`. It does not throw. HTTP failures stay `AppError` from `shared/api/base.ts`. A bad payload is not a new `AppError` kind.
+- Callers branch on thrown error, `null`, or data. They do not re-inspect entity fields.
+- Form zod in `ui/<form>/schema.ts` validates input. It is not the server-entity schema.
+- Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on an `httpClient` / `http` call. `shared/api/base.ts` already sets them. Do not read `API_BASE` outside `shared/api`.
+- Omit `staleTime` and query `retry` when `query-client.ts` already has that policy. A different policy is a named constant imported from `shared/api`, not a numeric literal in the hook.
+
+Procedure: `api-client` skill. Hooks: `react-query-hook` skill.

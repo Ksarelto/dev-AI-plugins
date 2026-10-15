@@ -73,12 +73,11 @@ Set `CONTEXT7_API_KEY` in the environment (see [`mcp.json`](./mcp.json) and
 ```
 .spec/features/<slug>.md          # the blackboard: request → criteria → plan → review
 .spec/features/<slug>.context/    # handoffs, work cards, gate-status.md + gate-log.jsonl, glossary.md, timings.jsonl
-src/shared/…                      # shadcn primitives, base api, config (only if the feature needs them)
-src/entities/<entity>/            # api + model + ui segments, public index.ts
-src/features/<slug>/              # the interaction slice
+src/shared/…                      # shadcn/Radix primitives, base api, config (only if the feature needs them)
+src/entities/<entity>/            # api + model + ui; component tests in ui/<name>/tests/
+src/features/<slug>/              # the interaction slice; same component test folder; segment tests in api|hooks|models|lib/tests/
 src/widgets/… · src/pages/…       # composition
 src/app/…                         # routes, navigation, providers
-*.test.tsx                        # component tests colocated; other executable code in tests/
 feature/<TICKET>-<slug>           # branch, committed, never pushed
 ```
 
@@ -151,7 +150,7 @@ feature-dev-kit/                             ← plugin root (KIT_DIR)
     add-text-content/  generate-feature-spec/  investigate-dependency/
     run-quality-gates/  create-pr/           ← create-pr is human-only (disable-model-invocation: true)
   rules/                                     ← this kit only: ui-quality.mdc, git-workflow.mdc
-                                                 React, TS, styling, forms, query, a11y, tests: frontend-dev-kit
+                                                 React, TS, styling, forms, query, API contract, a11y, tests: frontend-dev-kit
 ```
 
 **Path convention.** Inside agents and skills, `references/…` and `templates/…` resolve to
@@ -165,7 +164,7 @@ root** (this directory when installed). Never hardcode `.spec/feature-dev-kit/`.
 
 | | `skills/feature-dev/references/` | `rules/` |
 |---|---|---|
-| Contains | How the **pipeline** runs: stations, gates, budgets, protocols | Feature-dev-only constraints: four UI states (`ui-quality`), git ship rules (`git-workflow`). React, TS, styling, forms, query, a11y, and tests are **frontend-dev-kit** |
+| Contains | How the **pipeline** runs: stations, gates, budgets, protocols | Feature-dev-only constraints: four UI states and mandatory `@/shared/ui` primitives (`ui-quality`), git ship rules (`git-workflow`). React, TS, styling, forms, query, API contract, a11y, and tests are **frontend-dev-kit** |
 | Read by | The orchestrator and the station that needs it | Whichever engineer is authoring a file |
 | Loaded | On demand, when a station card names the file | Auto-attached by glob. `APPLY` names one skill, not these files |
 | Ships to | plugin `skills/feature-dev/references/` | plugin `rules/*.mdc` |

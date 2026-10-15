@@ -4,7 +4,7 @@ Distilled from the `testing` skill and `rules/testing.mdc`. Applies to every exe
 
 ## Coverage
 
-- An executable file in the diff has no test (colocated `{name}.test.tsx` for a component, the segment's `tests/` otherwise). List each one — do not summarize as "some files lack tests".
+- An executable file in the diff has no test (`{component}/tests/{name}.test.tsx` for a component, the segment's `tests/` otherwise). A component test sitting beside `{name}.tsx` is the wrong place. List each one — do not summarize as "some files lack tests".
 - A page or widget test standing in for its child components' own tests.
 - A test that only asserts "renders" / "is defined", or has no `expect`.
 - A critical path (loading, error, empty, main interaction) of the changed code with no covering test.

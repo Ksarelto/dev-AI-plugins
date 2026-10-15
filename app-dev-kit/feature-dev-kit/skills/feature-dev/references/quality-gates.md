@@ -30,7 +30,7 @@ The conventions gate enforces the mechanically checkable frontend-dev-kit rules 
 
 | Rule | Severity | Catches |
 |------|----------|---------|
-| `missing-test` | error | Executable file (has a function, class, or top-level call) with no `<name>.test.ts(x)` beside it or in a `tests/` folder up the tree. Exempt: `index`, `types`, `constants`, `styles`, stories, `locales/`, `main` |
+| `missing-test` | error | Executable file (has a function, class, or top-level call) with no test. A component (`ui/<name>/<name>.tsx` or `shared/ui/<name>/<name>.tsx`) needs `<name>/tests/<name>.test.tsx`. Everything else needs `<name>.test.ts(x)` in a `tests/` folder up the tree. Exempt: `index`, `types`, `constants`, `styles`, stories, `locales/`, `main` |
 | `comment` | error | Any comment except `/// <reference …>` and `@vite-ignore` |
 | `lint-directive` | warn | `eslint-disable` / `eslint-enable` |
 | `inline-class` | error | String, template, or `cn('…')` literal in `className`; ternary in `className`; `style={…}` outside `shared/ui` |
@@ -47,6 +47,7 @@ The conventions gate enforces the mechanically checkable frontend-dev-kit rules 
 | `cross-slice-mock` | error | A test mocks another slice (`@/entities|features|widgets|pages/…`). Mock `httpClient` in `@/shared/api/base`, or this slice's own `api/fetchers` |
 | `inline-query-key` | error | A `queryKey` array literal outside `shared/api/query-keys` |
 | `env-access` | error | `import.meta.env` / `process.env` outside `shared/config` (`shared/api/config.ts` may read the API origin) |
+| `client-option` | error | `timeout`, `retry`, `prefixUrl`, or `Authorization` on a feature, entity, widget, or page `httpClient` / `http` call |
 | `motion-css` | warn / error | `@keyframes`, `--animate-*`, `animation:` in CSS (warn); `tw-animate-css` imported twice (error) |
 
 It loads the host app's `typescript` package (5.x/6.x compiler API). TypeScript 7 ships no JS API — add `typescript-api@npm:typescript@^6` as a dev dependency. The script exits 2 when neither resolves; report that as a setup failure, never as a pass.
@@ -82,6 +83,7 @@ Human gates (not automated commands):
 | Conventions | `cross-slice-mock` | Mock `httpClient` in `@/shared/api/base`; inside the owning slice, mock that slice's `api/fetchers` |
 | Conventions | `inline-query-key` | Use the factory in `shared/api/query-keys` |
 | Conventions | `env-access` | Read the parsed value from `shared/config/env.ts` |
+| Conventions | `client-option` | Drop `timeout`, `retry`, `prefixUrl`, and `Authorization` — `shared/api/base.ts` already sets them |
 | Conventions | `inline-handler` / `nested-ternary` / `jsx-ternary` | Named `handleX` above the return; compute the branch before the return or use early returns |
 | Conventions | `magic-prop` | Import the constant from the primitive (`ButtonVariant.Outline`); drop props set to their default |
 | Build | OOM during build | `yarn build` already sets `--max-old-space-size=4096`; check for circular deps |
