@@ -30,7 +30,7 @@ Everything a user can see or hear that did not come from the server:
 
 ## Instructions
 
-1. **Copy files.** Shared strings: `shared/lib/i18n/locales/common/en.json` + `keys.ts` (`commonKeys`) — actions (`save`, `cancel`, `retry`, `close`), generic states, error-boundary copy. Feature strings: `features/{f}/locales/en.json` + `keys.ts`. An entity, widget, or page that owns copy uses the same pair in its own `locales/`. Mechanism (`config.ts`, `format.ts`, `keys.ts`, `translate-message.ts`, `index.ts`) lives in `shared/lib/i18n/` and contains no strings. No `src/locales/`, no `shared/locales/`, no `shared/config/textContent.ts`. Provider is `I18nProvider` in `app/providers/`.
+1. **Copy files.** Shared strings: `shared/lib/i18n/locales/common/en.json` + `keys.ts` (`commonKeys`) — actions (`save`, `cancel`, `retry`, `close`), generic states, error-boundary copy, and `errors.invalidResponse` for a server body that fails its zod schema (`api-client`). Feature strings: `features/{f}/locales/en.json` + `keys.ts`. An entity, widget, or page that owns copy uses the same pair in its own `locales/`. Mechanism (`config.ts`, `format.ts`, `keys.ts`, `translate-message.ts`, `index.ts`) lives in `shared/lib/i18n/` and contains no strings. No `src/locales/`, no `shared/locales/`, no `shared/config/textContent.ts`. Provider is `I18nProvider` in `app/providers/`.
 2. **No string maps.** Never write an object of English strings — `const LABELS = {…}`, `TextContent`, `STATUS_LABELS`, a `constants.ts` of messages. A union that needs labels maps to **keys**, and `t()` runs at render:
 
    ```ts

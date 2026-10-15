@@ -1,12 +1,12 @@
-vi.mock('../../api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+vi.mock('../../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/fetchers')>()),
   placeOrder: vi.fn(),
 }))
 
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { placeOrder } from '../../api/fetchers'
-import { PlaceOrder } from './place-order'
+import { placeOrder } from '../../../api/fetchers'
+import { PlaceOrder } from '../place-order'
 
 describe('PlaceOrder', () => {
   it('places the order when the button is clicked', async () => {

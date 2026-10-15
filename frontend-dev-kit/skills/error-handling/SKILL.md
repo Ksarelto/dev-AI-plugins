@@ -1,6 +1,6 @@
 ---
 name: error-handling
-description: Implement AppError taxonomy, error boundaries (three kinds — FeatureLoadError, render crash, and expected business outcomes), and global/per-mutation error feedback using shared/lib/notify. Use when adding error handling to a new feature, setting up global error notification, or wrapping every route/page and every feature with an error boundary so one crash never takes down the app.
+description: Implement AppError taxonomy, invalid-body null, error boundaries, and global/per-mutation error feedback using shared/lib/notify. Use when adding error handling to a new feature, setting up global error notification, or wrapping every route/page and every feature with an error boundary so one crash never takes down the app.
 ---
 
 # Error Handling
@@ -14,11 +14,13 @@ description: Implement AppError taxonomy, error boundaries (three kinds — Feat
 
 ## Error taxonomy
 
-Three kinds of failure — each has a different handling path:
+Each kind of failure has a different handling path:
 
 | Kind | What it is | Handler |
 |------|-----------|---------|
 | Expected business outcome | Declined payment, stock gone, insufficient permission | A **return value** from a `models/` function. `ui/` renders it deliberately. Never let this reach a boundary. |
+| Invalid entity body | 2xx JSON that fails `api/schema.ts` | `parseEntity` notifies and returns `null`. Not an `AppError`. UI branches on `data === null`. |
+| HTTP failure | Non-2xx, network, or transport error | `AppError` from `shared/api/base.ts`. UI branches on `isError`. |
 | Module-load failure | Stale chunk after deploy, broken module init | `FeatureLoadError` — classified at import site via `lazyFeature()`. Route boundary branches on the error type. |
 | Render-time crash | Component threw while rendering | Normal crash screen. `react-error-boundary` catches it. Reported to logger. |
 
@@ -69,14 +71,14 @@ Build it once. Every route and feature uses it; nobody imports `react-error-boun
 ```
 shared/ui/error-boundary/
   error-boundary.tsx      — ErrorBoundary (library boundary + shared fallback + logging); props interface in this file
-  error-fallback.tsx      — ErrorFallback (shadcn Alert + retry Button, translated)
   styles.ts
-  error-boundary.test.tsx
+  ui/error-fallback/      — ErrorFallback (shadcn Alert + retry Button, translated); same folder shape
+  tests/error-boundary.test.tsx
   index.ts                — exports ErrorBoundary, and ErrorFallback for the route fallback
 ```
 
 ```tsx
-// shared/ui/error-boundary/error-fallback.tsx
+// shared/ui/error-boundary/ui/error-fallback/error-fallback.tsx
 import { useTranslation } from 'react-i18next';
 import type { FallbackProps } from 'react-error-boundary';
 import { commonKeys } from '@/shared/lib/i18n/locales/common/keys';
@@ -123,7 +125,7 @@ export const ErrorFallback = ({ resetErrorBoundary }: FallbackProps): JSX.Elemen
 // shared/ui/error-boundary/error-boundary.tsx
 import type { ErrorInfo, ReactNode } from 'react';
 import { ErrorBoundary as LibraryErrorBoundary } from 'react-error-boundary';
-import { ErrorFallback } from './error-fallback';
+import { ErrorFallback } from './ui/error-fallback';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -226,6 +228,10 @@ export const notify = {
 };
 ```
 
+## Invalid response body
+
+A 2xx body that fails the entity zod schema is not an `AppError`. `parseEntity` in `shared/api/parse.ts` (`api-client` skill) notifies with `commonKeys.errors.invalidResponse` and returns `null`. The query succeeds with `data === null`. UI treats that null like a failed load (empty or error state) and does not inspect fields. Do not add an `AppErrorKind` for it, and do not toast it again in the hook.
+
 ## Form field errors (422 Validation)
 
 `mapServerErrorsToForm` lives once in `shared/lib/form/map-server-errors.ts`. It narrows the server's field names to the form's `Path` with type guards, with no `as` cast. The implementation is in `rhf-form` examples § Example 4. Server field messages are human text and render unchanged. Not toasted.
@@ -272,6 +278,7 @@ if (validationError?.type === 'insufficient_stock') {
 - [ ] Global `QueryClient` `onError` handles generic errors; per-mutation `onError` handles Validation
 - [ ] Validation errors (422) mapped to form fields via `setError`, not toasted
 - [ ] Auth expiry (401) signalled to auth provider — not a manual redirect in mutation `onError`
+- [ ] An invalid entity body is `parseEntity` → notify + `null`, not an `AppError` and not a second check in `models/` or UI
 - [ ] Expected business outcomes are return values from `models/` — never thrown, never caught by a boundary
 - [ ] Toast messages use `notify` from `shared/lib/notify` — not direct `toast()` calls in feature code
 - [ ] No `notification.error` (Ant Design), no `message.error` — they are not in this stack

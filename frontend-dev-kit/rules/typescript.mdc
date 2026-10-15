@@ -36,23 +36,18 @@ No `I` prefix on new interfaces (project convention — see general-coding-princ
 
 ## Strictness — Don't Weaken It
 
-- Never introduce `any`. Use `unknown` and narrow with a type guard at the boundary.
+- Never introduce `any`. Use `unknown` and narrow at the boundary. A server entity is parsed with its zod schema (`rules/api-contract.mdc`), not a handwritten `typeof` guard. A type guard is for a value that has no schema.
 - Never use unchecked `as Foo` casts to silence errors — fix the type or narrow safely.
 - `as const` is fine (literal narrowing); `as unknown as Foo` is not.
 - Don't add `// @ts-ignore` / `// @ts-expect-error` to hide real errors — fix the underlying type.
 - Keep `strictNullChecks` honest: don't use non-null assertions (`!`) to bypass a null check — guard instead.
 
 ```ts
-// ❌ Avoid
-const data = response as IProfile
+// ❌ Avoid — a cast, and a handwritten shape check for a server entity
+const data = response as Profile
 
-// ✅ Prefer
-const isProfile = (value: unknown): value is IProfile =>
-  typeof value === 'object' && value !== null && 'id' in value
-
-if (isProfile(response)) {
-  // response is IProfile here
-}
+// ✅ Prefer — the entity schema. An invalid body returns null (rules/api-contract.mdc)
+const profile = parseEntity(profileSchema, response)
 ```
 
 ---
@@ -137,11 +132,12 @@ export type ProfileStatusValue = (typeof ProfileStatus)[keyof typeof ProfileStat
 
 - Exported functions and components must have explicit return types — don't let inference leak into the public API.
 - Type props with an `interface` declared in the component file, above the component, once there is
-  more than one prop. Do not put that interface in `types.ts`.
+  more than one prop. The props interface is part of the component file. Do not put it in `types.ts`.
 - Other types go in `types.ts`: component-local non-prop types in the component folder, domain types
   in the slice model folder (`features/*/models/types.ts`, `entities/*/model/types.ts`). Skip
   `types.ts` when the props interface was the only type. A `VariantProps` type derived from `cva`
-  stays in `styles.ts`.
+  stays in `styles.ts`. Nested components live in `{component}/ui/{child}/`. Component-local
+  helpers live in `{component}/lib/`.
 - Prefer a single options object over long positional parameter lists (3+ params).
 
 ```ts
@@ -204,7 +200,7 @@ Prefer a `const` object plus a derived union in the owning slice (`config/` or `
 
 | ❌ Avoid | ✅ Instead | Why |
 |----------|-----------|-----|
-| `any` | `unknown` + type guard | Preserves type safety at boundaries |
+| `any` | `unknown`, then zod or a type guard | Preserves type safety at boundaries |
 | `as Foo` unchecked cast | Type guard or safe narrowing | Casts lie to the compiler silently |
 | `value!` non-null assertion | Explicit null check / guard | Assertions hide real runtime nulls |
 | Optional fields for mutually exclusive state | Discriminated union | Prevents invalid state combinations |

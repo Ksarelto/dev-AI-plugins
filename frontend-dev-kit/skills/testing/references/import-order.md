@@ -11,8 +11,8 @@ Organize a test file in this order. `vi.mock()` calls come **before** imports â€
 vi.mock('@/shared/config/env', () => ({
   env: { reportsEnabled: false },
 }))
-vi.mock('../../api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../api/fetchers')>()),
+vi.mock('../../../api/fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/fetchers')>()),
   fetchProfiles: vi.fn(),
 }))
 vi.mock('react-router', async (importOriginal) => ({
@@ -23,9 +23,9 @@ vi.mock('react-router', async (importOriginal) => ({
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { render } from '@/shared/lib/rendererRTL'
-import { fetchProfiles } from '../../api/fetchers'
-import { ProfilesList } from './profiles-list'
-import type { ProfilesListProps } from './profiles-list'
+import { fetchProfiles } from '../../../api/fetchers'
+import { ProfilesList } from '../profiles-list'
+import type { ProfilesListProps } from '../profiles-list'
 ```
 
 The block is written without comments; the numbered list above is the documentation.

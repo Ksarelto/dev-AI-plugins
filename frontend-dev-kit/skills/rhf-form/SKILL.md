@@ -22,7 +22,7 @@ shared/ui/form/
   form.tsx         — the compound: Form + Form.Field; props interfaces live in this file
   styles.ts
   constants.ts     — FieldOrientation
-  form.test.tsx
+  tests/form.test.tsx
   index.ts         — exports Form, and FieldOrientation when a caller uses it
 ```
 
@@ -33,7 +33,7 @@ shared/ui/form/
 
 ## Instructions
 
-1. **Define the schema** in the form's `schema.ts`. Every message is a translation key: `z.string().min(1, usersKeys.form.errors.nameRequired)` — never English. Business invariants call `models/` pure functions. The form's props interface stays in the form component file. Wire-shape zod stays in `api/`.
+1. **Define the schema** in the form's `schema.ts`. Every message is a translation key: `z.string().min(1, usersKeys.form.errors.nameRequired)` — never English. Business invariants call `models/` pure functions. The form's props interface stays in the form component file. The server-entity zod schema stays in `api/schema.ts`.
 2. **Create the mutation hook** — `useCreateXxx` / `useUpdateXxx` with cache invalidation.
 3. **Build the form component**: `useForm<FormValues>({ resolver: zodResolver(schema), defaultValues })`. Default values live in the folder's `constants.ts`.
 4. **Bind fields** with `<Form.Field>`. `label`, `description`, `placeholder`, and option text are `t(key)`. Closed-set props are constants: `type={InputType.Email}`, `orientation={FieldOrientation.Horizontal}`.

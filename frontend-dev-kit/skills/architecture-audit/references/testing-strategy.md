@@ -1,6 +1,6 @@
 # Testing strategy
 
-Segment tests live in a `tests/` folder next to the code. Component tests are the only colocated exception. No MSW in unit/RTL. No cross-slice fixtures.
+Segment tests live in a `tests/` folder next to the code. A component's tests live in `{component}/tests/`, not beside `{name}.tsx`. No MSW in unit/RTL. No cross-slice fixtures.
 
 ## Evaluate
 
@@ -8,7 +8,7 @@ Segment tests live in a `tests/` folder next to the code. Component tests are th
 
 - Test dirs: `features/{f}/{api,hooks,models,lib}/tests/`, `entities/{e}/model/tests/`, `entities/{e}/api/tests/`, `widgets/{w}/{hooks,model}/tests/`, `shared/lib/tests/` (**one** folder for every `shared/lib/*` unit — not `shared/lib/auth/tests/`), `shared/api/tests/`.
 - Folder name is exactly `tests/` — not `__tests__`, not `spec/`, not a slice-level `features/{f}/tests/`, not `src/tests/`.
-- Component tests: `{component}/{name}.test.tsx` colocated only. Non-component tests are not colocated.
+- Component tests: `{component}/tests/{name}.test.tsx` only. A sibling `{name}.test.tsx` is hard. Non-component tests live in the segment `tests/` folder, not beside the source file.
 - No `__fixtures__/` shared across features. Mocks live in the test file.
 - HTTP mock: inside the slice that owns the fetcher, `vi.mock('../api/fetchers')`; any other test, `vi.mock('@/shared/api/base')` (`httpClient`). Mocking another slice's `api/fetchers` path or its public `index.ts` is a finding. No MSW/interceptor in unit or RTL.
 - No test in feature A that asserts feature B's cache invalidation — that is e2e.
@@ -34,4 +34,4 @@ rg -n "from ['\"]@/features/" src/features --glob '**/*.{test,spec}.{ts,tsx}'
 rg -n "useFakeTimers" src/**/models/**/*.test.ts
 ```
 
-A `*.test.ts` sitting next to `api/fetchers.ts` (not in `api/tests/`) is hard. A component test inside `ui/tests/` instead of the component folder is hard. Cross-feature imports in tests are hard — same rule as production.
+A `*.test.ts` sitting next to `api/fetchers.ts` (not in `api/tests/`) is hard. A component test beside `{name}.tsx`, or in a slice-level `ui/tests/`, is hard — it belongs in `{component}/tests/`. Cross-feature imports in tests are hard — same rule as production.

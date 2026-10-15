@@ -27,7 +27,7 @@ The last seven are separate marketplace plugins under [`app-dev-kit/`](app-dev-k
 
 ```bash
 # Add this repo as a marketplace source (once per machine)
-/plugin marketplace add artsiommurashko/dev-AI-plugins
+/plugin marketplace add Ksarelto/dev-AI-plugins
 ```
 
 This makes all plugins available for install in any project.

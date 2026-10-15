@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Deterministic convention checks for a feature-dev-kit React app (the `conventions` gate).
 // Parses changed src/ files with the host app's own `typescript` package — no extra dependency.
-// Rules are owned by frontend-dev-kit rules/{general-coding-principles,react,styling,shadcn,i18n,testing}.mdc;
+// Rules are owned by frontend-dev-kit rules/{general-coding-principles,react,styling,shadcn,i18n,testing,api-contract}.mdc;
 // this script only enforces the mechanically checkable subset.
 //
 // Usage: check-conventions.mjs [--root <dir>] [--base <ref>] [--all] [--files a,b] [--ignore r1,r2] [--json]
@@ -38,7 +38,8 @@ const RULES = {
   'cross-slice-mock': "a test never mocks another slice — mock httpClient in @/shared/api/base, or this slice's own ../api/fetchers",
   'inline-query-key': 'no queryKey array literal outside shared/api/query-keys — use the key factory',
   'env-access': 'no import.meta.env / process.env outside shared/config (shared/api/config.ts reads the API origin)',
-  'missing-test': 'every executable file has a behavior test — colocated for a component, tests/ otherwise',
+  'client-option': 'no timeout, retry, prefixUrl, or Authorization on a feature/entity httpClient call — shared/api/base.ts already sets them',
+  'missing-test': 'every executable file has a behavior test — {component}/tests/ for a component, the segment tests/ otherwise',
   'unused-export': 'no export nothing else imports (index.ts: nothing outside the folder; registry bases: types only)',
   'motion-css': '@keyframes / custom animation in CSS (warn); tw-animate-css imported twice (error)',
 }
@@ -127,6 +128,10 @@ const isTest = (f) => /\.(test|spec)\.(ts|tsx)$/.test(f) || /\/tests\//.test(f) 
 const isStory = (f) => /\.stories\.(ts|tsx)$/.test(f)
 const inSharedUi = (f) => rel(f).startsWith('src/shared/ui/')
 const inLocales = (f) => /\/locales\//.test(f)
+const inSliceClient = (f) => /^src\/(features|entities|widgets|pages)\//.test(rel(f))
+const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head'])
+const HTTP_CLIENTS = new Set(['httpClient', 'http'])
+const CLIENT_OPTIONS = new Set(['timeout', 'retry', 'prefixUrl'])
 const base = (f) => path.basename(f).replace(/\.(ts|tsx)$/, '')
 
 const TEST_EXEMPT = /^(index|types|constants|styles|main|vite-env|setupTests|setup-tests)$/
@@ -269,6 +274,32 @@ const checkAst = (file, sf) => {
     if (!test && !story && ts.isPropertyAccessExpression(n) && /^(import\.meta|process)\.env$/.test(n.getText(sf))
       && !/^src\/shared\/(config\/|api\/config\.ts$)/.test(rel(file))) {
       report(file, sf, n.getStart(sf), 'error', 'env-access', `${n.getText(sf)} outside shared/config — read the parsed value from shared/config/env.ts`)
+    }
+
+    if (!test && inSliceClient(file) && ts.isCallExpression(n)) {
+      const callee = n.expression
+      const method = ts.isPropertyAccessExpression(callee) ? callee.name.text : ''
+      const receiver = ts.isPropertyAccessExpression(callee) ? callee.expression.getText(sf) : ''
+      if (HTTP_METHODS.has(method) && HTTP_CLIENTS.has(receiver)) {
+        for (const arg of n.arguments) {
+          if (!ts.isObjectLiteralExpression(arg)) continue
+          for (const prop of arg.properties) {
+            if (!ts.isPropertyAssignment(prop) && !ts.isShorthandPropertyAssignment(prop)) continue
+            const key = prop.name.getText(sf)
+            if (CLIENT_OPTIONS.has(key)) {
+              report(file, sf, prop.getStart(sf), 'error', 'client-option', `${key} on ${receiver}.${method} — already set in shared/api/base.ts`)
+            }
+            if (key === 'headers' && ts.isPropertyAssignment(prop) && ts.isObjectLiteralExpression(prop.initializer)) {
+              const auth = prop.initializer.properties.find((p) => (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) && p.name.getText(sf) === 'Authorization')
+              if (auth) report(file, sf, auth.getStart(sf), 'error', 'client-option', 'Authorization on the request — shared/api/base.ts already sets it')
+            }
+          }
+        }
+      }
+      if (ts.isPropertyAccessExpression(callee) && callee.name.text === 'set' && literalText(n.arguments[0]) === 'Authorization'
+        && !rel(file).startsWith('src/shared/api/')) {
+        report(file, sf, n.getStart(sf), 'error', 'client-option', "headers.set('Authorization') — shared/api/base.ts already sets it")
+      }
     }
 
     if (ts.isExportDeclaration(n) && !n.exportClause && n.moduleSpecifier) {
@@ -417,24 +448,30 @@ const isExecutable = (sf) => {
   return found
 }
 
+const isComponentImpl = (file) => {
+  if (!file.endsWith('.tsx') || isTest(file) || isStory(file)) return false
+  if (path.basename(path.dirname(file)) !== base(file)) return false
+  const r = rel(file)
+  return r.includes('/ui/') || r.startsWith('src/shared/ui/')
+}
+
 const testCandidates = (file) => {
   const b = base(file)
   const names = [`${b}.test.ts`, `${b}.test.tsx`, `${b}.spec.ts`, `${b}.spec.tsx`]
-  const dirs = [path.dirname(file)]
+  if (isComponentImpl(file)) return names.map((n) => path.join(path.dirname(file), 'tests', n))
+  const dirs = []
   for (let d = path.dirname(file); d.startsWith(SRC); d = path.dirname(d)) dirs.push(path.join(d, 'tests'))
-  const out = dirs.flatMap((d) => names.map((n) => path.join(d, n)))
-  if (inSharedUi(file)) {
-    const folder = path.basename(path.dirname(file))
-    out.push(path.join(path.dirname(file), `${folder}.test.tsx`), path.join(path.dirname(file), `${folder}.test.ts`))
-  }
-  return out
+  return dirs.flatMap((d) => names.map((n) => path.join(d, n)))
 }
 
 const checkMissingTest = (file, sf) => {
   if (isTest(file) || isStory(file) || inLocales(file) || TEST_EXEMPT.test(base(file)) || /\.types$/.test(base(file))) return
   if (!isExecutable(sf)) return
   if (testCandidates(file).some((c) => existsSync(c))) return
-  report(file, sf, 0, 'error', 'missing-test', `no test — add ${base(file)}.test.${file.endsWith('.tsx') ? 'tsx' : 'ts'} (colocated for a component, tests/ otherwise)`)
+  const where = isComponentImpl(file)
+    ? `tests/${base(file)}.test.tsx inside the component folder`
+    : `${base(file)}.test.${file.endsWith('.tsx') ? 'tsx' : 'ts'} in a tests/ folder`
+  report(file, sf, 0, 'error', 'missing-test', `no test — add ${where}`)
 }
 
 const resolveSpec = (fromFile, spec) => {

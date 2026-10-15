@@ -28,15 +28,19 @@ description: Scaffold and implement a React feature slice following FSD with api
 features/{feature}/
 ├── api/
 │   ├── endpoints.ts      — backend path map for this feature
-│   ├── fetchers.ts       — httpClient calls, DTO → domain mappers invoked here
-│   └── dto.ts            — wire types (DTOs) + domain types + mapper functions
+│   ├── schema.ts         — one zod schema per server entity; wire type is z.infer
+│   ├── fetchers.ts       — httpClient calls, then parseEntity, then the mapper
+│   └── dto.ts            — domain type and the rename mapper only
 ├── ui/
 │   └── {name}/                   — kebab-case of the export (custom-button/)
 │       ├── index.ts              — re-exports component (sole public surface of folder)
 │       ├── {name}.tsx            — one component; props interface lives in this file
 │       ├── styles.ts             — ALL Tailwind classes, never inline in JSX
 │       ├── types.ts              — non-prop types only, when the component has them
-│       └── {name}.test.tsx       — colocated RTL test (required)
+│       ├── ui/{child}/           — nested components, same shape
+│       ├── lib/                  — helpers used only by this component
+│       └── tests/
+│           └── {name}.test.tsx   — RTL test (required)
 ├── models/               — add only when real client state or business logic exists
 │   ├── types.ts          — domain types, when the slice has them
 │   ├── store.ts          — Zustand v5 store (session-scoped, cleared on logout)
@@ -62,7 +66,7 @@ features/{feature}/
      detail: (id: string) => [...orderKeys.all, 'detail', id] as const,
    } as const;
    ```
-3. **Create `api/`** — `endpoints.ts` (path map), `dto.ts` (wire types + mapper), `fetchers.ts` (calls `httpClient`)
+3. **Create `api/`** — `endpoints.ts` (path map), `schema.ts` (zod; wire type is `z.infer`), `dto.ts` (domain type and rename mapper), `fetchers.ts` (`httpClient`, then `parseEntity`)
 4. **Create `models/`** (only when needed) — Zustand stores, validation rules, state machines as pure functions
 5. **Create `hooks/`** (only when needed) — `use{Feature}.ts` wraps `useQuery`/`useMutation`, sequences calls, calls `useNavigate`
 6. **Build `ui/` components** — one folder per component; every folder has `styles.ts`
@@ -79,8 +83,13 @@ ui/{name}/
 ├── {name}.tsx             — one component; the props interface is declared here
 ├── styles.ts              — ALL classes defined here
 ├── types.ts               — non-prop types only, when the component has them
-└── {name}.test.tsx        — colocated RTL test
+├── ui/{child}/            — nested components, same shape
+├── lib/                   — helpers used only by this component
+└── tests/
+    └── {name}.test.tsx    — RTL test
 ```
+
+DTO mappers stay in `api/` (`dto.ts` or `mappers.ts`), tested in `api/tests/`. Slice-wide helpers stay in the slice `lib/`.
 
 **`styles.ts` patterns:**
 
@@ -136,12 +145,12 @@ export type { PlaceOrderPayload } from './api/dto';
 - [ ] Query keys in `shared/api/query-keys/{domain}.ts` — no per-feature `queryKeys.ts`
 - [ ] `api/endpoints.ts` holds backend paths — no hand-typed URLs in hooks or components
 - [ ] `api/fetchers.ts` uses `httpClient` only — no `fetch()`, `ky`, or `axios`
-- [ ] Every component folder is kebab-case (`custom-button/custom-button.tsx`) with `styles.ts` — one component per file, props interface in that file, no Tailwind classes inline in JSX
-- [ ] Second pass: no unexplained string or number literals
+- [ ] Every component folder is kebab-case (`custom-button/custom-button.tsx`) with `styles.ts` and `tests/{name}.test.tsx` — one component per file, nested components in `ui/`, props interface in the component file, no Tailwind classes inline in JSX
+- [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`, slice `config/`, or `constants.ts`
 - [ ] A component created from an external library still uses that library's animation, and does not add its own
 - [ ] `models/` and `hooks/` segments are earned, not scaffolded empty
 - [ ] `ui/` never imports `api/` — queries and mutations go through `hooks/`; a form schema may call `models/` pure functions
-- [ ] Forms use React Hook Form + zod; validation in three levels (wire shape / input constraints / business invariants)
+- [ ] Forms use React Hook Form + zod. Server shape is `api/schema.ts` only. Input constraints are the form schema. Business invariants are pure functions in `models/`
 - [ ] Loading, error, empty, and partial/stale states all handled
 - [ ] `index.ts` exports only what consumers need — no stores, DTOs, fetchers
 - [ ] Feature never imports another feature

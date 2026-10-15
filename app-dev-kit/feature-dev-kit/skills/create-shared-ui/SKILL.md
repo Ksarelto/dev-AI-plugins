@@ -30,7 +30,7 @@ Adaptation is **frontend-dev-kit:shadcn-usage**. File layout is **frontend-dev-k
    - Confirm global CSS imports the animation stylesheet the CLI configured (`@import "tw-animate-css"` on Tailwind v4) exactly once. If that package is missing, record it for Station 1b. No custom `@keyframes`, no `--animate-*`, no second animation library.
    - Read the registry demo (`get_item_examples_from_registries`, e.g. `dialog-demo`) and note its part order in the handoff so composers follow it.
 
-5. **Path B — No registry match**: hand-author via `shadcn-usage` and `tailwind-styles` only after the search returns no fit. Log it with `board.mjs append … --section "Decisions & Open Questions" --line "- <ComponentName>: hand-authored — <reason>"`.
+5. **Path B — No registry match**: hand-author via `shadcn-usage` and `tailwind-styles` only after the search returns no fit, or when the user explicitly asked for a custom control. A control the registry has (Button, Skeleton, Table, and the rest) is never hand-authored. Log a miss with `board.mjs append … --section "Decisions & Open Questions" --line "- <ComponentName>: hand-authored — <reason>"`.
 
 6. **Create the component file structure**:
    ```
@@ -38,7 +38,7 @@ Adaptation is **frontend-dev-kit:shadcn-usage**. File layout is **frontend-dev-k
      <name>.tsx
      styles.ts
      constants.ts        (when the base has a closed-set prop)
-     <name>.test.tsx
+     tests/<name>.test.tsx
      <name>.stories.tsx
      index.ts
    ```
@@ -60,7 +60,7 @@ Adaptation is **frontend-dev-kit:shadcn-usage**. File layout is **frontend-dev-k
 - `shared/ui/<name>/<name>.tsx` — named PascalCase export, kebab-case file. Radix structure, parts, and `data-slot` exactly as the CLI generated them.
 - `shared/ui/<name>/styles.ts` — the registry's class strings verbatim, including open/close animation classes. Props interfaces stay in `<name>.tsx`. Add `types.ts` only for a non-prop type.
 - `shared/ui/<name>/constants.ts` — closed-set prop constants derived from the `cva` table.
-- `shared/ui/<name>/<name>.test.tsx` — colocated behavior test.
+- `shared/ui/<name>/tests/<name>.test.tsx` — behavior test.
 - `shared/ui/<name>/<name>.stories.tsx` — story for this primitive alone.
 - `shared/ui/<name>/index.ts` — exports every registry part and constant; types only when imported. No `shared/ui/index.ts` barrel.
 

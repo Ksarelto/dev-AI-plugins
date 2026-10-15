@@ -20,7 +20,7 @@ Hard constraints: `rules/shadcn.mdc` (bases) and `rules/styling.mdc` (call sites
 
 ### Adding a base (`shared/ui/<name>/`)
 
-1. **Registry first.** Search the registry (`search_items_in_registries`) before writing UI. Hand-write only after a recorded miss (`"<Name>: hand-authored — <reason>"`; under feature-dev, in `## Decisions & Open Questions` via `board.mjs append`).
+1. **Registry first.** Search the registry (`search_items_in_registries`) before writing UI. Button, Skeleton, Table, and any other control the registry provides are that primitive from `@/shared/ui`. Do not reimplement them with raw elements. Hand-write only after a recorded miss (`"<Name>: hand-authored — <reason>"`; under feature-dev, in `## Decisions & Open Questions` via `board.mjs append`) or when the user explicitly asked for another library or a custom control.
 2. **Install against the project's one style.** `npx shadcn@latest add <component>` (or `get_add_command_for_items`) reads `components.json`. Never paste a component from another style, registry, blog, or the HTML prototype.
 3. **Re-home, do not rewrite.** Move the generated file into `shared/ui/<name>/<name>.tsx`. Keep every exported part, prop, `data-slot`, and the Radix import the CLI wrote. Delete the leftover under the CLI output path so `@/components/ui/*` is not a second copy. No `shared/ui/index.ts` mega-barrel.
 4. **Move classes verbatim.** Every class string goes to `styles.ts` in the same order, the `cva()` table unchanged — including `animate-in`, `animate-out`, `fade-*`, `zoom-*`, `slide-in-from-*`, `duration-*`, and every `data-[state=*]:` class. The one deletion is every `dark:` class (one light palette). Diff the moved strings against the CLI output; any other missing class is a bug.
@@ -166,7 +166,7 @@ const handleOpenChange = (nextOpen: boolean): void => {
 
 ## Checklist
 
-- [ ] Registry searched first; hand-write only after a recorded miss
+- [ ] Registry searched first; Button, Skeleton, Table, and other registry controls come from `@/shared/ui`; hand-write only after a recorded miss or an explicit user request
 - [ ] Installed with `shadcn add` against `components.json`; no component from another style or registry
 - [ ] Base lives in `shared/ui/<name>/`, imported as `@/shared/ui/<name>` — no `@/components/ui`, no mega-barrel
 - [ ] Parts, props, `data-slot`, Radix import, and every class string match the CLI output (classes moved to `styles.ts` verbatim)
@@ -175,6 +175,7 @@ const handleOpenChange = (nextOpen: boolean): void => {
 - [ ] No motion utility or look override (`color`, `radius`, `shadow`, `padding`) on a primitive at a call site
 - [ ] Composition follows the registry demo's part order
 - [ ] Closed-set props use `constants.ts` (`ButtonVariant`, `ButtonType`); defaults omitted
+- [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`, slice `config/`, or `constants.ts`
 - [ ] `sr-only` and every other literal translated
 - [ ] Handlers are named functions, not inline in JSX
 - [ ] `asChild` used instead of a nested wrapper element where applicable

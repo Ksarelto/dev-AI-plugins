@@ -15,7 +15,7 @@ FSD placement only. Procedures live in **frontend-dev-kit**. Load them; do not r
 | Folder, files, export | `frontend-dev-kit:react-component` |
 | Classes | `frontend-dev-kit:tailwind-styles` |
 | Labels, focus, live regions | `frontend-dev-kit:accessibility` |
-| Colocated test | `frontend-dev-kit:testing` |
+| Test in `{component}/tests/` | `frontend-dev-kit:testing` |
 
 ## Where it goes
 
@@ -27,11 +27,11 @@ FSD placement only. Procedures live in **frontend-dev-kit**. Load them; do not r
 
 Export through the slice `index.ts` only what a file outside the folder already imports. Four states: `rules/ui-quality.mdc` (attached by glob).
 
-One kebab-case folder per component (`profile-card/profile-card.tsx`, `styles.ts`, `index.ts`, `profile-card.test.tsx`). The props interface stays in the component file. Add `types.ts` only for a non-prop type. Never a flat `ProfileCard.tsx`.
+One kebab-case folder per component (`profile-card/profile-card.tsx`, `styles.ts`, `index.ts`, `tests/profile-card.test.tsx`). Nested components go in `ui/{child}/`. The props interface stays in the component file. Add `types.ts` only for a non-prop type. Helpers used only here go in `lib/`. Never a flat `ProfileCard.tsx`.
 
-If the piece is a shadcn/Radix primitive (button, dialog, drawer, and the rest) and `shared/ui/<name>` is missing, stop and hand it to `shared-engineer`. Do not author a second copy. Compose `@/shared/ui/<name>` in the part order of its registry demo.
+If the piece is a shadcn/Radix primitive (Button, Skeleton, Table, dialog, drawer, and the rest) and `shared/ui/<name>` is missing, stop and hand it to `shared-engineer`. Do not author a second copy, and do not reimplement it with raw elements. Another library or a custom control only when the user explicitly requested that. Compose `@/shared/ui/<name>` in the part order of its registry demo.
 
-Every component follows `{KIT_DIR}/skills/feature-dev/references/ui-build-contract.md` §§ 1–3: `t()` for every visible string, classes in `styles.ts`, named handlers, no JSX ternaries, closed-set constants, no comments, a colocated test.
+Every component follows `{KIT_DIR}/skills/feature-dev/references/ui-build-contract.md` §§ 1–3: `t()` for every visible string, classes in `styles.ts`, named handlers, no JSX ternaries, closed-set constants, no comments, a test in `tests/`.
 
 ## What this skill does NOT do
 

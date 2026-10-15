@@ -1,5 +1,5 @@
 ---
-description: UI quality constraints — four states, error boundaries, prototype parity, composition over config, smallest state tool.
+description: UI quality constraints — four states, error boundaries, prototype parity, Radix-based shared/ui primitives, composition over config, smallest state tool.
 globs: ["**/*.{tsx}"]
 alwaysApply: false
 ---
@@ -9,8 +9,9 @@ alwaysApply: false
 - Every screen has loading, empty, error, and populated. Mutations add pending (controls disabled while `isPending`).
 - Every route renders inside `RouteBoundary`; every feature's exported entry renders inside `ErrorBoundary`. One crash never unmounts the app.
 - With a bound prototype, `prototype-inventory.md` is the contract: every row is rendered with the same copy, control, variant, field, and state, or marked `n/a: <reason>`.
+- Button, Skeleton, Table, and any other control the shadcn registry provides are the `@/shared/ui` primitive (Radix underneath). Do not reimplement them with raw elements. Another library or a custom control only when the user explicitly requested that.
 - Compose existing primitives. Do not build a config-driven table or form factory for one screen.
-- One component, one job. A container fetches; a presentational child renders.
+- One component, one job. A container reads a hook; a presentational child renders. The child lives in `{component}/ui/{child}/`. `ui/` does not call `httpClient`.
 - Pick the smallest state tool: local `useState`, then a feature store, then context for read-often values (locale). No theme context and no `ThemeProvider`.
 - Layout is mobile-first (`sm:` / `md:` / `lg:`). Do not design a desktop-only screen. A bound prototype's sidebar shell applies at `lg+` and becomes a shadcn `Sheet` below that.
 - Skeletons match the populated layout. A centered spinner on a list is the loading state only when the layout is unknown.

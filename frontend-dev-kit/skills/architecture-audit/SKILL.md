@@ -83,7 +83,8 @@ Load-bearing invariants (must appear as hard if broken):
 - No feature↔feature, widget↔widget, or feature→widget
 - `ui/` → `hooks/` → `models/`; `ui/` → `models/` for pure functions only; `hooks/` → `api/` → `models/`; `models/` never imports any `api/`; `ui/` never imports `api/`
 - Widgets: no `models/` (plural) and no `api/`
-- HTTP only via `@/shared/api/base`; query keys only from `@/shared/api/query-keys/`
+- HTTP only via `@/shared/api/base`; query keys only from `@/shared/api/query-keys/`. Server entities are parsed with `api/schema.ts`; an invalid body returns `null`. Feature calls do not restate `timeout`, `retry`, `prefixUrl`, or `Authorization`
+- One component per file. Nested components live in `{component}/ui/{child}/`. The props interface stays in the component file. Component tests live in `{component}/tests/`
 
 Do not invent ports, domain events, `defineEvent`, or a `features/auth/` slice — those are the previous architecture.
 

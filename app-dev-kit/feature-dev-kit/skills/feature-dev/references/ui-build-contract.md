@@ -50,9 +50,9 @@ A layer imports only from layers **strictly below** it. Never sideways, never up
 Segments inside your slice:
 
 - `models/` (features only) — types, state, selectors, pure invariants. No React, no network, no side effects, no locale keys. A form's Zod schema lives in that form's `ui/` folder (`schema.ts`) with translation-key messages. Entities use singular `model/` for the same job. Widgets may have a singular `model/` for local UI state only. No `features/*/model/`, no `entities/*/models/`, no widget `models/` or `api/`.
-- `api/` — fetchers, `endpoints.ts`, and entity query hooks (`useProfile.ts`). Feature query/mutation hooks do not live here. No components, no UI state, no query-key factories.
+- `api/` — `schema.ts` (one zod schema per server entity), fetchers (`parseEntity`, then a rename mapper), `endpoints.ts`, and entity query hooks (`useProfile.ts`). An invalid body notifies and returns `null`. Feature query/mutation hooks do not live here. No components, no UI state, no query-key factories. Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on the request.
 - `hooks/` (features only) — TanStack Query hooks. The only segment whose `ui/` may call them. `ui/` never imports `api/`.
-- `lib/` — pure formatters, validators, mappers. No React, no network.
+- `lib/` — slice-wide pure helpers. No React, no network. DTO mappers stay in `api/`. A helper used by one component stays in that component's `lib/`.
 - `ui/` — components; imports `shared/ui`, own `models/` (or entity `model/`) for pure functions, and own `hooks/`. No direct fetch calls.
 - `config/` — non-text constants and enum → locale-key maps. No English copy.
 - `locales/` — `en.json` + `keys.ts` for every string this slice renders.
@@ -62,6 +62,7 @@ review judgment. If your slice needs something from a sibling slice, escalate �
 
 ## 1. shadcn fidelity — one look, one motion
 
+- Button, Skeleton, Table, and any other control the shadcn registry provides are the `@/shared/ui` primitive (Radix underneath). Do not reimplement them with raw elements. Another library or a custom control only when the user explicitly requested that.
 - Registry first. `search_items_in_registries` → `view_items_in_registries` → the primitive lands in
   `shared/ui/<name>/` verbatim: parts, props, `data-slot`, Radix imports, and class strings moved
   into `styles.ts` in the same order (every `data-[state=*]` / `data-[side=*]` animation class
@@ -115,7 +116,7 @@ review judgment. If your slice needs something from a sibling slice, escalate �
 
 The engineer that creates an executable file writes its behavior test in the same change. There is no test station after the build.
 
-- Components: colocated `<name>.test.tsx`. Hooks, api, `models/` or `model/`, lib, route modules, and guards: the segment's `tests/`.
+- Components: `{component}/tests/<name>.test.tsx`. A test beside `<name>.tsx` does not count. Hooks, api, `models/` or `model/`, lib, route modules, and guards: the segment's `tests/`. A helper in a component's `lib/` is tested from that component's `tests/`.
 - Assert behavior (what renders, what was called, loading, empty, error), not that the module exists. Assert translated text through the locale value, not the key.
 - Mock only the boundaries: inside the slice that owns the fetcher, its `api/fetchers` (`importOriginal` + override one export); in any other slice, `httpClient` in `@/shared/api/base`. Never mock another slice's `api/` path or its `index.ts`. Also the router and browser APIs. Keep entity hooks, the query client, i18n, and child components real.
 - A fix for a UI-review finding includes a regression test that fails on the reported behavior when that behavior is testable (a response longer than the page size, a control the page cannot reach).

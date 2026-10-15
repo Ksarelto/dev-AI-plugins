@@ -1,6 +1,6 @@
 ---
 name: react-component
-description: Scaffold a standalone React component folder with the mandatory files — kebab-case name.tsx (button.tsx, custom-button.tsx), styles.ts (required, no exceptions), index.ts — and types.ts only for non-prop types. Follows FSD layer conventions. Use when adding a single component outside a full feature slice or wrapping a shadcn primitive.
+description: Scaffold a standalone React component folder with the mandatory files — kebab-case name.tsx (button.tsx, custom-button.tsx), styles.ts (required, no exceptions), index.ts, tests/ — and types.ts only for non-prop types. Nested components go in ui/. Follows FSD layer conventions. Use when adding a single component outside a full feature slice or wrapping a shadcn primitive.
 ---
 
 # React Component
@@ -36,10 +36,15 @@ Every component lives in its own kebab-case folder. This is the required layout 
 ├── styles.ts                 — ALL Tailwind classes; never inline in JSX
 ├── types.ts                  — non-prop types only, and only when the component has them
 ├── constants.ts              — closed-set values and key maps (only when needed)
-└── {name}.test.tsx           — colocated behavior test, written in the same change
+├── ui/{child}/               — every nested component, same shape
+├── lib/                      — pure helpers used only by this component
+└── tests/
+    └── {name}.test.tsx       — behavior test, written in the same change
 ```
 
-One component per file. A second component gets its own folder. The only exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
+One component per file. A second component is `{name}/ui/{child}/` with the same files. The only exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
+
+DTO mappers stay in the slice `api/` (`dto.ts` or `mappers.ts`), tested in `api/tests/`. Slice-wide helpers stay in the slice `lib/`, tested in `lib/tests/`. Do not leave `mapX.ts` or `formatX.ts` next to `{name}.tsx`.
 
 Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.stories.tsx` in that folder. A feature gets one story at `features/<slice>/<slice>.stories.tsx` for the public entry. Entity and widget folders do not get stories.
 
@@ -47,12 +52,12 @@ Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.s
 
 1. Determine the PascalCase export and kebab-case file stem (`CustomButton` / `custom-button`) and target path from the table above
 2. Read rules: `component-structure`, `react`, `styling`, `shadcn`, `i18n`, `testing`, `accessibility`. For FSD placement (`shared/ui` vs feature `ui/`), load `architecture-audit`.
-3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`) **and** `{name}.test.tsx` in the same change. Add `types.ts` only for non-prop types. Domain types go in the slice model folder (`models/types.ts` or `model/types.ts`), not in the component folder.
+3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`) **and** `tests/{name}.test.tsx` in the same change. Add `types.ts` only for non-prop types. Domain types go in the slice model folder (`models/types.ts` or `model/types.ts`), not in the component folder. A nested component is `ui/{child}/`. A helper used only here is `lib/`.
 4. Every visible string is `t(key)` from the slice's `locales/` or `commonKeys` (`i18n` skill). Server data renders as-is.
 5. Handlers are named (`handleX`) and declared above the return; JSX only passes the reference.
 6. Branches are computed before the return or written as early returns — no ternary in JSX, never a nested one.
 7. Closed-set props on primitives use their constants (`ButtonVariant.Outline`, `ButtonType.Submit`); omit a prop whose value is the default.
-8. Before finishing, scan the new file again for unexplained string and number literals (`rules/general-coding-principles.mdc`). A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
+8. Before finishing, scan the new file again for unexplained string and number literals (`rules/general-coding-principles.mdc`). A timeout, page size, status, z-index, or path that already has a name in `shared/api`, the slice `config/`, or this folder's `constants.ts` is a violation even once. A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
 9. When the component wraps or is created from an external library, confirm that library's animation is still the animation on the element (`shadcn-usage`). Do not add a second one.
 10. The templates below carry no comments; the generated files must not either.
 
@@ -165,7 +170,8 @@ Pick the state with early returns before the main `return` — never a ternary c
 - [ ] Folder and files are kebab-case (`custom-button/custom-button.tsx`); the export is PascalCase (`CustomButton`)
 - [ ] `styles.ts` exists — zero class strings, `cn('…')`, or `style={{}}` in JSX
 - [ ] `index.ts` re-exports the component only, plus types/constants an outside file actually imports (not `export *`)
-- [ ] `{name}.test.tsx` written in the same change, mocking only the boundary
+- [ ] `tests/{name}.test.tsx` written in the same change, mocking only the boundary
+- [ ] Nested components are `ui/{child}/`; component-local helpers are `lib/`
 - [ ] Lives under `shared/ui/` if generic, or the owning feature's `ui/` if business-specific
 - [ ] Root element merges caller `className` last via `styles.root(className)`
 - [ ] No `forwardRef` — `ref` destructured as a plain prop (React 19)
@@ -181,6 +187,6 @@ Pick the state with early returns before the main `return` — never a ternary c
 - [ ] Semantic token names only — no `text-slate-900`, no hex values, no `dark:` variants
 - [ ] No motion utilities outside `shared/ui/` bases
 - [ ] A component created from an external library still uses that library's animation classes, unchanged, and does not add a second animation
-- [ ] Second pass: no unexplained string or number literals
+- [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`, slice `config/`, or `constants.ts`
 
 See [examples.md](examples.md) for full worked examples.

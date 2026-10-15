@@ -40,8 +40,8 @@ Before writing new plain code for a recurring problem, reuse the slice that alre
 
 | Element | Convention | Example |
 |---------|------------|---------|
-| Component files | kebab-case `.tsx` | `button.tsx`, `custom-button.tsx` |
-| Other files | `camelCase.ts` | `apiRequest.ts` |
+| Component files | kebab-case folder and file | `button/button.tsx`, `custom-button/custom-button.tsx` |
+| Other modules | `camelCase.ts` | `formatDate.ts` |
 | Hooks | `use` prefix + camelCase | `useGetProfiles`, `useTableSettings` |
 | Interfaces | No `I` prefix for new interfaces | `IProfile`, `IEnvValues` (legacy) |
 | Types (unions/mapped) | `type` keyword, descriptive | `RefetchIntervalType`, `NotificationLevelValue` |
@@ -71,9 +71,10 @@ Before writing new plain code for a recurring problem, reuse the slice that alre
 
 - No unexplained literals in logic — extract to a named constant that states what the value means (`REQUEST_TIMEOUT`, `ProfileStatus.Declined`) instead of inlining `30000` or `'declined'`.
 - JSX props with a closed value set (`variant`, `size`, `type`, `side`, `align`, `orientation`) use the constant the primitive exports (`ButtonVariant.Outline`, `ButtonType.Submit`), not `"outline"` / `"submit"`. Omit the prop when it equals the default (`rules/react.mdc` § Closed-set props).
-- Reuse an existing constant in the owning slice (`config/` or `models/`) before adding a new one.
+- Reuse an existing constant in `shared/api`, the owning slice (`config/` or `models/`), or the component `constants.ts` before adding a new one.
+- A timeout, page size, status, z-index, or path that already has a name in one of those places is a violation even when the literal appears once.
 - A literal used exactly once in an obviously self-describing spot (e.g. `array.length - 1`, `0`, or `1`) doesn't need extraction — use judgment, don't over-extract trivial values.
-- After the component is written, scan the new file again for unexplained string and number literals. Closed-set prop strings are one case; timeouts, page sizes, status strings, and z-index numbers are the rest. The same scan applies when reviewing the file.
+- After the file is written, scan it again for unexplained string and number literals. Closed-set prop strings are one case; timeouts, page sizes, status strings, and z-index numbers are the rest. The same scan applies when reviewing the file.
 
 ---
 
@@ -154,7 +155,7 @@ const userFixture = {
 
 ## Error Handling
 
-HTTP failures are `AppError` from `@/shared/api/errors` (`isAppError`, string `kind`). Toasts go through `notify` from `@/shared/lib/notify`. Expected business outcomes are return values from `models/`, not thrown. Procedure: `error-handling` skill.
+HTTP failures are `AppError` from `@/shared/api/errors` (`isAppError`, string `kind`). A 2xx body that fails the entity zod schema is not an `AppError`: it notifies and returns `null` (`rules/api-contract.mdc`). Toasts go through `notify` from `@/shared/lib/notify`. Expected business outcomes are return values from `models/`, not thrown. Procedure: `error-handling` skill.
 
 ---
 
@@ -166,7 +167,7 @@ Parse env once in `shared/config/env.ts` with zod. The API origin is the excepti
 
 ## Quality Bar
 
-- **Validate at boundaries**: narrow or guard unknown data before it enters the domain model; trust internal code.
+- **Validate at boundaries**: one zod schema per server entity in `api/schema.ts` (`rules/api-contract.mdc`). An invalid body notifies and returns `null`. Trust the parsed value — no second shape check in `models/` or UI.
 - **No `console.log`** — only `console.warn` and `console.error` are permitted.
 - No credentials, tokens, or secrets in source files.
 - User-controlled data must never be passed to `dangerouslySetInnerHTML`.

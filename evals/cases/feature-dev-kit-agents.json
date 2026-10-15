@@ -52,7 +52,7 @@
       "expect": "slice-engineer"
     },
     {
-      "prompt": "Have test-engineer fill a Station 9 missing-test and coverage-threshold gap for one layer group with colocated Vitest RTL tests",
+      "prompt": "Have test-engineer fill a Station 9 missing-test and coverage-threshold gap for one layer group with Vitest RTL tests in the component tests folder",
       "expect": "test-engineer"
     },
     {

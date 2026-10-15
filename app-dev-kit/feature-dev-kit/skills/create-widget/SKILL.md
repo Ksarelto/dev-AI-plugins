@@ -29,7 +29,7 @@ Station 6, and only when a second route already reuses the same composition. One
 
 5. **Handle local UI state** (not API state) with `useState`: tab selection, sidebar open/close, active accordion. Do not manage API state — that belongs in entity/feature hooks.
 
-6. **Co-locate the component test** at `widgets/<slice>/ui/<slice>/<slice>.test.tsx`. Assert what the widget composes and any local UI state. Loading, empty, and error belong to the feature's test.
+6. **Write the component test** at `widgets/<slice>/ui/<slice>/tests/<slice>.test.tsx`. Assert what the widget composes and any local UI state. Loading, empty, and error belong to the feature's test.
 
 7. **Update `widgets/<slice>/index.ts`** with named exports of what the page already imports:
    ```ts
@@ -48,7 +48,7 @@ Station 6, and only when a second route already reuses the same composition. One
 ## Outputs
 
 - `widgets/<slice>/ui/<slice>/<slice>.tsx` — the composed block component.
-- `widgets/<slice>/ui/<slice>/<slice>.test.tsx` — colocated behavior test.
+- `widgets/<slice>/ui/<slice>/tests/<slice>.test.tsx` — behavior test.
 - `widgets/<slice>/index.ts` — public API.
 
 ## What this skill does NOT do

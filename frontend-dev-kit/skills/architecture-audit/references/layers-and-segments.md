@@ -7,7 +7,7 @@ Six layers, top-down. Group by business capability, not by technical type. A sli
 **Hard**
 
 - Tree under `src/`: `app/`, `pages/`, `widgets/`, `features/`, `entities/`, `shared/`. No `processes/`.
-- Slice segments (features/widgets/entities) are a closed set: `ui/`, `api/`, `model/` or `models/`, `lib/`, `config/`, `hooks/`, `locales/`. `tests/` is not a slice-level folder. Non-component tests live inside the segment (`api/tests/`, `models/tests/`, `model/tests/`, `hooks/tests/`, `lib/tests/`). Component tests are colocated `{name}.test.tsx`.
+- Slice segments (features/widgets/entities) are a closed set: `ui/`, `api/`, `model/` or `models/`, `lib/`, `config/`, `hooks/`, `locales/`. `tests/` is not a slice-level folder. Non-component tests live inside the segment (`api/tests/`, `models/tests/`, `model/tests/`, `hooks/tests/`, `lib/tests/`). Component tests live in `{component}/tests/{name}.test.tsx`. A `tests/` or `lib/` folder inside a component folder is part of that component, not a slice segment.
 - `shared/` extra (not slice segments, still legal): `ui/`, `api/`, `lib/`, `model/`, `hooks/`, `config/`, `assets/`. Pages may have `index.tsx`, optional `ui/`, optional `loader.ts`.
 - Forbidden at slice level (`features|widgets|entities/{name}/`): `components/`, `types/`, `utils/`, `helpers/`, `domain/`, `application/`, `state/`.
 - Features use `models/` (plural directory). Entities use `model/` (singular **folder**, never `model.ts`). No `features/*/model/`, no `entities/*/models/`.

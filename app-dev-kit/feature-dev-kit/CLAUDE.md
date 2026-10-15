@@ -13,4 +13,4 @@
 
 ## UI quality
 
-See `rules/ui-quality.mdc`.
+See `rules/ui-quality.mdc`. Button, Skeleton, Table, and any other shadcn registry control are the `@/shared/ui` primitive. Another library or a custom control only when the user explicitly requested that. Component tests live in `{component}/tests/`. Server-entity parsing is `frontend-dev-kit` `rules/api-contract.mdc`.

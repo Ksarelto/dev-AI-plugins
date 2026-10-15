@@ -7,11 +7,19 @@ Feature calls:
 ```ts
 // features/orders/api/fetchers.ts
 import { httpClient } from '@/shared/api/base';
+import { parseEntity } from '@/shared/api/parse';
 import { ORDERS_ENDPOINTS } from './endpoints';
-import { mapOrder, type OrderDto } from './dto';
+import { mapOrder } from './dto';
+import { orderSchema } from './schema';
 
 export const fetchOrder = async (id: string, signal?: AbortSignal) => {
-  const dto = await httpClient.get(ORDERS_ENDPOINTS.detail(id), { signal }).json<OrderDto>();
+  const json = await httpClient.get(ORDERS_ENDPOINTS.detail(id), { signal }).json();
+  const dto = parseEntity(orderSchema, json);
+
+  if (dto === null) {
+    return null;
+  }
+
   return mapOrder(dto);
 };
 ```
@@ -27,6 +35,7 @@ export const useOrder = (id: string) =>
     queryKey: orderKeys.detail(id),
     queryFn: ({ signal }) => fetchOrder(id, signal),
     enabled: id.length > 0,
-    staleTime: 30_000,
   });
 ```
+
+`data === null` means the body failed `orderSchema` and `parseEntity` already notified. `isError` means `AppError`. Do not check `data.id` or `data.status` before using the value.

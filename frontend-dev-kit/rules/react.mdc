@@ -74,8 +74,9 @@ Do not bulk-remove existing memoization either — removal can break Effect depe
 - `lazy()` every route. A top-level import of a heavy library defeats the split.
 - Expensive filtering or a heavy tab switch uses `useDeferredValue` or `useTransition` — not a
   `setTimeout` debounce.
-- Inline JSX blocks over ~20 lines become named components. They appear in DevTools and they narrow
-  the re-render scope.
+- Inline JSX blocks over ~20 lines become a nested component in `{component}/ui/{child}/`
+  (`rules/component-structure.mdc`). They appear in DevTools and they narrow the re-render scope.
+  They do not become a second component in the same file.
 
 ## Corner cases
 
@@ -221,7 +222,7 @@ return <UsersTable users={users} />
 
 - Delete an Effect before adding one; most are derived state or a fetch in disguise.
 - One hook, one concern. A hook returning six unrelated values is a module.
-- Name the file as the kebab-case of its export (`CustomButton` → `custom-button.tsx`). The
-  DevTools tree shows the export, not the filename.
+- Name the folder and the file as the kebab-case of the export
+  (`CustomButton` → `custom-button/custom-button.tsx`). The DevTools tree shows the export, not the filename.
 
 For `useActionState`, `useOptimistic`, `use()`, and form actions, load the `react-19-apis` skill.

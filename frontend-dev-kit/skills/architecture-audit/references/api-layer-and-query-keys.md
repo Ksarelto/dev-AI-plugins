@@ -1,14 +1,16 @@
 # API layer and query keys
 
-One HTTP client, one key registry. An entity `api/` owns hooks, DTOs, mappers, and `endpoints.ts`. A feature `api/` owns fetchers only; its query hooks live in `hooks/`. Neither owns the gateway URL or key definitions.
+One HTTP client, one key registry. An entity `api/` owns `schema.ts`, hooks, the rename mapper, and `endpoints.ts`. A feature `api/` owns `schema.ts` and fetchers only; its query hooks live in `hooks/`. Neither owns the gateway URL or key definitions.
 
 ## Evaluate
 
 **Hard**
 
-- `shared/api/` layout: `config.ts`, `base.ts`, `query-client.ts`, `query-keys/*.ts`, `errors.ts` (`AppError` / `toAppError`), optional `realtime/`.
+- `shared/api/` layout: `config.ts`, `base.ts`, `query-client.ts`, `query-keys/*.ts`, `errors.ts` (`AppError` / `toAppError`), `parse.ts` (`parseEntity`), optional `realtime/`.
 - Only `shared/api/config.ts` reads `import.meta.env` for `VITE_API_BASE_URL`. Features use `API_BASE` via `base.ts`. Other env is `shared/config/env`.
 - Feature/entity `api/` imports `httpClient` from `@/shared/api/base`. No `fetch(`, no `ky`, no `axios` in those layers.
+- Each server entity has one zod schema in `api/schema.ts`. Fetchers call `parseEntity`. A failed parse notifies and returns `null`. A `.json<Dto>()` cast, a `typeof` chain, or a `models/` shape check of the same entity is hard.
+- Feature and entity `httpClient` calls do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization`. A hook `staleTime` or `retry` that differs from `createQueryClient` is a named constant in `shared/api`, not a numeric literal.
 - `ky` client: `retry: 0` (Query owns retry); pass `signal` from the query into the request; no `.json()` on 204.
 - Versioned API: `httpClient.extend({ prefix: API_BASE.v2 })` — not a second `ky.create`.
 - Query keys: factories from `@/shared/api/query-keys/{domain}`. No inline `queryKey: [...]` outside `query-keys/`. One file per **business domain**. The filename is the owner — do not add an owner comment.

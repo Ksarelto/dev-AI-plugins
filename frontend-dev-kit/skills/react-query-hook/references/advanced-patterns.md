@@ -5,7 +5,7 @@
 Transform / reshape API data inside the hook — components receive the projected shape and only re-render when the transformed value changes.
 
 ```ts
-const DISPLAY_NAME_STALE_TIME_MS = 60_000;
+import { DISPLAY_NAME_STALE_TIME_MS } from '@/shared/api/config';
 
 export const useUserDisplayName = (id: string): UseQueryResult<string> => {
   return useQuery({
@@ -25,7 +25,7 @@ const { data: displayName } = useUserDisplayName(id);
 Populate the cache before navigation so the detail page loads instantly.
 
 ```tsx
-const PREFETCH_STALE_TIME_MS = 30_000;
+import { PREFETCH_STALE_TIME_MS } from '@/shared/api/config';
 
 const UserRow = ({ user }: { user: User }): JSX.Element => {
   const queryClient = useQueryClient();
@@ -54,7 +54,7 @@ Share query config between `useQuery`, `queryClient.prefetchQuery`, and route lo
 
 ```ts
 // features/users/api/userQueryOptions.ts
-const DETAIL_STALE_TIME_MS = 60_000;
+import { DETAIL_STALE_TIME_MS } from '@/shared/api/config';
 
 export const userQueryOptions = (id: string) =>
   queryOptions({
@@ -89,7 +89,7 @@ export const userLoader = async ({ params }: LoaderFunctionArgs): Promise<User> 
 Fetch a variable-length list of resources in parallel with a single hook call.
 
 ```ts
-const BATCH_STALE_TIME_MS = 60_000;
+import { BATCH_STALE_TIME_MS } from '@/shared/api/config';
 
 export const useUserBatch = (ids: string[]) => {
   return useQueries({
