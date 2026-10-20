@@ -7,6 +7,7 @@ alwaysApply: false
 # User-visible copy
 
 - Every string a user can see or hear is `t(key)`: JSX text, `aria-label`, `alt`, `title`, `placeholder`, `label` / `description` props, `sr-only` text, `notify` toasts, zod validation messages, error-boundary fallbacks, loading / empty / error states.
+- Call `t(key)` at the JSX text or attribute. Do not store one translation in a local (`const loadingLabel = t(keys.loading)`). A local may hold the **key** (`const submitKey = isPending ? keys.submitting : keys.submit`) when JSX still calls `t(submitKey)`.
 - Exempt: data the server returned for display (names, descriptions, a server message meant for the user) and non-copy tokens (`data-slot`, ids, URLs, route paths, class names, enum wire values).
 - Where copy lives:
   - Used by more than one slice → `shared/lib/i18n/locales/common/{en.json,keys.ts}` (`commonKeys`).

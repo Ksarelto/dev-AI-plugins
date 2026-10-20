@@ -1,5 +1,9 @@
 vi.mock('@/shared/api/base', () => ({
-  http: { post: vi.fn(() => ({ json: vi.fn().mockResolvedValue(undefined) })) },
+  http: {
+    post: vi.fn(() => ({
+      json: vi.fn().mockResolvedValue(undefined),
+    })),
+  },
 }))
 
 import { http } from '@/shared/api/base'

@@ -42,6 +42,14 @@ const RULES = {
   'missing-test': 'every executable file has a behavior test — {component}/tests/ for a component, the segment tests/ otherwise',
   'unused-export': 'no export nothing else imports (index.ts: nothing outside the folder; registry bases: types only)',
   'motion-css': '@keyframes / custom animation in CSS (warn); tw-animate-css imported twice (error)',
+  'lib-imports-api': 'feature/entity lib/ does not import api/ or @/shared/api — a fetcher may import the helper, or the helper takes the fetcher as an argument',
+  'arrow-body': 'an arrow that only returns has no block — => expr, or => (expr) when it breaks across lines',
+  'max-len': 'line is at most 160 characters (URLs do not count)',
+  'block-gap': 'blank line before and after a block, a multi-line parenthesized value, or a multi-line => ( arrow, when it has a neighbor',
+  'wrapped-expr': 'a value continued on the next line is wrapped in parentheses',
+  'node-access': 'no DOM walking in a test — screen.getByRole / getByLabelText / getByText, or within(...).getByRole',
+  'class-constant': 'class strings are written in styles.ts — do not store them in constants.ts or import them back',
+  'translated-local': 'call t(key) at the JSX or attribute — do not store the translation in a local',
 }
 
 const args = process.argv.slice(2)
@@ -241,6 +249,83 @@ const checkComments = (file, sf, text) => {
   visit(sf)
 }
 
+const CLASS_TOKEN = /(?:^|\s)(?:flex|grid|hidden|block|inline-flex|inline-block|inline)(?:\s|$)|(?:^|\s)(?:gap|bg|text|px|py|p|m|mt|mb|ml|mr|w|h|rounded|border|items|justify|space|font|leading|tracking|shadow|ring|min-w|max-w|min-h|max-h)-/
+
+const isSliceLib = (file) => {
+  const r = rel(file)
+  return /^src\/(features|entities)\//.test(r) && /\/lib\//.test(r) && !/\/tests\//.test(r)
+}
+
+const importsApi = (spec) => spec === '@/shared/api' || spec.startsWith('@/shared/api/') || /(?:^|\/)api(?:\/|$)/.test(spec)
+
+const NODE_PROPS = new Set([
+  'parentElement', 'parentNode', 'children', 'childNodes', 'firstChild', 'lastChild',
+  'nextSibling', 'previousSibling', 'nextElementSibling', 'previousElementSibling', 'container',
+])
+const NODE_CALLS = new Set(['querySelector', 'querySelectorAll', 'closest'])
+
+const isBlockStmt = (n) => ts.isIfStatement(n) || ts.isForStatement(n) || ts.isForInStatement(n) || ts.isForOfStatement(n)
+  || ts.isWhileStatement(n) || ts.isDoStatement(n) || ts.isSwitchStatement(n) || ts.isTryStatement(n)
+
+const exprArrowBody = (n) => {
+  if (!ts.isVariableStatement(n)) return null
+  for (const d of n.declarationList.declarations) {
+    const init = d.initializer
+    if (init && ts.isArrowFunction(init) && !ts.isBlock(init.body) && ts.isParenthesizedExpression(init.body)) return init.body
+  }
+  return null
+}
+
+const parenValue = (n) => {
+  if (ts.isReturnStatement(n) && n.expression && ts.isParenthesizedExpression(n.expression)) return n.expression
+  if (ts.isExpressionStatement(n) && ts.isParenthesizedExpression(n.expression)) return n.expression
+  if (ts.isVariableStatement(n)) {
+    for (const d of n.declarationList.declarations) {
+      if (d.initializer && ts.isParenthesizedExpression(d.initializer)) return d.initializer
+    }
+  }
+  return null
+}
+
+const lineOf = (sf, pos) => sf.getLineAndCharacterOfPosition(pos).line
+
+const spansLines = (sf, n) => lineOf(sf, n.getStart(sf)) !== lineOf(sf, n.end)
+
+const bindsContainer = (name) => {
+  if (ts.isIdentifier(name)) return name.text === 'container'
+  if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) return name.elements.some((el) => el.name && bindsContainer(el.name))
+  return false
+}
+
+const checkWrapped = (file, sf, anchorEnd, expr) => {
+  if (lineOf(sf, expr.getStart(sf)) === lineOf(sf, anchorEnd)) return
+  if (ts.isParenthesizedExpression(expr)) return
+  report(file, sf, expr.getStart(sf), 'error', 'wrapped-expr', 'a value continued on the next line is wrapped in parentheses')
+}
+
+const checkBlockGaps = (file, sf) => {
+  const visit = (n) => {
+    if (ts.isSourceFile(n) || ts.isBlock(n) || ts.isModuleBlock(n) || ts.isCaseClause(n) || ts.isDefaultClause(n)) {
+      const statements = n.statements
+      statements.forEach((stmt, i) => {
+        const paren = parenValue(stmt)
+        const arrowBody = exprArrowBody(stmt)
+        if (!isBlockStmt(stmt) && !(paren && spansLines(sf, paren)) && !(arrowBody && spansLines(sf, arrowBody))) return
+        const start = lineOf(sf, stmt.getStart(sf))
+        const end = lineOf(sf, stmt.end)
+        if (i > 0 && start <= lineOf(sf, statements[i - 1].end) + 1) {
+          report(file, sf, stmt.getStart(sf), 'error', 'block-gap', 'blank line before this block')
+        }
+        if (i < statements.length - 1 && lineOf(sf, statements[i + 1].getStart(sf)) <= end + 1) {
+          report(file, sf, stmt.getEnd(), 'error', 'block-gap', 'blank line after this block')
+        }
+      })
+    }
+    ts.forEachChild(n, visit)
+  }
+  visit(sf)
+}
+
 const checkAst = (file, sf) => {
   const test = isTest(file)
   const story = isStory(file)
@@ -249,6 +334,65 @@ const checkAst = (file, sf) => {
   const locales = inLocales(file)
 
   const visit = (n) => {
+    if (ts.isArrowFunction(n) && ts.isBlock(n.body)) {
+      const only = n.body.statements
+      if (only.length === 1 && ts.isReturnStatement(only[0])) {
+        report(file, sf, n.getStart(sf), 'error', 'arrow-body', 'this arrow only returns — drop the block and write => (expr)')
+      }
+    } else if (ts.isArrowFunction(n) && !ts.isBlock(n.body) && spansLines(sf, n.body) && !ts.isParenthesizedExpression(n.body)) {
+      report(file, sf, n.getStart(sf), 'error', 'arrow-body', 'a multi-line arrow body is wrapped in parentheses')
+    }
+
+    if (ts.isVariableDeclaration(n) && n.initializer) {
+      const equals = n.getChildren(sf).find((c) => c.kind === ts.SyntaxKind.EqualsToken)
+      if (equals) checkWrapped(file, sf, equals.end, n.initializer)
+    }
+
+    if (ts.isReturnStatement(n) && n.expression) {
+      const keyword = n.getChildren(sf).find((c) => c.kind === ts.SyntaxKind.ReturnKeyword)
+      if (keyword) checkWrapped(file, sf, keyword.end, n.expression)
+    }
+
+    if (test && ts.isPropertyAccessExpression(n) && NODE_PROPS.has(n.name.text)) {
+      report(file, sf, n.name.getStart(sf), 'error', 'node-access', `'.${n.name.text}' walks the DOM — query with Testing Library`)
+    }
+
+    if (test && ts.isCallExpression(n)) {
+      const callee = n.expression
+      const name = ts.isPropertyAccessExpression(callee) ? callee.name.text : ts.isIdentifier(callee) ? callee.text : ''
+      if (NODE_CALLS.has(name)) {
+        report(file, sf, n.getStart(sf), 'error', 'node-access', `'${name}' walks the DOM — query with Testing Library`)
+      }
+    }
+
+    if (test && ts.isVariableDeclaration(n) && n.initializer && ts.isCallExpression(unwrap(n.initializer)) && bindsContainer(n.name)) {
+      const callee = unwrap(n.initializer.expression)
+      if (callee && ts.isIdentifier(callee) && callee.text === 'render') {
+        report(file, sf, n.getStart(sf), 'error', 'node-access', '`container` from render — query with screen or within()')
+      }
+    }
+
+    if (isSliceLib(file) && ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && importsApi(n.moduleSpecifier.text)) {
+      report(file, sf, n.getStart(sf), 'error', 'lib-imports-api', `lib/ imports '${n.moduleSpecifier.text}' — a fetcher may import this helper, or pass the fetcher in`)
+    }
+
+    if (styles && ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /\/constants$|^\.\/constants$/.test(n.moduleSpecifier.text)) {
+      report(file, sf, n.getStart(sf), 'error', 'class-constant', 'styles.ts imports constants — write the class string in styles.ts')
+    }
+
+    if (!styles && !test && !story && ts.isVariableDeclaration(n) && n.initializer) {
+      const lit = literalText(n.initializer)
+      if (lit && CLASS_TOKEN.test(lit)) {
+        report(file, sf, n.getStart(sf), 'error', 'class-constant', 'class string in a constant — write it in styles.ts')
+      }
+      if (ts.isCallExpression(n.initializer)) {
+        const callee = unwrap(n.initializer.expression)
+        if (callee && ts.isIdentifier(callee) && callee.text === 't') {
+          report(file, sf, n.getStart(sf), 'error', 'translated-local', 'call t(key) where the string renders — do not store the translation')
+        }
+      }
+    }
+
     if (ts.isConditionalExpression(n)) {
       const branches = [n.condition, n.whenTrue, n.whenFalse].map(unwrap)
       if (branches.some((b) => b && ts.isConditionalExpression(b))) {
@@ -430,6 +574,16 @@ const checkAst = (file, sf) => {
     ts.forEachChild(n, visit)
   }
   visit(sf)
+  checkBlockGaps(file, sf)
+
+  let offset = 0
+  for (const line of sf.getFullText().split('\n')) {
+    const counted = line.replace(/https?:\/\/\S+/g, '')
+    if (counted.length > 160) {
+      report(file, sf, offset, 'error', 'max-len', `line is ${counted.length} characters — wrap at 160`)
+    }
+    offset += line.length + 1
+  }
 }
 
 const isExecutable = (sf) => {
@@ -592,11 +746,8 @@ findings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.col
 const errors = findings.filter((f) => f.severity === 'error')
 const warnings = findings.filter((f) => f.severity === 'warn')
 
-if (opt.json) {
-  console.log(JSON.stringify({ passed: errors.length === 0, checked: targets.length, errors: errors.length, warnings: warnings.length, findings }))
-} else {
-  for (const f of findings) console.log(`${f.file}:${f.line}:${f.col}  ${f.severity}  ${f.rule}  ${f.message}`)
-  console.log(`conventions: ${targets.length} file(s) checked, ${errors.length} error(s), ${warnings.length} warning(s)`)
-}
-
-process.exit(errors.length ? 1 : 0)
+const code = errors.length ? 1 : 0
+const body = opt.json
+  ? `${JSON.stringify({ passed: code === 0, checked: targets.length, errors: errors.length, warnings: warnings.length, findings })}\n`
+  : `${findings.map((f) => `${f.file}:${f.line}:${f.col}  ${f.severity}  ${f.rule}  ${f.message}`).join('\n')}${findings.length ? '\n' : ''}conventions: ${targets.length} file(s) checked, ${errors.length} error(s), ${warnings.length} warning(s)\n`
+process.stdout.write(body, () => process.exit(code))

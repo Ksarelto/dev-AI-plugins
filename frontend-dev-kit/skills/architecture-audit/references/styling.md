@@ -8,6 +8,7 @@ Every component folder has a co-located `styles.ts`. Tailwind + `cva`. Tokens in
 
 - Every component folder under `ui/` has `styles.ts` (not `ComponentName.styles.ts`).
 - No Tailwind class strings in `.tsx` JSX — classes are imported from `styles.ts` (or `shared/ui/theme/styles.ts`). Conditional classes that are not a named variant are still functions exported from `styles.ts`.
+- A class string does not live in `constants.ts`, `config/`, or `lib/` and get imported into `styles.ts`. The string is written in the `cn()` or `cva()` call.
 - No inline `style={{}}` except a dynamic numeric value pushed to a CSS variable, with the class in `styles.ts`.
 - No CSS Modules, vanilla-extract, styled-components.
 - Colors are semantic tokens (`bg-background`, `text-muted-foreground`) — no hex/rgb/`slate-800` (or other palette-step classes) in `styles.ts` or in `globals.css` rules. Use surface/content pairs together (`bg-primary` with `text-primary-foreground`).

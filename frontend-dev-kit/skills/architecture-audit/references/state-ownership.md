@@ -9,7 +9,7 @@ Each kind of state has one home. Server data stays in TanStack Query. Shareable/
 - Lookup, not a gradient: server → Query; ephemeral one-subtree → `useState`; infrequent subtree-shared → Context; frequent/selective → Zustand; shareable/reload → URL; form in-progress → RHF + zod; derived → compute, never store.
 - Server state: Query only — not mirrored into Zustand or `useState`.
 - URL owns filters, pagination, sort, selected id, tab, wizard step (`searchParams`).
-- Forms: React Hook Form + zod **in `ui/`** (component folder schema is fine). Server-entity zod lives in `api/schema.ts`. Form resolver **calls** `models/` functions — does not duplicate rules as a second zod refinement, and `models/` does not re-check the parsed entity shape. Invariants do not live in the component folder.
+- Forms: React Hook Form in `ui/`. The button owns `useForm`; the form lists `FormItem` fields with `rules` from `@/shared/ui/form`. Server-entity zod lives in `api/schema.ts`. A cross-field resolver calls `models/` functions and does not re-check the parsed entity. Invariants do not live in the component file — they live in `models/` or the component `lib/`.
 - Transport errors: `AppError` from `shared/api` — not raw HTTP in `ui/`.
 - Domain violations: typed errors or result variants — not HTTP status codes inside `models/`.
 - Expected outcomes (declined payment): return values from `hooks/`/`models/`, not throws for UI branching.
@@ -35,4 +35,4 @@ rg -n "use no memo" src
 
 For list/filter UIs: if page/query state is `useState` and not written to the URL, hard. For Query results copied into a store (`setOrders(data)`), hard.
 
-Read form components: schema next to the form in `ui/`, calling `models/` — not reinvented in the submit handler and not parked in `models/` as the form schema itself. Server entities are `api/schema.ts`. UI branches on `AppError` (`isError`) or `data === null` after a failed parse. It does not re-check entity fields.
+Read form components: a fields array of `FormItem` in `ui/`, rules from `@/shared/ui/form`, business checks calling `models/` — not reinvented in the submit handler and not parked in `models/` as a form schema. Server entities are `api/schema.ts`. UI branches on `AppError` (`isError`) or `data === null` after a failed parse. It does not re-check entity fields.

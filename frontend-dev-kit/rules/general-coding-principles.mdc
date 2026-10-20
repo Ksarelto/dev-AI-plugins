@@ -18,7 +18,7 @@ Apply these based on the circumstances — they can pull in different directions
 - **YAGNI** (You Aren't Gonna Need It): don't build for hypothetical future requirements. Solve the problem in front of you.
 - **DRY** (Don't Repeat Yourself): extract shared logic once it's genuinely duplicated — not on the first repetition. See [Minimal Code](#minimal-code) for when three similar lines beat a premature abstraction.
 - **SOLID**, applied pragmatically to functions/modules/hooks rather than only classes:
-  - **S**ingle Responsibility — a function, module, or hook has one reason to change.
+  - **S**ingle Responsibility — a function, module, or hook has one reason to change. A component file holds props, the hooks that wire the view, named handlers, and JSX. Predicates, mappers, and field lists live in `lib/` or `constants.ts`. A second visual region is `ui/{child}/`.
   - **O**pen/Closed — extend behavior via composition/params/new functions rather than editing a stable function's internals for every new case.
   - **L**iskov Substitution — a more specific implementation (e.g. a variant) must honor the contract of the general one it replaces.
   - **I**nterface Segregation — prefer small, focused prop/param interfaces over one large interface consumers only partially use.
@@ -99,12 +99,38 @@ Before writing new plain code for a recurring problem, reuse the slice that alre
 
 ## Syntax Conventions
 
-- **Always use curly braces** for `if`/`else`, loops, and function bodies — even for single-statement blocks. Don't rely on implicit single-statement syntax; it's easy to misread and error-prone when a second statement is added later.
-- **Omit braces only for true one-liners with no block body**: an arrow function returning a single expression (`const double = (x: number) => x * 2`) or a single-line early return guard (`if (!id) return null`) — nested or multi-statement bodies must use braces.
+- **Always use curly braces** for `if`/`else` and loops — even for a single statement. An arrow that does more than return uses a block too. An arrow whose only statement is `return` has no block and no `return`: `=> expr` when it fits on the line, `=> (` … `)` when the value breaks across lines, and `=> ({ … })` for an object. That multi-line arrow gets a blank line before and after it when it has a neighbor.
+
+```ts
+export const isDocumentTypeErrorCode = (code: string): code is DocumentTypeErrorCodeValue => documentTypeErrorCodes.has(code)
+```
+
 - **Arrow functions over `function` declarations** for all new code — hooks, callbacks, helpers. Reserve `function` only where required by the runtime/tooling (none currently in this codebase).
-- Max line length: **160 characters**.
+- Max line length: **160 characters**. The project ESLint config enforces it: `'max-len': ['error', { code: 160, ignoreUrls: true, ignoreStrings: false, ignoreTemplateLiterals: false }]`. Strings count, so a long class string wraps inside `styles.ts`.
 - **`null` over `undefined`** for an intentionally empty/absent value. Use `undefined` only when there's no reasonable way to avoid it (an optional prop/param, a third-party API that returns it).
-- **Blank line before `return`** when the block has preceding statements — separates the setup from the result. Skip it when `return` is the only line in the block.
+- **Blank line before `return`** when the block has preceding statements — separates the setup from the result. A function whose only statement would be `return` does not use `return`; it is an expression body.
+- **Blank line before and after a block statement** (`if`, `for`, `while`, `do`, `switch`, `try`) when it sits between other statements in the same block. The same gap applies to a multi-line `=> (` arrow and a multi-line parenthesized value. Skip the gap when it is the only statement. `else` / `else if` stays attached — no blank line between `}` and `else`.
+- **A value that does not fit on the line** is wrapped in parentheses: the expression moves to the next line(s) and `)` sits on its own line. That statement gets a blank line before and after it when it has neighbors. Do not hang the value after `=`. An object or array keeps `{` / `[` on the `=` line.
+
+```ts
+let tableLabel: string | undefined
+
+if (table.showSkeleton) {
+  tableRole = TableRegionRole.Status
+  tableLabel = loadingLabel
+}
+
+const withRouteBoundary = (page: ReactNode): JSX.Element => (
+  <ErrorBoundary>
+    {page}
+  </ErrorBoundary>
+)
+
+let variant: (typeof ButtonVariant)['GHOST'] | (typeof ButtonVariant)['OUTLINE'] = (
+  ButtonVariant.GHOST
+)
+```
+
 - **Objects and arrays with more than 2 properties/items**: one per line, trailing comma. Two or fewer can stay on one line.
 - **Named imports with more than 2 specifiers**: one specifier per line, trailing comma. Two or fewer may stay on one line. Same for `import type`.
 - **No nested conditions** — flatten with early returns, or move the inner branch into its own named function. No nested ternaries anywhere.
@@ -201,7 +227,7 @@ Always commit `yarn.lock`. Check `resolutions` in `package.json` for forced vers
 
 | Tool | Config File |
 |------|-------------|
-| ESLint | `.eslintrc` (project root) |
+| ESLint | project ESLint config (`eslint.config.*` or `.eslintrc`). Required: `max-len` at 160, strings included |
 | TypeScript | `tsconfig.json` |
 
 **Pre-push hook**: runs automatically `yarn lint && yarn build`. Fix lint errors before pushing.
@@ -220,6 +246,7 @@ Always commit `yarn.lock`. Check `resolutions` in `package.json` for forced vers
 | `any` | `unknown` + type guard | Type safety at boundaries |
 | `undefined` for an intentionally empty value | `null` | Explicit "no value" vs. an unset/missing one |
 | Objects/arrays of 3+ props on one line | One property per line | Readable diffs, easy to scan |
+| Block glued to the next statement, or `=\n  value` | Blank line around the block; wrap the value in `( )` | The block and the wrapped value stay scannable |
 | Any comment in app or test code | A better name or an extracted function | Comments drift; names are checked |
 | `export` on a file-local helper or type | No `export` | Unused exports widen the public surface |
 | `<Button type="button" variant="outline">` | `<Button variant={ButtonVariant.Outline}>` | One source for closed sets; defaults stay implicit |

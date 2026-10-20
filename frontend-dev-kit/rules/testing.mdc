@@ -18,5 +18,6 @@ alwaysApply: false
 - Let the real query hook run through `rendererRTL`'s `QueryClient`, including another slice's hook. Mocking a query hook forces a cast or a full `UseQueryResult` stub.
 - A mocked module, hook, or context returns only the fields the code under test reads. Wire data given to a typed fetcher mock is typed once at the top of the file, never cast.
 - Assert on the English copy from `en.json` (what the user sees), not on translation keys.
+- Do not walk the DOM off a render result or a Testing Library node. No `querySelector`, `querySelectorAll`, `closest`, `parentElement`, `parentNode`, `children`, `childNodes`, `firstChild`, `lastChild`, `nextSibling`, `previousSibling`, `nextElementSibling`, `previousElementSibling`, and no `container` from `render`. Query with `screen.getByRole`, `getByLabelText`, or `getByText`. Reach a child through `within(screen.getByRole(...)).getByRole(...)`. Query a sibling by its own role or text.
 
 Procedure: `testing` skill.

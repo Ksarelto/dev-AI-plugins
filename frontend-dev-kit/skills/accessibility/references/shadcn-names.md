@@ -32,7 +32,7 @@ The same applies to `Sheet` (`SheetTitle`), `AlertDialog` (`AlertDialogTitle`), 
 
 ### Select and Combobox — the trigger needs a name
 
-`SelectTrigger` renders a button whose only content is the current value plus a chevron. Inside a form, `Form.Field`'s label supplies the name through `FormControl`. Standalone, it does not — the accessible name becomes "United States" (the value) instead of "Country" (the purpose).
+`SelectTrigger` renders a button whose only content is the current value plus a chevron. Inside a form, `FormLabel` on `FormItem` supplies the name through `htmlFor`. Standalone, it does not — the accessible name becomes "United States" (the value) instead of "Country" (the purpose).
 
 ```tsx
 // Bad — standalone select, no name for the control itself
@@ -82,7 +82,7 @@ Any lucide icon rendered next to visible text is decorative — mark it `aria-hi
 | Primitive | Requirement |
 |---|---|
 | `Tabs` | `TabsTrigger` text is the name; do not use icon-only triggers without `aria-label` |
-| `Checkbox` / `Switch` / `RadioGroupItem` | Not a real `<input>` — pair with `<Label htmlFor>` or `Form.Field` |
+| `Checkbox` / `Switch` / `RadioGroupItem` | Not a real `<input>` — pair with `<Label htmlFor>` or `FormLabel` on `FormItem` |
 | `Table` | Needs a `<caption>` or `aria-label` on `<table>` when more than one table is on the page |
 | `Progress` | Set `aria-label`; the value is announced but the purpose is not |
 | `Toast` (sonner) | Already a live region — do not wrap it in another `aria-live` |

@@ -59,7 +59,7 @@ Every hook must return typed data or `null`. Never leak `any` or unchecked asser
 ### 4. Per-entity lib/ segment
 
 - Entity-scoped helpers (predicates, filters, sorters) that do not fit in `model/`.
-- Pure functions only.
+- Pure functions only. Do not import `api/` or `httpClient`. A fetcher may import this helper. A helper may take a fetcher or already-fetched data as an argument.
 
 ### 5. Tests
 

@@ -74,6 +74,18 @@ const result = await screen.findByText('Success')
 expect(result).toBeInTheDocument()
 ```
 
+## Node access
+
+Do not walk the DOM off `render`'s `container` or off a node from `screen`. No `querySelector`, `querySelectorAll`, `closest`, `parentElement`, `parentNode`, `children`, `childNodes`, `firstChild`, `lastChild`, `nextSibling`, `previousSibling`, `nextElementSibling`, or `previousElementSibling`.
+
+```ts
+const submit = screen.getByRole('button', { name: 'Submit' })
+
+const row = within(screen.getByRole('table')).getByRole('row', { name: 'Order 1' })
+
+const status = screen.getByRole('status', { name: 'Saved' })
+```
+
 ## DOM Assertions
 
 ```ts

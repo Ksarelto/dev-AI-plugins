@@ -54,7 +54,11 @@ This kit's own standards are also always in scope, sourced as follows:
   `rules/api-contract.mdc`, `rules/honesty.mdc`. No copy of these lives in this skill; read the rule file itself.
 - `references/conventions.md` is always in scope for `src/**` diffs: comments, unnecessary exports,
   JSX ternaries, inline handlers, closed-set prop literals, unexplained string and number literals,
-  one component per file, props interfaces in the component file, and error boundaries.
+  one component per file, props interfaces in the component file, error boundaries, braced function
+  bodies, the 160-character line limit, `lib/` fetcher imports, class strings outside `styles.ts`,
+  and a local that stores `t(...)`.
+- `references/design.md` is in scope for every changed component under `ui/`: SOLID, GRASP, and a
+  component file that only holds props, hooks, named handlers, and JSX.
 - FSD architecture (layers, slices, segments, public APIs, query keys, state ownership) lives in
   the `architecture-audit` skill, not a rule. Load that skill and only the `references/*.md` files
   that match the changed paths. Do not invent a second architecture summary.
@@ -174,6 +178,7 @@ Topics with no dedicated rule file yet — distilled into this skill's own refer
 | File | Distilled from | Applies to |
 |---|---|---|
 | [references/conventions.md](references/conventions.md) | `react`, `general-coding-principles`, `component-structure`, `shadcn` rules | every `src/**` `.ts`/`.tsx` |
+| [references/design.md](references/design.md) | SOLID, GRASP, component split | every changed component under `ui/` |
 | [references/styling-and-shadcn.md](references/styling-and-shadcn.md) | `tailwind-styles`, `shadcn-usage` skills | `.tsx` |
 | [references/accessibility.md](references/accessibility.md) | `accessibility` skill | interactive `.tsx` |
 | [references/i18n.md](references/i18n.md) | `i18n` skill | new/changed user-facing copy |
