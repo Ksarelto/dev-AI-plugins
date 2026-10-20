@@ -125,10 +125,10 @@ Is it a global provider, router, or app bootstrap concern?
 |---------|---------|------------|------------------|
 | `api/` | Fetchers, `endpoints.ts`, DTOs | `shared/api`, `shared/lib`, `shared/config` | React components, UI state, query-key factories |
 | `hooks/` | Feature query and mutation hooks | own `api/`, `shared/api/query-keys`, entity public API | React components |
-| `models/` / `model/` | Types, selectors, pure invariants (`models/` on features, `model/` on entities). Form schemas stay in the form's `ui/` folder | own types, pure TS stdlib | React, network, side effects, locale keys |
+| `models/` / `model/` | Types, selectors, pure invariants (`models/` on features, `model/` on entities). Field rules stay on the form's `FormFieldConfig`, not here | own types, pure TS stdlib | React, network, side effects, locale keys, a form schema file |
 | `ui/` | Feature/entity display and interaction components | `shared/ui`, own `models/` or `model/` (pure), own `hooks/` | Direct fetch calls, `api/` imports, other slices' internals |
-| `lib/` | Pure formatters, validators, mappers | own `model/`, own types | React, network calls, side effects |
-| `config/` | Non-text constants, enum → locale-key maps | own `locales/keys` | Runtime code, English copy |
+| `lib/` | Pure formatters, validators, mappers | own `model/`, own types | React, network calls, side effects, fetcher imports. A fetcher may import `lib/`. A helper may receive a fetcher as an argument |
+| `config/` | The closed set and every map of it (label keys, error codes, predicates) in the same file. A key map lives here so `models/` does not import keys | own `locales/keys` | A second file for the same set (`labels.ts`, `status-map.ts`), runtime code, English copy |
 | `locales/` | `en.json`, `keys.ts` | nothing | Code, anything shown only by another slice |
 | `index.ts` | Re-exports only the names other slices import | — | Wildcard `export *`, unused re-exports |
 

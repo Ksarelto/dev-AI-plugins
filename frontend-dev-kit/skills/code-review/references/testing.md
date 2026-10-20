@@ -23,6 +23,7 @@ Distilled from the `testing` skill and `rules/testing.mdc`. Applies to every exe
 - `jest` instead of `vi`.
 - Raw RTL `render` instead of `render` from `@/shared/lib/rendererRTL`.
 - `fireEvent` instead of `userEvent`, or an un-`await`ed `userEvent` call.
+- Direct node access: `querySelector`, `querySelectorAll`, `closest`, `parentElement`, `parentNode`, `children`, `childNodes`, `firstChild`, `lastChild`, sibling properties, or `container` from `render`. Use `screen.getByRole` / `getByLabelText` / `getByText`. A child is `within(screen.getByRole(...)).getByRole(...)`. A sibling is queried by its own role or text.
 - Assertions on translation keys instead of the English copy from `en.json`.
 - Comments in the test file (`// Arrange`, section labels).
 - `vi.clearAllMocks()` missing from `beforeEach` where mocks are used; mock names without the `mock` prefix; default props redefined per test.
@@ -30,4 +31,4 @@ Distilled from the `testing` skill and `rules/testing.mdc`. Applies to every exe
 
 ## Severity
 
-A missing test for an executable file in the diff is **Must fix** — list the file. Over-mocking (children, shared/ui, react-hook-form, own hooks) and cast-forced mocks are **Must fix**: the test passes while the real composition is broken. `jest`, `fireEvent`, and un-awaited interactions are **Must fix**. The rest is **Should fix**.
+A missing test for an executable file in the diff is **Must fix** — list the file. Over-mocking (children, shared/ui, react-hook-form, own hooks) and cast-forced mocks are **Must fix**: the test passes while the real composition is broken. `jest`, `fireEvent`, un-awaited interactions, and direct node access are **Must fix**. The rest is **Should fix**.

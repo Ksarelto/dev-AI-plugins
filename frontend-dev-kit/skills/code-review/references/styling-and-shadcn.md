@@ -5,6 +5,7 @@ Distilled from the `tailwind-styles` and `shadcn-usage` skills and `rules/stylin
 ## Tailwind
 
 - A class string, template literal, or `cn('…')` literal in a JSX `className` — classes belong in the folder's `styles.ts`.
+- A Tailwind string in `constants.ts` (or any file other than `styles.ts`) that `styles.ts` imports. Write the string in the `cn()` or `cva()` call.
 - A ternary inside `className` instead of a `styles.x(isActive)` function or a `cva` variant.
 - A hardcoded color hex value or raw palette class (`bg-blue-500`) instead of a semantic token or a `globals.css` CSS variable.
 - Inline `style={{}}`, a CSS module, or vanilla-extract introduced alongside the Tailwind system.

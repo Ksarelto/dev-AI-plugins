@@ -11,7 +11,8 @@ Every component folder has a `styles.ts`. The component file owns structure and 
 
 ## What lives in `styles.ts`
 
-- Every Tailwind class string, including one-liners (`flex`, `gap-2`, a single color).
+- Every Tailwind class string, including one-liners (`flex`, `gap-2`, a single color), written in this file.
+- Do not store a class string in `constants.ts`, `config/`, or `lib/` and import it here. `constants.ts` holds closed-set prop values, not classes.
 - `cva()` variant tables and their exported `VariantProps` type.
 - `cn()`-composed class strings and class-building helpers (`row(isSelected)`).
 
@@ -19,7 +20,7 @@ Every component folder has a `styles.ts`. The component file owns structure and 
 // features/orders/ui/order-card/styles.ts
 import { cn } from '@/shared/lib/utils';
 
-export const root = (className?: string) => cn('flex items-center gap-3', className);
+export const root = (className?: string): string => cn('flex items-center gap-3', className)
 export const title = 'text-sm font-medium text-foreground';
 export const amount = 'ms-auto text-sm font-semibold text-foreground';
 ```
@@ -46,7 +47,7 @@ export const OrderCard = ({ order, className }: OrderCardProps): JSX.Element => 
       {order.formattedTotal}
     </span>
   </Card>
-);
+)
 ```
 
 ## JSX never carries classes

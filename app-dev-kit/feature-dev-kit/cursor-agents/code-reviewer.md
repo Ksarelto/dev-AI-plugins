@@ -30,6 +30,7 @@ Read the companion references that match the diff. Resolve the directory from th
 
 - `accessibility.md`
 - `styling-and-shadcn.md`
+- `design.md` — SOLID, GRASP, and a component file that only holds props, hooks, named handlers, and JSX
 - `testing.md` — over-mocking and assertion quality, not missing files
 - `data-fetching.md`
 
@@ -37,7 +38,7 @@ Do not load `conventions.md` or `i18n.md`. Those rules are the conventions gate.
 
 Missing directory → stop. Do not invent a local checklist.
 
-1. Apply those references. Reuse vs duplication against `## Reuse Map`.
+1. Apply those references. Reuse vs duplication against `## Reuse Map`. A component that also owns mapping, availability rules, or a field list is `[IMPORTANT]` (`design.md`).
 2. Every acceptance criterion maps to code and a test. A criterion with no test is `[CRITICAL]`. A file the conventions gate already flagged `missing-test` is the gate's finding — do not file it again.
 3. **Test quality:** over-mocking (children, `shared/ui`, `react-hook-form`, own hooks), a cast-forced mock, or a test that only asserts the module exists is `[IMPORTANT]`.
 4. **Boundaries:** a route not wrapped in `RouteBoundary`, or a feature entry without `<ErrorBoundary>`, is `[CRITICAL]`.

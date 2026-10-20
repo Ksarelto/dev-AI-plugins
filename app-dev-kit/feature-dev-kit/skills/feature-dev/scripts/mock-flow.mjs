@@ -269,6 +269,7 @@ if (goodRun.status === 2) {
     'comment', 'inline-class', 'nested-ternary', 'jsx-ternary', 'inline-handler', 'hardcoded-copy', 'magic-prop',
     'missing-test', 'unused-export', 'export-star', 'motion-utility', 'string-map', 'motion-css', 'dark-variant',
     'cross-slice-mock', 'inline-query-key', 'env-access', 'client-option',
+    'lib-imports-api', 'arrow-body', 'max-len', 'block-gap', 'wrapped-expr', 'node-access', 'class-constant', 'translated-local',
   ]
   const missing = expected.filter((r) => !rules.has(r))
   if (badRun.status !== 1) fail(`check-conventions must exit 1 on the bad fixture (got ${badRun.status})`)

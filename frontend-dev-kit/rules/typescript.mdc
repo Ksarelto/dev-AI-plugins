@@ -113,6 +113,7 @@ t(PROFILE_STATUS_KEY[profile.status])
 
 `satisfies` fails the build when a status is added without a key, and keeps each value's literal
 key type from `keys.ts`. The map holds translation keys, never English copy (`rules/i18n.mdc`).
+The const and this map are the same file (`config/` when the map holds keys). See Enums vs Union.
 
 Derive unions from runtime constants instead of maintaining both by hand:
 
@@ -192,7 +193,25 @@ Use sparingly — only where mixing up two `string`-typed IDs is a real bug risk
 
 ## Enums vs Union + Const Object
 
-Prefer a `const` object plus a derived union in the owning slice (`config/` or `models/`). Do not add `src/enums/`. A TypeScript `enum` has reverse-mapping and `const enum` / `isolatedModules` pitfalls.
+Prefer a `const` object plus a derived union. Do not add `src/enums/`. A TypeScript `enum` has reverse-mapping and `const enum` / `isolatedModules` pitfalls.
+
+The const and every map of its values live in the same file: label keys, other error codes, predicates, and the type guard. Do not add `labels.ts` or `status-map.ts`. When any map holds a translation key, that file is the slice `config/` so `models/` does not import keys. `models/` may `import type` the value union. `ui/` calls `t(map[value])` and does not declare another map.
+
+```ts
+export const ProfileStatus = {
+  New: 'new',
+  Active: 'active',
+  Declined: 'declined',
+} as const
+
+export type ProfileStatusValue = (typeof ProfileStatus)[keyof typeof ProfileStatus]
+
+export const PROFILE_STATUS_KEY = {
+  [ProfileStatus.New]: profileKeys.status.new,
+  [ProfileStatus.Active]: profileKeys.status.active,
+  [ProfileStatus.Declined]: profileKeys.status.declined,
+} satisfies Record<ProfileStatusValue, string>
+```
 
 ---
 

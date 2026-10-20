@@ -55,11 +55,12 @@ Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.s
 3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`) **and** `tests/{name}.test.tsx` in the same change. Add `types.ts` only for non-prop types. Domain types go in the slice model folder (`models/types.ts` or `model/types.ts`), not in the component folder. A nested component is `ui/{child}/`. A helper used only here is `lib/`.
 4. Every visible string is `t(key)` from the slice's `locales/` or `commonKeys` (`i18n` skill). Server data renders as-is.
 5. Handlers are named (`handleX`) and declared above the return; JSX only passes the reference.
-6. Branches are computed before the return or written as early returns — no ternary in JSX, never a nested one.
-7. Closed-set props on primitives use their constants (`ButtonVariant.Outline`, `ButtonType.Submit`); omit a prop whose value is the default.
-8. Before finishing, scan the new file again for unexplained string and number literals (`rules/general-coding-principles.mdc`). A timeout, page size, status, z-index, or path that already has a name in `shared/api`, the slice `config/`, or this folder's `constants.ts` is a violation even once. A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
-9. When the component wraps or is created from an external library, confirm that library's animation is still the animation on the element (`shadcn-usage`). Do not add a second one.
-10. The templates below carry no comments; the generated files must not either.
+6. The component file holds props, the hooks that wire this view, named handlers, and JSX. A predicate, mapper, field list, or availability rule goes in `lib/` or `constants.ts`. A second visual region is `ui/{child}/`. Class strings stay in `styles.ts`. Do not store `t(...)` in a local.
+7. Branches are computed before the return or written as early returns — no ternary in JSX, never a nested one. A branch that chooses a translation key stores the key (`submitKey`) and JSX calls `t(submitKey)`.
+8. Closed-set props on primitives use their constants (`ButtonVariant.Outline`, `ButtonType.Submit`); omit a prop whose value is the default.
+9. Before finishing, scan the new file again for unexplained string and number literals (`rules/general-coding-principles.mdc`). A timeout, page size, status, z-index, or path that already has a name in `shared/api`, the slice `config/`, or this folder's `constants.ts` is a violation even once. A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
+10. When the component wraps or is created from an external library, confirm that library's animation is still the animation on the element (`shadcn-usage`). Do not add a second one.
+11. The templates below carry no comments; the generated files must not either.
 
 ## File templates
 
@@ -67,8 +68,7 @@ Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.s
 ```ts
 import { cn } from '@/shared/lib/utils';
 
-export const root = (className?: string): string =>
-  cn('flex items-center gap-2 rounded-md', className);
+export const root = (className?: string): string => cn('flex items-center gap-2 rounded-md', className)
 
 export const label = 'text-sm font-medium text-foreground';
 ```

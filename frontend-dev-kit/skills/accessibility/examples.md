@@ -24,19 +24,18 @@ Use the correct element before reaching for ARIA. A `<Button>` is already keyboa
 
 ## Labels for form inputs
 
-Every input has an associated label. The shared `Form.Field` (`rhf-form` skill) renders `FormLabel` → a real `<label>` bound to the control.
+Every input has an associated label. `FormItem` (`rhf-form` skill) renders `FormLabel` with `htmlFor` bound to the control.
 
 ```tsx
-// Bad — no label, placeholder is not a label, English literal
-<Input placeholder="Enter name" />
-
-// Good
-<Form.Field
-  name="name"
-  label={t(usersKeys.form.name)}
->
-  {(field) => <Input {...field} />}
-</Form.Field>
+<FormItem
+  field={{
+    code: FieldCode.NAME,
+    label: t(usersKeys.form.name),
+    rules: requiredRule(),
+    type: FormFieldType.STRING,
+  }}
+/>
+```
 ```
 
 ## Icon-only buttons need aria-label

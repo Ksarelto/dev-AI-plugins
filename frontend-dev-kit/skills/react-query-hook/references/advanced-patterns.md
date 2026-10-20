@@ -7,14 +7,14 @@ Transform / reshape API data inside the hook — components receive the projecte
 ```ts
 import { DISPLAY_NAME_STALE_TIME_MS } from '@/shared/api/config';
 
-export const useUserDisplayName = (id: string): UseQueryResult<string> => {
-  return useQuery({
+export const useUserDisplayName = (id: string): UseQueryResult<string> => (
+  useQuery({
     queryKey: userKeys.detail(id),
     queryFn: () => fetchUser(id),
     select: (user) => `${user.firstName} ${user.lastName}`,
     staleTime: DISPLAY_NAME_STALE_TIME_MS,
-  });
-};
+  })
+);
 
 // Component sees string, not User — re-renders only when the name changes
 const { data: displayName } = useUserDisplayName(id);
@@ -64,8 +64,8 @@ export const userQueryOptions = (id: string) =>
   });
 
 // Hook
-export const useUser = (id: string | undefined): UseQueryResult<User> => {
-  return useQuery({
+export const useUser = (id: string | undefined): UseQueryResult<User> => (
+  useQuery({
     ...userQueryOptions(id ?? ''),
     queryFn: () => {
       if (!id) throw new Error('useUser called without an id');
@@ -73,8 +73,8 @@ export const useUser = (id: string | undefined): UseQueryResult<User> => {
       return fetchUser(id);
     },
     enabled: !!id,
-  });
-};
+  })
+);
 
 // React Router loader
 export const userLoader = async ({ params }: LoaderFunctionArgs): Promise<User> => {
@@ -91,8 +91,8 @@ Fetch a variable-length list of resources in parallel with a single hook call.
 ```ts
 import { BATCH_STALE_TIME_MS } from '@/shared/api/config';
 
-export const useUserBatch = (ids: string[]) => {
-  return useQueries({
+export const useUserBatch = (ids: string[]) => (
+  useQueries({
     queries: ids.map((id) => ({
       queryKey: userKeys.detail(id),
       queryFn: () => fetchUser(id),
@@ -103,8 +103,8 @@ export const useUserBatch = (ids: string[]) => {
       isLoading: results.some((r) => r.isLoading),
       isError: results.some((r) => r.isError),
     }),
-  });
-};
+  })
+);
 ```
 
 ## Mutation error typing

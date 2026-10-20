@@ -25,4 +25,4 @@ features/users/
 └── index.ts
 ```
 
-`ui/` imports hooks, not `api/`. A form schema in `ui/` may call `models/` pure functions. The page in `pages/users/` composes the feature's public `index.ts`.
+`ui/` imports hooks, not `api/`. A form's field rules may call `models/` pure functions. The page in `pages/users/` composes the feature's public `index.ts`.

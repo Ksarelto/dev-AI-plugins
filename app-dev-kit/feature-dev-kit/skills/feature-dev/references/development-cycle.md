@@ -51,7 +51,7 @@ Do not start a higher FSD layer on a red `--until fsd` gate. Station 1.5 runs on
 Inside one assigned slice, follow `ui-build-contract.md`:
 
 1. Stub `index.ts` first.
-2. `models/` (features) or `model/` (entities) — types and pure invariants, no `any`. No React, no network, no locale keys. A form schema is `ui/<form>/schema.ts`.
+2. `models/` (features) or `model/` (entities) — types and pure invariants, no `any`. No React, no network, no locale keys. Form field rules live on `FormFieldConfig` in the form component (`rhf-form`), not in `models/`.
 3. `api/` — `schema.ts`, fetchers, and `endpoints.ts`. Query keys stay in `shared/api/query-keys/`.
 4. `hooks/` (features only) — the query or mutation hook. `ui/` imports this, never `api/`.
 5. `lib/` pure helpers — unit-tested without rendering

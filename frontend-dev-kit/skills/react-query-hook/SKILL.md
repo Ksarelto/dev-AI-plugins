@@ -72,12 +72,12 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
    import { fetchOrders } from '../api/fetchers';
    import type { OrderFilters } from '../api/dto';
 
-   export const useOrderList = (filters?: OrderFilters) => {
-     return useQuery({
+   export const useOrderList = (filters?: OrderFilters) => (
+     useQuery({
        queryKey: orderKeys.list(filters),
        queryFn: ({ signal }) => fetchOrders(filters, signal),
-     });
-   };
+     })
+   );
    ```
 
    `data === null` is an invalid payload (already notified). `isError` is an `AppError`. Do not add an `onError` that toasts the generic message again.

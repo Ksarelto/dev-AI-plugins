@@ -28,6 +28,7 @@
 | Multiple `expect` inside one `waitFor` | One `expect` per `waitFor` |
 | Query directly inside `waitFor`'s `expect` | Create constant inside `waitFor` before `expect` |
 | `getBy*` for negative assertions | Use `queryBy*` + `.not.toBeInTheDocument()` |
+| `container.querySelector`, `.parentElement`, `.closest`, `.children`, `.firstChild`, `.nextElementSibling` | `screen.getByRole` / `getByLabelText` / `getByText`. A child is `within(screen.getByRole(...)).getByRole(...)`. A sibling is queried by its own role or text |
 
 ## Props & Test Data
 

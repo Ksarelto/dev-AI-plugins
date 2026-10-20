@@ -31,16 +31,23 @@ Everything a user can see or hear that did not come from the server:
 ## Instructions
 
 1. **Copy files.** Shared strings: `shared/lib/i18n/locales/common/en.json` + `keys.ts` (`commonKeys`) — actions (`save`, `cancel`, `retry`, `close`), generic states, error-boundary copy, and `errors.invalidResponse` for a server body that fails its zod schema (`api-client`). Feature strings: `features/{f}/locales/en.json` + `keys.ts`. An entity, widget, or page that owns copy uses the same pair in its own `locales/`. Mechanism (`config.ts`, `format.ts`, `keys.ts`, `translate-message.ts`, `index.ts`) lives in `shared/lib/i18n/` and contains no strings. No `src/locales/`, no `shared/locales/`, no `shared/config/textContent.ts`. Provider is `I18nProvider` in `app/providers/`.
-2. **No string maps.** Never write an object of English strings — `const LABELS = {…}`, `TextContent`, `STATUS_LABELS`, a `constants.ts` of messages. A union that needs labels maps to **keys**, and `t()` runs at render:
+2. **No string maps.** Never write an object of English strings — `const LABELS = {…}`, `TextContent`, `STATUS_LABELS`, a `constants.ts` of messages. A union that needs labels maps to **keys** in the same file as the const (slice `config/` when the map holds keys). `ui/` calls `t()` at render and does not declare a second map:
 
    ```ts
+   export const ListingStatus = {
+     Free: 'free',
+     Out: 'out',
+   } as const
+
+   export type ListingStatusValue = (typeof ListingStatus)[keyof typeof ListingStatus]
+
    export const LISTING_STATUS_KEY = {
      [ListingStatus.Free]: catalogueKeys.status.free,
      [ListingStatus.Out]: catalogueKeys.status.out,
-   } satisfies Record<ListingStatusValue, string>;
+   } satisfies Record<ListingStatusValue, string>
    ```
 3. **Type the keys.** Each `locales/keys.ts` exports `as const satisfies NestedKeysOf<typeof en>` (`NestedKeysOf` is in `shared/lib/i18n/keys.ts`). `en` is the source of truth — a key only in another locale is a bug.
-4. **Call `t()` with the typed key**: `t(usersKeys.list.emptyState)` or `commonKeys`. No raw `'list.emptyState'` literal. Do not import another feature's `locales/keys.ts`; copy two features share moves to `common`. `models/` never imports keys and never calls `t()`.
+4. **Call `t()` with the typed key at the render site**: `t(usersKeys.list.emptyState)` or `{t(documentTypesListKeys.loading)}` in JSX. Do not assign that call to a local and render the local. A local may hold the key when the key is chosen by a branch (`const submitKey = …`) and JSX calls `t(submitKey)`. No raw `'list.emptyState'` literal. Do not import another feature's `locales/keys.ts`; copy two features share moves to `common`. `models/` never imports keys and never calls `t()`.
 5. **Reuse before adding.** Search `common/en.json` for the string first (`Cancel`, `Save`, `Retry`). Do not add `features/orders/…/cancel`.
 6. **Prototype copy is verbatim.** When a prototype page is bound, its visible text becomes the `en.json` values unchanged — headings, labels, placeholders, empty/error messages, button text — unless the spec changes it.
 7. **Interpolate, don't concatenate**: `t(key, { name })`. Plurals use `count` plus `_one`/`_other` in the JSON, never `count === 1 ? … : …`.

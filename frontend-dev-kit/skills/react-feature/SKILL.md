@@ -19,7 +19,7 @@ description: Scaffold and implement a React feature slice following FSD with api
 - HTTP calls use `httpClient` from `shared/api/base.ts` — never raw `fetch` or `ky`/`axios` directly
 - Every component folder requires a `styles.ts` — no Tailwind classes inline in JSX, ever
 - `models/` = pure business logic + Zustand stores; `hooks/` = orchestration (sequences, await chains); `ui/` = React + JSX
-- `ui/` never imports `api/`. A form schema in `ui/` calls `models/` pure functions. Queries, mutations, and sequences go through `hooks/`
+- `ui/` never imports `api/`. A form's field rules call `models/` pure functions. Queries, mutations, and sequences go through `hooks/`
 - Start with `api/ + ui/ + index.ts`. Add `models/` when there is real client state or business logic. Add `hooks/` when there is real orchestration.
 
 ## Folder structure
@@ -149,8 +149,8 @@ export type { PlaceOrderPayload } from './api/dto';
 - [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`, slice `config/`, or `constants.ts`
 - [ ] A component created from an external library still uses that library's animation, and does not add its own
 - [ ] `models/` and `hooks/` segments are earned, not scaffolded empty
-- [ ] `ui/` never imports `api/` — queries and mutations go through `hooks/`; a form schema may call `models/` pure functions
-- [ ] Forms use React Hook Form + zod. Server shape is `api/schema.ts` only. Input constraints are the form schema. Business invariants are pure functions in `models/`
+- [ ] `ui/` never imports `api/` — queries and mutations go through `hooks/`; a form's field rules may call `models/` pure functions
+- [ ] Forms use React Hook Form and `FormItem` (`rhf-form`). Server shape is `api/schema.ts` only. Input constraints are field `rules`. Business invariants are pure functions in `models/`
 - [ ] Loading, error, empty, and partial/stale states all handled
 - [ ] `index.ts` exports only what consumers need — no stores, DTOs, fetchers
 - [ ] Feature never imports another feature

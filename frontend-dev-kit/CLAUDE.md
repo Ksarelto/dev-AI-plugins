@@ -49,9 +49,11 @@ Apply these based on the circumstances — they can pull in different directions
 
 ### Syntax conventions
 
-- Always use curly braces for `if`/`else`, loops, and function bodies.
+- Always use curly braces for `if`/`else` and loops, and for an arrow that does more than return. An arrow whose only statement is `return` is `=> expr` on one line, or `=> (` … `)` when the value breaks across lines. An object is `=> ({ … })`.
 - Arrow functions over `function` declarations for all new code.
 - `null` over `undefined` for an intentionally empty/absent value.
+- A block statement (`if`, `for`, `while`, `do`, `switch`, `try`), a multi-line `=> (` arrow, and a multi-line parenthesized value have a blank line before and after them when they have a neighbor. Skip the gap when it is the only statement. No blank line between `}` and `else`.
+- A value that does not fit on the 160-character line is wrapped in parentheses, with the expression on the next line and `)` on its own line. That statement has a blank line before and after it when it has neighbors. An object or array keeps `{` / `[` on the `=` line.
 - Objects and arrays with more than 2 properties/items: one per line, trailing comma.
 - No nested conditions — flatten with early returns.
 
@@ -144,6 +146,7 @@ Every component folder has a `styles.ts`. The component file owns structure and 
 - Mock only what the test cannot run in jsdom: the HTTP layer, navigation, browser APIs jsdom lacks, and time.
 - Never mock `@/shared/ui/*` primitives, `react-hook-form`, `zod`, i18n, `cn`, or the component's own children.
 - Assert on the English copy from `en.json`, not on translation keys.
+- Do not walk the DOM from a render result or a Testing Library node (`querySelector`, `closest`, `parentElement`, `children`, `firstChild`, `nextElementSibling`, `container` from `render`). Use `screen.getByRole` / `getByLabelText` / `getByText`, and `within(...).getByRole(...)` for a child. Query a sibling by its own role or text.
 
 ---
 
