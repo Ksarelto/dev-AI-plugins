@@ -18,7 +18,7 @@ Apply these based on the circumstances — they can pull in different directions
 - **YAGNI** (You Aren't Gonna Need It): don't build for hypothetical future requirements. Solve the problem in front of you.
 - **DRY** (Don't Repeat Yourself): extract shared logic once it's genuinely duplicated — not on the first repetition. See [Minimal Code](#minimal-code) for when three similar lines beat a premature abstraction.
 - **SOLID**, applied pragmatically to functions/modules/hooks rather than only classes:
-  - **S**ingle Responsibility — a function, module, or hook has one reason to change. A component file holds props, the hooks that wire the view, named handlers, and JSX. Predicates, mappers, and field lists live in `lib/` or `constants.ts`. A second visual region is `ui/{child}/`.
+  - **S**ingle Responsibility — a function, module, or hook has one reason to change. A component file holds props, the hooks that wire the view, named handlers, and JSX. Predicates, mappers, and field lists live in `utils.ts` or `constants.ts`. No `let` and no IIFE in the component. A second visual region is `ui/{child}/`.
   - **O**pen/Closed — extend behavior via composition/params/new functions rather than editing a stable function's internals for every new case.
   - **L**iskov Substitution — a more specific implementation (e.g. a variant) must honor the contract of the general one it replaces.
   - **I**nterface Segregation — prefer small, focused prop/param interfaces over one large interface consumers only partially use.

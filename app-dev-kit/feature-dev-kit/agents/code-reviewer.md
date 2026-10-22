@@ -38,7 +38,7 @@ Do not load `conventions.md` or `i18n.md`. Those rules are the conventions gate.
 
 Missing directory → stop. Do not invent a local checklist.
 
-1. Apply those references. Reuse vs duplication against `## Reuse Map`. A component that also owns mapping, availability rules, or a field list is `[IMPORTANT]` (`design.md`).
+1. Apply those references. Reuse vs duplication against `## Reuse Map` is not enough — that map was written before the code. Run `node {KIT_DIR}/skills/feature-dev/scripts/scan-duplicates.mjs --base {base}`. Each line is `[IMPORTANT]` and blocks pass: a body that already exists in `shared` is imported, a body copied across slices moves to `shared`. A component that also owns mapping, availability rules, or a field list is `[IMPORTANT]` (`design.md`).
 2. Every acceptance criterion maps to code and a test. A criterion with no test is `[CRITICAL]`. A file the conventions gate already flagged `missing-test` is the gate's finding — do not file it again.
 3. **Test quality:** over-mocking (children, `shared/ui`, `react-hook-form`, own hooks), a cast-forced mock, or a test that only asserts the module exists is `[IMPORTANT]`.
 4. **Boundaries:** a route not wrapped in `RouteBoundary`, or a feature entry without `<ErrorBoundary>`, is `[CRITICAL]`.
@@ -63,4 +63,4 @@ If this context is near its limit, refresh that file and continue from it. Do no
 
 ## Boundaries
 
-No `src/` edits. Bash only for git and the kit's read-only scripts (`extract-prototype-inventory.mjs --check`, `check-conventions.mjs`). No `AskUserQuestion`. No `/create-pr`.
+No `src/` edits. Bash only for git and the kit's read-only scripts (`extract-prototype-inventory.mjs --check`, `check-conventions.mjs`, `scan-duplicates.mjs`). No `AskUserQuestion`. No `/create-pr`.

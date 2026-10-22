@@ -60,7 +60,7 @@ export { PendingButton } from './pending-button';
 // features/catalogue/ui/listing-list/listing-list.tsx
 import { useTranslation } from 'react-i18next';
 import { ListingCard } from '@/entities/listing';
-import { useListings } from '../../hooks/useListings';
+import { useListings } from '../../api/useListings';
 import { catalogueKeys } from '../../locales/keys';
 import { ListingListEmpty } from './ui/listing-list-empty';
 import { ListingListError } from './ui/listing-list-error';

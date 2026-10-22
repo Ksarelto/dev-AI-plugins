@@ -35,15 +35,17 @@ Read the fixed contract first, then your card (see `context-budget.md` § Per-wo
 
 ### 1. Models segment
 
+Before writing a helper, grep `src/shared` and sibling slices. If it exists, import it. If this change would be the second copy, hand it to `shared-engineer`.
+
 Create `features/<slice>/models/` with local interaction state and pure invariants. No React, no network, no locale keys. Form field rules live on `FormFieldConfig` in the form's `ui/` folder, per `frontend-dev-kit:rhf-form`. Do not add `schema.ts` and do not duplicate entity types — import them from the entity's `index.ts`.
 
 ### 2. API and hooks
 
-If the feature calls endpoints the entity does not, create `features/<slice>/api/` with `endpoints.ts` and fetchers only. Query and mutation hooks go in `features/<slice>/hooks/` via `frontend-dev-kit:react-query-hook`. `ui/` imports `hooks/`, never `api/`. Keep read hooks on the entity. Keys live in `shared/api/query-keys/`.
+If an entity owns the resource, import its api hook. If the feature calls endpoints the entity does not, create `features/<slice>/api/` with `endpoints.ts`, fetchers, and the `useQuery` / `useMutation` hook via `frontend-dev-kit:react-query-hook`. `features/<slice>/hooks/` does not call `useQuery` or `useMutation`. `ui/` imports the api hook, never a fetcher. A hook that more than one slice needs lives in `shared/api/` or the owning entity, once. Keys live in `shared/api/query-keys/`.
 
 ### 3. UI segment
 
-Create `features/<slice>/ui/` with the interaction components, one kebab-case folder each. Forms follow `frontend-dev-kit:rhf-form`. Slice `lib/` and a component's `lib/` are pure helpers: they do not import `api/` or `httpClient`. A fetcher may import them. Compose `@/shared/ui/<name>`. If the piece is a registry primitive and that folder is missing, stop and hand it to `shared-engineer`. Do not author a second dialog. Import entities only through `index.ts`. Four states per `## UI Surface` and `rules/ui-quality.mdc`. Compose dialogs, selects, and menus in the part order of the registry demo (`get_item_examples_from_registries`). Handlers are named functions above the return; copy and zod messages are locale keys in `features/<slice>/locales/`.
+Create `features/<slice>/ui/` with the interaction components, one kebab-case folder each. Forms follow `frontend-dev-kit:rhf-form`. Slice `lib/` and a component's `utils.ts` are pure helpers: they do not import `api/` or `httpClient`. A calculation that takes a few arguments moves to `utils.ts`. No `let` and no IIFE in the component. A fetcher may import them. Compose `@/shared/ui/<name>`. If the piece is a registry primitive and that folder is missing, stop and hand it to `shared-engineer`. Do not author a second dialog. Import entities only through `index.ts`. Four states per `## UI Surface` and `rules/ui-quality.mdc`. Compose dialogs, selects, and menus in the part order of the registry demo (`get_item_examples_from_registries`). Handlers are named functions above the return; copy and zod messages are locale keys in `features/<slice>/locales/`.
 
 ### 4. Error boundary and public API (`index.ts`)
 
@@ -60,8 +62,8 @@ Run the self-check in `ui-build-contract.md` § 7 on the slice's files. Verify a
 ## Outputs
 
 - `features/<slice>/models/` — interaction state types and pure invariants. Form field rules live on `FormFieldConfig` in the form's `ui/` folder.
-- `features/<slice>/api/` — fetchers and `endpoints.ts` (if this feature calls its own paths).
-- `features/<slice>/hooks/` — the query and mutation hooks `ui/` calls.
+- `features/<slice>/api/` — fetchers, `endpoints.ts`, and the query or mutation hook when no entity owns the call.
+- `features/<slice>/hooks/` — navigation and local UI state that call the api hook. No `useQuery` or `useMutation`.
 - `features/<slice>/ui/` — interaction components, each with its behavior test in this change.
 - `features/<slice>/locales/` — `en.json` + `keys.ts` for the slice's copy.
 - `features/<slice>/index.ts` — public API; the exported entry component is wrapped in `ErrorBoundary`.

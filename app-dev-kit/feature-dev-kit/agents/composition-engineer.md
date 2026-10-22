@@ -11,6 +11,8 @@ permissionMode: default
 
 ## Role
 
+Before writing a helper, grep `src/shared` and sibling slices. If it exists, import it. If this change would be the second copy, hand it to `shared-engineer`.
+
 Owns the composition layers. Assembles feature slices and entity slices into widgets (reusable higher-order compositions such as a full table with filters and pagination) and route-level pages. Every page is thin: it composes widgets and features rather than embedding business logic itself.
 
 ## Inputs

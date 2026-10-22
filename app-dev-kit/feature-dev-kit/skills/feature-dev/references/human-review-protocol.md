@@ -19,11 +19,14 @@ may pause. The orchestrator never owns this gate.
 
 | Human response | Spec status set to | Next action |
 |----------------|--------------------|-------------|
-| `approve` | `done` | **Skill** records approval; `/create-pr` is unlocked for a human to type |
+| first `approve` | stays `awaiting-human` | **Skill** loads `frontend-dev-kit:code-review` (`FIXED_POINT` = parent branch, `SPEC_PATH` = the feature blackboard). One fix round. Writes `code-review.md`. Does not commit |
+| second `approve` | `done` | **Skill** commits; `/create-pr` is unlocked for a human to type |
 | `changes-requested: <description>` | `changes-requested` | A local UI fix (`pipeline-flow.md` § Revise Re-entry Points) the skill runs itself; anything else re-spawns the orchestrator `MODE: revise` |
-| `abort` | unchanged (`awaiting-human`) | Stop; branch stays |
+| `abort` | unchanged (`awaiting-human`) | Stop; no commit; branch stays |
 
-On `approve` the skill does **not** re-spawn `MODE: revise`. That path is only for change requests.
+The first `approve` does not set `done` and does not re-spawn `MODE: revise`. The second `approve` is the only path to `done`. `MODE: revise` is only for change requests.
+
+Must-fix findings go to `slice-engineer` for one layer, or `shared-engineer` when the finding says move it to `shared`. A `useQuery` or `useMutation` in `hooks/` moves into the owning `api/`. A `let`, an IIFE, or a pure calculation in a component moves to a `const` condition or `{component}/utils.ts`. Then `--until conventions`. Re-run the two scan scripts and re-spawn only buckets that had findings. One fix round. What is still open stays in `.spec/features/<slug>.context/code-review.md`.
 
 ---
 

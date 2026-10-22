@@ -19,7 +19,7 @@ description: Scaffold and implement a React feature slice following FSD with api
 - HTTP calls use `httpClient` from `shared/api/base.ts` — never raw `fetch` or `ky`/`axios` directly
 - Every component folder requires a `styles.ts` — no Tailwind classes inline in JSX, ever
 - `models/` = pure business logic + Zustand stores; `hooks/` = orchestration (sequences, await chains); `ui/` = React + JSX
-- `ui/` never imports `api/`. A form's field rules call `models/` pure functions. Queries, mutations, and sequences go through `hooks/`
+- `ui/` imports the api hook, never a fetcher. A form's field rules call `models/` pure functions. `useQuery` and `useMutation` live in `api/` and are reused. `hooks/` may compose navigation and local UI state by calling that hook
 - Start with `api/ + ui/ + index.ts`. Add `models/` when there is real client state or business logic. Add `hooks/` when there is real orchestration.
 
 ## Folder structure
@@ -38,7 +38,7 @@ features/{feature}/
 │       ├── styles.ts             — ALL Tailwind classes, never inline in JSX
 │       ├── types.ts              — non-prop types only, when the component has them
 │       ├── ui/{child}/           — nested components, same shape
-│       ├── lib/                  — helpers used only by this component
+│       ├── utils.ts              — helpers used only by this component
 │       └── tests/
 │           └── {name}.test.tsx   — RTL test (required)
 ├── models/               — add only when real client state or business logic exists
@@ -47,7 +47,7 @@ features/{feature}/
 │   ├── validation.ts     — business invariants as pure functions
 │   └── tests/            — unit tests for pure model logic
 ├── hooks/                — add only when real orchestration (sequences, awaits) exists
-│   ├── use{Feature}.ts   — wraps useQuery/useMutation, chains models + api + navigation
+│   ├── use{Feature}.ts   — navigation and local UI state; calls the api hook, never useQuery or useMutation
 │   └── tests/            — integration tests for the hook sequence
 ├── config/
 │   └── permissions.ts    — permission id constants, analytics event names, feature constants
@@ -68,7 +68,7 @@ features/{feature}/
    ```
 3. **Create `api/`** — `endpoints.ts` (path map), `schema.ts` (zod; wire type is `z.infer`), `dto.ts` (domain type and rename mapper), `fetchers.ts` (`httpClient`, then `parseEntity`)
 4. **Create `models/`** (only when needed) — Zustand stores, validation rules, state machines as pure functions
-5. **Create `hooks/`** (only when needed) — `use{Feature}.ts` wraps `useQuery`/`useMutation`, sequences calls, calls `useNavigate`
+5. **Create the query or mutation hook in `api/`** — `use{Feature}.ts` calls `useQuery` or `useMutation`. Other slices import it from this slice's `index.ts`. Add `hooks/` only for navigation or local UI state that calls that hook. It does not call `useQuery` or `useMutation`
 6. **Build `ui/` components** — one folder per component; every folder has `styles.ts`
 7. **Wire the page** in `pages/{route}/` — thin composition, no business logic
 8. **Write `index.ts`** — export components, orchestration hooks, public types only
@@ -84,7 +84,7 @@ ui/{name}/
 ├── styles.ts              — ALL classes defined here
 ├── types.ts               — non-prop types only, when the component has them
 ├── ui/{child}/            — nested components, same shape
-├── lib/                   — helpers used only by this component
+├── utils.ts               — helpers used only by this component
 └── tests/
     └── {name}.test.tsx    — RTL test
 ```
@@ -134,7 +134,7 @@ export const OrderCard = ({ order, className }: OrderCardProps): JSX.Element => 
 // features/orders/index.ts
 export { OrderList }       from './ui/order-list';
 export { OrderForm }       from './ui/order-form';
-export { usePlaceOrder }   from './hooks/usePlaceOrder';
+export { usePlaceOrder }   from './api/usePlaceOrder';
 export type { PlaceOrderPayload } from './api/dto';
 // NOT exported: models/ internals, api/ fetchers, config/
 ```
@@ -149,7 +149,7 @@ export type { PlaceOrderPayload } from './api/dto';
 - [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`, slice `config/`, or `constants.ts`
 - [ ] A component created from an external library still uses that library's animation, and does not add its own
 - [ ] `models/` and `hooks/` segments are earned, not scaffolded empty
-- [ ] `ui/` never imports `api/` — queries and mutations go through `hooks/`; a form's field rules may call `models/` pure functions
+- [ ] `useQuery` and `useMutation` are only called in `api/`; `ui/` imports that hook and never a fetcher. A form's field rules may call `models/` pure functions
 - [ ] Forms use React Hook Form and `FormItem` (`rhf-form`). Server shape is `api/schema.ts` only. Input constraints are field `rules`. Business invariants are pure functions in `models/`
 - [ ] Loading, error, empty, and partial/stale states all handled
 - [ ] `index.ts` exports only what consumers need — no stores, DTOs, fetchers
@@ -159,7 +159,7 @@ export type { PlaceOrderPayload } from './api/dto';
 
 | Scope | Segments to create |
 |-------|--------------------|
-| List page | `api/` + `hooks/useOrderList` + `ui/order-list/` + `index.ts` |
+| List page | `api/useOrderList` + `ui/order-list/` + `index.ts` |
 | CRUD | Add `useCreateOrder`, `useUpdateOrder`, `useDeleteOrder` hooks + form component |
 | Widget | Not this skill. A widget composes feature public APIs. It has no `api/` and no `models/` |
 

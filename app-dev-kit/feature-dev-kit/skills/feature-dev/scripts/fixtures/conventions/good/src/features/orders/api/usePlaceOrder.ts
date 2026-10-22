@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
-import { placeOrder } from '../api/fetchers'
+import { placeOrder } from './fetchers'
 
 export const usePlaceOrder = () => {
   const mutation = useMutation({ mutationFn: placeOrder })

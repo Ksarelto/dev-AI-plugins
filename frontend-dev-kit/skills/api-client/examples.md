@@ -25,10 +25,10 @@ export const fetchOrder = async (id: string, signal?: AbortSignal) => {
 ```
 
 ```ts
-// features/orders/hooks/useOrder.ts
+// entities/order/api/useOrder.ts
 import { useQuery } from '@tanstack/react-query';
 import { orderKeys } from '@/shared/api/query-keys/orders';
-import { fetchOrder } from '../api/fetchers';
+import { fetchOrder } from './fetchers';
 
 export const useOrder = (id: string) =>
   useQuery({

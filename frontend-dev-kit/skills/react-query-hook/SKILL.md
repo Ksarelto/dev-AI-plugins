@@ -8,16 +8,16 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 ## When to use
 
 - Adding a new API endpoint integration to a feature
-- Creating `useQuery` or `useMutation` hooks inside `features/{name}/hooks/`
+- Creating `useQuery` or `useMutation` hooks inside an `api/` segment (`entities/{name}/api/`, or `features/{name}/api/` when no entity owns the resource, or `shared/api/` when more than one slice needs the same hook)
 - User asks to "fetch data", "add a mutation", or "create an API hook"
 
 ## Architecture rules
 
 - Query keys live in `shared/api/query-keys/{domain}.ts` — never in per-feature `api/queryKeys.ts`, never as inline array literals
-- Fetchers live in `features/{name}/api/fetchers.ts` and call `httpClient` from `shared/api/base.ts`
-- Hooks live in `features/{name}/hooks/` — they wrap `useQuery`/`useMutation` and may call `models/` functions
+- Fetchers live in the owning slice's `api/fetchers.ts` and call `httpClient` from `shared/api/base.ts`
+- `useQuery` and `useMutation` are called only in that `api/` segment. Other features and entities import the hook from the owner's public `index.ts`. They do not declare a second one. `features/{name}/hooks/` does not call `useQuery` or `useMutation`. A feature hook may compose navigation and local UI state, and it calls the api hook
 - Cross-feature cache invalidation: import the shared key from `shared/api/query-keys/` and call `invalidateQueries` — never import from another feature
-- `ui/` components never call `useQuery`/`useMutation` directly — always through a `hooks/` wrapper
+- `ui/` imports the api hook. It never calls `useQuery` or `useMutation`, and it never imports a fetcher
 - Read `shared/api/base.ts`, `config.ts`, and `query-client.ts` before adding a hook option. Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on `httpClient`. Do not copy `staleTime` or `retry` as a literal — a different policy is a named constant in `shared/api`.
 - A fetcher returns the domain value or `null` (`parseEntity` failed and already notified). The hook does not parse again. UI branches on `isPending`, `isError`, and `data === null`. It does not check entity fields.
 
@@ -64,13 +64,13 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
    };
    ```
 
-3. **Create query hook** in `features/{name}/hooks/`. Omit `staleTime` and `retry` when `createQueryClient` already has the policy.
+3. **Create query hook** in the owning `api/` segment. Omit `staleTime` and `retry` when `createQueryClient` already has the policy.
    ```ts
-   // features/orders/hooks/useOrderList.ts
+   // entities/order/api/useOrderList.ts
    import { useQuery } from '@tanstack/react-query';
    import { orderKeys } from '@/shared/api/query-keys/orders';
-   import { fetchOrders } from '../api/fetchers';
-   import type { OrderFilters } from '../api/dto';
+   import { fetchOrders } from './fetchers';
+   import type { OrderFilters } from './dto';
 
    export const useOrderList = (filters?: OrderFilters) => (
      useQuery({
@@ -82,25 +82,22 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 
    `data === null` is an invalid payload (already notified). `isError` is an `AppError`. Do not add an `onError` that toasts the generic message again.
 
-4. **Create mutation hook** in `features/{name}/hooks/`:
+4. **Create mutation hook** in the same `api/` segment. Navigation stays in a feature hook that calls this one and does not call `useMutation`:
    ```ts
-   // features/orders/hooks/usePlaceOrder.ts
+   // entities/order/api/usePlaceOrder.ts
    import { useMutation, useQueryClient } from '@tanstack/react-query';
-   import { useNavigate } from 'react-router';
    import { orderKeys } from '@/shared/api/query-keys/orders';
-   import { placeOrder } from '../api/fetchers';
-   import type { PlaceOrderInput } from '../api/dto';
+   import { placeOrder } from './fetchers';
+   import type { PlaceOrderInput } from './dto';
 
    export const usePlaceOrder = () => {
      const queryClient = useQueryClient();
-     const navigate    = useNavigate();
 
      return useMutation({
        mutationKey: orderKeys.mutations.place(),
        mutationFn: (input: PlaceOrderInput) => placeOrder(input),
-       onSuccess: (order) => {
+       onSuccess: () => {
          queryClient.invalidateQueries({ queryKey: orderKeys.lists() });
-         navigate(`/orders/${order.id}`);
        },
      });
    };
@@ -112,7 +109,7 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 Feature A's mutation invalidates Feature B's cached data by importing from the **shared registry** — never from Feature B's exports:
 
 ```ts
-// features/document/hooks/useSubmitDocument.ts
+// features/document/api/useSubmitDocument.ts
 import { orderKeys }  from '@/shared/api/query-keys/orders';   // ✓ shared registry
 // NOT: import { useInvalidateOrders } from '@/features/orders' // ✗ cross-feature import
 ```
@@ -148,7 +145,7 @@ Default to `invalidateQueries`. Use `setQueryData` only when the payload has an 
 - [ ] UI checks `isError` and `data === null`; it does not re-check entity fields
 - [ ] `enabled` guard when params may be undefined
 - [ ] Second pass: no unexplained string or number literals, and no literal that copies a `shared/api` constant
-- [ ] Hook lives in `features/{name}/hooks/`, not directly in a component
+- [ ] `useQuery` and `useMutation` live in an `api/` segment, not in a component and not in `features/{name}/hooks/`
 
 ## Mutation hook checklist
 

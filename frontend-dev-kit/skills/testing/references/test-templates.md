@@ -80,15 +80,15 @@ The real form, `zod`, shared `Form`, `Button`, `Input`, i18n, and query client r
 ## Hook Test
 
 ```tsx
-vi.mock('../api/fetchers', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../api/fetchers')>()),
+vi.mock('../fetchers', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../fetchers')>()),
   fetchReviews: vi.fn(),
 }))
 
 import { waitFor } from '@testing-library/react'
 import { renderHook } from '@/shared/lib/rendererRTL'
-import { fetchReviews } from '../api/fetchers'
-import { useReviews } from '../hooks/useReviews'
+import { fetchReviews } from '../fetchers'
+import { useReviews } from '../useReviews'
 
 const mockFetchReviews = vi.mocked(fetchReviews)
 

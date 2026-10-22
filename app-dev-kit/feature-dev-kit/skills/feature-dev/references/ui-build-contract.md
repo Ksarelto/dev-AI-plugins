@@ -50,10 +50,10 @@ A layer imports only from layers **strictly below** it. Never sideways, never up
 Segments inside your slice:
 
 - `models/` (features only) — types, state, selectors, pure invariants. No React, no network, no side effects, no locale keys. A feature form's field rules live on `FormFieldConfig` in that form's `ui/` folder (`rhf-form`), not in `models/` and not in `schema.ts`. Entities use singular `model/` for the same job. Widgets may have a singular `model/` for local UI state only. No `features/*/model/`, no `entities/*/models/`, no widget `models/` or `api/`.
-- `api/` — `schema.ts` (one zod schema per server entity), fetchers (`parseEntity`, then a rename mapper), `endpoints.ts`, and entity query hooks (`useProfile.ts`). An invalid body notifies and returns `null`. Feature query/mutation hooks do not live here. No components, no UI state, no query-key factories. Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on the request.
-- `hooks/` (features only) — TanStack Query hooks. The only segment whose `ui/` may call them. `ui/` never imports `api/`.
-- `lib/` — slice-wide pure helpers. No React, no network, no fetcher import (own `api/`, another slice's `api/`, or `httpClient`). A fetcher may import `lib/`. A helper may take a fetcher or already-fetched data as an argument. DTO mappers stay in `api/`. A helper used by one component stays in that component's `lib/`.
-- `ui/` — components; imports `shared/ui`, own `models/` (or entity `model/`) for pure functions, and own `hooks/`. No direct fetch calls.
+- `api/` — `schema.ts` (one zod schema per server entity), fetchers (`parseEntity`, then a rename mapper), `endpoints.ts`, and the `useQuery` / `useMutation` hook (`useProfile.ts`). An invalid body notifies and returns `null`. The hook lives here once and other slices import it from the public `index.ts`. A feature `api/` holds the hook only when no entity owns the call. No components, no UI state, no query-key factories. Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on the request.
+- `hooks/` (features only) — navigation and local UI state. It calls the api hook. It does not call `useQuery` or `useMutation`.
+- `lib/` — slice-wide pure helpers. No React, no network, no fetcher import (own `api/`, another slice's `api/`, or `httpClient`). A fetcher may import `lib/`. A helper may take a fetcher or already-fetched data as an argument. DTO mappers stay in `api/`. A helper used by one component stays in that component's `utils.ts`.
+- `ui/` — components; imports `shared/ui`, own `models/` (or entity `model/`) for pure functions, and the api hook (or a feature hook that calls it). No fetcher imports. Destructure `isLoading`, `isFetching`, `isPending`, `isError`, and `error` from that hook. Do not derive a second flag.
 - `config/` — the closed set and every map of those values (label keys, error codes, predicates) in the same file. No `labels.ts` or `status-map.ts` beside it. No English copy. `models/` imports the value union with `import type` and does not import keys or call `t()`. `ui/` calls `t(map[value])` and does not declare a second map.
 - `locales/` — `en.json` + `keys.ts` for every string this slice renders.
 
@@ -93,7 +93,7 @@ review judgment. If your slice needs something from a sibling slice, escalate �
 ## 3. Components
 
 - No comments of any kind. A name that needs a comment is the wrong name.
-- The component file holds props, the hooks that wire this view, named handlers, and JSX. A predicate, mapper, or formatter goes in `{component}/lib/` (slice-wide helpers in the slice `lib/`). Closed-set values and field codes go in `constants.ts`. Slice settings that are not copy go in `config/`. A second visual region is `ui/{child}/`. There is no `utils/` folder.
+- The component file holds props, the hooks that wire this view, named handlers, and JSX. A calculation that takes a few arguments and returns a value goes in `{component}/utils.ts` (slice-wide helpers stay in the slice `lib/`). No `let` in the component. A condition is a `const`, and JSX is `{cond && <Button />}`. No IIFE — name the function outside and call it. Closed-set values and field codes go in `constants.ts`. Slice settings that are not copy go in `config/`. A second visual region is `ui/{child}/`.
 - No inline classes: every class list lives in the component's `styles.ts`, written there, not imported from `constants.ts`.
 - No ternary in JSX; nested ternaries are forbidden everywhere. Early-return the loading / error /
   empty states; compute a branch into a named `const` above `return`.
@@ -118,7 +118,7 @@ review judgment. If your slice needs something from a sibling slice, escalate �
 
 The engineer that creates an executable file writes its behavior test in the same change. There is no test station after the build.
 
-- Components: `{component}/tests/<name>.test.tsx`. A test beside `<name>.tsx` does not count. Hooks, api, `models/` or `model/`, lib, route modules, and guards: the segment's `tests/`. A helper in a component's `lib/` is tested from that component's `tests/`.
+- Components: `{component}/tests/<name>.test.tsx`. A test beside `<name>.tsx` does not count. Hooks, api, `models/` or `model/`, lib, route modules, and guards: the segment's `tests/`. A helper in a component's `utils.ts` is tested from that component's `tests/`.
 - Assert behavior (what renders, what was called, loading, empty, error), not that the module exists. Assert translated text through the locale value, not the key.
 - Mock only the boundaries: inside the slice that owns the fetcher, its `api/fetchers` (`importOriginal` + override one export); in any other slice, `httpClient` in `@/shared/api/base`. Never mock another slice's `api/` path or its `index.ts`. Also the router and browser APIs. Keep entity hooks, the query client, i18n, and child components real.
 - A fix for a UI-review finding includes a regression test that fails on the reported behavior when that behavior is testable (a response longer than the page size, a control the page cannot reach).

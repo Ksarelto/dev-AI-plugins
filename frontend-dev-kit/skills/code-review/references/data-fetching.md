@@ -1,11 +1,12 @@
 # react-query — review checklist
 
-Distilled from the `react-query-hook` skill and `rules/api-contract.mdc`. Applies to any changed `api/`, `**/hooks/use*.ts`, or
+Distilled from the `react-query-hook` skill and `rules/api-contract.mdc`. Applies to any changed `api/` or
 mutation touching cached server data. Read the rule file as well as this checklist.
 
 ## Queries
 
 - A query key built as an inline array, or a per-feature `api/queryKeys.ts`, instead of a factory in `shared/api/query-keys/{domain}.ts`.
+- `useQuery` or `useMutation` is called outside an `api/` segment (`features/*/hooks/`, `ui/`, a page). The hook lives once in the owning `api/` and other slices import it.
 - The fetcher isn't a separate pure async function in `api/fetchers.ts` (no React imports) — it's inlined in the hook or the component calls `useQuery` directly.
 - The fetcher casts `.json<Dto>()` or checks entity fields by hand instead of `parseEntity` against `api/schema.ts`. An invalid body must notify and return `null`, and the UI must not check those fields again.
 - A query with possibly-undefined params has no `enabled` guard.

@@ -6,7 +6,7 @@ alwaysApply: false
 
 # Tests
 
-- Every executable file — component, hook, fetcher, model or lib function, store, route module, guard — has a behavior test in the same change. A component's tests live in `{component}/tests/{name}.test.tsx`, not beside `{name}.tsx`. A helper in that component's `lib/` is tested from the same `tests/` folder. Hooks, fetchers, and slice `lib/` use the segment's `tests/` folder. Exempt: `types.ts`, `constants.ts`, `styles.ts`, `index.ts`, stories, `locales/`.
+- Every executable file — component, hook, fetcher, model or lib function, store, route module, guard — has a behavior test in the same change. A component's tests live in `{component}/tests/{name}.test.tsx`, not beside `{name}.tsx`. A helper in that component's `utils.ts` is tested from the same `tests/` folder. Hooks, fetchers, and slice `lib/` use the segment's `tests/` folder. Exempt: `types.ts`, `constants.ts`, `styles.ts`, `index.ts`, stories, `locales/`.
 - A test asserts behavior (what the user sees, what was called, what was returned). "Renders without crashing" or "is defined" is not a test.
 
 ## Mock the boundary, not the graph

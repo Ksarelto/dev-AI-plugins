@@ -15,7 +15,7 @@
 #            the blackboard itself is not written
 #
 # Gates, in order: types · lint · fsd · conventions · build · coverage
-# `conventions` runs the sibling check-conventions.mjs (no package.json script needed).
+# `conventions` runs check-conventions.mjs, then scan-duplicates.mjs.
 # Exits 0 when every executed gate passed, 1 otherwise, 2 on usage error.
 #
 # Output (stdout, last line): {"passed":bool,"gates":[{"gate","command","status","duration_s"}...]}
@@ -60,7 +60,9 @@ cmd_for() {
   script="$(script_for "$1")"
   [[ -n "$script" ]] || { echo ""; return; }
   if [[ "$script" == "@kit:check-conventions" ]]; then
-    echo "node \"$SCRIPT_DIR/check-conventions.mjs\"${base_ref:+ --base \"$base_ref\"}"
+    local base_arg=""
+    [[ -n "$base_ref" ]] && base_arg=" --base \"$base_ref\""
+    echo "node \"$SCRIPT_DIR/check-conventions.mjs\"${base_arg} && node \"$SCRIPT_DIR/scan-duplicates.mjs\"${base_arg}"
     return
   fi
   case "$(pm_bin)" in
