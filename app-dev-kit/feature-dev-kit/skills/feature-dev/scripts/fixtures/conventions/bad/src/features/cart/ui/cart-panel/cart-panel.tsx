@@ -11,6 +11,12 @@ import type { CartPanelProps } from './types'
 export const CartPanel = ({ items, isLoading, onClose }: CartPanelProps): JSX.Element => {
   const { t } = useTranslation()
   const loadingLabel = t(cartKeys.loading)
+  const fetched = items.length === 0
+  let button = null
+  if (fetched) {
+    button = null
+  }
+  const summary = (() => button)()
   const handleSave = (): void => {
     notify.success('Cart saved')
   }

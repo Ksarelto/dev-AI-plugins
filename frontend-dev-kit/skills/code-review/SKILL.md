@@ -5,159 +5,88 @@ description: Two-axis review of the diff between HEAD and a fixed point the user
 
 # Code Review
 
-Two-axis review of the diff between HEAD and a fixed point the user supplies:
+Review the diff against this repo's standards and the spec. Hard violations are listed in full.
+The 400-word cap applies only to smell judgement calls.
 
-- **Standards**: does the code conform to this repo's documented coding standards?
-- **Spec**: does the code faithfully implement the originating issue / spec?
+`FIXED_POINT` is the parent branch or the ref the caller passes. `SPEC_PATH` is the spec file.
+A human who passes neither is asked once for the missing one. Do not require `docs/agents/issue-tracker.md`.
 
-Both axes run as parallel sub-agents so they don't pollute each other's context, then this skill
-aggregates their findings.
+## 1. Diff and buckets
 
-The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing,
-tell the user to run `/setup-matt-pocock-skills`.
+Confirm `git rev-parse <FIXED_POINT>` and that `git diff --name-only <FIXED_POINT>...HEAD` is non-empty.
+Source files are `.ts` and `.tsx` that are not tests (`*.test.*`, `*.spec.*`, `/tests/`).
 
-## Process
+One bucket per slice segment:
 
-### 1. Pin the fixed point
+- `entities/<slice>`
+- `features/<slice>` model, hooks, and api
+- `features/<slice>/ui`
+- `widgets/<slice>`
+- `pages/<slice>`
+- `shared/ui`
+- other `shared`
+- `app`
 
-Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.).
-If they didn't specify one, ask for it.
+A bucket over 8 source files splits into groups of 8. Tests ride with their segment. They are not their own bucket.
 
-Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is
-against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
+## 2. Pattern scan
 
-Before going further, confirm the fixed point resolves (`git rev-parse <fixed-point>`) and the diff
-is non-empty. A bad ref or empty diff should fail here, not inside two parallel sub-agents.
+Run, on the repo root:
 
-### 2. Identify the spec source
+```bash
+node frontend-dev-kit/skills/code-review/scripts/scan-review-patterns.mjs --base "$FIXED_POINT"
+node app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/scan-duplicates.mjs --base "$FIXED_POINT"
+```
 
-Look for the originating spec, in this order:
+From a feature-dev-kit run the paths are `{FRONTEND_KIT}/skills/code-review/scripts/scan-review-patterns.mjs` and `{KIT_DIR}/skills/feature-dev/scripts/scan-duplicates.mjs`.
 
-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via
-   the workflow in `docs/agents/issue-tracker.md`.
-2. A path the user passed as an argument.
-3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
+Every printed line is a finding: file and line. Do not drop one to shorten the report. The pattern script covers nested `if`, `t(...)` stored in a local, a `` `${…}-${index}` `` key, raw `<input>`, `localStorage`, a `className` on `Button` that sets color, radius, border, shadow, padding, or type, `useQuery` / `useMutation` outside `api/`, `let` in a component, an IIFE, and a hand-rolled `isLoading` / `isFetching` / `isPending` / `isError` / `error`. The duplicate script covers a copied body and a raw `<input>`, `<button>`, or `<table>` that reimplements `shared/ui`.
 
-If nothing is found, ask the user where the spec is. If they say there isn't one, the Spec
-sub-agent will skip and report "no spec available".
+## 3. One subagent per bucket
 
-### 3. Identify the standards sources
+Spawn the buckets in parallel. Each prompt names its source files and says: read every source file in this bucket. Return one line per file, `path: clean` or `path: <findings>`. Tests are read only when a finding needs them.
 
-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or
-`CONTRIBUTING.md`.
+A short summary with no per-file line is incomplete. Re-spawn that bucket once. The publisher does not paste the subagent text. For each rule a bucket names, search the rest of the diff and add the matches.
 
-This kit's own standards are also always in scope, sourced as follows:
+Standards the bucket reads, for the file types in the bucket: the matching `rules/*.mdc`, `references/conventions.md`, `references/design.md` for `ui/` components, and the matching rows in [References](#references). Do not paste those files into the prompt. Tell the subagent which paths to read.
 
-- Where a dedicated rule file already exists, use it directly — `rules/typescript.mdc`,
-  `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/styling.mdc`,
-  `rules/shadcn.mdc`, `rules/i18n.mdc`, `rules/testing.mdc`, `rules/component-structure.mdc`,
-  `rules/api-contract.mdc`, `rules/honesty.mdc`. No copy of these lives in this skill; read the rule file itself.
-- `references/conventions.md` is always in scope for `src/**` diffs: comments, unnecessary exports,
-  JSX ternaries, inline handlers, closed-set prop literals, unexplained string and number literals,
-  one component per file, props interfaces in the component file, error boundaries, braced function
-  bodies, the 160-character line limit, `lib/` fetcher imports, class strings outside `styles.ts`,
-  and a local that stores `t(...)`.
-- `references/design.md` is in scope for every changed component under `ui/`: SOLID, GRASP, and a
-  component file that only holds props, hooks, named handlers, and JSX.
-- FSD architecture (layers, slices, segments, public APIs, query keys, state ownership) lives in
-  the `architecture-audit` skill, not a rule. Load that skill and only the `references/*.md` files
-  that match the changed paths. Do not invent a second architecture summary.
-- Where no rule file exists yet (the topic only lives inside a skill today), use this skill's own
-  `references/*.md` instead: `references/styling-and-shadcn.md`, `references/accessibility.md`,
-  `references/i18n.md`, `references/data-fetching.md`, `references/testing.md`.
+## 4. Spec, one file at a time
 
-Include whichever of these — rule file or reference file — match the changed file types (see the
-table in [References](#references) for which applies to what). Treat all of them as the default
-standards when the repo documents nothing more specific; a repo-level doc always overrides where
-the two disagree.
+One subagent per spec file. Each acceptance criterion is `done`, `partial`, or `none`. `partial` and `none` quote the criterion. No word cap. Scope that the spec did not ask for is its own line.
 
-On top of whatever the repo documents, the Standards axis always carries the smell baseline below:
-a fixed set of Fowler code smells (*Refactoring*, ch. 3) that applies even when a repo documents
-nothing. Two rules bind it:
+## 5. Report
 
-- **The repo overrides.** A documented repo standard always wins; where it endorses something the
-  baseline would flag, suppress the smell.
-- **Always a judgement call.** Each smell is a labelled heuristic ("possible Feature Envy"), never
-  a hard violation. Like any standard here, skip anything tooling already enforces.
+```
+## Patterns
+<every script line>
 
-Each smell reads what it is → how to fix; match it against the diff:
+## Files
+<one line per source file, after the publisher's re-search>
 
-- **Mysterious Name**: a function, variable, or type whose name doesn't reveal what it does or
-  holds. → rename it; if no honest name comes, the design's murky.
-- **Duplicated Code**: the same logic shape appears in more than one hunk or file in the change. →
-  extract the shared shape, call it from both.
-- **Feature Envy**: a method that reaches into another object's data more than its own. → move the
-  method onto the data it envies.
-- **Data Clumps**: the same few fields or params keep travelling together (a type wanting to be
-  born). → bundle them into one type, pass that.
-- **Primitive Obsession**: a primitive or string standing in for a domain concept that deserves its
-  own type. → give the concept its own small type.
-- **Repeated Switches**: the same switch/if-cascade on the same type recurs across the change. →
-  replace with polymorphism, or one map both sites share.
-- **Shotgun Surgery**: one logical change forces scattered edits across many files in the diff. →
-  gather what changes together into one module.
-- **Divergent Change**: one file or module is edited for several unrelated reasons. → split so each
-  module changes for one reason.
-- **Speculative Generality**: abstraction, parameters, or hooks added for needs the spec doesn't
-  have. → delete it; inline back until a real need shows.
-- **Message Chains**: long `a.b().c().d()` navigation the caller shouldn't depend on. → hide the
-  walk behind one method on the first object.
-- **Middle Man**: a class or function that mostly just delegates onward. → cut it, call the real
-  target direct.
-- **Refused Bequest**: a subclass or implementer that ignores or overrides most of what it
-  inherits. → drop the inheritance, use composition.
+## Spec
+<criterion id>: done | partial | none
+<quote, for partial and none>
 
-### 4. Spawn both sub-agents in parallel
+## Smells
+<Fowler judgement calls, 400 words>
+```
 
-**Standards sub-agent prompt** should include:
+Smells stay judgement calls. A documented standard overrides a smell. Skip anything the scripts already listed. The smell list:
 
-- The full diff command and commit list.
-- The list of standards-source files you found in step 3 — repo docs, matching kit rule files,
-  matching `architecture-audit` `references/*.md` for `src/**` diffs, and matching
-  `references/*.md` files from this skill — with their contents pasted in full, plus the
-  smell baseline from step 3 pasted in full (the sub-agent has no other access to any of this).
-- The brief: "Report, per file/hunk where relevant, (a) every place the diff violates a documented
-  standard: cite the standard (file + the rule); and (b) any baseline smell you spot: name it and
-  quote the hunk. Distinguish hard violations from judgement calls: documented-standard breaches
-  can be hard, but baseline smells are always judgement calls, and a documented repo standard
-  overrides the baseline. Skip anything tooling enforces. Under 400 words."
-
-**Spec sub-agent prompt** should include:
-
-- The diff command and commit list.
-- The path or fetched contents of the spec.
-- The brief: "Report: (a) requirements the spec asked for that are missing or partial; (b)
-  behaviour in the diff that wasn't asked for (scope creep); (c) requirements that look implemented
-  but where the implementation looks wrong. Quote the spec line for each finding. Under 400 words."
-
-If the spec is missing, skip the Spec sub-agent and note this in the final report.
-
-### 5. Aggregate
-
-Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned.
-Do not merge or rerank findings, because the two axes are deliberately separate (see
-[Why two axes](#why-two-axes)).
-
-End with a one-line summary: total findings per axis, and the worst issue within each axis (if
-any). Don't pick a single winner across axes: that's the reranking the separation exists to
-prevent.
-
-## Why two axes
-
-A change can pass one axis and fail the other:
-
-- Code that follows every standard but implements the wrong thing → Standards pass, Spec fail.
-- Code that does exactly what the issue asked but breaks the project's conventions → Spec pass,
-  Standards fail.
-
-Reporting them separately stops one axis from masking the other.
+- **Mysterious Name** — rename it.
+- **Duplicated Code** — same shape, not the same text the duplicate script already flagged.
+- **Feature Envy** — move the method onto the data it uses.
+- **Data Clumps** — bundle the fields that always travel together.
+- **Primitive Obsession** — give the domain concept a type.
+- **Repeated Switches** — one map, or polymorphism.
+- **Shotgun Surgery** — gather what changes together.
+- **Divergent Change** — split a module that changes for several reasons.
+- **Speculative Generality** — delete the unused abstraction.
+- **Message Chains** — hide `a.b().c().d()` behind one method.
+- **Middle Man** — call the real target.
+- **Refused Bequest** — drop the inheritance.
 
 ## References
-
-Baseline standards for the Standards axis — see [step 3](#3-identify-the-standards-sources) for
-when to include which.
-
-Existing kit rule files — read directly, no copy kept here:
 
 | File | Applies to |
 |---|---|
@@ -169,22 +98,16 @@ Existing kit rule files — read directly, no copy kept here:
 | `rules/i18n.mdc` | `.tsx`, `locales/**`, `constants.ts`, `config/**`, `model(s)/**` |
 | `rules/testing.mdc` | any `src/**` `.ts`/`.tsx` and tests |
 | `rules/component-structure.mdc` | component folders under `ui/` |
-| `rules/api-contract.mdc` | `api/**`, `hooks/**` |
-| `rules/honesty.mdc` | any `.ts`/`.tsx`/`.md` (always applies) |
-| `architecture-audit` skill | `src/**` — load matching `references/`, not a rule file |
+| `rules/api-contract.mdc` | `api/**` |
+| `rules/honesty.mdc` | any `.ts`/`.tsx`/`.md` |
+| `architecture-audit` skill | `src/**` — load matching `references/` |
 
-Topics with no dedicated rule file yet — distilled into this skill's own reference file instead:
-
-| File | Distilled from | Applies to |
-|---|---|---|
-| [references/conventions.md](references/conventions.md) | `react`, `general-coding-principles`, `component-structure`, `shadcn` rules | every `src/**` `.ts`/`.tsx` |
-| [references/design.md](references/design.md) | SOLID, GRASP, component split | every changed component under `ui/` |
-| [references/styling-and-shadcn.md](references/styling-and-shadcn.md) | `tailwind-styles`, `shadcn-usage` skills | `.tsx` |
-| [references/accessibility.md](references/accessibility.md) | `accessibility` skill | interactive `.tsx` |
-| [references/i18n.md](references/i18n.md) | `i18n` skill | new/changed user-facing copy |
-| [references/data-fetching.md](references/data-fetching.md) | `react-query-hook` skill | `api/`, `**/hooks/use*.ts` |
-| [references/testing.md](references/testing.md) | `testing` skill | every executable file in the diff |
-
-The reference files are a snapshot, not a live link — if the source skill changes, re-derive the
-matching reference file. If any of those topics later gets a dedicated rule file of its own, drop
-its reference file here and read the rule file directly instead, same as the ones above.
+| File | Applies to |
+|---|---|
+| [references/conventions.md](references/conventions.md) | every `src/**` `.ts`/`.tsx` |
+| [references/design.md](references/design.md) | every changed component under `ui/` |
+| [references/styling-and-shadcn.md](references/styling-and-shadcn.md) | `.tsx` |
+| [references/accessibility.md](references/accessibility.md) | interactive `.tsx` |
+| [references/i18n.md](references/i18n.md) | new or changed user-facing copy |
+| [references/data-fetching.md](references/data-fetching.md) | `api/` |
+| [references/testing.md](references/testing.md) | every executable file in the diff |

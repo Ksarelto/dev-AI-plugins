@@ -108,6 +108,6 @@ A slice without `index.ts` is a gate failure. No exceptions. Stub `index.ts` fir
 | Upward import (e.g. `shared` importing from `entities`) | Move the shared code down: extract the domain-agnostic part into `shared/lib/` and keep domain logic in `entities/` |
 | Cross-slice import (`features/a` importing from `features/b`) | Extract the shared logic into `entities/` or `shared/`; neither feature should own the other |
 | Entity imports a sibling `index.ts` | Move the shared type onto the provider's `entities/{provider}/@x/{consumer}.ts` and import that path. Do not import `@/entities/{provider}` from another entity |
-| Deep internal import (`import X from '@/entities/profile/api/useProfile'`) | Add `X` to `entities/profile/index.ts` and update the import path to `@/entities/profile`. A feature hook lives at `features/<slice>/hooks/useThing.ts`, not `api/*.hooks.ts` |
+| Deep internal import (`import X from '@/entities/profile/api/useProfile'`) | Add `X` to `entities/profile/index.ts` and update the import path to `@/entities/profile`. `useQuery` and `useMutation` live in `api/useThing.ts`. A feature `hooks/` file does not call them |
 | Missing `index.ts` in a slice | Create `index.ts` and explicitly re-export every public symbol |
 | Wildcard re-export in `index.ts` | Replace `export * from './ui/X'` with named exports: `export { X } from './ui/X'` |

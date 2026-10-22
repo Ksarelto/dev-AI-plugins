@@ -16,15 +16,15 @@ Every component is a kebab-case folder. The same shape applies at every nesting 
   types.ts         — non-prop types only, and only when they exist
   constants.ts     — closed-set values only, and only when they exist
   ui/{child}/      — every nested component, same shape
-  lib/             — pure helpers used only by this component
-  tests/           — tests for this component and its lib/
+  utils.ts         — pure helpers used only by this component
+  tests/           — tests for this component and its utils.ts
 ```
 
 - Folder and implementation file are kebab-case of the export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`. Never `Button.tsx` or `itemCard.tsx`.
 - One component per file. A second component is `{name}/ui/{child}/`, not a sibling file and not a second component in the parent file. The only exception is a file that configures an external library's compound parts: a re-homed shadcn/Radix primitive keeps `Dialog`, `DialogTrigger`, `DialogContent`, and the rest in one file.
 - The props `interface` is declared in the component file, above the component. It does not go in `types.ts`. Other types do: component-local non-prop types (a view union, a row model) live in that folder's `types.ts`; domain types live in the slice model folder (`features/*/models/types.ts`, `entities/*/model/types.ts`). Do not add `types.ts` when the props interface was the only type. A `VariantProps` type derived from `cva` stays in `styles.ts`.
-- Helpers and view mappers used only by this component live in `{name}/lib/`. DTO mappers stay in the slice `api/`. Slice-wide helpers stay in the slice `lib/`. Do not drop `mapX.ts` or `formatX.ts` next to `{name}.tsx`.
-- Tests live in `{name}/tests/` (`{name}.test.tsx`, plus a test for each `lib/` helper). Not beside `{name}.tsx`. A story file is not required in every component folder — `shared/ui/<name>/<name>.stories.tsx` for a shared primitive, and one `features/<slice>/<slice>.stories.tsx` for the feature. No stories for inner feature parts, entities, or widgets.
+- Helpers and view mappers used only by this component live in `{name}/utils.ts`. No `let` and no IIFE in the component file. DTO mappers stay in the slice `api/`. Slice-wide helpers stay in the slice `lib/`. Do not drop `mapX.ts` or `formatX.ts` next to `{name}.tsx`.
+- Tests live in `{name}/tests/` (`{name}.test.tsx`, plus a test for `utils.ts`). Not beside `{name}.tsx`. A story file is not required in every component folder — `shared/ui/<name>/<name>.stories.tsx` for a shared primitive, and one `features/<slice>/<slice>.stories.tsx` for the feature. No stories for inner feature parts, entities, or widgets.
 - `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names. `constants.ts` holds the closed-set values a caller passes as props (`ButtonVariant`, `ButtonType`).
 - The named export is PascalCase (`export const CustomButton`). Import the folder through `index.ts`, never the `.tsx` file.
 - A component folder's `index.ts` exports the component. It exports the props type or a constant only when a file outside the folder imports it. Nothing else is exported "for later".

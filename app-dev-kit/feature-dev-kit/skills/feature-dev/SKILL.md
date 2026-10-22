@@ -318,7 +318,7 @@ Before the Station 12 question, if `ui-review.md` has findings, `navigate_page` 
    `git diff --cached --stat`. Say `Review locally: git diff --cached`. Do not paste the
    blackboard or the diff body into chat.
 2. `AskUserQuestion` — "Review the staged feature. How should I proceed?":
-   - **Approve** → set `status: done` (human-only transition), go to Step 6.
+   - **Approve** → do not set `status: done` and do not commit. Run the review pass below. Same on patch, standard, and full.
    - **Request changes** → write `session.md` (the change request and `review_path`, not the review body). **Local UI** is one layer, at most two slices, and no new dependency, route, or acceptance criterion. Patch, and a local UI change on standard or full, do not spawn the orchestrator:
     1. `board.mjs snapshot {SPEC_PATH} --round <n>`
     2. One `slice-engineer` (no worktree; `shared-engineer` for a `shared` slice) with `LAYER`, `SLICE`, and the change text.
@@ -337,9 +337,22 @@ Before the Station 12 question, if `ui-review.md` has findings, `navigate_page` 
    - **Abort** → do not commit. Leave the index as it is. Write kit-result `aborted` and stop.
 3. After 3 change cycles without approval, ask: accept-as-is, keep iterating, or abort.
 
+### Review pass — after the first Approve
+
+Station 10 does not load `frontend-dev-kit:code-review`. This pass does.
+
+1. Load **frontend-dev-kit:code-review**. `FIXED_POINT` is the parent branch. `SPEC_PATH` is `.spec/features/{slug}.md`.
+2. Must-fix findings (pattern hits, duplicates, spec `none` / `partial`, bucket violations) go to the owning engineer the way a local Station 12 change does: `slice-engineer` for one layer, `shared-engineer` when the fix is "move to shared". A `useQuery` or `useMutation` in `hooks/` moves into the owning `api/` and the callers import that hook. A `let`, an IIFE, or a pure calculation in a component moves to a `const` condition or `{component}/utils.ts`. Then `run-gates.sh --until conventions` on the touched files.
+3. Re-run `scan-review-patterns.mjs` and `scan-duplicates.mjs`. Re-spawn only buckets that had findings. One fix round. What is still open stays in the report.
+4. Write `.spec/features/{slug}.context/code-review.md` with the full list.
+5. Second `AskUserQuestion` — "Review the code-review result. How should I proceed?":
+   - **Approve** → set `status: done` (human-only transition), go to Step 6.
+   - **Request changes** → the revise path above.
+   - **Abort** → do not commit. Write kit-result `aborted` and stop.
+
 ### Step 6 — Result envelope, report, hand off
 
-On approve: one commit for the feature, then the envelope. Do not push. On abort or error, skip
+On the second approve: one commit for the feature, then the envelope. Do not push. On abort or error, skip
 the commit and write the envelope only.
 
 ```bash

@@ -16,7 +16,7 @@ Any station that introduces a new FSD slice. This is the base scaffold that the 
 
 1. **Determine required segments**: based on what the slice needs, select only the segments that have content. Do not create empty directories. Common combinations:
    - Entity: `model/`, `api/`, `ui/`, `index.ts`
-   - Feature: `models/`, `hooks/`, `api/` (fetchers only, when this feature calls its own paths), `ui/`, `lib/` (if validators), `index.ts`
+   - Feature: `models/`, `hooks/` (navigation only), `api/` (fetchers and the query or mutation hook, when this feature calls its own paths), `ui/`, `lib/` (if validators), `index.ts`
    - Widget/Page: `ui/`, `index.ts`
 
 2. **Create the slice directory**: `src/<layer>/<slice>/`. Do not create the directory without at least one file in it.

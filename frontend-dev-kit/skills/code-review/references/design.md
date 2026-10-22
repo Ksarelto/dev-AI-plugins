@@ -6,7 +6,7 @@ Applies to every changed component under `ui/`. A component that owns more than 
 
 Props, the hooks that wire this view, named handlers, and JSX. Everything else moves:
 
-- Predicates, mappers, and formatters → `{component}/lib/` (slice-wide helpers → the slice `lib/`). There is no `utils/` folder. `lib/` does not import a fetcher.
+- Predicates, mappers, and formatters → `{component}/utils.ts` (slice-wide helpers → the slice `lib/`). `utils.ts` does not import a fetcher.
 - Closed-set values and field codes → `constants.ts`. Class strings stay in `styles.ts`. A map of a closed set stays in that set's file (slice `config/` when the map holds translation keys).
 - Slice settings that are not copy → `config/`.
 - A second visual region → `ui/{child}/`.
@@ -23,7 +23,7 @@ Props, the hooks that wire this view, named handlers, and JSX. Everything else m
 
 - The component is a thin controller.
 - The helper that knows the data owns the rule (information expert).
-- A pure helper that exists so the component stays readable is a pure fabrication. Put it in `lib/`.
+- A pure helper that exists so the component stays readable is a pure fabrication. Put it in `utils.ts`.
 - The component does not reach into another slice's internals (low coupling, high cohesion).
 
 ## Patterns

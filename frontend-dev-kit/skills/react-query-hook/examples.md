@@ -1,6 +1,6 @@
 # React Query Hook — Few-shot Examples
 
-Query keys live in `shared/api/query-keys/{domain}.ts`. Hooks live in `features/{name}/hooks/`. Fetchers live in `api/fetchers.ts` and call `httpClient`. The skill has the full list and mutation templates. Do not add `api/queryKeys.ts`, `api/useOrders.ts`, or `ApiError`.
+Query keys live in `shared/api/query-keys/{domain}.ts`. `useQuery` and `useMutation` live in the owning `api/` segment (`entities/{name}/api/useOrderList.ts`). Fetchers live in `api/fetchers.ts` and call `httpClient`. The skill has the full list and mutation templates. Do not add `api/queryKeys.ts` or `ApiError`. `features/{name}/hooks/` does not call `useQuery` or `useMutation`.
 
 ```ts
 // shared/api/query-keys/orders.ts
@@ -13,10 +13,10 @@ export const orderKeys = {
 ```
 
 ```ts
-// features/orders/hooks/useOrderList.ts
+// entities/order/api/useOrderList.ts
 import { useQuery } from '@tanstack/react-query';
 import { orderKeys } from '@/shared/api/query-keys/orders';
-import { fetchOrders } from '../api/fetchers';
+import { fetchOrders } from './fetchers';
 
 export const useOrderList = (filters?: OrderFilters) =>
   useQuery({

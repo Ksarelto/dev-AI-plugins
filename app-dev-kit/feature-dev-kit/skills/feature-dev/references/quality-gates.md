@@ -20,7 +20,7 @@ their files. A **patch** run then uses `run-gates.sh --until conventions`. `yarn
 | 1 | Types | `yarn typecheck` | Exit 0, zero TypeScript errors | Enter fix loop |
 | 2 | Lint | `yarn lint` | Exit 0, zero ESLint + Stylelint errors | Enter fix loop |
 | 3 | FSD boundaries | `yarn lint:fsd` (Steiger) | No upward imports, no cross-slice internal imports, every slice has `index.ts` | Enter fix loop |
-| 4 | Conventions | `node scripts/check-conventions.mjs` (kit script, run by `run-gates.sh`; changed files vs `HEAD` + untracked, plus `--base <ref>`) | Zero errors (warnings allowed) | Enter fix loop |
+| 4 | Conventions | `check-conventions.mjs` then `scan-duplicates.mjs` (kit scripts, run by `run-gates.sh`; changed files vs `HEAD` + untracked, plus `--base <ref>`) | Zero convention errors (warnings allowed) and no duplicated bodies | Enter fix loop |
 | 5 | Build | `yarn build` | Vite build succeeds, exit 0 | Enter fix loop |
 | 6 | Coverage | `yarn test:auto` | branches ≥73%, functions ≥78%, lines ≥87%, statements ≥86% | Enter fix loop |
 | 7 | Architecture audit | `architecture-auditor` (REPORT_ONLY, changed paths + importers) | Zero **hard** violations | Enter fix loop. Missing agent/companion skill → ESCALATION_PACKET |
@@ -49,6 +49,10 @@ The conventions gate enforces the mechanically checkable frontend-dev-kit rules 
 | `env-access` | error | `import.meta.env` / `process.env` outside `shared/config` (`shared/api/config.ts` may read the API origin) |
 | `client-option` | error | `timeout`, `retry`, `prefixUrl`, or `Authorization` on a feature, entity, widget, or page `httpClient` / `http` call |
 | `motion-css` | warn / error | `@keyframes`, `--animate-*`, `animation:` in CSS (warn); `tw-animate-css` imported twice (error) |
+| `component-let` | error | `let` inside a component. A condition is a `const`; JSX is `{cond && <Button />}` |
+| `iife` | error | An immediately invoked function. Name it outside and call it |
+| `query-outside-api` | error | `useQuery` or `useMutation` outside an `api/` segment |
+| `query-state-local` | error | A hand-rolled `isLoading`, `isFetching`, `isPending`, `isError`, or `error` instead of the query result |
 
 It loads the host app's `typescript` package (5.x/6.x compiler API). TypeScript 7 ships no JS API — add `typescript-api@npm:typescript@^6` as a dev dependency. The script exits 2 when neither resolves; report that as a setup failure, never as a pass.
 

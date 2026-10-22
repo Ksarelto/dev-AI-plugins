@@ -27,11 +27,11 @@ A **segment** partitions a slice by technical purpose:
 
 | Segment | Contents |
 |---------|----------|
-| `ui/` | React components and styled wrappers for this slice. Imports `hooks/`, never `api/` |
+| `ui/` | React components and styled wrappers for this slice. Imports the api hook, never a fetcher |
 | `models/` | Features only. State, selectors, pure invariants. No React, no network, no locale keys. Form schemas live in the form's `ui/` folder |
 | `model/` | Entities (and optional widget UI state). Same job as `models/`, singular folder |
-| `hooks/` | Features only. TanStack Query hooks. The only segment `ui/` calls for data |
-| `api/` | Fetchers, `endpoints.ts`, and entity query hooks (`useProfile.ts`). Feature hooks live in `hooks/`. Not query-key factories |
+| `hooks/` | Features only. Navigation and local UI state. Calls the api hook. Does not call `useQuery` or `useMutation` |
+| `api/` | Fetchers, `endpoints.ts`, and the `useQuery` / `useMutation` hook (`useProfile.ts`). Other slices import it from the public index. Not query-key factories |
 | `lib/` | Pure utilities, validators, formatters — no side effects |
 | `config/` | Non-text constants scoped to this slice (limits, ids, enum → locale-key maps) |
 | `locales/` | `en.json` + `keys.ts` — every user-visible string this slice renders (`frontend-dev-kit:i18n`) |
@@ -124,9 +124,9 @@ Is it a global provider, router, or app bootstrap concern?
 | Segment | Purpose | May import | Must NOT contain |
 |---------|---------|------------|------------------|
 | `api/` | Fetchers, `endpoints.ts`, DTOs | `shared/api`, `shared/lib`, `shared/config` | React components, UI state, query-key factories |
-| `hooks/` | Feature query and mutation hooks | own `api/`, `shared/api/query-keys`, entity public API | React components |
+| `hooks/` | Feature navigation and local UI state | the api hook, entity public API | `useQuery`, `useMutation`, React components |
 | `models/` / `model/` | Types, selectors, pure invariants (`models/` on features, `model/` on entities). Field rules stay on the form's `FormFieldConfig`, not here | own types, pure TS stdlib | React, network, side effects, locale keys, a form schema file |
-| `ui/` | Feature/entity display and interaction components | `shared/ui`, own `models/` or `model/` (pure), own `hooks/` | Direct fetch calls, `api/` imports, other slices' internals |
+| `ui/` | Feature/entity display and interaction components | `shared/ui`, own `models/` or `model/` (pure), the api hook | Fetcher imports, a second `useQuery` or `useMutation`, other slices' internals |
 | `lib/` | Pure formatters, validators, mappers | own `model/`, own types | React, network calls, side effects, fetcher imports. A fetcher may import `lib/`. A helper may receive a fetcher as an argument |
 | `config/` | The closed set and every map of it (label keys, error codes, predicates) in the same file. A key map lives here so `models/` does not import keys | own `locales/keys` | A second file for the same set (`labels.ts`, `status-map.ts`), runtime code, English copy |
 | `locales/` | `en.json`, `keys.ts` | nothing | Code, anything shown only by another slice |

@@ -19,7 +19,7 @@ Be specific: explain why something is a problem and what the impact is. Provide 
 - One folder per component under `ui/`. Folder and implementation file are kebab-case of the export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`.
 - One component per file. A nested component is `{name}/ui/{child}/`. The only exception is a re-homed shadcn/Radix file that configures the library's compound parts (`Dialog`, `DialogTrigger`, `DialogContent`, …).
 - The props `interface` is declared in the component file. Other types go in `types.ts` in the component folder, or in the slice model folder (`models/types.ts`, `model/types.ts`). Do not add `types.ts` only to hold the props interface.
-- Helpers used only by this component live in `{name}/lib/`. DTO mappers stay in the slice `api/`. Slice-wide helpers stay in the slice `lib/`.
+- Helpers used only by this component live in `{name}/utils.ts`. DTO mappers stay in the slice `api/`. Slice-wide helpers stay in the slice `lib/`.
 - Tests live in `{name}/tests/{name}.test.tsx`. Every component folder ships that test in the same change.
 - `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names.
 - The named export is PascalCase (`export const CustomButton`). Import the folder through `index.ts`, never the `.tsx` file.

@@ -11,6 +11,8 @@ permissionMode: default
 
 ## Role
 
+Before writing a helper, grep `src/shared` and sibling slices. If it exists, import it. If this change would be the second copy, hand it to `shared-engineer`.
+
 Owns all additions to the FSD `entities` layer. For each entity slice in your card's rows, produces the segments the feature actually needs — typically `api/` (TanStack Query hooks, `endpoints.ts`, types), `model/` (domain types, pure transforms), `ui/` (entity-scoped presentational components), and `lib/` (entity-scoped helpers). Query keys live in `shared/api/query-keys/`. Never imports upward. Another entity is reached only through its `@x` file.
 
 ## Inputs

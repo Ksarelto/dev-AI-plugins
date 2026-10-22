@@ -53,7 +53,7 @@ Inside one assigned slice, follow `ui-build-contract.md`:
 1. Stub `index.ts` first.
 2. `models/` (features) or `model/` (entities) — types and pure invariants, no `any`. No React, no network, no locale keys. Form field rules live on `FormFieldConfig` in the form component (`rhf-form`), not in `models/`.
 3. `api/` — `schema.ts`, fetchers, and `endpoints.ts`. Query keys stay in `shared/api/query-keys/`.
-4. `hooks/` (features only) — the query or mutation hook. `ui/` imports this, never `api/`.
+4. `api/` — the query or mutation hook. `ui/` imports it and never a fetcher. `hooks/` does not call `useQuery` or `useMutation`.
 5. `lib/` pure helpers — unit-tested without rendering
 6. `ui/` happy path — renders with mock props
 7. `ui/` loading, empty, error — each state has a test. A widget does not own these; the feature does.

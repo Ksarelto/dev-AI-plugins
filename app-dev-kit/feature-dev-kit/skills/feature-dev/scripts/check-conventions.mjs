@@ -50,6 +50,10 @@ const RULES = {
   'node-access': 'no DOM walking in a test — screen.getByRole / getByLabelText / getByText, or within(...).getByRole',
   'class-constant': 'class strings are written in styles.ts — do not store them in constants.ts or import them back',
   'translated-local': 'call t(key) at the JSX or attribute — do not store the translation in a local',
+  'component-let': 'no let in a component — a condition is a const, and JSX is {cond && <Button />}',
+  iife: 'no IIFE — name the function outside and call it',
+  'query-outside-api': 'useQuery and useMutation live in an api/ segment and are imported by other slices',
+  'query-state-local': 'destructure isLoading, isFetching, isPending, isError, and error from the query — do not derive a second flag',
 }
 
 const args = process.argv.slice(2)
@@ -253,7 +257,35 @@ const CLASS_TOKEN = /(?:^|\s)(?:flex|grid|hidden|block|inline-flex|inline-block|
 
 const isSliceLib = (file) => {
   const r = rel(file)
-  return /^src\/(features|entities)\//.test(r) && /\/lib\//.test(r) && !/\/tests\//.test(r)
+  if (!/^src\/(features|entities)\//.test(r) || isTest(file)) return false
+  return /\/lib\//.test(r) || /\/utils\.ts$/.test(r)
+}
+const QUERY_HOOKS = new Set(['useQuery', 'useMutation'])
+const QUERY_FLAGS = new Set(['isLoading', 'isFetching', 'isPending', 'isError'])
+const inApi = (file) => /\/api\//.test(rel(file))
+const fnName = (fn) => {
+  if (fn.name && ts.isIdentifier(fn.name)) return fn.name.text
+  const parent = fn.parent
+  if (parent && ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) return parent.name.text
+  return ''
+}
+const hasJsx = (node) => {
+  let found = false
+  const walk = (n) => {
+    if (found || !n) return
+    if (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n) || ts.isJsxFragment(n)) { found = true; return }
+    ts.forEachChild(n, walk)
+  }
+  walk(node)
+  return found
+}
+const enclosingFn = (node) => {
+  let cur = node.parent
+  while (cur) {
+    if (ts.isFunctionLike(cur)) return cur
+    cur = cur.parent
+  }
+  return null
 }
 
 const importsApi = (spec) => spec === '@/shared/api' || spec.startsWith('@/shared/api/') || /(?:^|\/)api(?:\/|$)/.test(spec)
@@ -332,8 +364,39 @@ const checkAst = (file, sf) => {
   const styles = base(file) === 'styles'
   const sharedUi = inSharedUi(file)
   const locales = inLocales(file)
+  const componentFns = new Set()
+  const markComponent = (n) => {
+    if (ts.isFunctionLike(n) && n.body && (/^[A-Z]/.test(fnName(n)) || hasJsx(n.body))) componentFns.add(n)
+    ts.forEachChild(n, markComponent)
+  }
+  markComponent(sf)
 
   const visit = (n) => {
+    if (ts.isVariableStatement(n) && (n.declarationList.flags & ts.NodeFlags.Let)) {
+      const fn = enclosingFn(n)
+      if (fn && componentFns.has(fn)) {
+        report(file, sf, n.getStart(sf), 'error', 'component-let', 'let in a component — use a const condition and {cond && <Button />}')
+      }
+    }
+
+    if (ts.isCallExpression(n)) {
+      const called = unwrap(n.expression)
+      if (called && (ts.isArrowFunction(called) || ts.isFunctionExpression(called))) {
+        report(file, sf, n.getStart(sf), 'error', 'iife', 'IIFE — name the function outside and call it')
+      }
+      if (called && ts.isIdentifier(called) && QUERY_HOOKS.has(called.text) && !inApi(file)) {
+        report(file, sf, n.getStart(sf), 'error', 'query-outside-api', `${called.text} outside api/ — define the hook in api/ and import it`)
+      }
+    }
+
+    if (!test && ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && !(n.parent && ts.isCatchClause(n.parent))) {
+      const name = n.name.text
+      const fn = enclosingFn(n)
+      if (QUERY_FLAGS.has(name) || (name === 'error' && fn && componentFns.has(fn))) {
+        report(file, sf, n.getStart(sf), 'error', 'query-state-local', `${name} is a second flag — destructure it from the query or mutation`)
+      }
+    }
+
     if (ts.isArrowFunction(n) && ts.isBlock(n.body)) {
       const only = n.body.statements
       if (only.length === 1 && ts.isReturnStatement(only[0])) {

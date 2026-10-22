@@ -57,7 +57,7 @@ A literal used once in an obvious spot stays: `array.length - 1`, `0`, and `1`. 
 
 - A component folder missing `styles.ts` or `tests/{name}.test.tsx`. A test file sitting beside `{name}.tsx` is the wrong place.
 - A second authored component in the same `.tsx`, or a nested component that is not under `{component}/ui/{child}/`. The exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
-- A helper or view mapper dropped next to `{name}.tsx`. It belongs in `{component}/lib/`. DTO mappers belong in the slice `api/`.
+- A helper or view mapper dropped next to `{name}.tsx`. It belongs in `{component}/utils.ts`. DTO mappers belong in the slice `api/`.
 - A props `interface` in `types.ts`. It is declared in the component file. `types.ts` holds other types only: component-local non-prop types, or domain types in the slice model folder (`models/types.ts`, `model/types.ts`).
 - A new feature entry component that does not render `<ErrorBoundary>`, or a route element not wrapped in `RouteBoundary`.
 - A hook called in a feature's entry above its boundary (a throw there escapes the boundary).

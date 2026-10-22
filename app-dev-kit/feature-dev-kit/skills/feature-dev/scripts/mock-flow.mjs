@@ -270,6 +270,7 @@ if (goodRun.status === 2) {
     'missing-test', 'unused-export', 'export-star', 'motion-utility', 'string-map', 'motion-css', 'dark-variant',
     'cross-slice-mock', 'inline-query-key', 'env-access', 'client-option',
     'lib-imports-api', 'arrow-body', 'max-len', 'block-gap', 'wrapped-expr', 'node-access', 'class-constant', 'translated-local',
+    'component-let', 'iife', 'query-outside-api', 'query-state-local',
   ]
   const missing = expected.filter((r) => !rules.has(r))
   if (badRun.status !== 1) fail(`check-conventions must exit 1 on the bad fixture (got ${badRun.status})`)

@@ -138,7 +138,7 @@ export type ProfileStatusValue = (typeof ProfileStatus)[keyof typeof ProfileStat
   in the slice model folder (`features/*/models/types.ts`, `entities/*/model/types.ts`). Skip
   `types.ts` when the props interface was the only type. A `VariantProps` type derived from `cva`
   stays in `styles.ts`. Nested components live in `{component}/ui/{child}/`. Component-local
-  helpers live in `{component}/lib/`.
+  helpers live in `{component}/utils.ts`.
 - Prefer a single options object over long positional parameter lists (3+ params).
 
 ```ts

@@ -68,7 +68,7 @@ Station 7    app/         (app-engineer)                ← GATE: layer-green
 Station 9    Full gate sweep (run-gates.sh, orchestrator Bash) ← GATE: all-green (conventions + build + coverage once)
       ↓
 Station 9.5  Architecture-audit (architecture-auditor, REPORT_ONLY, DIFF_SCOPE)  ┐ same turn
-Station 10   Auto-review (code-reviewer)                                          ┘
+Station 10   Auto-review (code-reviewer). No `/code-review`                         ┘
       ↓
 Station 11   Fix rounds (cap 3). Snapshot before the fix. Then gates plus both
              reviewers in MODE: verify, scoped to FIX_SCOPE (files the fix touched)
@@ -85,10 +85,14 @@ UI review    After CONTINUE_PACKET, before Stations 9–11, when UI changed (inc
   • A testable finding's fix includes a regression test
   • Before Station 12, re-open the route only when ui-review.md had findings
 Station 12   🧑 HUMAN REVIEW GATE (max 3 cycles)
-  • Approve         → status: done (human-only transition); tell the human to run /create-pr
+  • First Approve   → does not set done and does not commit. Same on patch, standard, and full
+  • /code-review    → FIXED_POINT = parent branch, SPEC_PATH = the feature blackboard
+                      one fix round (slice-engineer, or shared-engineer when the fix is "move to shared")
+                      re-run both scan scripts; write code-review.md
+  • Second Approve  → status: done; commit; tell the human to run /create-pr
   • Request changes → local UI: slice-engineer + --until conventions (+ verify reviewers on standard/full)
                       otherwise re-spawn orchestrator MODE: revise → new packet → repeat
-  • Abort           → stop; branch stays as-is
+  • Abort           → stop; no commit; branch stays as-is
 ──────────────────────────────────────────────────────────────────
 
 ── human, separately ──────────────────────────────────────────────
@@ -114,12 +118,12 @@ Each packet is small JSON plus a file path. The body lives in `.spec/features/<s
 | `layer-green` | 3–7 | `run-gates.sh --until fsd` (types, lint, fsd) | Fix loop — never build the next layer on a red gate |
 | `parity` | 6→7 | When `prototype-inventory.md` exists: `extract-prototype-inventory.mjs --check` exits 0 (every row `done` with a React target or `n/a: <reason>`; every prototype state rendered). When `prototype-ref` is set: `port-prototype-theme.mjs --check` exits 0 (every prototype `:root` token matches `globals.css`) | Inventory gaps → `composition-engineer` (or the slice owner) — never mark a row `n/a` to pass. Token gaps → `shared-engineer` |
 | `behavior-tests` | 3–7 (gap fill at 9) | Every new executable file has a behavior test in the right folder | The builder writes it. Station 9 `missing-test` → `test-engineer` for that layer group |
-| `conventions` | 9 (patch: after build) | `check-conventions.mjs` zero errors — missing tests, comments, hardcoded copy, string maps, unused exports, inline classes/handlers, nested ternaries, magic props, motion outside `shared/ui` | Fix loop — route each finding to the slice owner (`missing-test` → `test-engineer`) |
+| `conventions` | 9 (patch: after build) | `check-conventions.mjs` then `scan-duplicates.mjs` — zero errors and no duplicated bodies | Fix loop — route each finding to the slice owner (`missing-test` → `test-engineer`) |
 | `coverage` | 9 | Thresholds in `quality-gates.md`; every AC has a test | Spawn `test-engineer` again for the failing layer group, then re-run coverage |
 | `all-green` | 9→9.5 | Full sweep, including build and coverage, once | Fix loop |
 | `architecture-clean` | 9.5 (parallel with 10), then each Station 11 round | `architecture-auditor` REPORT_ONLY. First pass is `DIFF_SCOPE`. Later passes are `MODE: verify` on `FIX_SCOPE` | Zero hard violations. Missing agent or companion skill → `ESCALATION_PACKET` |
 | `review-clean` | 10→11 | No `[CRITICAL]`; no unresolved `[IMPORTANT]` | Owning engineer |
-| `human-approved` | 12 | Human replies `approve` | Skill sets `status: done` |
+| `human-approved` | 12 | Second `approve`, after `/code-review` and one fix round | Skill sets `status: done` and commits |
 
 **Gate bypass is never allowed.** A patch run still runs `--until conventions`. It does not run the package build
 or `test:auto`. Layer gates stay `--until fsd`. Conventions, build, and coverage run once at Station 9.
@@ -156,7 +160,7 @@ are fighting: `ESCALATION_PACKET` citing both, no further fix.
 | Fix loop | Station 11 | 3 rounds | Zero findings on `FIX_SCOPE` | `ESCALATION_PACKET` |
 | Oscillation | Station 11 | a `path \| rule` repeated from an earlier batch | — | `ESCALATION_PACKET` citing both rules |
 | Coverage loop | Station 9 | 2 attempts | Every new executable file has a behavior test, and thresholds met | Escalate — never game coverage |
-| Human review | Station 12 (skill) | 3 cycles | Human approves | Ask: accept-as-is, keep iterating, or abort |
+| Human review | Station 12 (skill) | 3 cycles | Second approve, after `/code-review` | Ask: accept-as-is, keep iterating, or abort |
 
 ---
 
