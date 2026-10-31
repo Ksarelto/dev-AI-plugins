@@ -29,6 +29,9 @@ Other event types: `dispatch`, `envelope`, `gate`, `verdict`, `human_gate`, `ove
 | Tokens and wall-clock per story point | trending down | unit economics |
 | Mean pack size / budget | < 60% | Broker over-including |
 | `context_degraded` rate | < 10% | budgets too tight or slices too fat |
+| Tracked IDs lost at a stage exit (caught by the ID-coverage check) | 0 after retry | curator or a stage agent drops items; tighten its skill |
+| `HD-*` notes still open at `gate-ready-for-pr` | 0 | human instructions not reaching the plan |
+| Conductor compactions per feature | 0 in headless mode, rare interactively | Conductor reading too much; check `factory state --brief` size |
 | `needs_scope_change` events | rare | planner's `files_expected` too narrow |
 | Duplication introduced per merged feature | ≈ 0 | reuse gate toothless or index stale |
 | Prototype → non-empty spec_delta | > 60% | trigger rules too loose |
@@ -57,6 +60,10 @@ Examples:
 - new test fails with an import error → `gate-red` fails (not a valid red);
 - builder edit to a file in `red_tests` → hook denies, `gate-impl` fails on hash mismatch;
 - behaviour-bearing task with `tdd.mode: exempt` and a non-whitelisted type → `gate-plan` fails.
+- digest that omits an open AC or `HD-*` ID → ID-coverage check rejects it;
+- `HD-*` note made at GATE-A and not mapped → `gate-plan` fails;
+- config naming a stage that no installed pack provides, or a stage input no earlier stage produces → `factory doctor` fails;
+- `SessionStart` with the `compact` matcher → hook output contains the brief state and open notes.
 
 Run on every commit to `factory-core`; fast, free, deterministic.
 
@@ -81,6 +88,7 @@ Run on every commit to `factory-core`; fast, free, deterministic.
 | GT-09 FE + BE tracks (after backend role) | greenfield | worktrees, contract conformance |
 | GT-10 Builder cannot make a red test pass honestly | any | `test_dispute` → one test-author round → human; red tests never weakened |
 | GT-11 Empty inbox, one-line idea | greenfield | guided interview, open questions with defaults, GATE-A |
+| GT-12 Late constraint | change-request | one sentence in a long customer doc (and one `HD-*` note at GATE-A) that only matters in code and docs — e.g. "amounts are shown without decimals for JPY". Passes only if it reaches an AC, a red test, the code, the feature doc and the PR trace table, with a long enough run to force at least one Conductor compaction |
 
 Human gates are auto-answered from a scripted `answers.yaml` per ticket. Scored with a **hybrid** of:
 

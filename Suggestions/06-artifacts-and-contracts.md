@@ -30,6 +30,7 @@ The artifact store is the factory's memory and the only channel between spokes. 
     └── FEAT-021-coupons/
         ├── state.json               # feature stage machine, tasks, budgets, strikes
         ├── digest.md                # curator's rolling ≤800-token summary
+        ├── human-notes.yaml         # HD-* instructions from gates and /factory:note (see 07)
         ├── 01-requirements/   prd.md | delta-spec.yaml, open-questions.md
         ├── 02-stories/        stories.yaml, ux-notes.md
         ├── 02b-prototype/     prototype-report.yaml
@@ -52,6 +53,7 @@ What happens to the customer's words, step by step:
 | Step | Artifact | ID | Written by | Checked by |
 |---|---|---|---|---|
 | Raw input | `inbox/*` (any format) or interview answers | — | you | — |
+| Human note | `human-notes.yaml`: gate notes and `/factory:note` | `HD-#` | you (via commands) | `gate-plan` (mapped), `gate-ready-for-pr` (none open) |
 | Normalised source | `context/normalised/*.md`, each paragraph quoted with its origin | `SRC-###` | `intake-normaliser` | `gate-intake` (coverage, source IDs) |
 | Requirement | `prd.md` (greenfield) or `delta-spec.yaml` (ADDED / MODIFIED / REMOVED), each with measurable ACs and open questions | `REQ-###`, `AC-###` | `requirements-analyst` | `gate-spec`, **GATE-A** |
 | Story | `stories.yaml` (INVEST, Gherkin ACs), `ux-notes.md` | `STORY-###` | `story-writer` | `gate-stories` |
@@ -61,7 +63,7 @@ What happens to the customer's words, step by step:
 | Docs | `docs/features/<FEAT>.md`, CHANGELOG, OpenAPI | — | `tech-writer` | `gate-docs` |
 | PR | spec-trace table AC → test → status | PR number | `release-manager` | **GATE-C** |
 
-Nothing downstream may introduce a requirement that has no `SRC-###` upstream; the reviewer's spec-drift lens and the trace table in the PR make that visible.
+Nothing downstream may introduce a requirement that has no `SRC-###` or `HD-#` upstream; the reviewer's spec-drift lens and the trace table in the PR make that visible.
 
 ## Traceability chain
 

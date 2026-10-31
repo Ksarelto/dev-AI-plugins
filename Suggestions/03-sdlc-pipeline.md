@@ -158,7 +158,8 @@ Details of the ladder, fingerprints and budgets: [09](09-quality-gates-and-loop-
 | `/factory:next [feature]` | Advance exactly one stage or one task |
 | `/factory:run --until gate` | Advance until a halt condition |
 | `/factory:status` | Stages, gates, WIP lanes, budgets, blocked items |
-| `/factory:gate approve\|reject [notes]` | Resolve the pending human gate |
+| `/factory:gate approve\|reject [notes]` | Resolve the pending human gate; notes are stored as `HD-*` entries in `human-notes.yaml` |
+| `/factory:note "<text>" [--feature <id>]` | Record an instruction between gates; the Conductor never acts on chat-only instructions ([07](07-context-engineering.md#human-instructions-are-artifacts)) |
 | `/factory:proto --force\|--skip` | Override the prototype trigger |
 | `/factory:replay <stage> --with "<feedback>"` | Re-run a stage with human feedback |
 | `/factory:diagnose <task>` / `/factory:split <task>` | Jump to escalation rung 3 / 4 |

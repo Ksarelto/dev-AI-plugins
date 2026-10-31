@@ -17,14 +17,15 @@ Principle: *let models exercise judgement; let scripts decide when to stop.*
 | `gate-stories` | S2 | every story → REQ; ACs parse as Gherkin; UX states listed | core |
 | `gate-proto` | S2.5 | writes only in sandbox; renders; no new deps; report schema valid | role pack |
 | `gate-arch` | S3 | contract lints (OpenAPI); every component owned by a story; reuse decisions present | core |
-| `gate-plan` | S4 | DAG acyclic; every AC → ≥ 1 test; task size ≤ limits; `files_expected` inside role `owns_paths`; every net-new item has `reuse_rejected` | core |
+| `gate-plan` | S4 | DAG acyclic; every AC → ≥ 1 test; task size ≤ limits; `files_expected` inside role `owns_paths`; every net-new item has `reuse_rejected`; every `HD-*` note made so far is mapped to a REQ / AC / task or declined | core |
 | `gate-plan` (TDD part) | S4 | every behaviour-bearing task has `tdd.mode: required` and `red_tests`; `exempt` only for whitelisted task types, with a reason | core |
 | `gate-red` | S5 (red) | new tests type-check; each new test fails with an assertion or not-implemented error (not import / syntax / type errors); pre-existing tests still pass | core + role pack |
 | `gate-impl` | S5 (green) | tsc, lint, unit tests, build — scoped to touched files; red test files' hash unchanged since `gate-red` | role pack |
 | `gate-verify` | S6 | coverage of changed lines ≥ threshold; acceptance tests pass; 0 P0/P1 review findings; audits within thresholds; contract conformance; no fixture imports in `src/` | core + role pack |
 | `gate-qa` | S7 | S1/S2 defects = 0 or waived by a human | core |
 | `gate-docs` | S8a | feature doc exists and lists every AC of the feature; ADRs referenced in the plan are promoted to `docs/adr/`; CHANGELOG entry present; OpenAPI regenerated and diff-clean when `api-contract.yaml` changed | core |
-| `gate-ready-for-pr` | S8 | commitlint; every commit has a task trailer; PR template complete; CI green | core |
+| `gate-ready-for-pr` | S8 | commitlint; every commit has a task trailer; PR template complete; CI green; no `HD-*` note still `open` | core |
+| ID coverage (every stage exit) | all | every ID in the exiting stage's `tracked_ids` that is still open appears in its outputs or in the digest ([07](07-context-engineering.md#where-context-can-be-lost-and-what-catches-it)) | core |
 
 Gates return a normalised result:
 
@@ -158,6 +159,6 @@ qa:
 | `PreToolUse(Bash)` | no `git push --force`, no package installs outside approved tasks, no network calls except allowlisted |
 | `PostToolUse(Write\|Edit)` | format + lint changed file; validate `.factory/**` artifacts against schemas |
 | `SubagentStop` | envelope schema + summary length; required exit gate was run |
-| `SessionStart` | load `state.json` summary; warn on stale index |
+| `SessionStart` | load `state.json` summary and open `HD-*` notes; warn on stale index. Also fires after compaction (`compact` matcher), so the Conductor restarts from files |
 
 Because hooks are workstation-local, the **same checks run again server-side as required CI checks** on the PR (`factory gate verify` in GitHub Actions). Hooks are the fast feedback; CI is the enforcement that survives a tool change.

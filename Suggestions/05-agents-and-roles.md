@@ -1,10 +1,10 @@
 # 05 — Agents, role packs and stack packs
 
-Three kinds of components, separated so each can evolve on its own:
+Three kinds of components, separated so each can evolve on its own. All of them plug into the `factory-core` engine through manifests ([10](10-configuration-and-extensibility.md#packaging)):
 
 | Kind | Answers | Example | Changes when |
 |---|---|---|---|
-| **Core agents** | *What* to build and *whether* it is right — role-agnostic SDLC work | requirements-analyst, planner, reviewer, qa-engineer | SDLC process changes |
+| **Core agents**, shipped in stage packs | *What* to build and *whether* it is right — role-agnostic SDLC work | requirements-analyst, planner (`factory-analysis`); reviewer, qa-engineer (`factory-quality`) | SDLC process changes |
 | **Role packs** | *How a developer of this role executes a task* | `role-frontend`: fe-builder, fe-test-author, fe-auditor | a new developer role is added |
 | **Stack packs** | *What the code must look like in this technology* | `frontend-dev-kit`, `node-backend-dev-kit`, `node-agent-dev-kit`: rules, skills, golden files, a boilerplate | the tech stack changes |
 
@@ -12,7 +12,7 @@ A **role** pairs with one **stack** per project in config: `frontend → fronten
 
 ```mermaid
 flowchart TB
-    subgraph CORE["factory-core — core agents (role-agnostic)"]
+    subgraph CORE["Stage packs — core agents (role-agnostic)"]
         direction LR
         RA[requirements-analyst] --- SW[story-writer] --- AR[solution-architect] --- CS[contract-steward] --- PL[planner] --- TS[test-strategist]
         RV[reviewer] --- QA[qa-engineer] --- RM[release-manager] --- TW[tech-writer] --- CBA[codebase-analyst] --- CUR[curator]
@@ -35,6 +35,15 @@ flowchart TB
 ## Core roster (v1: 14 agents)
 
 Kept deliberately small. Split an agent only when you can state a crisp, non-overlapping trigger (anti-sprawl rule).
+
+| Pack | Agents |
+|---|---|
+| `factory-analysis` | intake-normaliser, codebase-analyst, requirements-analyst, story-writer, solution-architect, contract-steward, planner, test-strategist |
+| `factory-quality` | acceptance-test-author, reviewer, qa-engineer |
+| `factory-delivery` | tech-writer, release-manager |
+| `factory-core` | curator (context management, not an SDLC stage) |
+
+None of them orchestrates other agents: only the Conductor dispatches ([02](02-architecture.md#no-sub-orchestrators)).
 
 | Agent | Stage | Model tier | Tools (allowlist) | Single responsibility | Must not |
 |---|---|---|---|---|---|
@@ -84,7 +93,7 @@ Procedure detail lives in the skill, conventions in rules, examples in golden fi
 
 ## Role packs
 
-A role pack is a plugin that implements the **role contract** for one kind of developer.
+A role pack is a plugin that implements the **role contract** for one kind of developer. It declares the contract in `role.yaml`; `factory doctor` checks that every agent and gate script it names exists ([10](10-configuration-and-extensibility.md#keeping-the-set-healthy)).
 
 ### The role contract
 
@@ -127,7 +136,7 @@ All three share the same lifecycle, gates framework, delivery and observability.
 
 ## Stack packs
 
-A stack pack is knowledge only — no agents:
+A stack pack is knowledge only — no agents. A small `stack.yaml` tells the role pack how to check the architecture, run the tests and find golden files and the boilerplate ([10](10-configuration-and-extensibility.md#the-four-manifests)):
 
 - **Rules** — short (≤40 lines each), path-scoped to the role's `owns_paths`.
 - **Golden files** — one exemplar per pattern, referenced by context packs.

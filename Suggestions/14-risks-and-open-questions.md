@@ -4,8 +4,10 @@
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| **Agent sprawl** — too many agents with fuzzy descriptions → wrong routing | high | high | 12 core agents in v1; split only with a crisp trigger; one builder per role, task type selects the skill ([05](05-agents-and-roles.md)) |
-| **Conductor context bloat** over a long run | medium | high | Conductor reads only state + envelopes; headless runner gives each step a fresh context; < 20k budget tracked in events |
+| **Agent sprawl** — too many agents with fuzzy descriptions → wrong routing | high | high | 14 core agents in v1, grouped into three stage packs; split only with a crisp trigger; one builder per role, task type selects the skill ([05](05-agents-and-roles.md)) |
+| **Conductor context bloat** over a long run | medium | high | Conductor reads only state + envelopes; headless runner gives each step a fresh context; `SessionStart` hook reloads state after compaction; < 20k budget tracked in events |
+| **Context lost between stages** — a summary, a compaction or a chat-only instruction drops a requirement | medium | high | files are the only channel; summaries never replace artifacts; ID-coverage check at every stage exit; human instructions stored as `HD-*` notes; GT-12 ([07](07-context-engineering.md#where-context-can-be-lost-and-what-catches-it)) |
+| **Version skew** between `factory-core` and stage / role / stack packs | medium | medium | manifests with `requires` ranges; `factory doctor` before every run and in CI; semver on schemas ([10](10-configuration-and-extensibility.md#keeping-the-set-healthy)) |
 | **LLM-only gates** — models approve their own work | high | high | machine gates first; reviewer in a separate context; acceptance tests from spec only; blind QA ([09](09-quality-gates-and-loop-control.md)) |
 | **Runaway loops / budget incidents** | medium | high | Loop Warden budgets, fingerprints, oscillation, wall-clock; rung ladder used once each; `blocked` is terminal |
 | **Self-feeding backlog** | medium | high | only the planner writes `tasks.yaml`; follow-ups are advisory |
@@ -38,6 +40,7 @@ These need your decision before or during the phases named.
 | Q8 | **Model choice per tier** and budget per feature | defaults in [10](10-configuration-and-extensibility.md) | measure in P4, then fix | P4 |
 | Q9 | **Existing apps not built with this architecture** | adapter mode · refuse · "align architecture" epic first | adapter mode with review flags | P5 |
 | Q10 | **Retire old kits** | deprecate after P4 · keep in parallel | deprecate after golden tickets match or beat them | P4 |
+| Q11 | **How boilerplates reach projects** | git tag in this repo · separate template repositories · `npm create` packages | tagged paths in this repo until a second consumer project exists, then template repositories | P2 |
 
 ## Things deliberately left out of v1
 

@@ -141,12 +141,52 @@ Spokes of the same kind share a long, stable prefix: agent prompt → rules → 
 
 The Conductor reads only: config, a **brief view** of `state.json`, the pending envelope(s), and gate verdicts. It never opens source files or artifact bodies. Target: < 20k tokens at all times. In headless mode each `/factory:next` starts with a fresh context anyway.
 
+- After compaction, a `SessionStart` hook (`compact` matcher) re-injects `factory state --brief` and the open human notes. The Conductor keeps nothing in its chat that isn't on disk, so compaction loses wording, never decisions.
 - `factory state --brief` prints only what the next decision needs: current stage, ready tasks, pending gate, budgets left, last verdicts (≤ 3k tokens). The full `state.json` grows with every task; re-reading it each turn made the Conductor ~30% of a feature's tokens in the walkthrough ([15](15-walkthrough-and-estimates.md#revision-pass--bottlenecks-found-and-fixes-applied)).
 - Independent dispatches (parallel lenses, two build lanes, a pipelined red phase) go out in **one** turn, which cuts Conductor turns per feature by about a third.
 
 ## Curator digests
 
-At the stage exits whose digest is read downstream (S1, S4, S6 by default), the `curator` compacts `changelog.md`, decisions and gate history into `digest.md` (≤ 800 tokens) — the cheap, always-current T1 summary for downstream stages. It must never drop decisions or open questions; a schema check enforces that every decision ID in the source appears in the digest.
+At the stage exits whose digest is read downstream (S1, S4, S6 by default), the `curator` compacts `changelog.md`, decisions and gate history into `digest.md` (≤ 800 tokens) — the cheap, always-current T1 summary for downstream stages.
+
+It must never drop a tracked ID. The ID-coverage checker (a script) rejects a digest unless every open REQ, AC, decision (ADR), open question (OQ) and human note (HD) from its sources appears in it — in full or as a one-line reference with the source path. A digest is navigation, never the source of truth: packs always list the full artifacts by path in T2.
+
+## Where context can be lost, and what catches it
+
+Pipeline context lives in files, not in any agent's conversation, so nothing depends on a chat surviving. What remains is a short list of places where information could still be dropped:
+
+| Where | Risk | What prevents it | What detects it |
+|---|---|---|---|
+| Conductor session | compaction during a long run | reads only brief state + envelopes; `SessionStart` hook re-injects state after compaction; headless runner starts each step fresh | Conductor turn and compaction counts in `events.jsonl` |
+| Spoke context | a task too large for its budget | ≤ 45k-token pack, ≤ 12 reads, tasks ≤ 3 files / 200 LOC; a hung or overflowing spoke is restarted from its pack, not from a summary | wall-clock and budget rules ([09](09-quality-gates-and-loop-control.md#detection-rules)) |
+| Middle of a long context | instructions buried and ignored | small packs; stable prefix first, mission / ACs / feedback last | first-pass gate rate per agent |
+| Envelope (≤ 200 words) | builder's summary leaves things out | summaries are never an input for correctness: `artifacts_written` lists paths; reviewer and QA don't see summaries at all | gates run on files, not on summaries |
+| Digest (≤ 800 tokens) | curator drops a requirement or decision | full artifacts listed by path in every pack | ID-coverage checker rejects the digest |
+| Pack trimming | Broker drops T2 exemplars to fit the budget | trimming order is fixed; ACs, DoD and contract are never trimmed | `context_degraded: true` on the event |
+| Stage → stage | a stage forgets an upstream ID | typed artifacts with schemas; `stage.yaml` declares `tracked_ids` | `gate-plan` (every AC → test), `gate-docs` (every AC in the feature doc), PR trace table |
+| Chat with the human | an instruction given only in chat | instructions become `HD-*` notes (below) | `gate-plan` and `gate-ready-for-pr` require every open note to be resolved |
+
+The principle: **detect loss by ID, don't trust memory.** Every requirement, AC, decision, open question and human note has an ID, and scripts check that each one reaches the stage that needs it. A lost item fails a gate instead of quietly disappearing. GT-12 ([12](12-observability-and-evals.md#layer-3--golden-tickets-headless-with-models)) tests this end to end.
+
+### Human instructions are artifacts
+
+Anything you say to the factory that changes the work is stored before it is acted on:
+
+- `/factory:gate approve|reject "<notes>"` writes the notes as `HD-*` entries;
+- `/factory:note "<text>" [--feature FEAT-021]` adds one at any time between gates;
+- the Conductor refuses to act on a chat instruction that has no `HD-*` entry — it records it first, then continues.
+
+```yaml
+# features/FEAT-021/human-notes.yaml
+- id: HD-3
+  at: GATE-A
+  by: artsiom
+  text: "Hide the coupon field for guest users."
+  status: open                 # open → mapped → done | declined
+  mapped_to: []                # filled by the analyst or planner: [REQ-0912, AC-0915, TASK-011]
+```
+
+A note is open until the requirements-analyst or planner maps it to a REQ / AC / task, or a human declines it. `gate-plan` fails while any note made before GATE-B is unmapped, and `gate-ready-for-pr` fails while any note is still `open`.
 
 ## Anti-patterns this design removes
 
@@ -155,5 +195,7 @@ At the stage exits whose digest is read downstream (S1, S4, S6 by default), the 
 | 25 KB of references loaded per builder spawn | T2 lists paths; builder reads ≤ 12 files |
 | Same station order described in three files | pipeline defined once in config; agents don't restate it |
 | Pasting contracts into prompts | contract op referenced by path + anchor |
+| Instructions that live only in the chat | `HD-*` notes in `human-notes.yaml`, checked by gates |
+| Trusting a summary to carry requirements | summaries are navigation; IDs are checked by script |
 | Whole-board reads | per-task pack (successor of work cards) |
 | Rules attached to every `.ts` file | rules scoped to the role's `owns_paths` |

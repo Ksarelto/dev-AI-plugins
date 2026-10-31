@@ -73,7 +73,19 @@ flowchart LR
 |---|---|
 | Orchestrator as a subagent (today's design) | Subagents cannot reliably spawn subagents; each level adds a cold start and a packet round-trip; the human gate has to bounce back up two levels. |
 | Agent Teams (peer-to-peer) | Experimental; peer messaging violates hub-and-spoke and makes flow non-auditable. |
+| Sub-orchestrator agents per stage or role (e.g. a "frontend orchestrator" under the Conductor) | Same platform limit: a subagent cannot dispatch builders. And each level keeps its own copy of the order and the state — app-dev-kit's nested `app-orchestrator-kit` → `frontend-orchestrator-kit` ended with the station order in three files ([00](00-lessons-from-app-dev-kit.md)). |
 | **Conductor in the main session** ✅ | Can spawn subagents (in parallel), can ask the human, sees every envelope, keeps a bounded context because it reads only `state.json`, config and envelopes. |
+
+### No sub-orchestrators
+
+Everything a sub-orchestrator would do has a home that keeps **one** stage machine and **one** state file:
+
+| Job | Where it lives |
+|---|---|
+| Order of steps inside a stage | the stage's `stage.yaml` ([10](10-configuration-and-extensibility.md#packaging)), executed by the Conductor |
+| Fan-out inside a stage (review lenses, QA charters, auditors) | `parallel: true` in `stage.yaml`; independent dispatches go out in one message |
+| The red → green loop per task | the Scheduler and Loop Warden — scripts, not a model |
+| FE and BE built at the same time (P6) | a **track runner**: the headless runner started per role worktree, running the same engine limited to that track's tasks. Same code and same `state.json` (with file locking), not a new component ([08](08-parallelism-and-flow.md#parallel-role-tracks)) |
 
 ### The Conductor's loop (one `/factory:next`)
 
@@ -88,7 +100,9 @@ flowchart LR
 9. **Persist** — update `state.json`, append `events.jsonl`.
 10. **Report** — a one-screen table to the human.
 
-The Conductor **never**: writes product code, reads source files, writes `tasks.yaml`, self-approves a human gate, or decides retries.
+The Conductor **never**: writes product code, reads source files, writes `tasks.yaml`, self-approves a human gate, decides retries, or acts on an instruction that exists only in its chat. A human instruction becomes a `HD-*` note in `human-notes.yaml` first ([07](07-context-engineering.md#human-instructions-are-artifacts)), so it survives compaction and reaches later stages.
+
+**After compaction.** The Conductor holds nothing in its conversation that isn't on disk. A `SessionStart` hook with the `compact` matcher re-injects `factory state --brief` and the open human notes, so the next decision starts from files, not from a summary of the chat.
 
 `/factory:run --until gate` repeats the loop until a halt condition (human gate, budget exhausted, task blocked, stale index).
 
@@ -101,7 +115,7 @@ The Conductor **never**: writes product code, reads source files, writes `tasks.
 | **Gatekeeper** | script | stage/task → validator results, `progress_signal`, `fingerprint` | make judgement calls |
 | **Loop Warden** | script | gate history + budgets → verdict | be bypassed by the Conductor |
 | **Cartographer** | script (+ cheap summariser agent) | repo at a git SHA → capability index + slices | run mid-feature (index is frozen per feature) |
-| **Curator** | agent (haiku) | stage logs → ≤800-token feature digest | drop decisions or open questions |
+| **Curator** | agent (haiku) | stage logs → ≤800-token feature digest | drop any tracked ID (REQ, AC, decision, open question, human note) — checked by script |
 
 Everything the control plane decides is derivable from files, so it is **testable without a model** (see [12](12-observability-and-evals.md#layer-1--control-plane-tests-no-model)).
 
@@ -131,10 +145,10 @@ Both read and write the same `state.json`, so you can switch at any time.
 | File isolation per role track | Agent with worktree isolation / `claude --worktree` | one worktree per role track, see [08](08-parallelism-and-flow.md) |
 | Procedures | skills (`skills/*/SKILL.md`) | SKILL.md is a router (< 1 screen); detail in `references/` loaded on demand |
 | Conventions | `CLAUDE.md` + path-scoped `rules/` | rules load only when matching files are touched |
-| Enforcement | hooks: `PreToolUse`, `PostToolUse`, `SubagentStop`, `SessionStart` | protected paths, path ownership, read budgets, envelope validation |
+| Enforcement | hooks: `PreToolUse`, `PostToolUse`, `SubagentStop`, `SessionStart` | protected paths, path ownership, read budgets, envelope validation; `SessionStart` (incl. after compaction) reloads the brief state |
 | External systems | MCP | context7 (docs), shadcn, Playwright; GitHub via `gh` CLI |
 | Unattended runs | headless `claude -p` | `--output-format json`, `--json-schema` for envelopes, `--max-turns`, `--max-budget-usd` |
-| Packaging | plugins in this marketplace | `factory-core` + role packs + stack packs + adapters, see [10](10-configuration-and-extensibility.md#packaging) |
+| Packaging | plugins in this marketplace | `factory-core` engine + stage packs + role packs + stack packs + adapters, each plugged in by a manifest, see [10](10-configuration-and-extensibility.md#packaging) |
 
 ## What runs where — a dispatch, end to end
 

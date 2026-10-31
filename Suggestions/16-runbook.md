@@ -4,9 +4,10 @@ The concrete steps for each situation. Commands are the `/factory:*` commands fr
 
 ## Before the first run (once per repository)
 
-1. Install the plugins: `factory-core`, the role packs you need (`factory-role-frontend` today), and the stack packs (`frontend-dev-kit`, and `node-backend-dev-kit` / `node-agent-dev-kit` when those roles are enabled).
+1. Install the plugins ([10](10-configuration-and-extensibility.md#packaging)): the engine `factory-core`; the stage packs `factory-analysis`, `factory-quality`, `factory-delivery`; the role packs you need (`factory-role-frontend` today); the stack packs (`frontend-dev-kit`, and `node-backend-dev-kit` / `node-agent-dev-kit` when those roles are enabled); and `factory-adapter-github`.
 2. Create `.factory/factory.config.yaml`: enabled roles, their stacks and `owns_paths`, flow policy, thresholds ([10](10-configuration-and-extensibility.md#factoryconfigyaml)).
-3. Make sure `gh auth status` works (delivery opens a draft PR) and the repo's CI runs the same gates ([09](09-quality-gates-and-loop-control.md#hooks-enforcement-summary)).
+3. Run `factory doctor`: it confirms that every stage, role and stack in the config is installed and compatible.
+4. Make sure `gh auth status` works (delivery opens a draft PR) and the repo's CI runs the same gates ([09](09-quality-gates-and-loop-control.md#hooks-enforcement-summary)).
 
 ## A. Modify an existing app with new requirements (most common)
 
@@ -45,7 +46,8 @@ What keeps the factory from rewriting existing code:
 |---|---|
 | See where everything stands | `/factory:status`: stages, pending gate, WIP lanes, budgets, blocked tasks |
 | Continue after a break, crash or new chat | `/factory:next` or `/factory:run --until gate`; finished tasks are skipped by the idempotency check |
-| Answer a pending gate | `/factory:gate approve` / `reject "<reason>"` |
+| Answer a pending gate | `/factory:gate approve ["<notes>"]` / `reject "<reason>"`; notes become `HD-*` entries that later gates check |
+| Add an instruction between gates | `/factory:note "<text>"`; don't rely on chat alone, it may be compacted ([07](07-context-engineering.md#human-instructions-are-artifacts)) |
 | Re-run a stage with feedback | `/factory:replay <stage> --with "<feedback>"` |
 | A task is stuck | `/factory:diagnose <task>` or `/factory:split <task>`; after the ladder it is `blocked` with `blockers.md` |
 | Stop a feature for good | `/factory:abort <feature>` (writes a post-mortem) |

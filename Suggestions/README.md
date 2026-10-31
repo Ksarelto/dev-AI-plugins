@@ -104,6 +104,8 @@ Every requirement from the brief maps to where it is addressed:
 | Agile (Scrum) or Kanban recommendation | [08](08-parallelism-and-flow.md#which-one-to-choose) |
 | How requirements are converted | [06](06-artifacts-and-contracts.md#requirements-lifecycle) |
 | Reference architectures per role (frontend architecturev2, backend layered, agent LangGraph) | [10](10-configuration-and-extensibility.md#reference-architectures) |
+| Which plugins to build; configurable and maintainable packaging; no sub-orchestrators | [10](10-configuration-and-extensibility.md#packaging), [02](02-architecture.md#no-sub-orchestrators) |
+| Context not summarised away or lost between layers | [07](07-context-engineering.md#where-context-can-be-lost-and-what-catches-it) |
 
 ## Glossary
 
@@ -112,8 +114,11 @@ Every requirement from the brief maps to where it is addressed:
 | **Conductor** | The hub. Runs in the main Claude Code session; owns the stage machine, dispatch and human gates. Never writes product code. |
 | **Spoke** | A subagent with one responsibility, scoped tools and an isolated context. |
 | **Control plane** | Deterministic scripts (Gatekeeper, Loop Warden, Context Broker, Cartographer) that the Conductor calls. |
-| **Role pack** | Plugin that knows *how to execute* a task type (frontend / backend / ai-agent): agents + task procedures + gates. |
-| **Stack pack** | Plugin that knows *a technology stack* (React-FSD, Express-Drizzle, OpenAI Agents): rules + skills + golden files. |
+| **Stage pack** | Plugin that ships the core agents and skills for a group of stages (`factory-analysis`, `factory-quality`, `factory-delivery`), declared in `stage.yaml`. |
+| **Role pack** | Plugin that knows *how to execute* a task type (frontend / backend / ai-agent): agents + task procedures + gates, declared in `role.yaml`. |
+| **Stack pack** | Plugin that knows *a technology stack* (`frontend-dev-kit`, `node-backend-dev-kit`, `node-agent-dev-kit`): rules + skills + golden files + boilerplate, declared in `stack.yaml`. |
+| **Track runner** | The headless runner started once per role worktree for parallel FE / BE work — the same engine, not a nested orchestrator. |
+| **Human note** | An instruction you give at a gate or with `/factory:note`, stored as `HD-*` so it can't be lost to compaction. |
 | **Context pack** | A file materialised per dispatch that lists exactly what a spoke may read — paths, not payloads. |
 | **Envelope** | The structured ≤200-word result a spoke returns to the Conductor. |
 | **Gate** | A pass/fail check. *Machine gates* are scripts; *human gates* (HITL) are approvals. |
