@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/pack",
+  "title": "Context pack front matter",
+  "type": "object",
+  "required": [
+    "pack_id",
+    "feature",
+    "stage",
+    "agent",
+    "subagent_type",
+    "model",
+    "attempt",
+    "budget_tokens",
+    "read_allowlist_max",
+    "write_allow"
+  ],
+  "properties": {
+    "pack_id": {
+      "type": "string"
+    },
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "stage": {
+      "type": "string"
+    },
+    "task": {
+      "type": "string"
+    },
+    "phase": {
+      "type": "string"
+    },
+    "agent": {
+      "type": "string"
+    },
+    "subagent_type": {
+      "type": "string"
+    },
+    "role": {
+      "type": "string"
+    },
+    "model": {
+      "enum": [
+        "opus",
+        "sonnet",
+        "haiku"
+      ]
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "rung": {
+      "type": "integer"
+    },
+    "budget_tokens": {
+      "type": "integer"
+    },
+    "estimated_tokens": {
+      "type": "integer"
+    },
+    "read_allowlist_max": {
+      "type": "integer"
+    },
+    "write_allow": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "read_deny": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "index_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "context_degraded": {
+      "type": "boolean"
+    }
+  }
+}

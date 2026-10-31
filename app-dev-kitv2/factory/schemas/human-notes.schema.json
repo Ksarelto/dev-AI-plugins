@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/human-notes",
+  "title": "human-notes.yaml \u2014 instructions from gates and /factory:note",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "at",
+      "by",
+      "text",
+      "status",
+      "mapped_to"
+    ],
+    "properties": {
+      "id": {
+        "type": "string",
+        "pattern": "^HD-\\d+$"
+      },
+      "at": {
+        "type": "string"
+      },
+      "by": {
+        "type": "string"
+      },
+      "ts": {
+        "type": "string"
+      },
+      "text": {
+        "type": "string",
+        "minLength": 1
+      },
+      "status": {
+        "enum": [
+          "open",
+          "mapped",
+          "done",
+          "declined"
+        ]
+      },
+      "mapped_to": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|TASK-\\d{3}|OQ-\\d+|ADR-\\d{3})$"
+        }
+      },
+      "reason": {
+        "type": "string"
+      }
+    }
+  }
+}

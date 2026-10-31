@@ -1,0 +1,138 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/config",
+  "title": "factory.config.yaml (merged with defaults)",
+  "type": "object",
+  "required": [
+    "version",
+    "roles",
+    "pipeline",
+    "budgets",
+    "context",
+    "policy"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "project": {
+      "type": "object"
+    },
+    "packs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "pack",
+          "stack",
+          "owns_paths"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "pack": {
+            "type": "string"
+          },
+          "stack": {
+            "type": "string"
+          },
+          "owns_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "boilerplate": {
+            "type": [
+              "object",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "required": [
+        "profiles"
+      ],
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "stages": {
+          "type": "object"
+        },
+        "digest_after": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "properties": {
+        "policy": {
+          "enum": [
+            "kanban",
+            "iterations"
+          ]
+        }
+      }
+    },
+    "quality": {
+      "type": "object"
+    },
+    "budgets": {
+      "type": "object"
+    },
+    "context": {
+      "type": "object"
+    },
+    "model_tiers": {
+      "type": "object"
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "protected_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "intake": {
+      "type": "object"
+    },
+    "delivery": {
+      "type": "object"
+    },
+    "prototype": {
+      "type": "object"
+    },
+    "shared_paths": {
+      "type": "object"
+    }
+  }
+}

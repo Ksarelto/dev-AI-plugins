@@ -1,0 +1,147 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/envelope",
+  "title": "Return envelope: the structured result every spoke ends with",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pack_id",
+    "status",
+    "artifacts_written",
+    "summary"
+  ],
+  "properties": {
+    "pack_id": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "done",
+        "failed",
+        "needs_scope_change",
+        "needs_clarification",
+        "blocked"
+      ]
+    },
+    "artifacts_written": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "gate_result": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "informational: the agent's own exit-check result; the engine always re-runs the gate"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "deviations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "what",
+          "why"
+        ],
+        "properties": {
+          "what": {
+            "type": "string"
+          },
+          "why": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "follow_up_suggested": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "test_dispute": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "test": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "error": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "transient",
+            "validation",
+            "business",
+            "permission"
+          ]
+        },
+        "attempted": {
+          "type": "string"
+        },
+        "partial_results": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "alternatives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "notes_mapped": {
+      "type": "array",
+      "description": "open HD notes this output addresses; the engine marks them mapped",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "to"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^HD-\\d+$"
+          },
+          "to": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|TASK-\\d{3}|OQ-\\d+|ADR-\\d{3})$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+id: stories
+title: S2 Stories (fixture)
+kind: agents
+agents: [story-writer-fx]
+inputs: ["prd|delta-spec"]
+outputs: [stories]
+gate: stories
+tracked_ids: [REQ, AC]
+requires: { factory: "^0.1" }

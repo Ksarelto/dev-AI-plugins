@@ -1,0 +1,20 @@
+---
+description: Working rules for files under .factory/ in a project that uses the app-dev-kitv2 factory.
+globs: [".factory/**"]
+alwaysApply: false
+---
+
+# .factory/ is the factory's memory
+
+- **State changes only through the factory CLI** (`/factory:*` commands, or
+  `node <factory>/scripts/factory.mjs …`). Feature and app `state.json`, the event log, human notes,
+  gate logs, envelopes and packs are engine-owned; the hooks deny direct writes and say which.
+- **Artifacts are schema-checked** after every write (specs, stories, tasks, test plans, the source
+  index). Fix the reported field instead of working around it.
+- **IDs are never renumbered or reused.** Reference an existing ID instead of copying its text.
+- **Human instructions become notes first** (`/factory:note`). An instruction that exists only in
+  chat is not acted on.
+- **Write only what your pack allows.** A dispatched agent asks for more with
+  `status: "needs_scope_change"` instead of writing elsewhere.
+- **Paths, not payloads.** Refer to artifacts by path; never paste a whole spec into another file.
+- What is committed and what stays local is defined by `.factory/.gitignore`.

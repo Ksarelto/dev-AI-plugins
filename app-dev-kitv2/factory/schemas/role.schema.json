@@ -1,0 +1,108 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/role",
+  "title": "role.yaml \u2014 the role contract implemented by a role pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "task_types",
+    "agents",
+    "gates",
+    "requires"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "default_stack": {
+      "type": "string"
+    },
+    "task_types": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "skill": {
+            "type": "string"
+          },
+          "golden": {
+            "type": "string"
+          },
+          "tdd": {
+            "enum": [
+              "required",
+              "exempt"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "agents": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "builder",
+        "test_author"
+      ],
+      "properties": {
+        "builder": {
+          "type": "string"
+        },
+        "test_author": {
+          "type": "string"
+        },
+        "auditor": {
+          "type": "string"
+        },
+        "prototyper": {
+          "type": "string"
+        },
+        "extra": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "gates": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "red",
+        "impl"
+      ],
+      "properties": {
+        "red": {
+          "type": "string"
+        },
+        "impl": {
+          "type": "string"
+        },
+        "audits": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object"
+    },
+    "requires": {
+      "type": "object",
+      "properties": {
+        "factory": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "factory"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

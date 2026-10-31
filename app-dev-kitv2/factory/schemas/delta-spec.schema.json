@@ -1,0 +1,226 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/delta-spec",
+  "title": "delta-spec.yaml (brownfield-extend and change requests)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "feature",
+    "mode",
+    "summary",
+    "added",
+    "modified",
+    "removed",
+    "open_questions"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "mode": {
+      "enum": [
+        "brownfield-extend",
+        "change-request"
+      ]
+    },
+    "base": {
+      "type": "object"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "added": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "sources",
+          "acs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^REQ-\\d{4}$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 5
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
+            }
+          },
+          "priority": {
+            "enum": [
+              "must",
+              "should",
+              "could"
+            ]
+          },
+          "acs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^AC-\\d{4}$"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 5
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "modified": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "before",
+          "after",
+          "sources",
+          "acs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^REQ-\\d{4}$"
+          },
+          "before": {
+            "type": "string"
+          },
+          "after": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
+            }
+          },
+          "affected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "acs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^AC-\\d{4}$"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 5
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "removed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "reason"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^REQ-\\d{4}$"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "affected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "unchanged_guarantees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "text"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OQ-\\d+$"
+          },
+          "severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "default": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "answered",
+              "defaulted"
+            ]
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

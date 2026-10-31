@@ -1,0 +1,32 @@
+# How the factory (app-dev-kitv2) drives this stack. Read by factory-role-ai-agent's gates.
+# Commands name package scripts or binaries; the engine adds the project's package manager.
+# Placeholders: {files} = the task's test files, {report} = a JSON report path.
+name: node-agent-dev-kit
+reference_architecture: "Express layering plus services → agents/<name> (LangGraph state, graph, nodes, tools) with injected models and retrievers; hybrid RAG; Postgres checkpointer"
+package_manager: npm
+node_version: ">=22.12"
+commands:
+  typecheck: { script: typecheck }
+  lint: { script: lint }
+  architecture_check: { exec: depcruise, args: [src, --config, .dependency-cruiser.cjs] }
+  test: { script: "test:unit", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  test_integration: { script: "test:integration" }
+  eval: { script: eval }
+  build: { script: build }
+test_report: vitest-json
+test_globs: ["tests/**/*.test.ts"]
+skills:
+  graph: node-agent-dev-kit:langgraph-agent
+  state: node-agent-dev-kit:graph-state-design
+  tool: node-agent-dev-kit:agent-tools
+  model: node-agent-dev-kit:llm-models
+  memory: node-agent-dev-kit:checkpointing-memory
+  rag: node-agent-dev-kit:rag-pipeline
+  streaming: node-agent-dev-kit:streaming-api
+  guardrail: node-agent-dev-kit:guardrails-safety
+  eval: node-agent-dev-kit:agent-evals
+golden_files:
+  graph: skills/langgraph-agent/SKILL.md
+  tool: skills/agent-tools/examples.md
+index_adapter: langgraph
+boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }

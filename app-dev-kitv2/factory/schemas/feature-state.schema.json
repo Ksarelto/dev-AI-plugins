@@ -1,0 +1,338 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/feature-state",
+  "title": "features/<id>/state.json \u2014 the feature stage machine",
+  "type": "object",
+  "required": [
+    "feature",
+    "slug",
+    "mode",
+    "profile",
+    "status",
+    "stage",
+    "stages",
+    "pending",
+    "gates",
+    "tasks",
+    "budgets",
+    "halts"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "greenfield",
+        "brownfield-extend",
+        "change-request"
+      ]
+    },
+    "profile": {
+      "type": "string"
+    },
+    "tier": {
+      "enum": [
+        "patch",
+        "standard",
+        "full"
+      ]
+    },
+    "status": {
+      "enum": [
+        "active",
+        "awaiting_human",
+        "blocked",
+        "done",
+        "aborted"
+      ]
+    },
+    "stage": {
+      "type": "string"
+    },
+    "stages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "pending",
+              "running",
+              "passed",
+              "skipped",
+              "failed",
+              "blocked"
+            ]
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "rung": {
+            "type": "integer"
+          },
+          "progress_signal": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "fingerprints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "state_hashes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "last_gate": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "feedback": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "pending": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "agent",
+          "subagent_type",
+          "pack",
+          "model"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "subagent_type": {
+            "type": "string"
+          },
+          "pack": {
+            "type": "string"
+          },
+          "model": {
+            "enum": [
+              "opus",
+              "sonnet",
+              "haiku"
+            ]
+          },
+          "task": {
+            "type": "string"
+          },
+          "phase": {
+            "enum": [
+              "red",
+              "green",
+              "stage",
+              "digest",
+              "diagnose"
+            ]
+          },
+          "parallel_group": {
+            "type": "integer"
+          },
+          "ts": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "awaiting_human": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "gate": {
+          "type": "string"
+        },
+        "stage": {
+          "type": "string"
+        },
+        "since": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      }
+    },
+    "gates": {
+      "type": "object"
+    },
+    "tasks": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "pending",
+              "ready",
+              "red",
+              "green",
+              "done",
+              "blocked",
+              "parked",
+              "skipped_idempotent"
+            ]
+          },
+          "attempts": {
+            "type": "integer"
+          },
+          "rung": {
+            "type": "integer"
+          },
+          "progress_signal": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "fingerprints": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "state_hashes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "last_gate": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "feedback": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "reason": {
+            "type": "string"
+          },
+          "red_lock": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "worktree": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "done_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object"
+    },
+    "digest": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "index_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "branch": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "halts": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "flags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "description": "facts that `when:` conditions read, e.g. prototype.trigger"
+    },
+    "overrides": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": [
+          "force",
+          "skip"
+        ]
+      },
+      "description": "human stage overrides from /factory:proto"
+    }
+  }
+}

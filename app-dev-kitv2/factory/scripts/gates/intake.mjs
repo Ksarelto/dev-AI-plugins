@@ -1,0 +1,62 @@
+// gate-intake (S0): every requirement-bearing paragraph has a source ID; the coverage checklist has
+// no blocker gaps (a blocker gap sends the run to the guided interview).
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { readText } from "../lib/core.mjs";
+import { isId } from "../lib/ids.mjs";
+import { validate } from "../lib/schemas.mjs";
+
+export const inputs = ["source-index", "normalised-sources", "coverage"];
+
+export function run(ctx) {
+  const failures = [];
+  const index = ctx.load("source-index");
+  if (!index) return [{ check: "source-index", message: "context/index.yaml is missing — run the intake normaliser" }];
+  for (const e of validate("source-index", index.data)) failures.push({ check: "source-index", rule: "schema", file: index.rel, message: e });
+
+  const seen = new Map();
+  for (const source of index.data.sources ?? []) {
+    const file = join(ctx.paths.root, source.normalised);
+    if (!existsSync(file)) {
+      failures.push({ check: "normalised", rule: "missing-file", file: source.normalised, message: `normalised file for ${source.file} is missing` });
+      continue;
+    }
+    const tagged = [];
+    for (const paragraph of readText(file).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)) {
+      if (paragraph.startsWith("#")) continue;
+      const match = /^\[(SRC-\d{3,})\]\s+\S/.exec(paragraph);
+      if (!match) {
+        failures.push({ check: "normalised", rule: "untagged-paragraph", file: source.normalised, message: `paragraph without a source ID: "${paragraph.slice(0, 60)}"` });
+        continue;
+      }
+      tagged.push(match[1]);
+    }
+    for (const id of tagged) {
+      if (seen.has(id)) failures.push({ check: "normalised", rule: "duplicate-id", file: source.normalised, message: `${id} also used in ${seen.get(id)}` });
+      seen.set(id, source.normalised);
+    }
+    const listed = new Set(source.ids ?? []);
+    for (const id of tagged) if (!listed.has(id)) failures.push({ check: "source-index", rule: "unlisted-id", file: index.rel, message: `${id} is not listed for ${source.file}` });
+    for (const id of listed) if (!tagged.includes(id) || !isId(id, "SRC")) failures.push({ check: "source-index", rule: "phantom-id", file: index.rel, message: `${id} is listed but not in ${source.normalised}` });
+  }
+
+  const coverage = ctx.load("coverage");
+  if (!coverage) {
+    failures.push({ check: "coverage", message: "context/coverage.yaml is missing" });
+    return failures;
+  }
+  for (const e of validate("coverage", coverage.data)) failures.push({ check: "coverage", rule: "schema", file: coverage.rel, message: e });
+  const topics = coverage.data.topics ?? {};
+  for (const topic of ctx.config.intake?.coverage_topics ?? []) {
+    if (!topics[topic]) failures.push({ check: "coverage", rule: "topic-missing", file: coverage.rel, message: `topic "${topic}" not assessed` });
+  }
+  for (const [topic, value] of Object.entries(topics)) {
+    if (value.status === "blocker_gap") {
+      failures.push({ check: "coverage", rule: "blocker-gap", file: coverage.rel, message: `blocker gap on "${topic}" — run the guided interview` });
+    }
+    for (const id of value.sources ?? []) {
+      if (!seen.has(id)) failures.push({ check: "coverage", rule: "unknown-source", file: coverage.rel, message: `${topic} cites unknown ${id}` });
+    }
+  }
+  return failures;
+}

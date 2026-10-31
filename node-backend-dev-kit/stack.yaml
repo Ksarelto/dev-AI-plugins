@@ -1,0 +1,30 @@
+# How the factory (app-dev-kitv2) drives this stack. Read by factory-role-backend's gates.
+# Commands name package scripts or binaries; the engine adds the project's package manager.
+# Placeholders: {files} = the task's test files, {report} = a JSON report path.
+name: node-backend-dev-kit
+reference_architecture: "Layered routes → controllers → services → repositories → db with a composition root, Zod at the edge, problem+json errors"
+package_manager: npm
+node_version: ">=22.12"
+commands:
+  typecheck: { script: typecheck }
+  lint: { script: lint }
+  architecture_check: { exec: depcruise, args: [src, --config, .dependency-cruiser.cjs] }
+  test: { script: "test:unit", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  test_integration: { script: "test:integration" }
+  build: { script: build }
+test_report: vitest-json
+test_globs: ["tests/**/*.test.ts", "src/**/*.test.ts"]
+skills:
+  endpoint: node-backend-dev-kit:express-resource
+  validation: node-backend-dev-kit:request-validation
+  migration: node-backend-dev-kit:drizzle-database
+  repository: node-backend-dev-kit:drizzle-database
+  auth: node-backend-dev-kit:auth-rbac
+  error-mapping: node-backend-dev-kit:error-handling
+  resilience: node-backend-dev-kit:resilience
+  openapi: node-backend-dev-kit:openapi-docs
+golden_files:
+  endpoint: skills/express-resource/examples.md
+  error-mapping: skills/error-handling/SKILL.md
+index_adapter: express-layered
+boilerplate: { repo: dev-AI-plugins, path: backend-boilerplate, ref: main }

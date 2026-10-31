@@ -1,0 +1,70 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" session-start",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" pre-write",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" pre-read",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" pre-bash",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" post-write",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" subagent-stop",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

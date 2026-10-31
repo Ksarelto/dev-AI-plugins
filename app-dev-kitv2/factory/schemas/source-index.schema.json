@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/source-index",
+  "title": "context/index.yaml \u2014 normalised source registry",
+  "type": "object",
+  "required": [
+    "sources"
+  ],
+  "properties": {
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "normalised",
+          "sha256",
+          "ids"
+        ],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "normalised": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "image",
+              "pdf",
+              "other"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^SRC-\\d{3,}$"
+            }
+          },
+          "author": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

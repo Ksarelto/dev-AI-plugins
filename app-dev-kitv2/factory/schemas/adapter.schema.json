@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/adapter",
+  "title": "adapter.yaml \u2014 delivery / intake operations an adapter implements",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "operations",
+    "requires"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "description": "argv; placeholders {files} {report} {cwd}"
+      }
+    },
+    "dry_run_default": {
+      "type": "boolean"
+    },
+    "requires": {
+      "type": "object",
+      "properties": {
+        "factory": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "factory"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

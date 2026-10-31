@@ -203,6 +203,21 @@
         "work-plan",
         "app-dev-kit"
       ]
+    },
+    {
+      "name": "factory",
+      "source": "./app-dev-kitv2/factory",
+      "description": "app-dev-kitv2 engine: /factory:* commands, a deterministic Conductor step protocol, file-based state in .factory/, gates, Loop Warden escalation, context packs, human notes and enforcement hooks. Stage, role and stack packs plug in through manifests.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "pipeline",
+        "sdlc",
+        "orchestration",
+        "tdd",
+        "hooks",
+        "app-dev-kitv2"
+      ]
     }
   ]
 }

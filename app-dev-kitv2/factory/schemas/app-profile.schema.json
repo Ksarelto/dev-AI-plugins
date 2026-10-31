@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/app-profile",
+  "title": "app-profile.yaml",
+  "type": "object",
+  "required": [
+    "name",
+    "goal",
+    "origin"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "goal": {
+      "type": "string"
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "components": {
+      "type": "object"
+    },
+    "nfr": {
+      "type": "object"
+    },
+    "conformance": {
+      "enum": [
+        "conformant",
+        "partial",
+        "non-conformant",
+        "unknown"
+      ]
+    },
+    "origin": {
+      "enum": [
+        "greenfield",
+        "discovered"
+      ]
+    }
+  }
+}

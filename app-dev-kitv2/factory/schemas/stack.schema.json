@@ -1,0 +1,414 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/stack",
+  "title": "stack.yaml \u2014 how the factory drives one technology stack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "package_manager",
+    "commands"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "reference_architecture": {
+      "type": "string"
+    },
+    "package_manager": {
+      "enum": [
+        "npm",
+        "pnpm",
+        "yarn"
+      ],
+      "description": "default; a project overrides it per role in factory.config.yaml"
+    },
+    "node_version": {
+      "type": "string"
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test",
+        "typecheck"
+      ],
+      "properties": {
+        "typecheck": {
+          "description": "a package script ({script, args}), a package binary ({exec, args}) or a raw argv; placeholders {files} {report} {cwd}. The engine adds the package manager (npm gets `--` before script args).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "lint": {
+          "description": "a package script ({script, args}), a package binary ({exec, args}) or a raw argv; placeholders {files} {report} {cwd}. The engine adds the package manager (npm gets `--` before script args).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "architecture_check": {
+          "description": "a package script ({script, args}), a package binary ({exec, args}) or a raw argv; placeholders {files} {report} {cwd}. The engine adds the package manager (npm gets `--` before script args).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "test": {
+          "description": "a package script ({script, args}), a package binary ({exec, args}) or a raw argv; placeholders {files} {report} {cwd}. The engine adds the package manager (npm gets `--` before script args).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "test_integration": {
+          "description": "a package script ({script, args}), a package binary ({exec, args}) or a raw argv; placeholders {files} {report} {cwd}. The engine adds the package manager (npm gets `--` before script args).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "build": {
+          "description": "a package script ({script, args}), a package binary ({exec, args}) or a raw argv; placeholders {files} {report} {cwd}. The engine adds the package manager (npm gets `--` before script args).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "eval": {
+          "description": "a package script ({script, args}), a package binary ({exec, args}) or a raw argv; placeholders {files} {report} {cwd}. The engine adds the package manager (npm gets `--` before script args).",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "test_report": {
+      "enum": [
+        "vitest-json"
+      ]
+    },
+    "test_globs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "golden_files": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "task type \u2192 stack skill (plugin:skill)"
+    },
+    "index_adapter": {
+      "enum": [
+        "fsd",
+        "express-layered",
+        "langgraph"
+      ]
+    },
+    "boilerplate": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

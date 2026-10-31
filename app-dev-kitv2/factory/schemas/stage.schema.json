@@ -1,0 +1,126 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/stage",
+  "title": "stage.yaml \u2014 one pipeline stage shipped by a stage pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "title",
+    "kind",
+    "outputs",
+    "gate",
+    "requires"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$"
+    },
+    "title": {
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "agents",
+        "task_loop"
+      ],
+      "description": "agents: dispatch the listed agents; task_loop: per-task red/green routed by role"
+    },
+    "agents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "bare agent name (same pack), <pack>:<agent>, or role:<slot> resolved through enabled roles"
+    },
+    "parallel": {
+      "type": "boolean",
+      "default": false
+    },
+    "context_role": {
+      "enum": [
+        "analysis_roles",
+        "execution_roles",
+        "review_roles",
+        "prototype_role",
+        "mechanical_roles"
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "artifact types; suffix ? marks optional; a|b means either"
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "writes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "extra globs (project-relative) the stage's agents may write besides its outputs"
+    },
+    "gate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "engine gate name, or null for none"
+    },
+    "human_gate": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^GATE-[A-Z]$"
+    },
+    "on_fail": {
+      "type": "string",
+      "pattern": "^(retry|block|goto:[a-z][a-z0-9-]*)$",
+      "default": "retry"
+    },
+    "when": {
+      "type": "string",
+      "description": "condition key; the stage is skipped when it evaluates false"
+    },
+    "modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "entry modes this stage runs in; omitted = all"
+    },
+    "tracked_ids": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "SRC",
+          "REQ",
+          "AC",
+          "OQ",
+          "ADR",
+          "HD"
+        ]
+      }
+    },
+    "requires": {
+      "type": "object",
+      "properties": {
+        "factory": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "factory"
+      ],
+      "additionalProperties": true
+    }
+  }
+}

@@ -1,0 +1,34 @@
+# How the factory (app-dev-kitv2) drives this stack; read by factory-role-frontend's gates.
+# Commands name package scripts or binaries; the engine adds the project's package manager.
+# Placeholders: {files} = the task's test files, {report} = a JSON report path.
+name: frontend-dev-kit
+reference_architecture: "Feature-Sliced Design: app → pages → widgets → features → entities → shared; one public index.ts per slice; no same-layer imports"
+package_manager: pnpm
+node_version: ">=22.12"
+commands:
+  typecheck: { script: typecheck }
+  lint: { script: lint }
+  architecture_check: { exec: depcruise, args: [src] }
+  test: { script: "test:run", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  build: { script: build }
+test_report: vitest-json
+test_globs: ["src/**/*.test.ts", "src/**/*.test.tsx"]
+skills:
+  api-client: frontend-dev-kit:api-client
+  query-hook: frontend-dev-kit:react-query-hook
+  feature-ui: frontend-dev-kit:react-feature
+  component: frontend-dev-kit:react-component
+  form: frontend-dev-kit:rhf-form
+  page: frontend-dev-kit:routing
+  route: frontend-dev-kit:routing
+  store: frontend-dev-kit:zustand
+  i18n: frontend-dev-kit:i18n
+  styling-token: frontend-dev-kit:tailwind-styles
+golden_files:
+  component: skills/react-component/examples.md
+  feature-ui: skills/react-feature/examples.md
+  query-hook: skills/react-query-hook/examples.md
+  form: skills/rhf-form/examples.md
+  route: skills/routing/examples.md
+index_adapter: fsd
+boilerplate: null   # per project: roles.frontend.boilerplate in factory.config.yaml

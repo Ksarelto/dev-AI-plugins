@@ -1,0 +1,112 @@
+# Factory defaults: the bottom configuration layer. Later layers override key by key:
+# defaults → ~/.factory/org.yaml → .factory/factory.config.yaml → features/<id>/overrides.yaml.
+# Inspect the merged result with: factory config explain [key]
+version: 1
+
+project:
+  name: app
+  default_branch: main
+  repo_host: github
+
+# Explicit pack locations (name → absolute or project-relative path). Optional: packs normally
+# register themselves at session start. Use this for Cursor, CI and --plugin-dir testing.
+packs: {}
+
+roles:
+  frontend:
+    enabled: true
+    pack: factory-role-frontend
+    stack: frontend-dev-kit
+    owns_paths: ["src/**", "e2e/**", "public/**"]
+    boilerplate: null          # per project, e.g. { repo: <git url>, ref: <branch|tag>, path: . }
+  backend:
+    enabled: false
+    pack: factory-role-backend
+    stack: node-backend-dev-kit
+    owns_paths: ["apps/api/**"]
+    boilerplate: { repo: dev-AI-plugins, path: backend-boilerplate, ref: main }
+  ai-agent:
+    enabled: false
+    pack: factory-role-ai-agent
+    stack: node-agent-dev-kit
+    owns_paths: ["apps/agents/**"]
+    boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }
+
+shared_paths: {}
+
+pipeline:
+  profile: standard
+  profiles:
+    standard: [intake, discovery, requirements, stories, prototype, architecture, planning,
+               implementation, verification, qa, docs, delivery]
+    greenfield: [intake, bootstrap, requirements, stories, prototype, architecture, planning,
+                 implementation, verification, qa, docs, delivery]
+    patch: [intake, requirements-lite, implementation, verification-lite, delivery]
+  stages:                      # project overrides of stage.yaml defaults, key by key
+    prototype: { when: prototype.trigger }
+  digest_after: [requirements, planning, verification]
+
+prototype:
+  trigger:
+    any: [new_user_facing_surface, net_new_components>=2, stakeholder_alignment==unconfirmed]
+    skip_all: [variation_of_existing_pattern, points<=3]
+
+flow:
+  policy: kanban               # kanban | iterations
+  kanban: { wip: { verify: 2 } }
+  iterations: { length_days: 10, token_budget: 9000000 }
+
+quality:
+  coverage_changed_lines_min: 90
+  axe_critical_max: 0
+  review_blocking: [P0, P1]
+  task_limits: { files_max: 3, loc_max: 200 }
+  tdd:
+    mode: required             # required | off
+    author: separate           # separate | builder_two_phase
+    pipeline_red: true
+    exempt_types: [config, docs, styling-token, dependency-bump, rename]
+  vague_terms: [fast, quick, quickly, easy, easily, intuitive, user-friendly, simple, nice,
+                modern, robust, seamless, efficient, appropriate, etc]
+
+budgets:
+  feature: { tokens: 2500000, wall_clock_min: 240, dispatches: 60 }
+  stage: { attempts_max: 3, dispatches_max: 8 }
+  task: { attempts_max: 3, wall_clock_min: 25 }
+  prototype: { revisions_max: 3, tokens: 180000 }
+  backward_edges:
+    prototype_to_requirements: 1
+    verification_to_implementation: 2
+    qa_to_implementation: 2
+    total_regressions_max: 4
+
+context:
+  budgets:                     # tokens per dispatch
+    conductor: 20000
+    analysis_roles: 60000
+    execution_roles: 45000
+    review_roles: 35000
+    prototype_role: 30000
+    mechanical_roles: 20000
+  read_allowlist_max: { analysis_roles: 30, execution_roles: 12, review_roles: 20, prototype_role: 8, mechanical_roles: 10 }
+  return_summary_max_words: 200
+  digest_max_words: 600
+
+model_tiers: { reasoning: opus, execution: sonnet, mechanical: haiku }
+
+policy:
+  protected_paths: [".github/**", "**/.env", "**/.env.*", "pnpm-lock.yaml", "package-lock.json", "infra/**"]
+  commit_convention: conventional
+  branch_pattern: "factory/{feature}-{slug}"
+  human_owned: [new_dependency, destructive_migration, public_api_removal, gate_override, merge]
+
+intake:
+  source: local
+  inbox: .factory/inbox
+  coverage_topics: [users, goals, scope, data, rules, nfr, acceptance]
+
+delivery:
+  adapter: factory-adapter-github
+  draft_pr: true
+  dry_run: true                # never opens a real PR until set to false
+  reviewers: []

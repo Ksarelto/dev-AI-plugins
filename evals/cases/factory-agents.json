@@ -1,0 +1,23 @@
+{
+  "plugin": "factory",
+  "source": "./app-dev-kitv2/factory",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Summarise the feature into digest.md at the stage exit, keep all open requirement IDs",
+      "expect": "curator"
+    },
+    {
+      "prompt": "Compact the spec, stories and plan into a short digest for later stages",
+      "expect": "curator"
+    },
+    {
+      "prompt": "Do a read-only root-cause analysis of the task that keeps failing its gate",
+      "expect": "diagnostician"
+    },
+    {
+      "prompt": "Escalation rung 3: diagnose the failing stage, don't fix it",
+      "expect": "diagnostician"
+    }
+  ]
+}
