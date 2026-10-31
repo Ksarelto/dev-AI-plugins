@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { matchesAny } from "../lib/core.mjs";
 import { validate } from "../lib/schemas.mjs";
 
-export const inputs = ["tasks", "test-plan", "prd", "delta-spec", "human-notes", "config"];
+export const inputs = ["tasks", "test-plan", "prd", "delta-spec", "api-contract", "human-notes", "config"];
+const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 
 export function run(ctx) {
   const tasks = ctx.load("tasks");
@@ -61,6 +62,7 @@ export function run(ctx) {
     if (lim.files_max && t.files_expected.length > lim.files_max) {
       fail("size", "too-many-files", `${t.id} touches ${t.files_expected.length} files (max ${lim.files_max} for ${t.type})`);
     }
+    if (!t.size?.est_loc) fail("size", "no-estimate", `${t.id} gives no size.est_loc — the size limits need an estimate`);
     if (lim.loc_max && (t.size?.est_loc ?? 0) > lim.loc_max) {
       fail("size", "too-large", `${t.id} estimates ${t.size.est_loc} LOC (max ${lim.loc_max})`);
     }
@@ -76,9 +78,14 @@ export function run(ctx) {
       if (!t.tdd) fail("tdd", "missing", `${t.id} declares no tdd block`);
       else if (t.tdd.mode === "exempt" && (!exempt || !t.tdd.reason)) {
         fail("tdd", "bad-exemption", `${t.id} is exempt but type "${t.type}" is not whitelisted or no reason is given`);
+      } else if (t.tdd.mode === "exempt" && t.satisfies.length && !(tdd.exempt_may_satisfy ?? ["migration", "eval"]).includes(t.type)) {
+        // A refactor or config task that "satisfies" behaviour would ship that behaviour untested.
+        fail("tdd", "exempt-satisfies", `${t.id} is a test-exempt ${t.type} but satisfies ${t.satisfies.join(", ")} — behaviour needs a test-first task`);
       } else if (t.tdd.mode === "required") {
         if (!t.tdd.red_tests?.length) fail("tdd", "no-red-tests", `${t.id} requires TDD but lists no red_tests`);
         for (const f of t.tdd.red_tests ?? []) if (!t.files_expected.includes(f)) fail("tdd", "red-test-not-expected", `${t.id}: red test ${f} is not in files_expected`);
+        const globs = ctx.packs?.[role?.stack]?.stack?.test_globs ?? [];
+        for (const f of t.tdd.red_tests ?? []) if (!TEST_FILE.test(f) && !matchesAny(f, globs)) fail("tdd", "red-test-not-a-test", `${t.id}: red test ${f} is not a test file`);
         // A red test is a new file: an existing file's passing tests can never be a valid red.
         const started = ctx.state?.tasks?.[t.id] && ctx.state.tasks[t.id].status !== "pending";
         for (const f of started ? [] : (t.tdd.red_tests ?? [])) {
@@ -94,14 +101,43 @@ export function run(ctx) {
 
   const tested = new Set();
   for (const c of plan.data.cases) {
-    if (!specAcs.has(c.ac)) fail("trace", "unknown-ac", `${c.id} tests ${c.ac}, which is not in the spec`, plan.rel);
+    if (c.ac && !specAcs.has(c.ac)) fail("trace", "unknown-ac", `${c.id} tests ${c.ac}, which is not in the spec`, plan.rel);
     if (c.task && !byId.has(c.task)) fail("trace", "unknown-task", `${c.id} names ${c.task}, which is not in tasks.yaml`, plan.rel);
-    tested.add(c.ac);
+    const owner = byId.get(c.task);
+    if (c.ac && owner && !owner.characterisation && !owner.satisfies.includes(c.ac)) fail("trace", "case-task-mismatch", `${c.id} tests ${c.ac} in ${c.task}, which does not satisfy it`, plan.rel);
+    if (c.ac) tested.add(c.ac);
+  }
+  // A test-first task is planned with at least one of its own tests below acceptance level.
+  for (const t of byId.values()) {
+    if (t.tdd?.mode !== "required") continue;
+    if (!plan.data.cases.some((c) => c.task === t.id && !["acceptance", "eval", "e2e"].includes(c.level))) {
+      fail("trace", "task-without-case", `${t.id} is test-first but no unit, component or integration case in the test plan names it`, plan.rel);
+    }
   }
   for (const ac of specAcs) if (!tested.has(ac)) fail("trace", "untested-ac", `${ac} has no planned test`, plan.rel);
 
   if (spec?.kind === "delta-spec" && spec.data.modified?.length && ![...byId.values()].some((t) => t.characterisation)) {
     fail("change-request", "no-characterisation", "the delta-spec modifies behaviour but no task writes characterisation tests");
+  }
+  // Behaviour is pinned before it changes: a task touching a modified file comes after characterisation.
+  const before = (id, seen = new Set()) => {
+    for (const d of byId.get(id)?.depends_on ?? []) if (!seen.has(d)) (seen.add(d), before(d, seen));
+    return seen;
+  };
+  const affected = new Set((spec?.kind === "delta-spec" ? spec.data.modified ?? [] : []).flatMap((m) => m.affected ?? []));
+  for (const t of byId.values()) {
+    if (t.characterisation || !t.files_expected.some((f) => affected.has(f))) continue;
+    if (![...before(t.id)].some((d) => byId.get(d)?.characterisation)) fail("change-request", "change-before-characterisation", `${t.id} changes ${t.files_expected.filter((f) => affected.has(f)).join(", ")} without depending on a characterisation task`);
+  }
+  // Every new API operation owned by an enabled role is built by a task of that role (contract_ops);
+  // a consumer listing it does not count, and an operation marked x-factory.status: existing needs none.
+  const claimedBy = (opId, role) => [...byId.values()].some((t) => t.role === role && (t.contract_ops ?? []).includes(opId));
+  for (const [path, ops] of Object.entries(ctx.load("api-contract")?.data?.paths ?? {})) {
+    for (const [method, op] of Object.entries(ops ?? {})) {
+      const owner = op?.["x-factory"]?.owner_role;
+      if (!op?.operationId || !owner || !ctx.config.roles?.[owner]?.enabled || op["x-factory"]?.status === "existing") continue;
+      if (!claimedBy(op.operationId, owner)) fail("trace", "contract-op-without-task", `${method.toUpperCase()} ${path} (${op.operationId}) belongs to ${owner}, but no ${owner} task lists it in contract_ops`);
+    }
   }
 
   // Human notes made so far must be mapped to something in the plan, or declined.

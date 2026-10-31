@@ -8,5 +8,6 @@ inputs: ["prd|delta-spec", stories, prototype-report?, component-map?, api-contr
 outputs: [tasks, test-plan]
 gate: plan
 human_gate: GATE-B
+review: [component-map?, adr?, api-contract?, agent-design?, prototype-report?]   # the design the plan builds on; S3 has no gate of its own
 tracked_ids: [AC, HD]
 requires: { factory: "^0.1" }

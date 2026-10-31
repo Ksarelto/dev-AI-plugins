@@ -23,4 +23,8 @@ added:
 modified: []
 removed: []
 unchanged_guarantees: ["Amounts are stored in minor units (SRC-006)"]
+sources_not_used:
+  - { id: SRC-001, reason: "context: today's bare numbers" }
+  - { id: SRC-006, reason: "storage in minor units does not change (unchanged guarantee)" }
+  - { id: SRC-007, reason: "localised number formats are a later request" }
 open_questions: []

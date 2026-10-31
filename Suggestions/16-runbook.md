@@ -16,9 +16,9 @@ The concrete steps for each situation. Commands are the `/factory:*` commands fr
 | 1 | Put the new material in `.factory/inbox/`: brief, emails, tickets, screenshots, a Figma export. With little written down, run `/factory:intake --interview`. For a one-liner, use `/factory:intake --text "…"` | — | — |
 | 2 | `/factory:intake` | normalises inputs (source IDs), checks coverage, detects the mode: **brownfield-extend** for new capabilities, **change-request** when the request names existing features or screens ([04](04-entry-modes-greenfield-brownfield.md)) | only if coverage has blocker gaps (interview questions) |
 | 3 | First run on this app only: confirm the baseline | A0 Discovery: capability index, component inventory, baseline feature ledger, architecture conformance against the stack pack | **yes**, once per app |
-| 4 | `/factory:run --until gate` | S1 writes a **delta-spec** (ADDED / MODIFIED / REMOVED) against the ledger, with open questions and defaults | **GATE-A**: read the delta-spec, answer questions, `/factory:gate approve` (or `reject "…"`) |
-| 5 | `/factory:run --until gate` | stories → optional prototype → architecture/contract → task plan with roles, red tests per task, reuse decisions | GATE-P if a prototype was triggered; **GATE-B**: approve the plan |
-| 6 | `/factory:run --until gate` (or the headless runner overnight) | S5 builds test-first (characterisation tests first for change requests), S6 reviews, S7 QA, S8a docs, S8 opens a draft PR | **GATE-C**: review the PR in GitHub |
+| 4 | `/factory:run` | S1 writes a **delta-spec** (ADDED / MODIFIED / REMOVED) against the ledger, with open questions and defaults | **GATE-A**: read the delta-spec, answer questions, `/factory:gate approve` (or `reject "…"`) |
+| 5 | `/factory:run` | stories → optional prototype → architecture/contract → task plan with roles, red tests per task, reuse decisions | GATE-P if a prototype was triggered; **GATE-B**: approve the plan |
+| 6 | `/factory:run` (it stops at the next human gate) | S5 builds test-first (characterisation tests first for change requests), S6 reviews, S7 QA, S8a docs, S8 opens a draft PR | **GATE-C**: review the PR in GitHub |
 | 7 | Comment on the PR | S9 turns comments into fix tasks and pushes to the same branch | GATE-C again |
 | 8 | Merge (always a human) | ledger entry appended, index rebuilt at the merge SHA | — |
 
@@ -38,18 +38,18 @@ What keeps the factory from rewriting existing code:
 
 ## C. Small fix (patch tier)
 
-`/factory:intake --text "Rename the checkout button"`, then `/factory:run --until gate`. The pipeline is S1-lite → S5 → S6-lite → S8, with one human gate: the PR. About 15 minutes ([15](15-walkthrough-and-estimates.md#scenario-b--patch-rename-the-checkout-button-and-use-the-brand-colour-token)).
+`/factory:intake --tier patch --text "Rename the checkout button"`, then `/factory:run`. The pipeline is S1-lite → S5 → S6-lite → S8, with one human gate: the PR. About 15 minutes ([15](15-walkthrough-and-estimates.md#scenario-b--patch-rename-the-checkout-button-and-use-the-brand-colour-token)).
 
 ## Stop, resume, inspect
 
 | Need | Command |
 |---|---|
 | See where everything stands | `/factory:status`: stages, pending gate, WIP lanes, budgets, blocked tasks |
-| Continue after a break, crash or new chat | `/factory:next` or `/factory:run --until gate`; finished tasks are skipped by the idempotency check |
+| Continue after a break, crash or new chat | `/factory:next` or `/factory:run`; finished tasks are skipped by the idempotency check |
 | Answer a pending gate | `/factory:gate approve ["<notes>"]` / `reject "<reason>"`; notes become `HD-*` entries that later gates check |
 | Add an instruction between gates | `/factory:note "<text>"`; don't rely on chat alone, it may be compacted ([07](07-context-engineering.md#human-instructions-are-artifacts)) |
 | Re-run a stage with feedback | `/factory:replay <stage> --with "<feedback>"` |
-| A task is stuck | `/factory:diagnose <task>` or `/factory:split <task>`; after the ladder it is `blocked` with `blockers.md` |
+| A task is stuck | `/factory:diagnose TASK-NNN` or `/factory:split TASK-NNN`; after the ladder it is `blocked` with `blockers.md` |
 | Stop a feature for good | `/factory:abort <feature>` (writes a post-mortem) |
 
 ## Where the results are

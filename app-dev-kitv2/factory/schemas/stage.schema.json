@@ -171,6 +171,13 @@
         "spec_delta"
       ],
       "description": "spec_delta: approving the human gate with breaking spec deltas in the prototype report sends the feature back to requirements"
+    },
+    "review": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "artifact refs shown to the human at this stage's gate besides its outputs (e.g. GATE-B shows the architecture)"
     }
   }
 }

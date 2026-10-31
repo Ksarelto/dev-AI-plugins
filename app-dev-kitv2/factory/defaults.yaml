@@ -71,8 +71,14 @@ quality:
     author: separate           # separate | builder_two_phase
     pipeline_red: true
     exempt_types: [characterisation, refactor, config, docs, styling-token, dependency-bump, rename, migration, eval]
-  vague_terms: [fast, quick, quickly, easy, easily, intuitive, user-friendly, simple, nice, helpful,
-                clear, good, better, modern, robust, seamless, efficient, appropriate, etc]
+    exempt_may_satisfy: [migration, eval]   # the only exempt types that may satisfy an AC
+  vague_terms: [fast, quick, quickly, easy, easily, intuitive, intuitively, user-friendly, simple, nice,
+                helpful, clear message, clear error, clearly, good, better, modern, robust, seamless,
+                seamlessly, efficient, efficiently, appropriate, appropriately, etc, works well, well enough,
+                correctly, properly, gracefully, smooth, smoothly,
+                reasonable, reasonably, acceptable, adequate, sufficient, responsive, performant, scalable,
+                optimal, flexible, as expected, as needed, if needed, and so on, in a timely manner,
+                works fine, handles errors]   # matched as phrases; an AC needs a measure to use one
 
 budgets:
   feature: { tokens: 2500000, wall_clock_min: 240, dispatches: 60 }
@@ -112,6 +118,7 @@ intake:
   source: local
   inbox: .factory/inbox
   coverage_topics: [users, goals, scope, data, rules, nfr, acceptance]
+  essential_topics: [users, goals]   # never a plain gap: covered with a source, or asked
 
 delivery:
   adapter: factory-adapter-github

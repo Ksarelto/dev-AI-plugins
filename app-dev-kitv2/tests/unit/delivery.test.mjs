@@ -104,7 +104,8 @@ test("the fix loop: a failing verification sends fix items to the planner, who a
   assert.equal(fix.phase, "fixplan");
   assert.equal(fix.subagent_type, "factory-analysis:planner");
   assert.match(readFileSync(join(env.dir, fix.pack), "utf8"), /crashes on empty cart/);
-  putArtifact(env.featureDir, "tasks.yaml", "04-plan/tasks.yaml", (t) => `${t}  - id: TASK-004\n    role: frontend\n    type: fix\n    title: Empty cart does not crash\n    depends_on: []\n    satisfies: [AC-0003]\n    files_expected: [src/entities/order/model/empty.ts, src/entities/order/model/empty.test.ts]\n    tdd: { mode: required, red_tests: [src/entities/order/model/empty.test.ts] }\n    reuse: { considered: [], reuse_rejected: "new guard" }\n    definition_of_done: ["empty cart totals 0"]\n`);
+  putArtifact(env.featureDir, "tasks.yaml", "04-plan/tasks.yaml", (t) => `${t}  - id: TASK-004\n    role: frontend\n    type: fix\n    title: Empty cart does not crash\n    depends_on: []\n    satisfies: [AC-0003]\n    files_expected: [src/entities/order/model/empty.ts, src/entities/order/model/empty.test.ts]\n    tdd: { mode: required, red_tests: [src/entities/order/model/empty.test.ts] }\n    reuse: { considered: [], reuse_rejected: "new guard" }\n    definition_of_done: ["empty cart totals 0"]\n    size: { files: 2, est_loc: 20 }\n`);
+  putArtifact(env.featureDir, "test-plan.yaml", "04-plan/test-plan.yaml", (t) => `${t}  - { id: TEST-0009, ac: AC-0003, level: unit, title: "an empty cart totals 0.00", task: TASK-004 }\n`);
   const r = await conductor.record(env.dir, { dispatchId: fix.id, envelopeText: envelope(fix.id) });
   assert.equal(r.verdict, "fixplan");
   const after = featureState(env.featureDir);

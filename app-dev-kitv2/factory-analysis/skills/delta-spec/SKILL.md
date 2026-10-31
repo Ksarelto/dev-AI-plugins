@@ -33,6 +33,7 @@ validations). The planner turns each into characterisation tests when they are n
 ## Acceptance criteria and questions
 
 Same rules as a PRD: measurable ACs with exact values, open questions with a severity and a default,
-sources on every requirement. See `prd-authoring` for examples of weak versus measurable ACs.
+sources on every requirement, and every SRC paragraph of the feature either cited or listed in
+`sources_not_used` with a reason (a "today the app does X" paragraph is context). See `prd-authoring` for examples of weak versus measurable ACs.
 
 Run the exit check from T0 before you return.

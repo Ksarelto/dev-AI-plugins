@@ -29,4 +29,4 @@ stories:
         gherkin: |
           Given lines of 60.00 and 40.00 EUR, discount 10.00 and shipping 5.00
           When the total is calculated
-          Then it is 95.00 EUR
+          Then it is 95.00 EUR, rounded half-even to 2 decimals

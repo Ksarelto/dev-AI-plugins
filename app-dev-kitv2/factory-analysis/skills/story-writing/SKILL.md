@@ -15,8 +15,10 @@ Write `02-stories/stories.yaml` ([fa-stories.yaml](../../templates/fa-stories.ya
   notice on its own is a task, not a story.
 - `traces` lists the requirement(s) the story delivers. Every spec AC must appear in a story
   (normally exactly one); never invent an AC ID.
-- Write each AC as Gherkin with concrete data: `Given … When … Then …` (`And` for more steps). Copy
-  the exact values from the spec's AC text.
+- Write each AC as Gherkin with concrete data: `Given … When … Then …` (`And` for more steps), each
+  step a real sentence. Copy the exact values from the spec's AC text — every number and quoted
+  string in it must appear in the Gherkin (the gate checks). Put the AC in a story that traces the
+  AC's own requirement.
 
 ## UX notes
 

@@ -1,5 +1,7 @@
 // gate-arch (S3): every component is owned by a story, net-new components say why nothing existing
 // was reused, cited ADRs exist, and the API contract (when present) is well-formed and traces to ACs.
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { validate } from "../lib/schemas.mjs";
 
 export const inputs = ["component-map", "adr", "api-contract", "agent-design", "stories", "prd", "delta-spec"];
@@ -23,7 +25,13 @@ export function run(ctx) {
       if (!storyIds.has(s)) fail("trace", "unknown-story", `${c.name} is owned by ${s}, which is not in stories.yaml`);
       owned.add(s);
     }
-    if (c.reuse === "new" && !c.reuse_rejected) fail("reuse", "no-reason", `${c.name} is new but gives no reuse_rejected reason`);
+    // Reuse claims are checkable: what exists must exist, and "new" says what was considered and why not.
+    if (["existing", "extend"].includes(c.reuse) && !existsSync(join(ctx.projectDir, c.path))) fail("reuse", "missing-path", `${c.name} is "${c.reuse}" but ${c.path} does not exist`);
+    if (c.reuse === "new") {
+      if (!c.reuse_considered?.length) fail("reuse", "nothing-considered", `${c.name} is new but lists no reuse_considered candidates`);
+      const why = (c.reuse_rejected ?? "").trim();
+      if (why.split(/\s+/).length < 4 || /^(n\/?a|none|-|tbd|no reason)$/i.test(why)) fail("reuse", "no-reason", `${c.name} is new but gives no real reuse_rejected reason`);
+    }
   }
   for (const s of storyIds) if (!owned.has(s)) fail("trace", "story-without-component", `${s} has no component`);
   // A role with an architect (ai-agent: graph topology, state, tools) owes its design document.
@@ -47,6 +55,7 @@ export function run(ctx) {
         ops.add(op.operationId);
         for (const ac of op["x-factory"]?.acs ?? []) if (!specAcs.has(ac)) fail("contract", "unknown-ac", `${op.operationId} cites ${ac}, which is not in the spec`, contract.rel);
         if (!op["x-factory"]?.acs?.length) fail("contract", "no-acs", `${op.operationId} has no x-factory.acs`, contract.rel);
+        if (!Object.keys(op.responses ?? {}).some((code) => /^2(\d\d|XX)$/i.test(code))) fail("contract", "no-success-response", `${op.operationId ?? `${method} ${path}`} declares no 2xx response`, contract.rel);
       }
     }
   }

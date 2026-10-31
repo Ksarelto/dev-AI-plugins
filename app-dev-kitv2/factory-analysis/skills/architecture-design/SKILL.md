@@ -25,7 +25,8 @@ Write `03-architecture/component-map.md`
 3. Reuse first. For each component set `reuse`:
    - `existing`: an existing component is used as is;
    - `extend`: an existing component gains behaviour (no fork, no copy);
-   - `new`: nothing fits — `reuse_considered` lists what you checked and `reuse_rejected` says why.
+   - `new`: nothing fits — `reuse_considered` lists what you checked and `reuse_rejected` says why
+     in a sentence. `existing` and `extend` name a path that exists (the gate checks).
 4. `contract_ops` lists the API operations the feature needs (by `operationId`); the
    contract-steward defines them next.
 

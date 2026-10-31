@@ -13,6 +13,7 @@ function setup(mutate = {}) {
   putIntake(dir);
   putArtifact(featureDir, "delta-spec.yaml", "01-requirements/delta-spec.yaml", mutate.spec);
   putArtifact(featureDir, "stories.yaml", "02-stories/stories.yaml", mutate.stories);
+  putArtifact(featureDir, "ux-notes.md", "02-stories/ux-notes.md");
   putArtifact(featureDir, "tasks.yaml", "04-plan/tasks.yaml", mutate.tasks);
   putArtifact(featureDir, "test-plan.yaml", "04-plan/test-plan.yaml", mutate.testPlan);
   return { dir, featureDir };
@@ -133,5 +134,5 @@ test("gate results are cached by input hash and fingerprints are stable", async 
   assert.equal(first.cached, false);
   assert.equal(second.cached, true);
   assert.equal(first.fingerprint, second.fingerprint);
-  assert.equal(first.progress_signal, 1);
+  assert.equal(first.progress_signal, 2, "SRC-999 is unknown, and SRC-001 is no longer cited");
 });

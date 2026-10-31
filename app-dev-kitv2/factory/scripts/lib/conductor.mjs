@@ -169,6 +169,7 @@ function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung
     notMine: Object.entries(owners).filter(([, agent]) => agent !== target.agent).map(([type]) => type),
     laterOwned: Object.entries(owners).filter(([, agent]) => laterAgents.includes(agent)).map(([type, agent]) => `${type} (${agent})`),
     stacks: stackLines(c),
+    planRules: (stage?.outputs ?? []).includes("tasks") ? planRules(c) : [],
     nextIds: nextFreeIds(c),
   });
   return {
@@ -254,7 +255,11 @@ export function step(projectDir, { feature } = {}) {
     }
     if (s.awaiting_human) {
       const g = s.awaiting_human;
-      return { action: "ask_human", feature: s.feature, gate: g.gate, stage: g.stage, reason: g.reason ?? null, questions: g.questions ?? [], review: reviewFiles(c, g.stage), open_notes: openNotes(c.feature.dir).map((n) => n.id) };
+      // At a stage's own gate, the spec's unanswered questions and their defaults are part of the decision.
+      const specQuestions = g.gate === "CLARIFY" ? [] : (gateContext({ projectDir, app: c.app, feature: c.feature, config: c.config }).spec()?.data.open_questions ?? [])
+        .filter((q) => q.status !== "answered")
+        .map((q) => `${q.id} (${q.severity}, ${q.status ?? "open"}): ${q.text}${q.default ? ` — default: ${q.default}` : ""}`);
+      return { action: "ask_human", feature: s.feature, gate: g.gate, stage: g.stage, reason: g.reason ?? null, questions: g.questions?.length ? g.questions : specQuestions, review: reviewFiles(c, g.stage), open_notes: openNotes(c.feature.dir).map((n) => n.id) };
     }
 
     const profile = profileStages(c.config, s.profile);
@@ -458,6 +463,24 @@ async function finishDigest(c, envelope) {
   }
   persist(c);
   return { action: "continue", feature: s.feature, gate: summary(result) };
+}
+
+/** What gate-plan enforces, from the config and the role packs — the planner must not have to guess. */
+function planRules(c) {
+  const tdd = c.config.quality?.tdd ?? {};
+  const lim = c.config.quality?.task_limits ?? {};
+  return [
+    ...enabledRoles(c.config).map((role) => {
+      const r = c.packs[role.pack]?.role;
+      const wider = Object.entries(r?.budgets?.task_limits ?? {}).map(([t, v]) => `${t} up to ${v.files_max} files`).join(", ");
+      return `role ${role.name}${role.path ? ` (folder ${role.path})` : ""}: files only in ${(role.owns_paths ?? []).join(", ")}; task types ${(r?.task_types ?? []).join(", ")}${wider ? `; ${wider}` : ""}`;
+    }),
+    `every task: at most ${lim.files_max} files and ${lim.loc_max} estimated LOC (size.est_loc is required), unless its role allows more`,
+    `test-first for every type except ${(tdd.exempt_types ?? []).join(", ")}; an exempt task satisfies no AC unless it is ${(tdd.exempt_may_satisfy ?? ["migration", "eval"]).join(" or ")}`,
+    "every test-first task has a unit, component or integration case naming it; a case's AC (when it has one) is one its task satisfies",
+    "change requests: a task touching a file the delta-spec modifies depends on a characterisation task; a removed REQ needs a task with removes: [REQ-…]",
+    "a new API operation (x-factory.owner_role enabled, not status: existing) is listed in contract_ops of a task of that role",
+  ];
 }
 
 /** Stack lines for packs: each enabled role, its stack pack and that stack's reference architecture. */
@@ -909,11 +932,11 @@ const helpers = {
   formatFeedback: (r) => formatFeedback(r), reasoningModel, askHuman,
 };
 
-/** Files a human reviews at a stage's gate: the stage outputs that exist. */
+/** Files a human reviews at a stage's gate: the stage outputs that exist, plus its `review` list. */
 export function reviewFiles(c, stageId) {
   const stage = resolveStage(c, stageId);
   const dirs = { factoryRoot: factoryPaths(c.projectDir).root, featureDir: c.feature.dir, projectDir: c.projectDir };
-  return (stage?.outputs ?? []).flatMap((ref) =>
+  return [...(stage?.outputs ?? []), ...(stage?.review ?? [])].flatMap((ref) =>
     parseArtifactRef(ref).names.flatMap((t) => artifactFiles(t, dirs).map((f) => toPosix(relative(c.projectDir, f)))),
   );
 }

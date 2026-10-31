@@ -20,5 +20,7 @@ modified:
       - { id: AC-0003, text: "Lines 60.00 + 40.00 EUR, discount 10.00, shipping 5.00 give a total of 95.00 EUR" }
 removed: []
 unchanged_guarantees: ["Totals are rounded half-even to 2 decimals"]
+sources_not_used:
+  - { id: SRC-001, reason: "context: today's checkout without a coupon field" }
 open_questions:
   - { id: OQ-1, severity: minor, text: Should the discount line show the coupon code?, default: "yes", status: defaulted }

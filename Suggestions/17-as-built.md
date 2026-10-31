@@ -69,6 +69,7 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 
 ## Not built yet
 
+- `flow.policy: iterations` (batched gates at iteration planning and review): only Kanban is built.
 - Worktrees per role track, pipelined red phases (`quality.tdd.pipeline_red`) and multi-feature WIP
   limits (`flow.kanban.wip`).
 - A headless runner that gives each step a fresh context (`/factory:run` loops in the session).

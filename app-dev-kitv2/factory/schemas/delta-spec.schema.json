@@ -171,6 +171,13 @@
             "items": {
               "type": "string"
             }
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
+            }
           }
         }
       }
@@ -218,6 +225,28 @@
           },
           "answer": {
             "type": "string"
+          }
+        }
+      }
+    },
+    "sources_not_used": {
+      "type": "array",
+      "description": "source paragraphs of this feature that state no requirement (context, history) or are out of scope, each with the reason",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "reason"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^SRC-\\d{3,}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3
           }
         }
       }

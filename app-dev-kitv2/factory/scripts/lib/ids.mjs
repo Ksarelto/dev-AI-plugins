@@ -16,6 +16,15 @@ export const ID_KINDS = {
 };
 
 /** Kinds that must survive every hand-off while open (see Suggestions/07, ID coverage). */
+/** Plain quotes and spaces, and no thousands separators: how AC values are compared across artifacts. */
+export const plainText = (t) =>
+  String(t).replace(/[“”„]/g, '"').replace(/[‘’]/g, "'").replace(/\u00a0/g, " ").replace(/(?<=\d),(?=\d{3}(?!\d))/g, "");
+
+/** Exact values an acceptance criterion promises: double-quoted strings, 'single-quoted' ones (not
+ *  apostrophes) and numbers that are not part of a word or version (iOS 17 counts, OAuth2 does not). */
+export const acValues = (text) =>
+  [...plainText(text).matchAll(/"([^"]+)"|(?<![A-Za-z])'([^']+)'(?![A-Za-z])|(?<![\w.])(\d+(?:\.\d+)*)(?![\w.]*[A-Za-z])/g)].map((m) => m[1] ?? m[2] ?? m[3]);
+
 export const TRACKED_KINDS = ["SRC", "REQ", "AC", "OQ", "ADR", "HD"];
 
 export const idRegex = (kind) => new RegExp(`^${ID_KINDS[kind].pattern}$`);

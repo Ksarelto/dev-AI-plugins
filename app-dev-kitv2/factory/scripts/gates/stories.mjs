@@ -1,8 +1,11 @@
-// gate-stories (S2): every story traces to a requirement in the spec, every spec AC lands in a
-// story, stories invent no ACs, every AC parses as Given/When/Then, and UI stories list their states.
+// gate-stories (S2): every story traces to a requirement in the spec, every spec AC lands in a story
+// that traces the AC's own requirement, stories invent no ACs, every AC is Given/When/Then with real
+// steps and the spec's exact values, and UI stories list their states (with ux-notes.md written).
+import { acValues, plainText } from "../lib/ids.mjs";
 import { validate } from "../lib/schemas.mjs";
 
-export const inputs = ["stories", "prd", "delta-spec"];
+export const inputs = ["stories", "ux-notes", "prd", "delta-spec"];
+
 
 export function run(ctx) {
   const stories = ctx.load("stories");
@@ -16,6 +19,8 @@ export function run(ctx) {
   if (!spec) return [{ check: "stories", message: "no approved spec to trace stories against" }];
   const reqIds = new Set(spec.reqs.map((r) => r.id));
   const specAcs = new Set(spec.reqs.flatMap((r) => r.acs.map((a) => a.id)));
+  const acReq = new Map(spec.reqs.flatMap((r) => r.acs.map((a) => [a.id, r.id])));
+  const acText = new Map(spec.reqs.flatMap((r) => r.acs.map((a) => [a.id, a.text])));
   const storyIds = new Set();
   const covered = new Set();
 
@@ -26,14 +31,22 @@ export function run(ctx) {
     for (const ac of story.acs) {
       if (!specAcs.has(ac.id)) fail("trace", "invented-ac", `${story.id} has ${ac.id}, which is not in the spec`);
       covered.add(ac.id);
-      const steps = ac.gherkin.split("\n").map((l) => l.trim().split(/\s+/)[0]);
+      if (acReq.has(ac.id) && !story.traces.includes(acReq.get(ac.id))) fail("trace", "ac-req-not-traced", `${story.id} holds ${ac.id} of ${acReq.get(ac.id)} but does not trace ${acReq.get(ac.id)}`);
+      const lines = ac.gherkin.split("\n").map((l) => l.trim().split(/\s+/));
       for (const keyword of ["Given", "When", "Then"]) {
-        if (!steps.includes(keyword)) fail("gherkin", "missing-step", `${ac.id} has no "${keyword}" step`);
+        const step = lines.find((l) => l[0] === keyword);
+        if (!step) fail("gherkin", "missing-step", `${ac.id} has no "${keyword}" step`);
+        else if (step.length < 3) fail("gherkin", "empty-step", `${ac.id}: "${step.join(" ")}" says nothing — name the state, action or outcome`);
+      }
+      const gherkin = plainText(ac.gherkin);
+      for (const value of acValues(acText.get(ac.id) ?? "")) {
+        if (!gherkin.includes(value)) fail("gherkin", "value-missing", `${ac.id}: the Gherkin lacks "${value}" from the spec's acceptance criterion`);
       }
     }
     if (story.ux?.surfaces?.length && !story.ux.states?.length) fail("ux", "no-states", `${story.id} has a UX surface but lists no states`);
   }
   for (const ac of specAcs) if (!covered.has(ac)) fail("trace", "uncovered-ac", `${ac} is not in any story`);
+  if (stories.data.stories.some((s) => s.ux?.surfaces?.length) && !ctx.load("ux-notes")) fail("ux", "no-ux-notes", "stories have UX surfaces but 02-stories/ux-notes.md is missing");
   if (stories.data.feature !== ctx.state.feature) fail("stories", "feature-id", `feature is ${stories.data.feature}`);
   return failures;
 }

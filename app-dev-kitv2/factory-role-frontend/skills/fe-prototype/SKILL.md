@@ -28,7 +28,8 @@ spec_delta:
   - { change: "Where does the discount line sit relative to shipping?", breaking: false }
 ```
 
-`spec_delta` lists gaps or contradictions the prototype exposed. Mark `breaking: true` when the
+Every story with a UX surface gets at least one screen — for a change to an existing page, a screen
+of that page showing the change — and every screen names its stories (the gate checks both). `spec_delta` lists gaps or contradictions the prototype exposed. Mark `breaking: true` when the
 approved spec must change: approving GATE-P then sends the feature back to requirements with those
 deltas, and rejecting has the prototype revised (once the way back is used up, approving accepts
 them). List only differences from the current spec. Run the exit check (`gate proto`) before you return.

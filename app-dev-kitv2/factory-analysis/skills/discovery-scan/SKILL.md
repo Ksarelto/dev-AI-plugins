@@ -16,11 +16,13 @@ GATE-D; every later feature plans against them.
 1. `git ls-files` and the top-level layout: framework, package manager, source root.
 2. Route table and entry points (router files, page folders, API routers) — one capability per
    user-visible area.
-3. For each capability: the folders that implement it (`paths`, globs allowed), its routes, and a
+3. For each capability: the folders that implement it (`paths`, globs allowed but specific — a glob
+   that matches most of the app fails the gate), its routes, and a
    one-line summary. Every path must match real files.
 4. Conformance: compare the layout with the stack's reference architecture named in your pack
    (layers, import direction, public APIs) — the pack lists it under "Stack". Use `conformant`,
    `partial` or `non-conformant` and explain deviations in the profile's `notes`; do not fix them.
+   `conformant` is checked: the gate runs each stack's architecture check and fails the claim if it fails.
 5. Feature ledger: one entry per capability, `status: discovered`, `version: 1`.
 
 ## Budget

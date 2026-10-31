@@ -1,2 +1,2 @@
 sources:
-  - { file: inbox/brief.md, normalised: context/normalised/brief.md, sha256: "0000", kind: text, ids: [SRC-001, SRC-002] }
+  - { file: inbox/brief.md, normalised: context/normalised/brief.md, sha256: "0000", kind: text, ids: [SRC-001, SRC-002], feature: FEAT-001 }

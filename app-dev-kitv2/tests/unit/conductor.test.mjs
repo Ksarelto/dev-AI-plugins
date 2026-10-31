@@ -45,7 +45,7 @@ test("happy path: requirements → digest → GATE-A → stories → planning �
 
   s = step(env.dir);
   assert.equal(s.dispatches[0].agent, "story-writer-fx");
-  r = await agentDoes(env, s.dispatches[0], { "02-stories/stories.yaml": ["stories.yaml"] });
+  r = await agentDoes(env, s.dispatches[0], { "02-stories/stories.yaml": ["stories.yaml"], "02-stories/ux-notes.md": ["ux-notes.md"] });
   assert.equal(r.verdict, "advance");
 
   s = step(env.dir);

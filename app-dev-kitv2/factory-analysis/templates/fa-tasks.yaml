@@ -32,6 +32,6 @@ tasks:
     satisfies: [AC-0001, AC-0002]
     files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx]
     tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string }): JSX.Element"] }
-    reuse: { considered: [shared/ui/input], reuse_rejected: null }
+    reuse: { considered: [shared/ui/input], reuse_rejected: "no coupon-specific field exists; it composes shared/ui/input" }
     definition_of_done: ["Field applies the coupon and shows the discount or the error inline"]
     size: { files: 2, est_loc: 120 }

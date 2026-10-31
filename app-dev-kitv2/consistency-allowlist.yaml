@@ -8,12 +8,12 @@ later_phase_commands:
 
 # Artifact types whose producing stage arrives in a later phase.
 pending_artifact_types:
-  - capability-slice        # per-domain slices: Cartographer v2 (phase 5)
+  - capability-slice        # per-domain slices: Cartographer v2 (not built)
   - open-questions          # optional narrative; open questions live in the spec front matter
 
 # Config keys and schema fields that are defined now but first read in a later phase.
 later_phase_keys:
-  - "budgets.task.wall_clock_min and budgets.prototype.* — hung-agent detection and prototype revision caps (phase 5)"
+  - "budgets.task.wall_clock_min and budgets.prototype.* — hung-agent detection and prototype revision caps (not built)"
   - "flow.kanban.wip and quality.tdd.pipeline_red — multi-feature WIP limits and pipelined red phases (not built; role tracks use flow.role_tracks)"
   - "envelope deviations / follow_up_suggested — kept in envelopes/ for humans; no stage reads them yet"
   - "coverage of changed lines (quality.coverage_changed_lines_min) and axe a11y (quality.axe_critical_max) — need stack coverage/a11y commands; not gated yet"
@@ -32,7 +32,7 @@ deviations:
   - "delta-spec is delta-spec.yaml everywhere (Suggestions/03 stage table says .md)"
   - "the diagnosis file is diagnosis/<stage-or-task>.md (Suggestions/09 calls it root-cause.md)"
   - "frontend-dev-kit's docs run scripts with yarn; deps-frontend uses pnpm — stack.yaml names scripts and defaults to pnpm, projects override the package manager"
-  - "stage kind `script` dropped until a stage needs it (bootstrap may, in phase 5)"
+  - "stage kind `script` dropped: engine work before a stage is `before: scaffold` (bootstrap)"
   - "the implementation stage manifest ships with the engine: the task loop is engine mechanics, routed by role.yaml"
   - "the prototype stage ships with factory-analysis and dispatches role:prototyper; it is skipped when no enabled role has a prototyper"
   - "the prototype trigger is one deterministic rule (new user-facing surfaces >= prototype.min_new_surfaces), not the any/skip_all rule list sketched in Suggestions/03"

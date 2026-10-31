@@ -17,4 +17,6 @@ added:
 modified: []
 removed: []
 unchanged_guarantees: ['Without SERVICE_VERSION, GET /health/live answers {"status":"ok"}', "Liveness never touches the database"]
+sources_not_used:
+  - { id: SRC-001, reason: "context: today's liveness answer" }
 open_questions: []

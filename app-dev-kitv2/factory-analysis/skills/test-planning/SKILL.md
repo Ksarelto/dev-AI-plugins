@@ -26,7 +26,9 @@ Write `04-plan/test-plan.yaml` ([fa-test-plan.yaml](../../templates/fa-test-plan
   acceptance and e2e cases, which run at verification.
 - `title` says the observable outcome with the AC's exact values, not the implementation.
 - `data` names the fixture or seed the case needs when it is not obvious.
-- Unchanged guarantees from a delta-spec are covered by the characterisation task, not by cases here
-  (every case needs an AC).
+- Unchanged guarantees from a delta-spec are covered by the characterisation task, not by cases here.
+- A case names an AC, a task, or both; its AC must be one the task satisfies. Every test-first task
+  gets at least one unit, component or integration case — a task with no AC (a fix for a review
+  finding) gets a case that names only the task.
 
 Run the exit check from T0 before you return.

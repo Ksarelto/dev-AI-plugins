@@ -21,7 +21,6 @@
         "additionalProperties": false,
         "required": [
           "id",
-          "ac",
           "level",
           "title"
         ],
@@ -32,7 +31,8 @@
           },
           "ac": {
             "type": "string",
-            "pattern": "^AC-\\d{4}$"
+            "pattern": "^AC-\\d{4}$",
+            "description": "the AC the case proves; a case for a task with no AC (a fix for a review finding) names only the task"
           },
           "level": {
             "enum": [
@@ -54,7 +54,19 @@
           "data": {
             "type": "string"
           }
-        }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "ac"
+            ]
+          },
+          {
+            "required": [
+              "task"
+            ]
+          }
+        ]
       }
     }
   }

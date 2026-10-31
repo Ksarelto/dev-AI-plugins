@@ -29,10 +29,16 @@ Write `.factory/context/coverage.yaml` with one entry per topic configured in `i
 
 | Status | Use when |
 |---|---|
-| `covered` | at least one source paragraph or human note answers it — cite them in `sources` |
-| `gap` | missing, but the requirements analyst can propose a default (e.g. no NFR given) |
+| `covered` | at least one source paragraph or human note answers it — cite them in `sources` (required) |
+| `gap` | missing, but the requirements analyst can propose a default (e.g. no NFR given) — say what is missing in `note` |
 | `blocker_gap` | missing and nothing sensible can be assumed (e.g. no goal, no idea who the users are) |
+
 | `not_applicable` | the topic genuinely does not apply — say why in `note` |
+
+`users` and `goals` are essential: they are either `covered` with a source or a `blocker_gap` you ask
+about — never a plain gap (a patch-tier change is exempt). Describe images and PDFs in their
+placeholder files only; the engine's tagged text files must stay exactly as written (the gate
+compares a hash).
 
 Human answers arrive as notes (`HD-n` in `human-notes.yaml`); cite them like sources.
 

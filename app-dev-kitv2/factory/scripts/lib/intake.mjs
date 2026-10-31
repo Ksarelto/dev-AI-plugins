@@ -99,6 +99,16 @@ export function detectMode(projectDir, requestText) {
 
 const safeName = (file) => file.replace(/[^A-Za-z0-9._-]+/g, "_");
 
+/** The active feature, if it can still take new sources into its spec. */
+function stillSpecifying(paths, app) {
+  const fid = app.active_feature;
+  const f = fid && app.features[fid];
+  if (!f || ["done", "aborted"].includes(f.status)) return null;
+  const file = join(paths.root, f.dir, "state.json");
+  const stages = existsSync(file) ? JSON.parse(readFileSync(file, "utf8")).stages ?? {} : {};
+  return ["requirements", "requirements-lite"].some((id) => stages[id]?.status === "passed") ? null : fid;
+}
+
 export function intake(projectDir, { text, title, mode, tier, newFeature = false, interview = false } = {}) {
   return withLock(projectDir, () => {
     const paths = factoryPaths(projectDir);
@@ -119,28 +129,28 @@ export function intake(projectDir, { text, title, mode, tier, newFeature = false
       if (known.has(hash)) continue;
       const kind = kindOf(rel);
       // An edited file is a new revision: earlier IDs stay valid citations in their own normalised file.
-      const revisions = index.sources.filter((s) => s.file === `inbox/${rel}`).length;
+      const earlier = index.sources.filter((s) => s.file === `inbox/${rel}`);
+      const revisions = earlier.length;
+      for (const s of earlier) s.superseded = true; // a spec accounts for the latest revision only
       const normalised = `context/normalised/${safeName(rel)}${revisions ? `.r${revisions + 1}` : ""}.md`;
       let ids = [];
+      let normalisedSha = null;
       if (kind === "text") {
         const result = normaliseText(raw.toString("utf8"), app.next_ids, rel);
         ids = result.ids;
         requestText += `\n${raw.toString("utf8")}`;
         writeAtomic(join(paths.root, normalised), result.text);
+        normalisedSha = sha(result.text); // the engine's tagging; gate-intake detects later edits
       } else {
         writeAtomic(
           join(paths.root, normalised),
           `# ${rel}\n\n<!-- ${kind}, ${statSync(abs).size} bytes: the intake-normaliser describes this source and tags each paragraph with a new SRC id -->\n`,
         );
       }
-      index.sources.push({ file: `inbox/${rel}`, normalised, sha256: hash, kind, ids });
+      index.sources.push({ file: `inbox/${rel}`, normalised, sha256: hash, kind, ids, ...(normalisedSha ? { normalised_sha: normalisedSha } : {}) });
       known.add(hash);
       added.push({ file: rel, kind, ids: ids.length });
     }
-    const errors = validate("source-index", index);
-    if (errors.length) throw new Error(`source index would be invalid: ${errors.join("; ")}`);
-    writeYaml(indexFile, index);
-
     const open = Object.entries(app.features).filter(([, f]) => !["done", "aborted"].includes(f.status));
     if (!added.length && !interview && !newFeature && !open.length) {
       throw new UsageError("the inbox has no new files — add requirements to .factory/inbox/, pass --text, or use --interview");
@@ -157,6 +167,26 @@ export function intake(projectDir, { text, title, mode, tier, newFeature = false
       feature = f.state.feature;
       appendEvent(projectDir, { type: "feature", feature, mode: detected.mode, profile });
     }
+    // New sources belong to the feature they were added for: its spec must account for each of them.
+    // Added while a feature is open, they go to it only while it has not passed requirements; otherwise
+    // they wait (unassigned) for the next `intake --new`, which also takes over an aborted feature's.
+    const fresh = index.sources.slice(index.sources.length - added.length);
+    const owner = feature ?? stillSpecifying(paths, app);
+    for (const s of fresh) {
+      if (owner) s.feature = owner;
+      else s.unassigned = true;
+    }
+    if (feature) {
+      for (const s of index.sources) {
+        if (s.unassigned || (s.feature && app.features[s.feature]?.status === "aborted")) {
+          s.feature = feature;
+          delete s.unassigned;
+        }
+      }
+    }
+    const errors = validate("source-index", index);
+    if (errors.length) throw new Error(`source index would be invalid: ${errors.join("; ")}`);
+    writeYaml(indexFile, index);
     saveAppState(projectDir, app);
     appendEvent(projectDir, { type: "intake", feature: feature ?? undefined, sources: added.length });
     return {

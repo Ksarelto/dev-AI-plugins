@@ -38,12 +38,13 @@ export function buildPack(projectDir, featureObj, config, d) {
   const inputs = [];
   for (const ref of d.stage?.inputs ?? []) {
     const { names, optional } = parseArtifactRef(ref);
-    for (const type of names) {
-      if (ARTIFACT_TYPES[type].scope === "project" && ARTIFACT_TYPES[type].path === "**") continue;
-      const files = artifactFiles(type, dirs);
-      if (!files.length && optional) continue;
-      inputs.push({ type, paths: files.map(rel), missing: !files.length });
-    }
+    // "a|b" means one of them: list the ones that exist, and call it missing only when none does.
+    const found = names
+      .filter((type) => !(ARTIFACT_TYPES[type].scope === "project" && ARTIFACT_TYPES[type].path === "**"))
+      .map((type) => ({ type, paths: artifactFiles(type, dirs).map(rel) }));
+    const present = found.filter((f) => f.paths.length);
+    if (present.length) inputs.push(...present.map((f) => ({ ...f, missing: false })));
+    else if (found.length && !optional) inputs.push({ type: found.map((f) => f.type).join("|"), paths: [], missing: true });
   }
   const optionalSections = [{ name: "golden", lines: (d.golden ?? []).map((g) => `  - ${g}`) }];
 
@@ -71,8 +72,9 @@ export function buildPack(projectDir, featureObj, config, d) {
     lines.push(`Return: end your reply with one \`\`\`json block — the envelope (schema ${toPosix(join(ENGINE_ROOT, "schemas", "envelope.schema.json"))}) with "pack_id": "${d.id}" and a summary of at most ${config.context?.return_summary_max_words ?? 200} words.`);
     lines.push("", "## T1 — Orientation (read these first)");
     if (d.stacks?.length) lines.push(...d.stacks.map((l) => `Stack · ${l}`));
+    if (d.planRules?.length) lines.push("Plan rules (gate-plan checks every one):", ...d.planRules.map((l) => `  - ${l}`));
     if (mandatory.length) for (const m of mandatory) lines.push(`${m.label}: ${m.path} [READ]`);
-    else lines.push("(nothing yet — this is the first stage of the feature)");
+    else lines.push("(no mandatory reads)");
     lines.push("", "## T2 — Inputs (paths only — read what you need)");
     if (!inputs.length) lines.push("(no upstream artifacts)");
     for (const i of inputs) lines.push(`- ${i.type}: ${i.missing ? "(missing — report it in the envelope)" : i.paths.join(", ")}`);

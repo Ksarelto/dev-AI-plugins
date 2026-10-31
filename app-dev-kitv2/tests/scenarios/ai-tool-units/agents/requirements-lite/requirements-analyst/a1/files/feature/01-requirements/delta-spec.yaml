@@ -12,4 +12,6 @@ added:
 modified: []
 removed: []
 unchanged_guarantees: ["The existing tools and the system prompt are unchanged"]
+sources_not_used:
+  - { id: SRC-001, reason: "context: the assistant cannot convert units today" }
 open_questions: []

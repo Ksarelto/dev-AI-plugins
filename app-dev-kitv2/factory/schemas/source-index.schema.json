@@ -48,6 +48,23 @@
           },
           "date": {
             "type": "string"
+          },
+          "feature": {
+            "type": "string",
+            "pattern": "^FEAT-\\d{3}$",
+            "description": "the feature this source was added for"
+          },
+          "normalised_sha": {
+            "type": "string",
+            "description": "sha of the engine-tagged normalised text; gate-intake detects edits"
+          },
+          "unassigned": {
+            "type": "boolean",
+            "description": "added while the open feature was past requirements; the next intake --new takes it"
+          },
+          "superseded": {
+            "type": "boolean",
+            "description": "an earlier revision of an edited inbox file; specs account for the latest one"
           }
         }
       }
