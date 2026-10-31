@@ -8,6 +8,8 @@
 //   repo/                   the application the factory works on (copied into a temp git repo), or
 //   repo_from: <fixture>    in scenario.yaml: a fixture app under tests/fixtures/ (node_modules is linked,
 //                           so the real stack — tests, typecheck, lint, build — runs in the gates)
+//   repos: [{ from, to }]   several apps in one project (e.g. web/ and api/): `from` is a fixture under
+//                           tests/fixtures/ or a folder at the repo root (backend-boilerplate)
 //   inbox/                  customer input (copied into .factory/inbox/)
 //   answers.yaml            human answers, in order, for every ask_human
 //   agents/[<FEAT>/]<stage>/<agent>/a<n>/envelope.yaml + files/{feature,factory,project}/…
@@ -21,6 +23,8 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 process.env.FACTORY_NO_SCAN = "1"; // only the packs this harness configures
+// Mocked runs never call a model: the real stack's eval suites skip without these keys.
+for (const key of ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"]) delete process.env[key];
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FAMILY = join(HERE, "..", "..");
 const ENGINE = join(FAMILY, "factory");
@@ -107,14 +111,18 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
   const scenario = YAML.parse(readText(join(scenarioDir, "scenario.yaml")));
   const answers = YAML.parse(readText(join(scenarioDir, "answers.yaml"))) ?? [];
   const project = mkdtempSync(join(tmpdir(), `factory-e2e-${scenario.id}-`));
-  const run = { scenario: scenario.id, dispatches: [], verdicts: [], denied: [], gates: [], halts: [], schemaErrors: [] };
+  const run = { scenario: scenario.id, dispatches: [], batches: [], verdicts: [], denied: [], gates: [], halts: [], schemaErrors: [] };
   try {
-    if (scenario.repo_from) {
-      const fixture = join(FAMILY, "tests", "fixtures", scenario.repo_from);
-      if (!existsSync(join(fixture, "node_modules"))) throw new Error(`fixture ${scenario.repo_from} has no node_modules — run: npm run setup:factory-fixtures`);
-      cpSync(fixture, project, { recursive: true, filter: (src) => !src.includes(`${scenario.repo_from}/node_modules`) });
-      symlinkSync(join(fixture, "node_modules"), join(project, "node_modules"), "dir");
-    } else cpSync(join(scenarioDir, "repo"), project, { recursive: true });
+    const repos = scenario.repos ?? (scenario.repo_from ? [{ from: scenario.repo_from, to: "." }] : []);
+    for (const { from, to } of repos) {
+      const fixture = existsSync(join(FAMILY, "tests", "fixtures", from)) ? join(FAMILY, "tests", "fixtures", from) : join(ROOT, from);
+      if (!existsSync(join(fixture, "node_modules"))) throw new Error(`${from} has no node_modules — run: npm run setup:factory-fixtures`);
+      const target = join(project, to);
+      const skip = new Set(["node_modules", "dist", "coverage", ".env"].map((n) => join(fixture, n)));
+      cpSync(fixture, target, { recursive: true, filter: (src) => !skip.has(src) });
+      symlinkSync(join(fixture, "node_modules"), join(target, "node_modules"), "dir");
+    }
+    if (!repos.length) cpSync(join(scenarioDir, "repo"), project, { recursive: true });
     execFileSync("git", ["init", "-q"], { cwd: project });
     execFileSync("git", ["config", "user.email", "factory-e2e@example.invalid"], { cwd: project });
     execFileSync("git", ["config", "user.name", "Factory E2E"], { cwd: project });
@@ -132,6 +140,7 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
       if (s.action === "dispatch") {
         const app = state.loadAppState(project);
         const featureDir = join(project, ".factory", app.features[s.feature].dir);
+        run.batches.push(s.dispatches.map((d) => d.task ?? d.agent));
         for (const d of s.dispatches) {
           const attempt = Number(d.id.split("/a").pop());
           const stageKey = d.phase === "digest" ? "digest" : d.task ? join(d.stage, `${d.task}.${d.phase}`) : d.stage;
@@ -172,7 +181,8 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
     const fid = Object.keys(app.features)[0];
     const featureDir = join(project, ".factory", app.features[fid].dir);
     run.feature = JSON.parse(readFileSync(join(featureDir, "state.json"), "utf8"));
-    run.notes = YAML.parse(readText(join(featureDir, "human-notes.yaml"))) ?? [];
+    const notesFile = join(featureDir, "human-notes.yaml");
+    run.notes = existsSync(notesFile) ? (YAML.parse(readText(notesFile)) ?? []) : [];
     run.traces = Object.fromEntries(Object.entries(app.features).map(([id, f]) => [id, traceReport(project, join(project, ".factory", f.dir))]));
     run.trace = run.traces[fid];
     run.app = app;
@@ -185,6 +195,10 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
     run.gitLog = run.ship ? execFileSync("git", ["log", "--format=%s%n%b---", run.ship.branch], { cwd: project, encoding: "utf8" }) : "";
     const ledgerFile = join(project, ".factory", "ledger", "feature-ledger.yaml");
     run.ledger = existsSync(ledgerFile) ? YAML.parse(readText(ledgerFile)).features : [];
+    run.files = (path) => {
+      const file = path.startsWith("feature:") ? join(featureDir, path.slice(8)) : join(project, path);
+      return existsSync(file) ? readText(file) : null;
+    };
     run.checks = check(run, scenario.expect ?? {});
     run.pass = run.checks.every((c) => c.pass);
     run.project = keep ? project : null;
@@ -241,6 +255,14 @@ function check(run, expect) {
   if (expect.ledger) {
     const entry = run.ledger.find((f) => f.id === run.feature.feature);
     add("ledger entry", entry?.status === expect.ledger, `${entry?.status ?? "missing"} v${entry?.version ?? "?"}`);
+  }
+  for (const batch of expect.parallel ?? []) {
+    add(`parallel ${batch.join(" + ")}`, run.batches.some((b) => JSON.stringify(b) === JSON.stringify(batch)), run.batches.filter((b) => b.length > 1).map((b) => b.join("+")).join(" ") || "no parallel batch");
+  }
+  // A late constraint must reach every artifact on its way to the PR: { "<path or feature:path>": "<regex>" }.
+  for (const [path, pattern] of Object.entries(expect.files_contain ?? {})) {
+    const text = run.files(path);
+    add(`${path} ~ /${pattern}/`, text !== null && new RegExp(pattern).test(text), text === null ? "missing" : "ok");
   }
   add("all scripted answers used", run.unanswered === 0, `${run.unanswered} left`);
   return out;

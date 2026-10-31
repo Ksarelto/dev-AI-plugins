@@ -1,6 +1,6 @@
 # 06 — Artifacts and hand-off contracts
 
-The artifact store is the factory's memory and the only channel between spokes. Every file has a schema in `factory-core/schemas/`, validated by a `PostToolUse` hook on write and again by the stage gate.
+The artifact store is the factory's memory and the only channel between spokes. Every file has a schema in `factory/schemas/`, validated by a `PostToolUse` hook on write and again by the stage gate.
 
 ## `.factory/` layout
 

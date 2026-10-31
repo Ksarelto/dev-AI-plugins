@@ -1,0 +1,9 @@
+summary: Coverage complete; currency rules in SRC-004 and SRC-005.
+topics:
+  users: { status: covered, sources: [SRC-002, SRC-003] }
+  goals: { status: covered, sources: [SRC-002, SRC-003] }
+  scope: { status: covered, sources: [SRC-001, SRC-006, SRC-007] }
+  data: { status: covered, sources: [SRC-004, SRC-006] }
+  rules: { status: covered, sources: [SRC-004, SRC-005] }
+  nfr: { status: gap, note: "no performance target given" }
+  acceptance: { status: covered, sources: [SRC-002, SRC-003] }

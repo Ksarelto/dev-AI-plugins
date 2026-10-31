@@ -17,7 +17,10 @@ export function resolveStack(c, roleName) {
   const stack = deepMerge(base, overrides);
   // A command override replaces the whole command: {script} and {exec} must never mix.
   stack.commands = { ...base.commands, ...(overrides.commands ?? {}) };
-  return { role: roleName, name: role.stack, stack, cwd: c.projectDir };
+  // A role in a sub-package (roles.<role>.path) runs its commands there; logs stay in the project's .factory.
+  const cwd = role.path ? join(c.projectDir, role.path) : c.projectDir;
+  if (role.path && !existsSync(cwd)) return { error: `role ${roleName}: its folder roles.${roleName}.path "${role.path}" does not exist (set path: "." for a role at the project root)` };
+  return { role: roleName, name: role.stack, stack, cwd, projectDir: c.projectDir };
 }
 
 const expand = (arg, vars) => {
@@ -66,7 +69,7 @@ export function nodeBinFor(range) {
 export function runStackCommand(resolved, name, { vars = {}, logName, timeoutMs = 10 * 60_000 } = {}) {
   const argv = buildArgv(resolved.stack, name, { ...vars, cwd: resolved.cwd });
   if (!argv) return { ok: true, skipped: true, name };
-  const logs = factoryPaths(resolved.cwd).logs;
+  const logs = factoryPaths(resolved.projectDir ?? resolved.cwd).logs;
   mkdirSync(logs, { recursive: true }); // reports and logs land here; create it before the command runs
   const nodeBin = nodeBinFor(resolved.stack.node_version);
   const env = { ...process.env, CI: "1", FORCE_COLOR: "0" };
@@ -74,7 +77,7 @@ export function runStackCommand(resolved, name, { vars = {}, logName, timeoutMs 
   // With shell: true (Windows, for pnpm.cmd/npm.cmd) Node joins argv unquoted; quote what needs it.
   const winArgs = (list) => list.map((a) => (/[\s"]/.test(a) ? `"${a.replaceAll('"', '\\"')}"` : a));
   const isWin = process.platform === "win32";
-  const r = spawnSync(argv[0], isWin ? winArgs(argv.slice(1)) : argv.slice(1), {
+  const r = spawnSync(isWin ? winArgs([argv[0]])[0] : argv[0], isWin ? winArgs(argv.slice(1)) : argv.slice(1), {
     cwd: resolved.cwd,
     env,
     encoding: "utf8",
@@ -87,7 +90,8 @@ export function runStackCommand(resolved, name, { vars = {}, logName, timeoutMs 
   writeFileSync(log, `$ ${argv.join(" ")}\n${output}`);
   // Project-relative paths keep failure messages short and fingerprints stable across checkouts.
   // Longest first: /var/… is a suffix of /private/var/… on macOS.
-  const prefixes = [...new Set([resolved.cwd, realpathSync(resolved.cwd)])]
+  const base = resolved.projectDir ?? resolved.cwd;
+  const prefixes = [...new Set([base, realpathSync(base)])]
     .flatMap((p) => [`${p}/`, `${p}\\`])
     .sort((x, y) => y.length - x.length);
   const tail = output

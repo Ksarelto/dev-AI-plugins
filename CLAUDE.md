@@ -30,6 +30,8 @@ app-dev-kitv2/                    # AI factory v2 (Suggestions/ design) — mark
   factory-quality/                # stage pack S5a/S6/S7: acceptance tests, review, QA
   factory-delivery/               # stage pack S8/S9: docs, commit plan + PR body, PR-comment triage
   factory-adapter-github/         # adapter.yaml only: push + draft PR (dry-run by default)
+  factory-role-backend/           # role pack: be-test-author, be-builder, migration-author, be-auditor
+  factory-role-ai-agent/          # role pack: ai-architect, ai-test-author, ai-builder, rag-builder, eval-author
   tests/                          # not a plugin: unit tests, e2e harness + scenarios, golden tickets
   consistency-allowlist.yaml      # scheduled later-phase items and deliberate deviations
 backend-boilerplate/              # runnable Express 5 + Postgres starter (not a plugin; node-backend-dev-kit mirrors it)
@@ -113,7 +115,8 @@ only produce artifacts. When you change it:
 
 - `npm run test:factory` — Layer-1 tests (Node 20 and 22). Add a test for every gate rule or warden change.
 - `npm run test:factory:e2e` — mocked scenarios through the real engine; a new stage or gate needs a scenario step.
-  GT-04 runs the S5 task loop on the real stack of `tests/fixtures/fsd-app` (run `npm run setup:factory-fixtures` once; needs Node 22 via nvm).
+  GT-04 runs S0–S9 on the real stack of `tests/fixtures/fsd-app` (run `npm run setup:factory-fixtures` once; needs Node 22 via nvm);
+  GT-12 and the role scenarios run on copies of `backend-boilerplate/` and `agent-boilerplate/` (the same setup script installs them).
 - Real-model golden tickets (`tests/golden/run-golden.mjs`) cost money: never run with `--yes` without the user's OK.
 - `npm run check:factory` — duplication, agent/stage wiring, model policy, line limits, unique file names,
   drift from `Suggestions/`. Update `app-dev-kitv2/consistency-allowlist.yaml` when a phase lands.
@@ -138,6 +141,8 @@ npm run install:cursor-local
 | `factory` | `app-dev-kitv2/factory/` | Skills + 2 agents + rule + hooks: AI-factory engine — `/factory:*` commands, Conductor step protocol, schemas, gates, Loop Warden, context packs, HD notes. Stage/role packs plug in via manifests (phases 2–5) | `evals/cases/factory.json`, `factory-agents.json` |
 | `factory-analysis` | `app-dev-kitv2/factory-analysis/` | Stages + 8 agents + 10 skills + templates: factory S0–S4 — intake, bootstrap/discovery, requirements (PRD or delta-spec), stories, architecture + API contract, test-first planning | `evals/cases/factory-analysis.json`, `factory-analysis-agents.json` |
 | `factory-role-frontend` | `app-dev-kitv2/factory-role-frontend/` | role.yaml + 4 agents + 4 skills + audit scripts: frontend role of the factory — red tests and stubs first, builder makes them green (real Vitest, tsc, ESLint, dependency-cruiser, build), sandboxed prototyper, auditor (raw colours, i18n). Uses `frontend-dev-kit` (stack.yaml) | `evals/cases/factory-role-frontend.json`, `factory-role-frontend-agents.json` |
+| `factory-role-backend` | `app-dev-kitv2/factory-role-backend/` | role.yaml + 4 agents + 4 skills + scripts: backend role — red tests against in-memory fakes, layered Express 5 builder, migration author (journal + rollback, destructive SQL needs an HD note), OpenAPI-conformance auditor. Uses `node-backend-dev-kit` | `evals/cases/factory-role-backend.json`, `factory-role-backend-agents.json` |
+| `factory-role-ai-agent` | `app-dev-kitv2/factory-role-ai-agent/` | role.yaml + 5 agents + 5 skills: AI-agent role — architect (agent-design.md), test author with a scripted model, LangGraph and RAG builders, eval author; eval run gates model-facing tasks. Uses `node-agent-dev-kit` | `evals/cases/factory-role-ai-agent.json`, `factory-role-ai-agent-agents.json` |
 | `factory-quality` | `app-dev-kitv2/factory-quality/` | Stages + 3 agents + 3 skills: acceptance tests before the build, seven-lens review (reviewer + role auditors), exploratory QA; failures become fix tasks | `evals/cases/factory-quality.json`, `factory-quality-agents.json` |
 | `factory-delivery` | `app-dev-kitv2/factory-delivery/` | Stages + 2 agents + 4 skills + PR template: feature docs, commit plan, PR body, PR-comment triage. The engine commits and ships | `evals/cases/factory-delivery.json`, `factory-delivery-agents.json` |
 | `factory-adapter-github` | `app-dev-kitv2/factory-adapter-github/` | adapter.yaml only: `git push` + `gh pr create --draft` for the factory; dry-run by default | — |

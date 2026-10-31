@@ -5,7 +5,7 @@ A thin Conductor in the main session dispatches single-purpose agents; they talk
 schema-checked files in `.factory/`, and **scripts, not models, decide pass/fail, retries and when to
 stop.**
 
-Status: **phase 4 of 5 (engine, analysis, frontend build loop, quality, delivery).** The backend and AI roles arrive in phase 5.
+Status: **all five phases built** — engine, analysis, three roles, quality, delivery, GitHub adapter. Where the build differs from the design: [Suggestions/17](../Suggestions/17-as-built.md).
 
 ## Plugins
 
@@ -17,7 +17,8 @@ Status: **phase 4 of 5 (engine, analysis, frontend build loop, quality, delivery
 | Stage | [`factory-quality`](factory-quality/) | ✅ phase 4 | acceptance tests before the build, seven-lens review with the role auditors in parallel, exploratory QA; failures become fix tasks |
 | Stage | [`factory-delivery`](factory-delivery/) | ✅ phase 4 | feature docs and ADRs, commit plan and PR body, PR-comment triage (S9); the engine commits and ships |
 | Adapter | [`factory-adapter-github`](factory-adapter-github/) | ✅ phase 4 | `git push` + `gh pr create --draft`; dry-run by default (commands recorded, never run) |
-| Role | `factory-role-backend`, `factory-role-ai-agent` | phase 5 | Express and LangGraph tasks |
+| Role | [`factory-role-backend`](factory-role-backend/) | ✅ phase 5 | test author, builder and migration author for Express 5 + Zod + Drizzle; the migration check (journal, rollback, approved destructive SQL) runs in gate-impl; OpenAPI-conformance auditor |
+| Role | [`factory-role-ai-agent`](factory-role-ai-agent/) | ✅ phase 5 | architect (agent-design.md at S3), test author against a scripted model, LangGraph and RAG builders, eval author; model-facing tasks pass only with an eval run |
 
 Stack knowledge stays in the existing kits, each with a new `stack.yaml`:
 `frontend-dev-kit`, `node-backend-dev-kit`, `node-agent-dev-kit`.
@@ -49,6 +50,14 @@ plan on the feature branch (one commit per task, `Factory-Task:` trailer), commi
 artifacts, and runs the adapter. Set `delivery.dry_run: false` to open a real PR; `/factory:ship`
 asks first. `factory comments --file <json>` feeds review comments into S9.
 
+## Roles and tracks
+
+A role pack is a `role.yaml` plus agents and skills; the engine knows nothing else about it. Each task
+goes to its role's test author (red) and builder (green) — or to a specialist builder for its type
+(`agents.builders`) — and gate-impl adds the role's own checks (`gates.checks`). Give each role its
+package folder (`roles.<role>.path: api`) and the task loop runs one task per role **in parallel**;
+roles that share a folder take turns.
+
 ## Context that is never lost
 
 - State lives in files, not in a conversation. After compaction a `SessionStart` hook re-injects
@@ -74,9 +83,11 @@ A task that fails twice moves to opus (rung 2). The policy is enforced by
 ```bash
 npm run test:factory     # Layer-1 control-plane tests (node:test, no model)
 npm run test:factory:e2e # mocked end-to-end scenarios: real engine, scripted agents (tests/scenarios);
-                         # GT-04 runs S5 on the real stack of tests/fixtures/fsd-app
-npm run setup:factory-fixtures   # once: install the fixture app's dependencies (pnpm, Node 22)
+                         # GT-04 runs S0–S9 on the real stack of tests/fixtures/fsd-app; GT-12 and the
+                         # role scenarios run on backend-boilerplate and agent-boilerplate copies
+npm run setup:factory-fixtures   # once: install the FSD fixture and both boilerplates (Node 22)
 npm run check:factory    # duplication, wiring, model-policy and drift check
+node factory/scripts/factory.mjs metrics --md --project <app>   # first-pass rates, escalations, red validity
 npm run build:factory    # regenerate the vendored deps bundle and pack hooks
 npm run validate         # includes build:factory --check
 npm run eval             # discoverability, includes evals/cases/factory*.json

@@ -31,7 +31,7 @@ export function run(ctx) {
         if (!steps.includes(keyword)) fail("gherkin", "missing-step", `${ac.id} has no "${keyword}" step`);
       }
     }
-    if (story.ux && !story.ux.states?.length) fail("ux", "no-states", `${story.id} has a UX surface but lists no states`);
+    if (story.ux?.surfaces?.length && !story.ux.states?.length) fail("ux", "no-states", `${story.id} has a UX surface but lists no states`);
   }
   for (const ac of specAcs) if (!covered.has(ac)) fail("trace", "uncovered-ac", `${ac} is not in any story`);
   if (stories.data.feature !== ctx.state.feature) fail("stories", "feature-id", `feature is ${stories.data.feature}`);

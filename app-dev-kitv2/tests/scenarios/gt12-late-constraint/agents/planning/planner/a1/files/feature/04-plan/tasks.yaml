@@ -1,0 +1,24 @@
+feature: FEAT-001
+tasks:
+  - id: TASK-001
+    role: backend
+    type: service
+    title: formatMoney with the ISO code; JPY without decimals
+    depends_on: []
+    satisfies: [AC-0001, AC-0003]
+    files_expected: [api/src/lib/money.ts, api/tests/unit/lib/money.test.ts]
+    tdd: { mode: required, red_tests: [api/tests/unit/lib/money.test.ts], stubs: ["formatMoney(amountMinor: number, currency: Currency): string"] }
+    reuse: { considered: [api/src/lib], reuse_rejected: "no money helper exists" }
+    definition_of_done: ["EUR and USD have 2 decimals, JPY none"]
+    size: { files: 2, est_loc: 30 }
+  - id: TASK-002
+    role: frontend
+    type: entity-model
+    title: formatPrice with the currency symbol; JPY without decimals
+    depends_on: []
+    satisfies: [AC-0002, AC-0003]
+    files_expected: [web/src/entities/order/model/format-price.ts, web/src/entities/order/model/format-price.test.ts]
+    tdd: { mode: required, red_tests: [web/src/entities/order/model/format-price.test.ts], stubs: ["formatPrice(amount: number, currency: Currency): string"] }
+    reuse: { considered: [web/src/entities/order], reuse_rejected: null }
+    definition_of_done: ["Intl currency formatting, JPY without decimals"]
+    size: { files: 2, est_loc: 30 }

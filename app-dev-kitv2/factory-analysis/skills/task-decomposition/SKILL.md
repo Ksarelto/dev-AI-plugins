@@ -18,7 +18,9 @@ Write `04-plan/tasks.yaml` ([fa-tasks.yaml](../../templates/fa-tasks.yaml)).
 - **Ordered.** Contract and types → data/model → logic → UI → wiring. `depends_on` only when a task
   needs another task's output.
 - **Owned files.** `files_expected` lists every file the task creates or changes, all inside the
-  role's `owns_paths`. Colocated tests count.
+  role's `owns_paths`. Colocated tests count, and so do generated files: a Drizzle migration task
+  lists the schema file, the SQL, `drizzle/meta/_journal.json`, `drizzle/meta/<NNNN>_snapshot.json`
+  and its `drizzle/rollback/<NNNN>_<name>.down.sql`.
 
 ## Test-first
 

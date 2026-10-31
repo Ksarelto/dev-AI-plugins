@@ -118,7 +118,8 @@ for (const p of plugins) {
     }
   }
   if (p.role) {
-    for (const ag of Object.values(p.role.agents ?? {}).flat()) {
+    // A slot names one agent, a list, or a map (builders: task type → agent).
+    for (const ag of Object.values(p.role.agents ?? {}).flatMap((v) => (v && typeof v === "object" && !Array.isArray(v) ? Object.values(v) : v))) {
       wired.add(`${p.name}:${ag}`);
       if (!p.agents.some((a) => a.name === ag)) errors.push(`${p.name}/role.yaml: agent "${ag}" does not exist`);
     }

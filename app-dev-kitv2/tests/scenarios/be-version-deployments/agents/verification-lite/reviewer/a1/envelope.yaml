@@ -1,0 +1,3 @@
+summary: The version reaches liveness through the validated env; the migration matches its schema file and has a rollback.
+findings:
+  - { lens: tests, severity: P3, file: tests/unit/controllers/health.controller.test.ts, claim: "the unset-version guarantee is pinned only by the integration test" }

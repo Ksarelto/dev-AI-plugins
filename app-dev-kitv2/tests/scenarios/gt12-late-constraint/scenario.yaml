@@ -1,0 +1,46 @@
+id: gt12-late-constraint
+title: "GT-12 late constraint — a JPY rule buried in a long customer doc is missed by the spec, caught by a human at GATE-A (HD-1), and must reach an AC, red tests in two role tracks (api/ backend, web/ frontend, in parallel), the code, the feature doc and the PR trace"
+repos: [{ from: backend-boilerplate, to: api }, { from: fsd-app, to: web }]
+stack_kits: [node-backend-dev-kit, frontend-dev-kit]
+intake: { title: Prices in the order currency }
+config:
+  roles:
+    frontend: { enabled: true, path: web, owns_paths: ["web/**"], stack_overrides: { package_manager: pnpm } }
+    backend: { enabled: true, pack: factory-role-backend, stack: node-backend-dev-kit, path: api, owns_paths: ["api/**"] }
+  pipeline:
+    profile: gt12
+    profiles: { gt12: [intake, requirements, stories, planning, implementation, verification-lite, docs, delivery] }
+expect:
+  final_action: done
+  final_status: done
+  dispatches_max: 18
+  gates: [GATE-A, GATE-A, GATE-B, GATE-C]
+  parallel: [[TASK-001, TASK-002]]
+  verdicts:
+    - { stage: intake, verdict: advance }
+    - { stage: requirements, verdict: advance }
+    - { stage: requirements, verdict: advance }
+    - { stage: stories, verdict: advance }
+    - { stage: planning, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: verification-lite, verdict: advance }
+    - { stage: docs, verdict: advance }
+    - { stage: delivery, verdict: advance }
+  notes: { HD-1: mapped }
+  models:
+    be-test-author: sonnet
+    be-builder: sonnet
+    fe-test-author: sonnet
+    fe-builder: sonnet
+  ship: { commits: 4, dry_run: true, trailers: ["Factory-Task: TASK-001", "Factory-Task: TASK-002"] }
+  files_contain:
+    "feature:01-requirements/delta-spec.yaml": "AC-0003.*JPY"
+    api/tests/unit/lib/money.test.ts: "AC-0003.*JPY"
+    api/src/lib/money.ts: "JPY"
+    web/src/entities/order/model/format-price.test.ts: "AC-0003.*JPY"
+    web/src/entities/order/model/format-price.ts: "JPY|maximumFractionDigits"
+    docs/features/FEAT-001-prices-in-the-order-currency.md: "AC-0003.*JPY"
+    "feature:08-delivery/pr.md": "AC-0003"

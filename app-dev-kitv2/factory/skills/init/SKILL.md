@@ -13,7 +13,8 @@ Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Ar
 1. Run `F init $ARGUMENTS`. It creates `.factory/` (config, state, inbox, `.gitignore`) and records
    the factory packs it can find. It does nothing if `.factory/state.json` already exists.
 2. Open `.factory/factory.config.yaml` and confirm with the human, in one short table:
-   - which roles are enabled (`roles.<role>.enabled`) and the folders each owns (`owns_paths`);
+   - which roles are enabled (`roles.<role>.enabled`), each role's package folder (`roles.<role>.path`,
+     `"."` for the project root; backend defaults to `apps/api`) and the paths it owns (`owns_paths`);
    - the frontend boilerplate pointer (`roles.frontend.boilerplate`) for a new app, if any;
    - `project.default_branch` and `flow.policy` (kanban or iterations).
    Edit only the keys the human changes. Every other value comes from the engine defaults;

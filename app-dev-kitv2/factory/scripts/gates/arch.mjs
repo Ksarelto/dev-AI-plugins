@@ -2,7 +2,7 @@
 // was reused, cited ADRs exist, and the API contract (when present) is well-formed and traces to ACs.
 import { validate } from "../lib/schemas.mjs";
 
-export const inputs = ["component-map", "adr", "api-contract", "stories", "prd", "delta-spec"];
+export const inputs = ["component-map", "adr", "api-contract", "agent-design", "stories", "prd", "delta-spec"];
 const METHODS = ["get", "put", "post", "patch", "delete", "head", "options"];
 
 export function run(ctx) {
@@ -26,6 +26,9 @@ export function run(ctx) {
     if (c.reuse === "new" && !c.reuse_rejected) fail("reuse", "no-reason", `${c.name} is new but gives no reuse_rejected reason`);
   }
   for (const s of storyIds) if (!owned.has(s)) fail("trace", "story-without-component", `${s} has no component`);
+  // A role with an architect (ai-agent: graph topology, state, tools) owes its design document.
+  const architects = Object.values(ctx.config.roles ?? {}).filter((r) => r?.enabled && ctx.packs?.[r.pack]?.role?.agents?.architect);
+  if (architects.length && !ctx.load("agent-design")) fail("agent-design", "missing", "03-architecture/agent-design.md is missing (an enabled role has an architect)", "03-architecture/agent-design.md");
 
   const adrs = new Map(ctx.all("adr").map((a) => [a.data.id, a]));
   for (const a of adrs.values()) for (const e of validate("adr", a.data)) fail("schema", "adr", e, a.rel);

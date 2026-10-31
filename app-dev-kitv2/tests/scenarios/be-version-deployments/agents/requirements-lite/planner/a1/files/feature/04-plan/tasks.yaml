@@ -1,0 +1,24 @@
+feature: FEAT-001
+tasks:
+  - id: TASK-001
+    role: backend
+    type: endpoint
+    title: Liveness reports the configured service version
+    depends_on: []
+    satisfies: [AC-0001]
+    files_expected: [src/controllers/health.controller.ts, src/container.ts, src/config/env.ts, tests/unit/controllers/health.controller.test.ts]
+    tdd: { mode: required, red_tests: [tests/unit/controllers/health.controller.test.ts], stubs: ["createHealthController(health, lifecycle, _version?: string)"] }
+    reuse: { considered: [src/controllers/health.controller.ts], reuse_rejected: null }
+    definition_of_done: ["live() adds version when configured", "SERVICE_VERSION is an optional env var wired in the container"]
+    size: { files: 4, est_loc: 30 }
+  - id: TASK-002
+    role: backend
+    type: migration
+    title: Deployments table with rollback
+    depends_on: []
+    satisfies: [AC-0002]
+    files_expected: [src/db/schema/deployments.ts, src/db/schema/index.ts, drizzle/0001_deployments.sql, drizzle/meta/_journal.json, drizzle/rollback/0001_deployments.down.sql]
+    tdd: { mode: exempt, reason: "a migration is proven by the migration check and the integration suite" }
+    reuse: { considered: [src/db/schema], reuse_rejected: "no table records deployments" }
+    definition_of_done: ["schema, forward SQL, journal entry and rollback agree"]
+    size: { files: 5, est_loc: 40 }

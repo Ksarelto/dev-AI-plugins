@@ -1,0 +1,16 @@
+feature: FEAT-001
+commits:
+  - task: TASK-001
+    message: |
+      feat(assistant): convert_units tool for km and mi
+
+      Factory-Task: TASK-001
+      Factory-ACs: AC-0001, AC-0002
+    files: [src/agents/assistant/tools/convert-units.ts, src/agents/assistant/tools/index.ts, tests/unit/agents/convert-units.test.ts]
+  - task: TASK-002
+    message: |
+      test(evals): golden cases for unit conversion
+
+      Factory-Task: TASK-002
+      Factory-ACs: AC-0001, AC-0002
+    files: [evals/golden/assistant.json]

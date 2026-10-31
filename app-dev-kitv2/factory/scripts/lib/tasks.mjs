@@ -4,7 +4,7 @@
 //   tdd exempt            → green (role builder, gate impl)
 // Every phase runs through the same Loop Warden ladder; rung 4 asks the planner to split the task.
 import { copyFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
-import { dirname, join, relative } from "node:path";
+import { dirname, join, posix, relative } from "node:path";
 import { fileHash, matchesAny, readYaml, sha, toPosix } from "./core.mjs";
 import { appendEvent } from "./state.mjs";
 import { gateContext, runGate } from "./gatekeeper.mjs";
@@ -13,7 +13,7 @@ import { decide } from "./warden.mjs";
 import { applyMappings } from "./notes.mjs";
 
 const CLOSED = ["done", "parked", "replaced"];
-const DEFAULT_INPUTS = ["prd|delta-spec", "stories?", "ux-notes?", "component-map?", "api-contract?", "tasks", "test-plan"];
+const DEFAULT_INPUTS = ["prd|delta-spec", "stories?", "ux-notes?", "component-map?", "api-contract?", "agent-design?", "tasks", "test-plan"];
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 /** Everything that resets when a task enters a new phase or round. */
 const FRESH = {
@@ -67,6 +67,9 @@ export function syncTasks(state, plan, config) {
 
 const filesHash = (projectDir, files) => sha(files.map((f) => `${f}:${fileHash(join(projectDir, f)) ?? "-"}`).join("\n"));
 
+// Snapshot copies carry a suffix so the project's own tools (eslint ., tsc, test globs) never pick them up.
+const SNAP = ".snapshot";
+
 /** Snapshot of the task's non-test files at gate-red, so a dispute can hand the author a clean red. */
 function snapshot(c, task, red) {
   const dir = join(c.feature.dir, "snapshots", task.id);
@@ -79,7 +82,7 @@ function snapshot(c, task, red) {
       continue;
     }
     mkdirSync(dirname(join(dir, f)), { recursive: true });
-    copyFileSync(src, join(dir, f));
+    copyFileSync(src, join(dir, f + SNAP));
   }
   return absent;
 }
@@ -88,7 +91,7 @@ function restoreSnapshot(c, task, absent = []) {
   const dir = join(c.feature.dir, "snapshots", task.id);
   for (const f of task.files_expected) {
     if (absent.includes(f)) rmSync(join(c.projectDir, f), { force: true });
-    else if (existsSync(join(dir, f))) copyFileSync(join(dir, f), join(c.projectDir, f));
+    else if (existsSync(join(dir, f + SNAP))) copyFileSync(join(dir, f + SNAP), join(c.projectDir, f));
   }
 }
 
@@ -158,12 +161,58 @@ export function taskStep(c, stageId, stage, h) {
     if (parked.length) appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: stageId, parked });
     return { advance: true };
   }
+  // A blocked task keeps the feature blocked until a human acts on it (diagnose --task, split, replay),
+  // even when a parallel task's question was answered in between.
+  const blocked = plan.tasks.find((t) => s.tasks[t.id].status === "blocked");
+  if (blocked) {
+    h.block(c, `${blocked.id}: ${s.tasks[blocked.id].reason ?? "blocked"} — run /factory:diagnose --task ${blocked.id} or /factory:split ${blocked.id}`);
+    return { action: "halt", feature: s.feature, reason: s.halts.at(-1).reason };
+  }
   const isDone = (id) => s.tasks[id]?.status === "done";
-  const task = open.find((t) => t.depends_on.every(isDone));
-  if (!task) {
+  const runnable = open.filter((t) => t.depends_on.every(isDone));
+  if (!runnable.length) {
     const waiting = open.map((t) => `${t.id} ← ${t.depends_on.filter((d) => !isDone(d)).join(",")}`).join("; ");
     return { action: "halt", feature: s.feature, reason: `no runnable task (dependencies blocked): ${waiting}` };
   }
+  const dispatches = [];
+  for (const task of pickTracks(c, runnable)) {
+    const r = taskDispatch(c, stageId, stage, task, h);
+    if (r.action === "halt") return r;
+    // Hooks scope writes by agent type: never two live dispatches of one agent (e.g. two diagnosticians).
+    if (dispatches.some((d) => d.subagent_type === r.subagent_type)) continue;
+    dispatches.push(r);
+  }
+  return h.issue(c, dispatches);
+}
+
+/**
+ * Role tracks: one runnable task per enabled role at a time, run in parallel when the roles live in
+ * different package directories (roles.<role>.path), so their gates never see each other's edits.
+ * A split rewrites tasks.yaml and runs alone; flow.role_tracks: sequential turns tracks off.
+ */
+function pickTracks(c, runnable) {
+  if (c.feature.state.tasks[runnable[0].id].split_pending) return [runnable[0]];
+  if (c.config.flow?.role_tracks === "sequential") return [runnable[0]];
+  const picked = [];
+  const dirs = [];
+  for (const task of runnable) {
+    const dir = rolePath(c.config, task.role);
+    if (picked.some((t) => t.role === task.role) || dirs.some((d) => pathsOverlap(d, dir)) || c.feature.state.tasks[task.id].split_pending) continue;
+    picked.push(task);
+    dirs.push(dir);
+  }
+  return picked;
+}
+
+/** A role's package folder, normalised ("" = the project root). */
+export const rolePath = (config, role) => posix.normalize(String(config.roles?.[role]?.path ?? ".").replaceAll("\\", "/")).replace(/^\.\/?$|\/$/g, "");
+
+/** Folders overlap when one contains the other: the root contains every role's folder. */
+export const pathsOverlap = (a, b) => a === b || a === "" || b === "" || a.startsWith(`${b}/`) || b.startsWith(`${a}/`);
+
+/** One task's next dispatch (red, green, char, split or diagnose), or a halt. */
+function taskDispatch(c, stageId, stage, task, h) {
+  const s = c.feature.state;
   const unit = s.tasks[task.id];
   const role = { name: task.role, ...c.config.roles[task.role] };
   const rolePack = c.packs[role.pack];
@@ -175,33 +224,30 @@ export function taskStep(c, stageId, stage, h) {
   if (unit.split_pending) {
     const planner = plannerTarget(c, h);
     if (!planner?.pack) return { action: "halt", feature: s.feature, reason: `${task.id} needs a split, but no planner is installed` };
-    return h.issue(c, [
-      h.makeDispatch(c, {
-        stageId, idStage: `${stageId}.${task.id}.split`, task, gateTask: null,
-        stage: { outputs: ["tasks", "test-plan"], inputs: ["prd|delta-spec", "tasks", "test-plan", "root-cause?"], context_role: "analysis_roles" },
-        target: planner, phase: "split", attempt: 1, rung: 4, model: planner.model, gate: "plan", feedback: unit.feedback,
-        mission:
-          `Replace ${task.id} in tasks.yaml with 2–3 smaller tasks (new IDs from "Next free IDs", same role) that together satisfy ${task.satisfies.join(", ") || "its purpose"}. ` +
-          `Point every task that depended on ${task.id} at the new tasks, and move test-plan cases that name ${task.id} to the new tasks. ` +
-          `Leave everything else unchanged. Read diagnosis/${task.id}.md first if it exists.`,
-      }),
-    ]);
+    return h.makeDispatch(c, {
+      stageId, idStage: `${stageId}.${task.id}.split`, task, gateTask: null,
+      stage: { outputs: ["tasks", "test-plan"], inputs: ["prd|delta-spec", "tasks", "test-plan", "root-cause?"], context_role: "analysis_roles" },
+      target: planner, phase: "split", attempt: 1, rung: 4, model: planner.model, gate: "plan", feedback: unit.feedback,
+      mission:
+        `Replace ${task.id} in tasks.yaml with 2–3 smaller tasks (new IDs from "Next free IDs", same role) that together satisfy ${task.satisfies.join(", ") || "its purpose"}. ` +
+        `Point every task that depended on ${task.id} at the new tasks, and move test-plan cases that name ${task.id} to the new tasks. ` +
+        `Leave everything else unchanged. Read diagnosis/${task.id}.md first if it exists.`,
+    });
   }
   const phase = unit.phase ?? phasesFor(task)[0];
   if (unit.diagnose_pending) {
     const target = h.engineTarget(c, "diagnostician");
-    return h.issue(c, [
-      h.makeDispatch(c, {
-        stageId, idStage: `${stageId}.${task.id}.${phase}${round > 1 ? round : ""}.diagnose`, task, gateTask: null,
-        stage: { outputs: ["root-cause"], inputs, context_role: "analysis_roles" },
-        target, phase: "diagnose", attempt: unit.attempts, rung: 3, model: target.model, feedback: unit.feedback, gate: null,
-        mission: `Diagnose why ${task.id} (${task.title}) keeps failing its ${phase} gate. Write diagnosis/${task.id}.md. Do not fix anything yourself.`,
-      }),
-    ]);
+    return h.makeDispatch(c, {
+      stageId, idStage: `${stageId}.${task.id}.${phase}${round > 1 ? round : ""}.diagnose`, task, gateTask: null,
+      stage: { outputs: ["root-cause"], inputs, context_role: "analysis_roles" },
+      target, phase: "diagnose", attempt: Math.max(unit.attempts ?? 0, 1), rung: 3, model: target.model, feedback: unit.feedback, gate: null,
+      mission: `Diagnose why ${task.id} (${task.title}) keeps failing its ${phase} gate. Write diagnosis/${task.id}.md. Do not fix anything yourself.`,
+    });
   }
 
-  const slot = phase === "green" ? "builder" : "test_author";
-  const agent = rolePack.role.agents[slot];
+  // A task type may have a specialist builder (migration-author, rag-builder, …); red is always the test author.
+  const slot = phase === "green" ? (rolePack.role.agents.builders?.[task.type] ? `builders.${task.type}` : "builder") : "test_author";
+  const agent = phase === "green" ? (rolePack.role.agents.builders?.[task.type] ?? rolePack.role.agents.builder) : rolePack.role.agents.test_author;
   const model = agent ? h.agentModel(rolePack, agent) : null;
   if (!agent || !h.MODELS.includes(model)) {
     return { action: "halt", feature: s.feature, reason: `${rolePack.name} has no usable ${slot} ("${agent ?? "missing"}", model "${model}")` };
@@ -212,17 +258,15 @@ export function taskStep(c, stageId, stage, h) {
   const writes = { red: task.files_expected, green: task.files_expected.filter((f) => !red.includes(f)), char: tests }[phase];
   Object.assign(unit, { status: phase === "green" ? "green" : "red", phase });
   const rootCause = join(c.feature.dir, "diagnosis", `${task.id}.md`);
-  return h.issue(c, [
-    h.makeDispatch(c, {
-      stageId, idStage: `${stageId}.${task.id}.${phase}${round > 1 ? round : ""}`, task,
-      stage: { outputs: [], inputs, context_role: stage.context_role ?? "execution_roles" },
-      target, phase, attempt: (unit.attempts ?? 0) + 1, rung: unit.rung ?? 0, model: unit.model ?? target.model,
-      feedback: unit.feedback, instruction: unit.instruction, gate: phase === "red" ? rolePack.role.gates.red : rolePack.role.gates.impl,
-      extraWrites: writes, writeDeny: phase === "green" ? red : [],
-      extraReads: (unit.rung ?? 0) >= 3 && existsSync(rootCause) ? [{ label: "Root cause", path: rel(rootCause) }] : [],
-      mission: missionFor(c, task, phase, role),
-    }),
-  ]);
+  return h.makeDispatch(c, {
+    stageId, idStage: `${stageId}.${task.id}.${phase}${round > 1 ? round : ""}`, task,
+    stage: { outputs: [], inputs, context_role: stage.context_role ?? "execution_roles" },
+    target, phase, attempt: (unit.attempts ?? 0) + 1, rung: unit.rung ?? 0, model: unit.model ?? target.model,
+    feedback: unit.feedback, instruction: unit.instruction, gate: phase === "red" ? rolePack.role.gates.red : rolePack.role.gates.impl,
+    extraWrites: writes, writeDeny: phase === "green" ? red : [],
+    extraReads: (unit.rung ?? 0) >= 3 && existsSync(rootCause) ? [{ label: "Root cause", path: rel(rootCause) }] : [],
+    mission: missionFor(c, task, phase, role),
+  });
 }
 
 /** Runs the phase gate for a task envelope. Called outside the state lock: gates can take minutes. */
@@ -306,7 +350,10 @@ export async function finishTask(c, pending, envelope, h, result) {
     stateHash: filesHash(c.projectDir, task.files_expected), tiers: { reasoning: h.reasoningModel(c) },
   });
   Object.assign(unit, verdict.unit, { last_gate: result ? h.summary(result) : null });
-  appendEvent(c.projectDir, { type: "verdict", feature: s.feature, stage: pending.stage, task: task.id, verdict: verdict.verdict, rung: verdict.rung, reason: verdict.reason });
+  appendEvent(c.projectDir, {
+    type: "verdict", feature: s.feature, stage: pending.stage, task: task.id, agent: pending.agent, phase: pending.phase, attempt: unit.attempts,
+    verdict: verdict.verdict, rung: verdict.rung, reason: verdict.reason,
+  });
 
   switch (verdict.verdict) {
     case "advance":
@@ -330,7 +377,7 @@ export async function finishTask(c, pending, envelope, h, result) {
       unit.feedback = result ? h.formatFeedback(result) : null;
       break;
     case "block":
-      unit.status = "blocked";
+      Object.assign(unit, { status: "blocked", reason: verdict.reason });
       h.block(c, `${task.id}: ${verdict.reason}`);
       break;
     case "ask_human": {

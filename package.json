@@ -15,7 +15,7 @@
     "check:factory": "node scripts/check-factory-consistency.mjs",
     "test:factory": "node --test app-dev-kitv2/tests/unit/*.test.mjs",
     "test:factory:e2e": "node --test app-dev-kitv2/tests/e2e/*.test.mjs",
-    "setup:factory-fixtures": "cd app-dev-kitv2/tests/fixtures/fsd-app && pnpm install --frozen-lockfile --ignore-scripts"
+    "setup:factory-fixtures": "cd app-dev-kitv2/tests/fixtures/fsd-app && pnpm install --frozen-lockfile --ignore-scripts && cd ../../../../backend-boilerplate && npm ci --ignore-scripts && cd ../agent-boilerplate && npm ci --ignore-scripts"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

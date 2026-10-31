@@ -46,16 +46,23 @@ export function run(ctx) {
   const satisfied = new Set();
   const limits = ctx.config.quality?.task_limits ?? {};
   const tdd = ctx.config.quality?.tdd ?? {};
+  // A role may allow more files for task types that are several files by nature (a Drizzle migration:
+  // schema, index, SQL, journal, rollback): role.yaml budgets.task_limits.<type>. The project's limit wins.
+  const limitsFor = (t) => {
+    const role = ctx.packs?.[ctx.config.roles?.[t.role]?.pack]?.role;
+    return { ...limits, ...(role?.budgets?.task_limits?.[t.type] ?? {}), ...(ctx.config.quality?.task_limits_by_type?.[t.type] ?? {}) };
+  };
   for (const t of byId.values()) {
     for (const ac of t.satisfies) {
       if (!specAcs.has(ac)) fail("trace", "unknown-ac", `${t.id} satisfies ${ac}, which is not in the spec`);
       satisfied.add(ac);
     }
-    if (limits.files_max && t.files_expected.length > limits.files_max) {
-      fail("size", "too-many-files", `${t.id} touches ${t.files_expected.length} files (max ${limits.files_max})`);
+    const lim = limitsFor(t);
+    if (lim.files_max && t.files_expected.length > lim.files_max) {
+      fail("size", "too-many-files", `${t.id} touches ${t.files_expected.length} files (max ${lim.files_max} for ${t.type})`);
     }
-    if (limits.loc_max && (t.size?.est_loc ?? 0) > limits.loc_max) {
-      fail("size", "too-large", `${t.id} estimates ${t.size.est_loc} LOC (max ${limits.loc_max})`);
+    if (lim.loc_max && (t.size?.est_loc ?? 0) > lim.loc_max) {
+      fail("size", "too-large", `${t.id} estimates ${t.size.est_loc} LOC (max ${lim.loc_max})`);
     }
     const role = ctx.config.roles?.[t.role];
     const types = ctx.packs?.[role?.pack]?.role?.task_types;

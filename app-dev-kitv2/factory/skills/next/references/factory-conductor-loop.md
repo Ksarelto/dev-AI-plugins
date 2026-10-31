@@ -30,7 +30,9 @@ engine, from files, every time you call `step` and `record`.
    - `redispatch`: the envelope was invalid. Dispatch the same agent again with the same prompt
      plus one line: `Your previous reply had an invalid envelope: <reason>`.
    - `continue`: the next iteration is ready.
-   - `ask_human`, `halt`, `done`: as in the table above.
+   - `ask_human`, `halt`, `done`: as in the table above — but **record every result of the batch
+     first**. Parallel dispatches (role tracks, review lenses) each finished real work; an unrecorded
+     one is dispatched again or lost when the human acts. Act on the last non-`continue` result.
 
 ## Rules
 

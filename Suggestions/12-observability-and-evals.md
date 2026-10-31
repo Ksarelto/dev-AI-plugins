@@ -65,7 +65,7 @@ Examples:
 - config naming a stage that no installed pack provides, or a stage input no earlier stage produces → `factory doctor` fails;
 - `SessionStart` with the `compact` matcher → hook output contains the brief state and open notes.
 
-Run on every commit to `factory-core`; fast, free, deterministic.
+Run on every commit to `factory`; fast, free, deterministic.
 
 ### Layer 2 — Discoverability (existing)
 

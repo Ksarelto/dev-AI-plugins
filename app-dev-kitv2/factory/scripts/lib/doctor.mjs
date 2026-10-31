@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { ENGINE_ROOT, factoryPaths, readJson, satisfiesRange, now, writeJson, writeYaml } from "./core.mjs";
 import { enabledRoles, loadConfig } from "./config.mjs";
 import { gateNames } from "./gatekeeper.mjs";
+import { pathsOverlap, rolePath } from "./tasks.mjs";
 import { readPack, registerPack, resolvePacks, scanCandidates, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, parseArtifactRef, validate } from "./schemas.mjs";
 import { ENGINE_PACK, MODELS, resolveAgents, resolveStage } from "./conductor.mjs";
@@ -51,7 +52,9 @@ export function doctor(projectDir, { register } = {}) {
       for (const g of [stage.gate].flat().filter(Boolean)) if (!gates.has(g)) report.push(`stage ${id}: unknown gate "${g}"`);
       for (const [type, agent] of Object.entries(stage.owners ?? {})) {
         if (!(stage.outputs ?? []).some((ref) => ref.replace(/\?$/, "").split("|").includes(type))) report.push(`stage ${id}: owners names "${type}", which is not an output`);
-        if (!(stage.agents ?? []).some((a) => a === agent || a.endsWith(`:${agent}`))) report.push(`stage ${id}: owner "${agent}" is not one of the stage's agents`);
+        // An owner may come from a role slot (role:architect → ai-architect), whether or not that role is enabled.
+        const fromSlot = (a) => a.startsWith("role:") && Object.values(c.packs).some((p) => p.role?.agents?.[a.slice(5)] === agent);
+        if (!(stage.agents ?? []).some((a) => a === agent || a.endsWith(`:${agent}`) || fromSlot(a))) report.push(`stage ${id}: owner "${agent}" is not one of the stage's agents`);
       }
       const goto = /^(?:goto|fix):(.+)$/.exec(stage.on_fail ?? "")?.[1] ?? /^fix:(.+)$/.exec(stage.on_reject ?? "")?.[1];
       if (goto && stages.indexOf(goto) === -1) report.push(`stage ${id}: on_fail target "${goto}" is not in profile ${profile}`);
@@ -93,10 +96,28 @@ export function doctor(projectDir, { register } = {}) {
       continue;
     }
     for (const [slot, agent] of Object.entries(pack.role.agents)) {
-      for (const a of [agent].flat()) if (!pack.agents.includes(a)) errors.push(`role ${role.name}: ${slot} agent "${a}" missing in ${pack.name}`);
+      const named = typeof agent === "string" ? [agent] : Array.isArray(agent) ? agent : Object.values(agent);
+      for (const a of named) if (!pack.agents.includes(a)) errors.push(`role ${role.name}: ${slot} agent "${a}" missing in ${pack.name}`);
+    }
+    for (const type of Object.keys(pack.role.agents.builders ?? {})) {
+      if (!pack.role.task_types.includes(type)) errors.push(`role ${role.name}: builders names "${type}", which is not in task_types`);
+    }
+    for (const check of pack.role.gates.checks ?? []) {
+      if (check.node && !existsSync(join(pack.root, check.node))) errors.push(`role ${role.name}: check ${check.name} script ${check.node} is missing in ${pack.name}`);
+      if (check.command && packs[role.stack]?.stack && !packs[role.stack].stack.commands?.[check.command] && !role.stack_overrides?.commands?.[check.command]) {
+        errors.push(`role ${role.name}: check ${check.name} needs the stack command "${check.command}", which ${role.stack} does not define`);
+      }
     }
     const stack = packs[role.stack];
     if (!stack?.stack) errors.push(`role ${role.name}: stack pack "${role.stack}" with stack.yaml is not installed`);
+    if (role.path && !existsSync(join(projectDir, role.path))) errors.push(`role ${role.name}: its folder roles.${role.name}.path "${role.path}" does not exist (set path: "." for a role at the project root)`);
+  }
+  const roles = enabledRoles(config);
+  for (let i = 0; i < roles.length; i++) {
+    for (const other of roles.slice(i + 1)) {
+      const [a, b] = [rolePath(config, roles[i].name), rolePath(config, other.name)];
+      if (pathsOverlap(a, b)) warnings.push(`roles ${roles[i].name} and ${other.name} share the folder "${a || "."}"${a !== b ? ` / "${b || "."}"` : ""}: their tasks run one at a time (give each role its own roles.<role>.path to run tracks in parallel)`);
+    }
   }
   const adapter = config.delivery?.adapter;
   if (adapter && !packs[adapter]?.adapter) warnings.push(`delivery adapter "${adapter}" is not installed (needed at the delivery stage)`);
@@ -106,7 +127,7 @@ export function doctor(projectDir, { register } = {}) {
   return { ok: errors.length === 0, errors, warnings, packs: packList };
 }
 
-const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
+const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", "features/*/snapshots/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
 
 export function init(projectDir, { mode = "unknown", name, roles } = {}) {
   const paths = factoryPaths(projectDir);

@@ -1,0 +1,4 @@
+- { gate: GATE-A, reject: "SRC-005 says JPY amounts have no decimals — the spec ignores it. Add it for both the API and the web app." }
+- { gate: GATE-A, approve: true }
+- { gate: GATE-B, approve: true }
+- { gate: GATE-C, approve: true }

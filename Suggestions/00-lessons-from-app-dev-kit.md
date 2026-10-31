@@ -43,7 +43,7 @@ flowchart LR
 ## Stop — what made it inefficient
 
 ### 1. A two-level hub that relies on nested spawning
-Skill → opus orchestrator *subagent* → worker subagents. Claude Code subagents cannot reliably spawn further subagents, and every level adds a cold-start context and a packet round-trip. **New design:** one hub, in the main session ([02](02-architecture.md#hub-and-spoke)).
+Skill → opus orchestrator *subagent* → worker subagents. Claude Code subagents can spawn subagents (a few levels deep), but every level adds a cold-start context and a packet round-trip, and a human question has to bounce back up through each level. **New design:** one hub, in the main session ([02](02-architecture.md#hub-and-spoke)).
 
 ### 2. Two orchestrators and three overlapping reviews
 `app-orchestrator-kit` and `frontend-orchestrator-kit` both orchestrate; feature-dev runs `code-reviewer`, then `/code-review`, plus `architecture-auditor`. **New design:** one Conductor; one review stage with distinct lenses and no overlap ([09](09-quality-gates-and-loop-control.md#review-design)).
@@ -52,7 +52,7 @@ Skill → opus orchestrator *subagent* → worker subagents. Claude Code subagen
 Agents of 300–400 lines (`html-orchestrator` 409, `spec-analyst` 403), SKILL.md files of 350–480 lines, and the station order written in SKILL.md, `pipeline-flow.md` *and* the orchestrator prompt. `spec-synthesizer` still loads ~1,650 lines per spawn. **New design:** the pipeline is defined **once, in config**; agents are ≤120 lines; procedures live in skills loaded on demand ([07](07-context-engineering.md)).
 
 ### 4. Copy-pasted runtime
-`write-kit-result.mjs` ×7, `ensure-yaml.sh` ×7, `import-upstream.mjs` ×3, `run-gates.sh` ×3, the "resolve KIT_DIR" block in six skills. **New design:** one `factory-core` runtime; packs never copy core scripts ([10](10-configuration-and-extensibility.md#packaging)).
+`write-kit-result.mjs` ×7, `ensure-yaml.sh` ×7, `import-upstream.mjs` ×3, `run-gates.sh` ×3, the "resolve KIT_DIR" block in six skills. **New design:** one `factory` runtime; packs never copy core scripts ([10](10-configuration-and-extensibility.md#packaging)).
 
 ### 5. Uneven maturity between tracks
 Backend and agent kits still use LLM "interpreter" and "quality-gate-runner" agents that feature-dev already replaced with scripts, and they never commit. **New design:** all role packs implement the same *role contract* and inherit the same gates and delivery ([05](05-agents-and-roles.md#the-role-contract)).

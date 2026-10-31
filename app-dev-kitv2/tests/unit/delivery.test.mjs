@@ -253,7 +253,7 @@ test("ship commits only the planned paths: the user's staged work and task snaps
   env.write("notes.txt", "my unrelated work\n");
   execFileSync("git", ["add", "notes.txt"], { cwd: env.dir });
   mkdirSync(join(env.featureDir, "snapshots", "TASK-002"), { recursive: true });
-  writeFileSync(join(env.featureDir, "snapshots", "TASK-002", "total.ts"), "copy\n");
+  writeFileSync(join(env.featureDir, "snapshots", "TASK-002", "total.ts.snapshot"), "copy\n");
   const d = conductor.step(env.dir).dispatches[0];
   shipPlan(env, plan, pr);
   assert.equal((await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id) })).verdict, "advance");

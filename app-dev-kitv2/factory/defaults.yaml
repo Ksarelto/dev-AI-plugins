@@ -23,12 +23,14 @@ roles:
     enabled: false
     pack: factory-role-backend
     stack: node-backend-dev-kit
+    path: apps/api               # its package folder: commands and gates run here
     owns_paths: ["apps/api/**"]
     boilerplate: { repo: dev-AI-plugins, path: backend-boilerplate, ref: main }
   ai-agent:
     enabled: false
     pack: factory-role-ai-agent
     stack: node-agent-dev-kit
+    path: apps/agents
     owns_paths: ["apps/agents/**"]
     boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }
 
@@ -54,6 +56,7 @@ prototype:
 
 flow:
   policy: kanban               # kanban | iterations
+  role_tracks: parallel        # parallel: one task per role at a time, in parallel when roles have different paths
   kanban: { wip: { verify: 2 } }
   iterations: { length_days: 10, token_budget: 9000000 }
 
@@ -62,11 +65,12 @@ quality:
   axe_critical_max: 0
   review_blocking: [P0, P1]
   task_limits: { files_max: 3, loc_max: 200 }
+  task_limits_by_type: {}      # e.g. { migration: { files_max: 4 } }; wins over a role's budgets.task_limits
   tdd:
     mode: required             # required | off
     author: separate           # separate | builder_two_phase
     pipeline_red: true
-    exempt_types: [characterisation, refactor, config, docs, styling-token, dependency-bump, rename]
+    exempt_types: [characterisation, refactor, config, docs, styling-token, dependency-bump, rename, migration, eval]
   vague_terms: [fast, quick, quickly, easy, easily, intuitive, user-friendly, simple, nice, helpful,
                 clear, good, better, modern, robust, seamless, efficient, appropriate, etc]
 

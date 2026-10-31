@@ -133,6 +133,9 @@ function nextStage(c) {
 
 function block(c, reason) {
   const s = c.feature.state;
+  // A parallel task's open question survives the block: it is asked once the feature runs again.
+  if (s.awaiting_human?.gate === "CLARIFY") s.queued_human = [s.awaiting_human, ...(s.queued_human ?? [])];
+  s.awaiting_human = null;
   s.status = "blocked";
   pauseClock(s);
   s.halts.push({ reason, stage: s.stage, at: now() });
@@ -184,7 +187,10 @@ function issue(c, dispatches) {
       read_deny: front.read_deny,
       read_budget: front.read_allowlist_max + front.listed_reads,
     });
-    appendEvent(c.projectDir, { type: "dispatch", feature: s.feature, stage: d.stage, agent: d.agent, model: d.model ?? undefined, pack: d.pack });
+    appendEvent(c.projectDir, {
+      type: "dispatch", feature: s.feature, stage: d.stage, ...(d.task ? { task: d.task } : {}), agent: d.agent, model: d.model ?? undefined,
+      phase: d.phase, pack: d.pack, context_degraded: Boolean(d.context_degraded),
+    });
   });
   return { action: "dispatch", feature: s.feature, dispatches: dispatches.map((d) => ({ ...d, prompt: promptFor(d, c.projectDir) })) };
 }
@@ -221,6 +227,12 @@ export function step(projectDir, { feature } = {}) {
       return issue(c, [d]);
     }
 
+    if (!s.awaiting_human && s.queued_human?.length) {
+      s.awaiting_human = { ...s.queued_human.shift(), since: now() };
+      s.status = "awaiting_human";
+      pauseClock(s);
+      persist(c);
+    }
     if (s.awaiting_human) {
       const g = s.awaiting_human;
       return { action: "ask_human", feature: s.feature, gate: g.gate, stage: g.stage, reason: g.reason ?? null, questions: g.questions ?? [], review: reviewFiles(c, g.stage), open_notes: openNotes(c.feature.dir).map((n) => n.id) };
@@ -487,7 +499,7 @@ async function finishStageAgent(c, pending, envelope) {
   const reasoning = MODELS.includes(c.config.model_tiers?.reasoning) ? c.config.model_tiers.reasoning : "opus";
   const verdict = decide(st, result, { envelope, attemptsMax: c.config.budgets?.stage?.attempts_max, isTask: false, tiers: { reasoning } });
   Object.assign(st, verdict.unit, { last_gate: result ? summary(result) : null });
-  appendEvent(c.projectDir, { type: "verdict", feature: s.feature, stage: stageId, verdict: verdict.verdict, rung: verdict.rung, reason: verdict.reason });
+  appendEvent(c.projectDir, { type: "verdict", feature: s.feature, stage: stageId, agent: pending.agent, attempt: st.attempts, verdict: verdict.verdict, rung: verdict.rung, reason: verdict.reason });
   applyVerdict(c, stageId, stage, verdict, result, envelope);
   persist(c);
   return { action: s.status === "awaiting_human" ? "ask_human" : s.status === "blocked" ? "halt" : s.status === "done" ? "done" : "continue", feature: s.feature, verdict: verdict.verdict, reason: verdict.reason, gate: result ? summary(result) : null };
@@ -783,8 +795,14 @@ export function setOverride(projectDir, { feature, stage, value }) {
 
 function askHuman(c, { stage, task, reason, questions }) {
   const s = c.feature.state;
+  const ask = { gate: "CLARIFY", stage, ...(task ? { task } : {}), since: now(), reason, questions };
+  // Parallel role tracks: one human question at a time; a second one (or one while blocked) waits.
+  if (s.status === "blocked" || s.awaiting_human) {
+    s.queued_human = [...(s.queued_human ?? []), ask];
+    return;
+  }
   s.status = "awaiting_human";
-  s.awaiting_human = { gate: "CLARIFY", stage, ...(task ? { task } : {}), since: now(), reason, questions };
+  s.awaiting_human = ask;
   pauseClock(s);
 }
 
@@ -833,7 +851,7 @@ export function replay(projectDir, { feature, stage, feedback }) {
     // Replaying the plan or the build rebuilds every task: done tasks would otherwise be skipped.
     if (profile.indexOf(stage) <= profile.indexOf("implementation") || stage === "implementation") s.tasks = {};
     s.stages[stage].entered = true; // a replayed stage runs even when its condition would skip it
-    Object.assign(s, { stage, status: "active", awaiting_human: null, digest: null, fix_pending: null });
+    Object.assign(s, { stage, status: "active", awaiting_human: null, queued_human: [], digest: null, fix_pending: null });
     resumeClock(s);
     appendEvent(projectDir, { type: "advance", feature: s.feature, stage, to: stage, by: "replay" });
     persist(c);

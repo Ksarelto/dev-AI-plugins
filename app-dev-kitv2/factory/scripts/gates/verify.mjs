@@ -20,8 +20,9 @@ export function run(ctx) {
   const acceptance = ctx.all("acceptance-tests").map((a) => a.rel);
   const stacks = enabledStacks(ctx, resolveStack);
   if (!stacks.length) failures.push({ check: "test", rule: "no-stack", message: "no enabled role has an installed stack to run the tests with" });
+  const ran = []; // each role's stack runs in its own folder: "did it run" is judged over all reports
   for (const stack of stacks) {
-    const { run, report } = runTests(ctx, stack, `${ctx.state.feature}-verify`);
+    const { run, report } = runTests(ctx, stack, `${ctx.state.feature}-verify-${stack.role}`);
     if (!report) {
       failures.push({ check: "test", rule: "no-report", message: `the test command wrote no report (exit ${run.code}):\n${run.tail}` });
       continue;
@@ -33,9 +34,12 @@ export function run(ctx) {
         failures.push({ check: kind, rule: kind === "acceptance" ? "acceptance-failing" : "failing", file: f.file, message: `"${t.name}" is ${t.status}: ${firstLine(t.message)}` });
       }
     }
-    for (const file of acceptance) if (!report.files.some((f) => f.file === file)) failures.push({ check: "acceptance", rule: "not-run", file, message: `${file} did not run` });
-    const typecheck = runStackCommand(stack, "typecheck", { logName: `${ctx.state.feature}-verify-typecheck` });
+    ran.push(...report.files.map((f) => f.file));
+    const typecheck = runStackCommand(stack, "typecheck", { logName: `${ctx.state.feature}-verify-${stack.role}-typecheck` });
     if (!typecheck.ok && !typecheck.skipped) failures.push({ check: "typecheck", rule: "typecheck-failed", message: typecheck.tail });
+  }
+  if (stacks.length && failures.every((f) => f.rule !== "no-report")) {
+    for (const file of acceptance) if (!ran.includes(file)) failures.push({ check: "acceptance", rule: "not-run", file, message: `${file} did not run` });
   }
   return failures;
 }

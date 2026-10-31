@@ -1,6 +1,6 @@
 # 05 — Agents, role packs and stack packs
 
-Three kinds of components, separated so each can evolve on its own. All of them plug into the `factory-core` engine through manifests ([10](10-configuration-and-extensibility.md#packaging)):
+Three kinds of components, separated so each can evolve on its own. All of them plug into the `factory` engine through manifests ([10](10-configuration-and-extensibility.md#packaging)):
 
 | Kind | Answers | Example | Changes when |
 |---|---|---|---|
@@ -41,7 +41,7 @@ Kept deliberately small. Split an agent only when you can state a crisp, non-ove
 | `factory-analysis` | intake-normaliser, codebase-analyst, requirements-analyst, story-writer, solution-architect, contract-steward, planner, test-strategist |
 | `factory-quality` | acceptance-test-author, reviewer, qa-engineer |
 | `factory-delivery` | tech-writer, release-manager |
-| `factory-core` | curator (context management, not an SDLC stage) |
+| `factory` | curator (context management, not an SDLC stage) |
 
 None of them orchestrates other agents: only the Conductor dispatches ([02](02-architecture.md#no-sub-orchestrators)).
 

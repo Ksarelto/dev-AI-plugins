@@ -11,7 +11,7 @@ Two problems to solve:
 
 | Layer | Content | Loaded | Owner | Stability |
 |---|---|---|---|---|
-| **Hot** | `CLAUDE.md` constitution (< 150 lines), always-on rules (honesty, security) | every session, automatically | factory-core | very stable |
+| **Hot** | `CLAUDE.md` constitution (< 150 lines), always-on rules (honesty, security) | every session, automatically | factory | very stable |
 | **Warm** | path-scoped stack rules, skills, golden files, `app-profile.yaml`, capability slices, ADR index | when the task touches matching paths / when the pack names them | stack packs, Cartographer | changes with architecture |
 | **Cold** | ADR bodies, ledger history, incident notes, old specs | only on explicit request (rung 3 diagnosis, change requests) | ledger | archival |
 | **Ephemeral** | the context pack: task, ACs, exemplars, feedback | one dispatch | Context Broker | discarded after the task |

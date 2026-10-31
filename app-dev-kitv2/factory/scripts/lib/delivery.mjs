@@ -40,7 +40,8 @@ export function ship(c) {
   // The feature's .factory record, without the task snapshots (copies of source files at red).
   const featureRel = toPosix(relative(cwd, c.feature.dir));
   const artifacts = [featureRel, ".factory/context", ".factory/app-profile.yaml", ".factory/_index", ".factory/ledger"].filter((p) => existsSync(join(cwd, p)));
-  const paths = [...artifacts, `:(exclude)${featureRel}/snapshots`];
+  // A glob exclude: git rejects an exclude that names an ignored folder (.factory/.gitignore lists snapshots).
+  const paths = [...artifacts, ":(exclude,glob)**/*.snapshot"];
   git(cwd, ["add", "--all", "--", ...paths]);
   if (spawnSync("git", ["diff", "--cached", "--quiet", "--", ...paths], { cwd }).status !== 0) {
     git(cwd, ["commit", "--quiet", "-m", `chore(factory): ${s.feature} artifacts\n\nFactory-Feature: ${s.feature}`, "--", ...paths]);

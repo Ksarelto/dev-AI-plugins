@@ -12,7 +12,7 @@
     {
       "name": "base-dev-kit",
       "source": "./base-dev-kit",
-      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation — applicable to any language or stack.",
+      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation \u2014 applicable to any language or stack.",
       "category": "productivity",
       "tags": [
         "clean-code",
@@ -43,7 +43,7 @@
     {
       "name": "node-backend-dev-kit",
       "source": "./node-backend-dev-kit",
-      "description": "Rules, skills, and MCP servers for layered Node.js 22 + Express 5 + TypeScript APIs (routes → controllers → services → repositories): Zod 4, Drizzle on PostgreSQL, JWT + RBAC, RFC 9457 errors, pino, resilience, OpenAPI, Docker, and Vitest + Testcontainers. Reference implementation: backend-boilerplate.",
+      "description": "Rules, skills, and MCP servers for layered Node.js 22 + Express 5 + TypeScript APIs (routes \u2192 controllers \u2192 services \u2192 repositories): Zod 4, Drizzle on PostgreSQL, JWT + RBAC, RFC 9457 errors, pino, resilience, OpenAPI, Docker, and Vitest + Testcontainers. Reference implementation: backend-boilerplate.",
       "category": "productivity",
       "tags": [
         "nodejs",
@@ -82,7 +82,7 @@
     {
       "name": "pptx-dev-kit",
       "source": "./pptx-dev-kit",
-      "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML — design schema, outline, deck.json render, and structural validation.",
+      "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML \u2014 design schema, outline, deck.json render, and structural validation.",
       "category": "productivity",
       "tags": [
         "pptx",
@@ -131,7 +131,7 @@
     {
       "name": "spec-dev-kit",
       "source": "./app-dev-kit/spec-dev-kit",
-      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec — requirements register with coverage, roles, permissions, rules, state machines, and a step-by-step delivery plan with per-slice build briefs — read by html-generator-kit, feature-dev-kit, backend-dev-kit, agent-dev-kit, and both orchestrators.",
+      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec \u2014 requirements register with coverage, roles, permissions, rules, state machines, and a step-by-step delivery plan with per-slice build briefs \u2014 read by html-generator-kit, feature-dev-kit, backend-dev-kit, agent-dev-kit, and both orchestrators.",
       "category": "productivity",
       "tags": [
         "spec",
@@ -222,7 +222,7 @@
     {
       "name": "factory-analysis",
       "source": "./app-dev-kitv2/factory-analysis",
-      "description": "app-dev-kitv2 analysis stages S0–S4: intake, bootstrap or discovery, requirements (PRD or delta-spec), stories, architecture with API contract, and test-first planning. Eight agents from haiku to opus; needs the factory engine.",
+      "description": "app-dev-kitv2 analysis stages S0\u2013S4: intake, bootstrap or discovery, requirements (PRD or delta-spec), stories, architecture with API contract, and test-first planning. Eight agents from haiku to opus; needs the factory engine.",
       "category": "productivity",
       "tags": [
         "factory",
@@ -244,6 +244,34 @@
         "tdd",
         "react",
         "fsd",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-role-backend",
+      "source": "./app-dev-kitv2/factory-role-backend",
+      "description": "app-dev-kitv2 backend role: test author (red), builder (green) and migration author for layered Express 5 + Zod + Drizzle services, with OpenAPI-conformance and migration-rollback checks. Uses node-backend-dev-kit; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "backend",
+        "tdd",
+        "express",
+        "drizzle",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-role-ai-agent",
+      "source": "./app-dev-kitv2/factory-role-ai-agent",
+      "description": "app-dev-kitv2 AI-agent role: architect, test author against a scripted model, LangGraph.js and RAG builders, and an eval author; model-facing tasks pass only with a real eval run. Uses node-agent-dev-kit; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "ai-agent",
+        "langgraph",
+        "rag",
+        "evals",
         "app-dev-kitv2"
       ]
     },

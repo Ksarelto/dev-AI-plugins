@@ -1,0 +1,20 @@
+feature: FEAT-001
+mode: change-request
+summary: Report the service version on liveness and record deployments
+added:
+  - id: REQ-0001
+    text: The liveness endpoint reports the configured service version
+    sources: [SRC-002]
+    priority: must
+    acs:
+      - { id: AC-0001, text: 'With SERVICE_VERSION "1.4.2", GET /health/live answers 200 {"status":"ok","version":"1.4.2"}' }
+  - id: REQ-0002
+    text: Deployments are recorded with their version and go-live time
+    sources: [SRC-003]
+    priority: must
+    acs:
+      - { id: AC-0002, text: "A deployments table stores id, version (text, required) and deployed_at (timestamp, default now), and its rollback drops it" }
+modified: []
+removed: []
+unchanged_guarantees: ['Without SERVICE_VERSION, GET /health/live answers {"status":"ok"}', "Liveness never touches the database"]
+open_questions: []

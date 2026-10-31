@@ -1,0 +1,23 @@
+{
+  "name": "factory-role-backend",
+  "displayName": "Factory role: backend (app-dev-kitv2)",
+  "description": "Backend role pack of the app-dev-kitv2 AI factory: a test author that writes failing Vitest/supertest tests first, a builder that makes them pass in the layered Express 5 + Drizzle stack, a migration author that pairs every migration with a rollback, and an auditor for OpenAPI conformance. Uses node-backend-dev-kit for stack knowledge; needs the factory engine.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "factory",
+    "backend",
+    "tdd",
+    "express",
+    "drizzle",
+    "migrations",
+    "app-dev-kitv2"
+  ],
+  "category": "productivity",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "agents": "./agents/*.md"
+}

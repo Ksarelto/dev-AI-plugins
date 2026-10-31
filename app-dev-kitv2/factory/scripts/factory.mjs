@@ -17,6 +17,7 @@ import { brief, briefMarkdown } from "./lib/brief.mjs";
 import { gateContext, idCoverage, runGate } from "./lib/gatekeeper.mjs";
 import { setNoteStatus } from "./lib/notes.mjs";
 import { appendEvent, createFeature, loadAppState, readEvents, saveAppState, saveFeature, withLock } from "./lib/state.mjs";
+import { metrics, metricsMarkdown } from "./lib/metrics.mjs";
 
 const HELP = `factory <command> [options]
   init [--mode M] [--name N] [--roles frontend,backend]   create .factory/
@@ -43,6 +44,7 @@ const HELP = `factory <command> [options]
   ship                                                    (re)run the commit plan and open the PR (dry-run by default)
   abort --reason "..."                                    stop the feature for good
   events [--limit N]
+  metrics [--md]                                          first-pass rates, escalations, red validity, gates, tokens
 Common: --project <dir> --feature FEAT-NNN`;
 
 function parseArgs(argv) {
@@ -127,7 +129,7 @@ async function main(argv) {
       if (!sub) throw new UsageError("usage: factory gate <name>");
       const c = load(project, feature);
       const task = args.task ? readTask(c, args.task) : undefined;
-      const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task, stack: task ? resolveStack(c, task.role) : undefined });
+      const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task, stack: task ? resolveStack(c, task.role) : undefined, packs: c.packs });
       const results = [];
       for (const name of sub.split(",")) results.push(await runGate(name, ctx, { useCache: !args["no-cache"] }));
       const out = results.length === 1 ? results[0] : { gate: sub, pass: results.every((r) => r.pass), results };
@@ -215,6 +217,10 @@ async function main(argv) {
     }
     case "abort":
       return { out: abort(project, { feature, reason: typeof args.reason === "string" ? args.reason : undefined }) };
+    case "metrics": {
+      const m = metrics(project, { feature });
+      return args.md ? { text: metricsMarkdown(m) } : { out: m };
+    }
     case "events":
       return { out: readEvents(project, { feature, limit: Number(args.limit) || 50 }) };
     case undefined:

@@ -1,0 +1,6 @@
+feature: FEAT-001
+cases:
+  - { id: TEST-0001, ac: AC-0001, level: unit, title: "10 km → 6.21 mi and 5 mi → 8.05 km", task: TASK-001 }
+  - { id: TEST-0002, ac: AC-0002, level: unit, title: "furlongs → supported units message", task: TASK-001 }
+  - { id: TEST-0003, ac: AC-0001, level: eval, title: "the assistant answers a km→mi question with the tool", task: TASK-002 }
+  - { id: TEST-0004, ac: AC-0002, level: eval, title: "the assistant relays the supported units", task: TASK-002 }

@@ -11,7 +11,7 @@ commands:
   architecture_check: { exec: depcruise, args: [src, --config, .dependency-cruiser.cjs] }
   test: { script: "test:unit", args: [--reporter=json, "--outputFile={report}", "{files}"] }
   test_integration: { script: "test:integration" }
-  eval: { script: eval }
+  eval: { script: eval, args: [--reporter=json, "--outputFile={report}"] }   # real models; thresholds live in the suite
   build: { script: build }
 test_report: vitest-json
 test_globs: ["tests/**/*.test.ts"]

@@ -51,6 +51,17 @@
           "items": {
             "type": "string"
           }
+        },
+        "builders": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "task type \u2192 specialist builder agent (green phase); other types use builder"
+        },
+        "architect": {
+          "type": "string",
+          "description": "joins the architecture stage (role:architect) for this role's design"
         }
       }
     },
@@ -72,6 +83,57 @@
           "type": "array",
           "items": {
             "type": "string"
+          }
+        },
+        "checks": {
+          "type": "array",
+          "description": "extra gate-impl steps for this role: a stack command or a node script in the role pack",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "oneOf": [
+              {
+                "required": [
+                  "command"
+                ]
+              },
+              {
+                "required": [
+                  "node"
+                ]
+              }
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "command": {
+                "type": "string",
+                "description": "a stack.yaml command, e.g. eval"
+              },
+              "node": {
+                "type": "string",
+                "description": "a script path relative to the role pack; run in the role's folder with --project <role folder> --files <task files relative to it>"
+              },
+              "task_types": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "only for these task types (default: all)"
+              },
+              "report": {
+                "type": "boolean",
+                "description": "the command writes a Vitest JSON report to {report}; failed tests fail the gate"
+              },
+              "allow_skipped": {
+                "type": "boolean",
+                "description": "skipped tests or an empty report pass (default false); a project can set quality.allow_skipped_checks"
+              }
+            }
           }
         }
       }

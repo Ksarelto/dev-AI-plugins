@@ -1,0 +1,26 @@
+feature: FEAT-001
+mode: change-request
+summary: Show amounts with their currency in the API and the web app
+added:
+  - id: REQ-0001
+    text: The API formats order amounts with their ISO currency code
+    sources: [SRC-002, SRC-004]
+    priority: must
+    acs:
+      - { id: AC-0001, text: 'formatMoney(1234, "EUR") returns "12.34 EUR"' }
+  - id: REQ-0002
+    text: The web app shows prices with the currency symbol of the order
+    sources: [SRC-003, SRC-004]
+    priority: must
+    acs:
+      - { id: AC-0002, text: 'formatPrice(12.34, "EUR") returns "€12.34"' }
+  - id: REQ-0003
+    text: Amounts in Japanese yen are shown without decimals, in the API and in the web app
+    sources: [SRC-005, HD-1]
+    priority: must
+    acs:
+      - { id: AC-0003, text: 'JPY has no decimals: formatMoney(1234, "JPY") returns "1234 JPY" and formatPrice(1234, "JPY") returns "¥1,234"' }
+modified: []
+removed: []
+unchanged_guarantees: ["Amounts are stored in minor units (SRC-006)"]
+open_questions: []

@@ -4,7 +4,7 @@ The concrete steps for each situation. Commands are the `/factory:*` commands fr
 
 ## Before the first run (once per repository)
 
-1. Install the plugins ([10](10-configuration-and-extensibility.md#packaging)): the engine `factory-core`; the stage packs `factory-analysis`, `factory-quality`, `factory-delivery`; the role packs you need (`factory-role-frontend` today); the stack packs (`frontend-dev-kit`, and `node-backend-dev-kit` / `node-agent-dev-kit` when those roles are enabled); and `factory-adapter-github`.
+1. Install the plugins ([10](10-configuration-and-extensibility.md#packaging)): the engine `factory`; the stage packs `factory-analysis`, `factory-quality`, `factory-delivery`; the role packs you need (`factory-role-frontend` today); the stack packs (`frontend-dev-kit`, and `node-backend-dev-kit` / `node-agent-dev-kit` when those roles are enabled); and `factory-adapter-github`.
 2. Create `.factory/factory.config.yaml`: enabled roles, their stacks and `owns_paths`, flow policy, thresholds ([10](10-configuration-and-extensibility.md#factoryconfigyaml)).
 3. Run `factory doctor`: it confirms that every stage, role and stack in the config is installed and compatible.
 4. Make sure `gh auth status` works (delivery opens a draft PR) and the repo's CI runs the same gates ([09](09-quality-gates-and-loop-control.md#hooks-enforcement-summary)).

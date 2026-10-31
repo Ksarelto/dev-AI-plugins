@@ -1,0 +1,2 @@
+summary: Added REQ-0003/AC-0003 for JPY from SRC-005 and HD-1.
+notes_mapped: [{ id: HD-1, to: [REQ-0003, AC-0003] }]

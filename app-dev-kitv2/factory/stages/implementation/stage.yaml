@@ -4,7 +4,7 @@ id: implementation
 title: S5 Implementation (test-first task loop)
 kind: task_loop
 context_role: execution_roles
-inputs: ["prd|delta-spec", stories, tasks, test-plan, component-map?, api-contract?, ux-notes?]
+inputs: ["prd|delta-spec", stories?, tasks, test-plan, component-map?, api-contract?, agent-design?, ux-notes?]
 outputs: []
 gate: null
 requires: { factory: "^0.1" }

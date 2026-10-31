@@ -1,7 +1,7 @@
 # AI Factory — proposal for a hub-and-spoke multi-agent SDLC pipeline
 
-> Status: **proposal / design suggestions** — no implementation yet.
-> Scope of v1: **frontend** tasks. Designed so **backend** and **AI-agent** roles plug in later without changing the orchestrator.
+> Status: **implemented** as [`app-dev-kitv2/`](../app-dev-kitv2/README.md); where the build differs, see [17 — As built](17-as-built.md).
+> Scope: designed frontend-first so **backend** and **AI-agent** roles plug in without changing the orchestrator; all three roles are built.
 > Harness: **Claude Code first**, Cursor best-effort. Intake: **local files**. Delivery: **GitHub PR**.
 
 ## What this is
@@ -73,6 +73,7 @@ flowchart TB
 | 14 | [Risks and open questions](14-risks-and-open-questions.md) | What can go wrong, what is still undecided |
 | 15 | [Walkthrough and estimates](15-walkthrough-and-estimates.md) | One real task through every stage; time, tokens and the optimisation pass |
 | 16 | [Runbook](16-runbook.md) | What to type, step by step: existing app, new app, small fix; stop and resume |
+| 17 | [As built](17-as-built.md) | Where app-dev-kitv2 differs from this design, and what is not built yet |
 
 Short on time? Read **README → 16 → 03 → 15 → 13**.
 

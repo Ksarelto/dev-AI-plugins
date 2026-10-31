@@ -1,0 +1,39 @@
+{
+  "plugin": "factory-role-backend",
+  "source": "./app-dev-kitv2/factory-role-backend",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Write failing backend unit tests and stubs for the endpoint task before it is implemented",
+      "expect": "be-red-tests"
+    },
+    {
+      "prompt": "Characterisation tests that pin the current API status codes and bodies before the change",
+      "expect": "be-red-tests"
+    },
+    {
+      "prompt": "Implement the Express endpoint task until its red tests pass, keeping the layers and composition root",
+      "expect": "be-implement-task"
+    },
+    {
+      "prompt": "Make the backend service and controller green with problem+json errors and Zod validation",
+      "expect": "be-implement-task"
+    },
+    {
+      "prompt": "Author the Drizzle migration with its journal entry and a rollback file",
+      "expect": "migration-authoring"
+    },
+    {
+      "prompt": "Add a new table migration; a DROP COLUMN needs human approval",
+      "expect": "migration-authoring"
+    },
+    {
+      "prompt": "Audit the generated OpenAPI document against the agreed API contract",
+      "expect": "be-audit"
+    },
+    {
+      "prompt": "Run the backend auditor's migration and contract checks on the change set",
+      "expect": "be-audit"
+    }
+  ]
+}

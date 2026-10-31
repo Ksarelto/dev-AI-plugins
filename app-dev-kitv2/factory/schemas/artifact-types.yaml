@@ -24,6 +24,7 @@ prototype-sandbox:  { scope: feature, path: "02b-prototype/sandbox/**", format: 
 component-map:      { scope: feature, path: 03-architecture/component-map.md, format: frontmatter, schema: component-map, ids: [ADR] }
 adr:                { scope: feature, path: "03-architecture/adr-*.md", format: frontmatter, schema: adr, ids: [ADR] }
 api-contract:       { scope: feature, path: 03-architecture/api-contract.yaml, format: yaml, ids: [AC] }
+agent-design:       { scope: feature, path: 03-architecture/agent-design.md, format: markdown, ids: [AC, ADR] }
 tasks:              { scope: feature, path: 04-plan/tasks.yaml, format: yaml, schema: tasks, ids: [AC] }
 test-plan:          { scope: feature, path: 04-plan/test-plan.yaml, format: yaml, schema: test-plan, ids: [AC] }
 human-notes:        { scope: feature, path: human-notes.yaml, format: yaml, schema: human-notes, ids: [HD], producer: engine }

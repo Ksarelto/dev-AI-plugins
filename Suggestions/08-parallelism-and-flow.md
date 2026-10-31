@@ -92,7 +92,7 @@ flowchart TB
 | Mechanism | Purpose |
 |---|---|
 | **Contract first** — `api-contract.yaml` approved at GATE-B | FE codes against generated mocks; BE implements the same contract; neither waits for the other |
-| **One worktree per role track** — `wt/<role>-<feature>` on branch `factory/<feature>/<role>` | file-system isolation; parallel builds and tests don't collide |
+| **One package folder per role track** — `roles.<role>.path` (e.g. `web/`, `api/`); each role's commands and gates run in its folder | parallel builds and tests don't collide. *Designed further:* one worktree per track (`wt/<role>-<feature>`), needed only when roles share a folder — not built; such roles run one at a time |
 | **Disjoint `owns_paths`** per role, hook-enforced | a frontend agent physically cannot write `apps/api/**` |
 | **Shared files are owned by one role or by the contract-steward** | e.g. `packages/api-types/**` generated from the contract, never hand-edited |
 | **Within a track, tasks run sequentially** (or in parallel only when `files_expected` are disjoint and no dependency) | avoids same-file races; the Scheduler checks file overlap |
@@ -104,7 +104,7 @@ flowchart TB
 3. Integration gate: build + full test suite + **contract conformance** (FE calls ⊆ contract; BE responses validate against schemas) + e2e against real adapters.
 4. A conflict is not resolved by an LLM silently: the Loop Warden routes it to the owning role's builder with the conflict hunk as T3 feedback; a second conflict on the same file escalates to the human.
 
-Worktrees are created and removed by `factory-core` scripts, so a crashed run can be resumed (the worktree path is in `state.json`) and cleaned up deterministically.
+As built, every track commits to the one feature branch, so steps 1–2 reduce to "each task passes `gate-impl` in its folder"; the merge order matters only for the worktree design above, where worktrees would be created and removed by the engine's scripts so a crashed run can be resumed (the worktree path in `state.json`) and cleaned up deterministically.
 
 ### Frontend-only phase (v1)
 
@@ -135,4 +135,4 @@ All of these are emitted as multiple Agent calls in **one** Conductor message.
 
 ## Headless parallel runs
 
-For larger backlogs the headless runner can drive **one Conductor process per feature**, each in its own feature worktree, limited by `flow.kanban.wip.build.*`. They share only the backlog and the ledger, which are updated through `factory-core` scripts with file locking — no shared conversation state.
+For larger backlogs the headless runner can drive **one Conductor process per feature**, each in its own feature worktree, limited by `flow.kanban.wip.build.*`. They share only the backlog and the ledger, which are updated through `factory` scripts with file locking — no shared conversation state.

@@ -71,9 +71,9 @@ flowchart LR
 
 | Option | Problem |
 |---|---|
-| Orchestrator as a subagent (today's design) | Subagents cannot reliably spawn subagents; each level adds a cold start and a packet round-trip; the human gate has to bounce back up two levels. |
+| Orchestrator as a subagent (today's design) | Subagents can spawn subagents, but each level adds a cold start and a packet round-trip, and the human gate has to bounce back up two levels. |
 | Agent Teams (peer-to-peer) | Experimental; peer messaging violates hub-and-spoke and makes flow non-auditable. |
-| Sub-orchestrator agents per stage or role (e.g. a "frontend orchestrator" under the Conductor) | Same platform limit: a subagent cannot dispatch builders. And each level keeps its own copy of the order and the state — app-dev-kit's nested `app-orchestrator-kit` → `frontend-orchestrator-kit` ended with the station order in three files ([00](00-lessons-from-app-dev-kit.md)). |
+| Sub-orchestrator agents per stage or role (e.g. a "frontend orchestrator" under the Conductor) | Possible on the platform (nesting works a few levels deep), rejected by design: the human gate and the envelopes would sit one level away from the Conductor, and each level keeps its own copy of the order and the state — app-dev-kit's nested `app-orchestrator-kit` → `frontend-orchestrator-kit` ended with the station order in three files ([00](00-lessons-from-app-dev-kit.md)). |
 | **Conductor in the main session** ✅ | Can spawn subagents (in parallel), can ask the human, sees every envelope, keeps a bounded context because it reads only `state.json`, config and envelopes. |
 
 ### No sub-orchestrators
@@ -85,7 +85,7 @@ Everything a sub-orchestrator would do has a home that keeps **one** stage machi
 | Order of steps inside a stage | the stage's `stage.yaml` ([10](10-configuration-and-extensibility.md#packaging)), executed by the Conductor |
 | Fan-out inside a stage (review lenses, QA charters, auditors) | `parallel: true` in `stage.yaml`; independent dispatches go out in one message |
 | The red → green loop per task | the Scheduler and Loop Warden — scripts, not a model |
-| FE and BE built at the same time (P6) | a **track runner**: the headless runner started per role worktree, running the same engine limited to that track's tasks. Same code and same `state.json` (with file locking), not a new component ([08](08-parallelism-and-flow.md#parallel-role-tracks)) |
+| FE and BE built at the same time (P6) | **role tracks** in the task loop: one ready task per enabled role is dispatched in the same message when the roles live in separate package folders (`roles.<role>.path`). Same engine, same `state.json` (with file locking), not a new component ([08](08-parallelism-and-flow.md#parallel-role-tracks)) |
 
 ### The Conductor's loop (one `/factory:next`)
 
@@ -93,7 +93,7 @@ Everything a sub-orchestrator would do has a home that keeps **one** stage machi
 2. **Select work** — call the Scheduler: next stage, or next ready task from the DAG (respecting WIP limits and dependencies).
 3. **Idempotency check** — if the task's outputs already exist and its gate already passed on the same input hash → mark done, skip.
 4. **Build pack** — call the Context Broker → `.factory/<run>/packs/<id>.pack.md` (budget-stamped).
-5. **Dispatch** — spawn the spoke(s) named by the stage / routed by `task.role`. Independent spokes go in **one message** (parallel). Role tracks that need file isolation spawn with **worktree isolation**.
+5. **Dispatch** — spawn the spoke(s) named by the stage / routed by `task.role`. Independent spokes go in **one message** (parallel). Role tracks are isolated by package folder; one worktree per track is a possible extension ([08](08-parallelism-and-flow.md#how-the-tracks-stay-independent)).
 6. **Collect** envelopes (structured, ≤200 words).
 7. **Gate** — call the Gatekeeper → `{pass, progress_signal, fingerprint}`.
 8. **Verdict** — call the Loop Warden → `advance | retry(rung) | escalate | split | block`.
@@ -148,7 +148,7 @@ Both read and write the same `state.json`, so you can switch at any time.
 | Enforcement | hooks: `PreToolUse`, `PostToolUse`, `SubagentStop`, `SessionStart` | protected paths, path ownership, read budgets, envelope validation; `SessionStart` (incl. after compaction) reloads the brief state |
 | External systems | MCP | context7 (docs), shadcn, Playwright; GitHub via `gh` CLI |
 | Unattended runs | headless `claude -p` | `--output-format json`, `--json-schema` for envelopes, `--max-turns`, `--max-budget-usd` |
-| Packaging | plugins in this marketplace | `factory-core` engine + stage packs + role packs + stack packs + adapters, each plugged in by a manifest, see [10](10-configuration-and-extensibility.md#packaging) |
+| Packaging | plugins in this marketplace | `factory` engine + stage packs + role packs + stack packs + adapters, each plugged in by a manifest, see [10](10-configuration-and-extensibility.md#packaging) |
 
 ## What runs where — a dispatch, end to end
 
