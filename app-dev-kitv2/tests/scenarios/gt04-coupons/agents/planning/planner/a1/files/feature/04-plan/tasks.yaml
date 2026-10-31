@@ -29,8 +29,8 @@ tasks:
     title: CouponField in CheckoutSummary
     depends_on: [TASK-002]
     satisfies: [AC-0001, AC-0002, AC-0004]
-    files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx]
-    tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string; isGuest: boolean }): JSX.Element"] }
+    files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx, src/features/apply-coupon/index.ts]
+    tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { isGuest: boolean; onApply(code): Promise<ApplyResult> }): ReactElement | null"] }
     reuse: { considered: [shared/ui/input], reuse_rejected: "no coupon input exists" }
     definition_of_done: ["Shows the discount or the inline error", "Hidden for guest users", "Shows the loyalty conflict message"]
     size: { files: 2, est_loc: 140 }

@@ -7,7 +7,7 @@ import { TRACKED_KINDS, extractIds, kindOf } from "./ids.mjs";
 import { ARTIFACT_TYPES, artifactFiles, loadArtifact, parseArtifactRef, validate } from "./schemas.mjs";
 
 /** Everything a gate may look at. Gates read through these helpers, never by guessing paths. */
-export function gateContext({ projectDir, app, feature, config, stage, task }) {
+export function gateContext({ projectDir, app, feature, config, stage, task, stack, packs }) {
   const paths = factoryPaths(projectDir);
   const dirs = { factoryRoot: paths.root, featureDir: feature?.dir, projectDir };
   const load = (type) => {
@@ -23,7 +23,7 @@ export function gateContext({ projectDir, app, feature, config, stage, task }) {
     if (delta) return { ...delta, kind: "delta-spec", reqs: [...(delta.data.added ?? []), ...(delta.data.modified ?? [])] };
     return null;
   };
-  return { projectDir, paths, dirs, app, feature, state: feature?.state, config, stage, task, load, all, spec };
+  return { projectDir, paths, dirs, app, feature, state: feature?.state, config, stage, task, stack, packs, load, all, spec };
 }
 
 const gateModules = new Map();

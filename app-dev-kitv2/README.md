@@ -5,7 +5,7 @@ A thin Conductor in the main session dispatches single-purpose agents; they talk
 schema-checked files in `.factory/`, and **scripts, not models, decide pass/fail, retries and when to
 stop.**
 
-Status: **phase 2 of 5 (engine + analysis).** Role, quality, delivery and adapter packs arrive in phases 3–5.
+Status: **phase 3 of 5 (engine, analysis, frontend build loop).** Quality, delivery, the adapter and the backend / AI roles arrive in phases 4–5.
 
 ## Plugins
 
@@ -13,7 +13,7 @@ Status: **phase 2 of 5 (engine + analysis).** Role, quality, delivery and adapte
 |---|---|---|---|
 | Engine | [`factory`](factory/) | ✅ phase 1 | `/factory:*` commands, CLI, schemas, gates, Loop Warden, Context Broker, hooks, `curator`, `diagnostician` |
 | Stage | [`factory-analysis`](factory-analysis/) | ✅ phase 2 | intake → bootstrap/discovery → requirements → stories → architecture → planning; 8 agents, 10 skills, worked-example templates |
-| Role | `factory-role-frontend` | phase 3 | red/green task loop for React FSD |
+| Role | [`factory-role-frontend`](factory-role-frontend/) | ✅ phase 3 | test author (red), builder (green), prototyper; the task loop runs real tests, typecheck, lint, layer rules and build |
 | Stage | `factory-quality`, `factory-delivery` | phase 4 | review, QA, docs, PR |
 | Adapter | `factory-adapter-github` | phase 4 | draft PR (dry-run by default) |
 | Role | `factory-role-backend`, `factory-role-ai-agent` | phase 5 | Express and LangGraph tasks |
@@ -62,7 +62,9 @@ A task that fails twice moves to opus (rung 2). The policy is enforced by
 
 ```bash
 npm run test:factory     # Layer-1 control-plane tests (node:test, no model)
-npm run test:factory:e2e # mocked end-to-end scenarios: real engine, scripted agents (tests/scenarios)
+npm run test:factory:e2e # mocked end-to-end scenarios: real engine, scripted agents (tests/scenarios);
+                         # GT-04 runs S5 on the real stack of tests/fixtures/fsd-app
+npm run setup:factory-fixtures   # once: install the fixture app's dependencies (pnpm, Node 22)
 npm run check:factory    # duplication, wiring, model-policy and drift check
 npm run build:factory    # regenerate the vendored deps bundle and pack hooks
 npm run validate         # includes build:factory --check

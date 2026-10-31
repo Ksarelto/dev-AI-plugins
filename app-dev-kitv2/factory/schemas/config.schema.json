@@ -55,6 +55,10 @@
               "object",
               "null"
             ]
+          },
+          "stack_overrides": {
+            "type": "object",
+            "description": "merged over the stack pack's stack.yaml for this project (package_manager, commands, node_version, \u2026)"
           }
         }
       }

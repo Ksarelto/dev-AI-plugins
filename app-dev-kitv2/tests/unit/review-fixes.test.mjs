@@ -158,19 +158,12 @@ test("#12 a finished feature stops being the default target", () => {
 });
 
 test("#13 an agent with a non-alias model halts the stage cleanly", () => {
-  const env = setup(`packs: { fixture-stages: "${FIXTURE_PACK}" }\npipeline: { stages: { requirements: { agents: ["factory:curator"] } } }`);
-  const curator = join(ENGINE, "agents", "curator.md");
-  const original = readFileSync(curator, "utf8");
-  try {
-    writeFileSync(curator, original.replace("model: haiku", "model: inherit"));
-    const s = step(env.dir);
-    assert.equal(s.action, "halt");
-    assert.match(s.reason, /model "inherit"/);
-    const active = join(env.dir, ".factory", ".active");
-    assert.ok(!existsSync(active) || readdirSync(active).length === 0, "no hook scope for a dispatch that was never issued");
-  } finally {
-    writeFileSync(curator, original);
-  }
+  const env = setup('pipeline: { stages: { requirements: { agents: ["fixture-stages:bad-model"] } } }');
+  const s = step(env.dir);
+  assert.equal(s.action, "halt");
+  assert.match(s.reason, /model "inherit"/);
+  const active = join(env.dir, ".factory", ".active");
+  assert.ok(!existsSync(active) || readdirSync(active).length === 0, "no hook scope for a dispatch that was never issued");
 });
 
 test("#14 a failed curator retries the digest instead of dropping it", async () => {

@@ -1,0 +1,12 @@
+# The role contract (Suggestions/05): who writes tests, who builds, which gates decide, and the task
+# types the planner may route here (gate-plan rejects others). Which types may skip TDD is decided
+# once, in quality.tdd.exempt_types; procedure skills per type come from the stack's stack.yaml.
+name: frontend
+default_stack: frontend-dev-kit
+task_types: [characterisation, entity-model, api-client, query-hook, component, feature-ui, form, page, route, store, i18n, styling-token]
+agents:
+  test_author: fe-test-author
+  builder: fe-builder
+  prototyper: prototyper
+gates: { red: red, impl: impl }
+requires: { factory: "^0.1" }

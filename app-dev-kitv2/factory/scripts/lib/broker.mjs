@@ -49,7 +49,7 @@ export function buildPack(projectDir, featureObj, config, d) {
 
   const engineCli = toPosix(join(ENGINE_ROOT, "scripts", "factory.mjs"));
   const gateCmd = d.gate
-    ? `node ${engineCli} gate ${[d.gate].flat().join(",")} --project ${toPosix(projectDir)} --feature ${s.feature}${d.task ? ` --task ${d.task.id}` : ""}`
+    ? `node ${engineCli} gate ${[d.gate].flat().join(",")} --project ${toPosix(projectDir)} --feature ${s.feature}${d.gateTask ? ` --task ${d.gateTask.id}` : ""}`
     : null;
   const outputs = (d.stage?.outputs ?? []).map((ref) => `  - ${ref}: ${parseArtifactRef(ref).names.map((t) => rel(artifactGlob(t, dirs))).join(" | ")}`);
 

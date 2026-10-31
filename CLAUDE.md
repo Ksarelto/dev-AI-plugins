@@ -26,6 +26,7 @@ app-dev-kit/                      # nested family — marketplace source is ./ap
 app-dev-kitv2/                    # AI factory v2 (Suggestions/ design) — marketplace source is ./app-dev-kitv2/<name>
   factory/                        # engine: /factory:* skills, CLI (scripts/factory.mjs), schemas, gates, hooks
   factory-analysis/               # stage pack S0–S4: 8 agents, 10 skills, templates (also the test fixtures)
+  factory-role-frontend/          # role pack: fe-test-author (red), fe-builder (green), prototyper
   tests/                          # not a plugin: unit tests, e2e harness + scenarios, golden tickets
   consistency-allowlist.yaml      # scheduled later-phase items and deliberate deviations
 backend-boilerplate/              # runnable Express 5 + Postgres starter (not a plugin; node-backend-dev-kit mirrors it)
@@ -109,6 +110,7 @@ only produce artifacts. When you change it:
 
 - `npm run test:factory` — Layer-1 tests (Node 20 and 22). Add a test for every gate rule or warden change.
 - `npm run test:factory:e2e` — mocked scenarios through the real engine; a new stage or gate needs a scenario step.
+  GT-04 runs the S5 task loop on the real stack of `tests/fixtures/fsd-app` (run `npm run setup:factory-fixtures` once; needs Node 22 via nvm).
 - Real-model golden tickets (`tests/golden/run-golden.mjs`) cost money: never run with `--yes` without the user's OK.
 - `npm run check:factory` — duplication, agent/stage wiring, model policy, line limits, unique file names,
   drift from `Suggestions/`. Update `app-dev-kitv2/consistency-allowlist.yaml` when a phase lands.
@@ -130,6 +132,7 @@ npm run install:cursor-local
 | `frontend-dev-kit` | `frontend-dev-kit/` | Rules + Skills + MCP (no agents): React 19 FSD — TypeScript, shadcn/ui, Tailwind, react-query, react-hook-form + zod, react-i18next, Vitest. Required companion of `feature-dev-kit` | `evals/cases/frontend-dev-kit.json` |
 | `node-backend-dev-kit` | `node-backend-dev-kit/` | Rules + Skills + MCP (no agents): layered Node 22 + Express 5 + TS APIs — Zod 4, Drizzle/Postgres, JWT + RBAC, problem+json, pino, resilience, OpenAPI, Docker, Vitest + Testcontainers. Mirrors `backend-boilerplate/` | `evals/cases/node-backend-dev-kit.json` |
 | `node-agent-dev-kit` | `node-agent-dev-kit/` | Rules + Skills + MCP (no agents): LangGraph.js + LangChain.js agent services on the same Express stack — tools, OpenRouter models, Postgres checkpoints, pgvector hybrid RAG, guardrails, SSE, evals. Requires `node-backend-dev-kit`. Mirrors `agent-boilerplate/` | `evals/cases/node-agent-dev-kit.json` |
+| `factory-role-frontend` | `app-dev-kitv2/factory-role-frontend/` | role.yaml + 3 agents + 3 skills: frontend role of the factory — red tests and stubs first, builder makes them green (real Vitest, tsc, ESLint, dependency-cruiser, build), sandboxed prototyper. Uses `frontend-dev-kit` (stack.yaml) | `evals/cases/factory-role-frontend.json`, `factory-role-frontend-agents.json` |
 | `factory-analysis` | `app-dev-kitv2/factory-analysis/` | Stages + 8 agents + 10 skills + templates: factory S0–S4 — intake, bootstrap/discovery, requirements (PRD or delta-spec), stories, architecture + API contract, test-first planning | `evals/cases/factory-analysis.json`, `factory-analysis-agents.json` |
 | `factory` | `app-dev-kitv2/factory/` | Skills + 2 agents + rule + hooks: AI-factory engine — `/factory:*` commands, Conductor step protocol, schemas, gates, Loop Warden, context packs, HD notes. Stage/role packs plug in via manifests (phases 2–5) | `evals/cases/factory.json`, `factory-agents.json` |
 | `pptx-dev-kit` | `pptx-dev-kit/` | Skills + Agents: create a 16:9 `.pptx` via design schema → outline → `deck.json` → checked-in layout renderer; or edit an existing deck via OOXML unpack/replace/pack | `evals/cases/pptx-dev-kit.json`, `pptx-dev-kit-agents.json` |

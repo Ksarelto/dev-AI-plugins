@@ -3,10 +3,7 @@
 # command is neither implemented nor listed here.
 
 later_phase_agents:          # phase that builds them
-  - fe-test-author           # 3 factory-role-frontend
-  - fe-builder               # 3
-  - fe-auditor               # 3
-  - prototyper               # 3
+  - fe-auditor               # 4 (with the verification stage)
   - acceptance-test-author   # 4 factory-quality
   - reviewer                 # 4
   - qa-engineer              # 4
@@ -23,22 +20,17 @@ later_phase_agents:          # phase that builds them
   - ai-test-author           # 5
 
 later_phase_commands:
-  - split                    # 3 (task-level escalation rung 4)
-  - index                    # 3 (Cartographer v1)
   - ship                     # 4 (delivery)
 
 # Artifact types whose producing stage arrives in a later phase.
 pending_artifact_types:
-  - component-inventory     # Cartographer (phase 3)
-  - capability-slice        # Cartographer (phase 3)
-  - prototype-report        # prototype stage (phase 3)
+  - capability-slice        # per-domain slices: Cartographer v2 (phase 5)
   - open-questions          # optional narrative; open questions live in the spec front matter
 
 # Config keys and schema fields that are defined now but first read in a later phase.
 later_phase_keys:
-  - "budgets.task.* and budgets.prototype.* — read by the task loop and the prototype stage (phase 3)"
-  - "prototype.trigger rules — evaluated by factory-role-frontend (phase 3); until then the prototype stage runs only when forced"
-  - "roles.<role>.stack_overrides (package manager, commands) — read by the stack executor (phase 3)"
+  - "budgets.task.wall_clock_min and budgets.prototype.* — hung-agent detection and prototype revision caps (phase 5)"
+  - "flow.kanban.wip and quality.tdd.pipeline_red — parallel role tracks and pipelined red phases (phase 5)"
   - "envelope deviations / follow_up_suggested — read by the reviewer (phase 4)"
 
 deviations:
@@ -52,5 +44,12 @@ deviations:
   - "the diagnosis file is diagnosis/<stage-or-task>.md (Suggestions/09 calls it root-cause.md)"
   - "frontend-dev-kit's docs run scripts with yarn; deps-frontend uses pnpm — stack.yaml names scripts and defaults to pnpm, projects override the package manager"
   - "stage kind `script` dropped until a stage needs it (bootstrap may, in phase 5)"
+  - "the implementation stage manifest ships with the engine: the task loop is engine mechanics, routed by role.yaml"
+  - "the prototype stage ships with factory-analysis and dispatches role:prototyper; it is skipped when no enabled role has a prototyper"
+  - "the prototype trigger is one deterministic rule (new user-facing surfaces >= prototype.min_new_surfaces), not the any/skip_all rule list sketched in Suggestions/03"
+  - "worktrees and the track runner move to phase 5 with parallel role tracks; phase 3 runs tasks in the main checkout, one at a time"
+  - "the builder disputes a red test with a top-level envelope field test_dispute {test, reason} (Suggestions/03 sketches error.type: test_dispute)"
+  - "the prototype is plain HTML in the feature's sandbox (quality-capped, no build); Suggestions/03 leaves the prototype stack open"
+  - "red tests must be new files (gate-plan red-test-exists): extending an existing test file cannot produce a provable red"
   - "acceptance criteria carry their text in the spec ({id, text}); Suggestions/04 lists AC ids only"
   - "context: fork is used on /factory:doctor; failure-analysis needs none because the diagnostician already runs in its own context"

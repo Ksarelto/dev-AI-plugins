@@ -6,8 +6,11 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { UsageError, readYaml } from "./lib/core.mjs";
 import { explainConfig, loadConfig, profileFor, profileStages } from "./lib/config.mjs";
-import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, setOverride, step } from "./lib/conductor.mjs";
+import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, setOverride, split, step } from "./lib/conductor.mjs";
+import { buildIndex } from "./lib/cartographer.mjs";
+import { resolvePacks } from "./lib/registry.mjs";
 import { doctor, init } from "./lib/doctor.mjs";
+import { resolveStack } from "./lib/stackexec.mjs";
 import { intake } from "./lib/intake.mjs";
 import { brief, briefMarkdown } from "./lib/brief.mjs";
 import { gateContext, idCoverage, runGate } from "./lib/gatekeeper.mjs";
@@ -32,7 +35,9 @@ const HELP = `factory <command> [options]
   note "<text>" · note decline HD-n --reason "..." · note done HD-n   human instructions (HD-*)
   override <stage> force|skip|clear                       force or skip an optional stage
   replay <stage> --with "<feedback>"                      re-run an earlier stage with feedback
-  diagnose --stage S                                      jump the stage to escalation rung 3
+  diagnose --stage S | --task T                           jump a stage or task to escalation rung 3
+  split TASK-NNN                                          escalation rung 4: the planner splits the task
+  index                                                   rebuild the component inventory (Cartographer)
   abort --reason "..."                                    stop the feature for good
   events [--limit N]
 Common: --project <dir> --feature FEAT-NNN`;
@@ -119,7 +124,7 @@ async function main(argv) {
       if (!sub) throw new UsageError("usage: factory gate <name>");
       const c = load(project, feature);
       const task = args.task ? readTask(c, args.task) : undefined;
-      const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task });
+      const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task, stack: task ? resolveStack(c, task.role) : undefined });
       const results = [];
       for (const name of sub.split(",")) results.push(await runGate(name, ctx, { useCache: !args["no-cache"] }));
       const out = results.length === 1 ? results[0] : { gate: sub, pass: results.every((r) => r.pass), results };
@@ -167,8 +172,15 @@ async function main(argv) {
     case "replay":
       return { out: replay(project, { feature, stage: sub ?? args.stage, feedback: typeof args.with === "string" ? args.with : undefined }) };
     case "diagnose":
-      if (!(sub ?? args.stage)) throw new UsageError("usage: factory diagnose --stage <stage>");
-      return { out: diagnose(project, { feature, stage: sub ?? args.stage }) };
+      if (!(sub ?? args.stage ?? args.task)) throw new UsageError("usage: factory diagnose --stage <stage> | --task TASK-NNN");
+      return { out: diagnose(project, { feature, stage: sub ?? args.stage, task: typeof args.task === "string" ? args.task : undefined }) };
+    case "split":
+      if (!sub) throw new UsageError("usage: factory split TASK-NNN");
+      return { out: split(project, { feature, task: sub }) };
+    case "index": {
+      const config = loadConfig(project);
+      return { out: buildIndex(project, config, resolvePacks(project, config).packs) };
+    }
     case "abort":
       return { out: abort(project, { feature, reason: typeof args.reason === "string" ? args.reason : undefined }) };
     case "events":

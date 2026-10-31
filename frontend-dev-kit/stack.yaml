@@ -14,6 +14,7 @@ commands:
 test_report: vitest-json
 test_globs: ["src/**/*.test.ts", "src/**/*.test.tsx"]
 skills:
+  test: frontend-dev-kit:testing
   api-client: frontend-dev-kit:api-client
   query-hook: frontend-dev-kit:react-query-hook
   feature-ui: frontend-dev-kit:react-feature

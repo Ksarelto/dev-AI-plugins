@@ -7,8 +7,7 @@ import { UsageError, factoryPaths, now, readJson, writeJson } from "./core.mjs";
 import { nextId } from "./ids.mjs";
 import { validate } from "./schemas.mjs";
 
-// A lock is stale only when its process is gone, or after this long (a crashed holder on another host).
-const LOCK_STALE_MS = 10 * 60_000;
+// A lock is stale only when its holder process is gone: a live holder may legitimately run long.
 
 export function withLock(projectDir, fn) {
   const lock = join(factoryPaths(projectDir).root, ".lock");
@@ -56,9 +55,9 @@ export function withLock(projectDir, fn) {
 
 function lockIsStale(lock) {
   try {
-    const { pid, ts } = JSON.parse(readFileSync(lock, "utf8"));
+    const { pid } = JSON.parse(readFileSync(lock, "utf8"));
     process.kill(pid, 0); // throws ESRCH when the holder is gone
-    return Date.now() - ts > LOCK_STALE_MS;
+    return false;
   } catch (error) {
     return error.code === "ESRCH" || error instanceof SyntaxError;
   }

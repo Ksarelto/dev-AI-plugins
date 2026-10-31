@@ -1,6 +1,8 @@
 // gate-plan (S4): the task DAG is acyclic, every AC is satisfied by a task and covered by a planned
 // test, tasks stay within size limits and their role's owns_paths, test-first is declared, and
 // every human note is mapped or declined before GATE-B.
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { matchesAny } from "../lib/core.mjs";
 import { validate } from "../lib/schemas.mjs";
 
@@ -56,6 +58,8 @@ export function run(ctx) {
       fail("size", "too-large", `${t.id} estimates ${t.size.est_loc} LOC (max ${limits.loc_max})`);
     }
     const role = ctx.config.roles?.[t.role];
+    const types = ctx.packs?.[role?.pack]?.role?.task_types;
+    if (types && !types.includes(t.type)) fail("roles", "unknown-task-type", `${t.id} has type "${t.type}"; role ${t.role} handles ${types.join(", ")}`);
     if (!role) fail("roles", "unknown-role", `${t.id} has role "${t.role}", which is not configured`);
     else if (role.enabled) {
       for (const f of t.files_expected) if (!matchesAny(f, role.owns_paths)) fail("roles", "outside-owns-paths", `${t.id}: ${f} is outside ${t.role} owns_paths`);
@@ -68,6 +72,11 @@ export function run(ctx) {
       } else if (t.tdd.mode === "required") {
         if (!t.tdd.red_tests?.length) fail("tdd", "no-red-tests", `${t.id} requires TDD but lists no red_tests`);
         for (const f of t.tdd.red_tests ?? []) if (!t.files_expected.includes(f)) fail("tdd", "red-test-not-expected", `${t.id}: red test ${f} is not in files_expected`);
+        // A red test is a new file: an existing file's passing tests can never be a valid red.
+        const started = ctx.state?.tasks?.[t.id] && ctx.state.tasks[t.id].status !== "pending";
+        for (const f of started ? [] : (t.tdd.red_tests ?? [])) {
+          if (existsSync(join(ctx.projectDir, f))) fail("tdd", "red-test-exists", `${t.id}: red test ${f} already exists — put the new tests in a new file`);
+        }
       }
     }
   }

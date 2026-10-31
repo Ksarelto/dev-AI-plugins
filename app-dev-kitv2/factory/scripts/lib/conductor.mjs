@@ -9,6 +9,7 @@ import { resolvePacks, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./schemas.mjs";
 import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, setActive, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
+import { backToRed, finishTask, loadTasks, taskGate, taskStep } from "./tasks.mjs";
 import { gateContext, idCoverage, normaliseResult, runGate } from "./gatekeeper.mjs";
 import { RUNG_INSTRUCTIONS, decide, exhaustedBudgets } from "./warden.mjs";
 import { addNote, applyMappings, openNotes, readNotes } from "./notes.mjs";
@@ -74,6 +75,21 @@ const BUILTIN_CONDITIONS = {
     const root = factoryPaths(c.projectDir).root;
     return !existsSync(join(root, "app-profile.yaml")) || !existsSync(join(root, "_index", "capability-map.yaml"));
   },
+  // Prototype when stories name user-facing surfaces the app does not have yet (never for patches).
+  "prototype.trigger": (c) => {
+    if (c.feature.state.tier === "patch") return false;
+    const root = factoryPaths(c.projectDir).root;
+    const storiesFile = join(c.feature.dir, "02-stories", "stories.yaml");
+    if (!existsSync(storiesFile)) return false;
+    const known = new Set();
+    const map = join(root, "_index", "capability-map.yaml");
+    const inventory = join(root, "_index", "component-inventory.yaml");
+    if (existsSync(map)) for (const f of YAML.parse(readText(map))?.features ?? []) known.add(f.name.toLowerCase());
+    if (existsSync(inventory)) for (const comp of YAML.parse(readText(inventory))?.components ?? []) known.add(comp.name.toLowerCase());
+    const surfaces = new Set((YAML.parse(readText(storiesFile))?.stories ?? []).flatMap((s) => s.ux?.surfaces ?? []));
+    const fresh = [...surfaces].filter((name) => !known.has(name.toLowerCase()));
+    return fresh.length >= (c.config.prototype?.min_new_surfaces ?? 1);
+  },
 };
 
 function evalWhen(c, key) {
@@ -116,13 +132,13 @@ function block(c, reason) {
   appendEvent(c.projectDir, { type: "halt", feature: s.feature, stage: s.stage, reason });
 }
 
-function makeDispatch(c, { stageId, stage, target, phase, attempt, rung, model, feedback, instruction, extraReads, extraWrites, mission, gate, laterAgents = [] }) {
+function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung, model, feedback, instruction, extraReads, extraWrites, writeDeny, mission, gate, task, gateTask = task, laterAgents = [] }) {
   const s = c.feature.state;
-  const id = `${s.feature}/${stageId}/${target.agent}/a${attempt}`;
+  const id = `${s.feature}/${idStage ?? stageId}/${target.agent}/a${attempt}`;
   const owners = stage?.owners ?? {};
   const pack = buildPack(c.projectDir, c.feature, c.config, {
     id, stageId, stage, agent: target.agent, subagent_type: target.subagent_type, model, attempt, rung, role: target.role,
-    phase, feedback, instruction, extraReads, extraWrites, mission, gate: gate ?? stage?.gate,
+    phase, feedback, instruction, extraReads, extraWrites, writeDeny, mission, task, gateTask, gate: gate === undefined ? stage?.gate : gate,
     openNotes: phase === "stage" ? openNotes(c.feature.dir).map((n) => n.id) : [],
     // Outputs owned by another agent of the stage are not this agent's to write.
     notMine: Object.entries(owners).filter(([, agent]) => agent !== target.agent).map(([type]) => type),
@@ -130,7 +146,10 @@ function makeDispatch(c, { stageId, stage, target, phase, attempt, rung, model, 
     stacks: stackLines(c),
     nextIds: nextFreeIds(c),
   });
-  return { id, stage: stageId, agent: target.agent, subagent_type: target.subagent_type, pack: pack.rel, model, phase, ts: now(), context_degraded: pack.front.context_degraded };
+  return {
+    id, stage: stageId, agent: target.agent, subagent_type: target.subagent_type, pack: pack.rel, model, phase, ts: now(),
+    ...(task ? { task: task.id } : {}), context_degraded: pack.front.context_degraded,
+  };
 }
 
 function engineTarget(c, agent) {
@@ -218,8 +237,19 @@ export function step(projectDir, { feature } = {}) {
         continue;
       }
       if (stage.kind === "task_loop") {
-        persist(c);
-        return { action: "halt", feature: s.feature, reason: "the implementation task loop needs a role pack (phase 3)" };
+        Object.assign(st, { status: "running", entered: true });
+        const r = taskStep(c, stageId, stage, helpers);
+        if (!r.advance) {
+          if (r.action !== "dispatch") persist(c);
+          return r;
+        }
+        st.status = "passed";
+        nextStage(c);
+        if (s.status === "done") {
+          persist(c);
+          return { action: "done", feature: s.feature, status: "done" };
+        }
+        continue;
       }
       if (st.diagnose_pending) {
         const target = engineTarget(c, "diagnostician");
@@ -236,9 +266,25 @@ export function step(projectDir, { feature } = {}) {
         persist(c);
         return { action: "halt", feature: s.feature, reason: s.halts.at(-1).reason };
       }
+      const targets = resolveAgents(c, stage);
+      const missingRolePack = enabledRoles(c.config).find((r) => !c.packs[r.pack]?.role);
+      if (!targets.length && missingRolePack && (stage.agents ?? []).some((a) => a.startsWith("role:"))) {
+        persist(c);
+        return { action: "halt", feature: s.feature, reason: `role ${missingRolePack.name} is enabled but its pack "${missingRolePack.pack}" is not installed — run: factory doctor` };
+      }
+      if (!targets.length && (stage.agents ?? []).every((a) => a.startsWith("role:"))) {
+        // A role-slot stage (e.g. prototype) with no enabled role providing the slot: nothing to do.
+        st.status = "skipped";
+        st.reason = `no enabled role provides ${stage.agents.join(", ")}`;
+        nextStage(c);
+        if (s.status === "done") {
+          persist(c);
+          return { action: "done", feature: s.feature, status: "done" };
+        }
+        continue;
+      }
       st.status = "running";
       st.entered = true;
-      const targets = resolveAgents(c, stage);
       const missing = targets.filter((t) => !t.pack || !t.model);
       if (!targets.length || missing.length) {
         persist(c);
@@ -310,6 +356,8 @@ export async function record(projectDir, { dispatchId, envelopeText, tokens = 0,
   if (errors.length) {
     return { action: "redispatch", reason: `invalid envelope: ${errors.join("; ")}`, dispatch: { ...pending, prompt: promptFor(pending, projectDir) } };
   }
+  // Task gates run real tests, typecheck and builds: run them before taking the state lock.
+  const taskResult = pending.task ? await taskGate(c, pending, parsed) : null;
 
   return withLock(projectDir, async () => {
     const cur = load(projectDir, feature);
@@ -326,6 +374,7 @@ export async function record(projectDir, { dispatchId, envelopeText, tokens = 0,
     });
 
     if (pending.phase === "digest") return finishDigest(cur, parsed);
+    if (pending.task) return finishTask(cur, pending, parsed, helpers, taskResult);
     if (pending.stage !== st8.stage) {
       persist(cur);
       return { action: "continue", feature: st8.feature, note: `ignored a late envelope from stage "${pending.stage}"; the feature is at "${st8.stage}"` };
@@ -410,7 +459,7 @@ async function finishStageAgent(c, pending, envelope) {
       persist(c);
       return { action: "continue", feature: s.feature, waiting_for: remaining.map((t) => t.subagent_type) };
     }
-    const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, stage });
+    const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, stage, packs: c.packs });
     const gateList = [stage.gate].flat().filter(Boolean);
     const results = [];
     for (const name of gateList) results.push(await runGate(name, ctx));
@@ -512,7 +561,9 @@ export function approve(projectDir, { gate, notes, feature, by }) {
     s.status = "active";
     resumeClock(s);
     const st = s.stages[g.stage];
-    if (g.gate === "CLARIFY") {
+    if (g.gate === "CLARIFY" && g.task) {
+      s.tasks[g.task].feedback = `Human answer${note ? ` (${note.id})` : ""}: ${notes ?? "(no text) — proceed with the defaults you proposed"}`;
+    } else if (g.gate === "CLARIFY") {
       st.status = "pending";
       st.feedback = `Human answer${note ? ` (${note.id})` : ""}: ${notes ?? "(no text) — proceed with the defaults you proposed"}`;
     } else {
@@ -608,7 +659,9 @@ export function reject(projectDir, { gate, reason, feature, by }) {
     s.status = "active";
     resumeClock(s);
     const st = s.stages[g.stage];
-    Object.assign(st, { status: "pending", done_agents: [], feedback: `Rejected at ${g.gate} by a human (${note.id}): ${reason}\nRevise your outputs to address it and map ${note.id} in your artifacts.` });
+    const task = g.task ? loadTasks(c)?.tasks.find((t) => t.id === g.task) : null;
+    if (task) backToRed(c, task, s.tasks[task.id], `A human sent ${task.id} back to its test author (${note.id}): ${reason}`);
+    else Object.assign(st, { status: "pending", done_agents: [], feedback: `Rejected at ${g.gate} by a human (${note.id}): ${reason}\nRevise your outputs to address it and map ${note.id} in your artifacts.` });
     appendEvent(projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "rejected", note: note.id });
     persist(c);
     return { action: "continue", feature: s.feature, gate: g.gate, note: note.id, stage: s.stage };
@@ -635,6 +688,21 @@ export function setOverride(projectDir, { feature, stage, value }) {
     return { feature: s.feature, overrides: s.overrides };
   });
 }
+
+function askHuman(c, { stage, task, reason, questions }) {
+  const s = c.feature.state;
+  s.status = "awaiting_human";
+  s.awaiting_human = { gate: "CLARIFY", stage, ...(task ? { task } : {}), since: now(), reason, questions };
+  pauseClock(s);
+}
+
+const reasoningModel = (c) => (MODELS.includes(c.config.model_tiers?.reasoning) ? c.config.model_tiers.reasoning : "opus");
+
+/** The conductor's internals the task loop (tasks.mjs) uses; passed in to avoid a circular import. */
+const helpers = {
+  makeDispatch, issue, block, persist, engineTarget, resolveAgents, resolveStage, agentModel, featureIds, summary, MODELS,
+  formatFeedback: (r) => formatFeedback(r), reasoningModel, askHuman,
+};
 
 /** Files a human reviews at a stage's gate: the stage outputs that exist. */
 export function reviewFiles(c, stageId) {
@@ -666,6 +734,8 @@ export function replay(projectDir, { feature, stage, feedback }) {
     const to = Math.max(profile.indexOf(s.stage), from);
     for (const id of profile.slice(from, to + 1)) s.stages[id] = { ...s.stages[id], ...FRESH, status: "pending" };
     s.stages[stage].feedback = `Replay requested by a human: ${feedback}`;
+    // Replaying the plan or the build rebuilds every task: done tasks would otherwise be skipped.
+    if (profile.indexOf(stage) <= profile.indexOf("implementation") || stage === "implementation") s.tasks = {};
     s.stages[stage].entered = true; // a replayed stage runs even when its condition would skip it
     Object.assign(s, { stage, status: "active", awaiting_human: null, digest: null });
     resumeClock(s);
@@ -675,19 +745,42 @@ export function replay(projectDir, { feature, stage, feedback }) {
   });
 }
 
-/** Jumps a stage to escalation rung 3; also reopens a blocked feature at that stage. */
-export function diagnose(projectDir, { feature, stage }) {
+/** Jumps a stage — or one task of the implementation loop — to escalation rung 3; reopens a blocked feature. */
+export function diagnose(projectDir, { feature, stage, task }) {
   return withLock(projectDir, () => {
     const c = load(projectDir, feature);
     const s = c.feature.state;
-    if (!s.stages[stage]) throw new UsageError(`unknown stage "${stage}" for ${s.feature}`);
-    clearPending(c);
-    Object.assign(s.stages[stage], { status: "pending", rung: 3, diagnose_pending: true, instruction: RUNG_INSTRUCTIONS[3], done_agents: [] });
+    if (task) {
+      if (!s.tasks[task]) throw new UsageError(`unknown task "${task}" for ${s.feature}`);
+      clearPending(c);
+      Object.assign(s.tasks[task], { status: "pending", rung: 3, diagnose_pending: true, instruction: RUNG_INSTRUCTIONS[3] });
+      stage = s.stage;
+    } else if (!s.stages[stage]) throw new UsageError(`unknown stage "${stage}" for ${s.feature}`);
+    else {
+      clearPending(c);
+      Object.assign(s.stages[stage], { status: "pending", rung: 3, diagnose_pending: true, instruction: RUNG_INSTRUCTIONS[3], done_agents: [] });
+    }
     Object.assign(s, { stage, status: "active", awaiting_human: null });
     resumeClock(s);
     appendEvent(projectDir, { type: "advance", feature: s.feature, stage, to: stage, by: "diagnose" });
     persist(c);
     return { feature: s.feature, status: s.status, stage: s.stage };
+  });
+}
+
+/** Escalation rung 4 for one task: the planner replaces it with 2–3 smaller tasks. */
+export function split(projectDir, { feature, task }) {
+  return withLock(projectDir, () => {
+    const c = load(projectDir, feature);
+    const s = c.feature.state;
+    if (!s.tasks?.[task]) throw new UsageError(`unknown task "${task}" for ${s.feature}`);
+    clearPending(c);
+    Object.assign(s.tasks[task], { status: "pending", rung: 4, split_pending: true });
+    Object.assign(s, { status: "active", awaiting_human: null });
+    resumeClock(s);
+    appendEvent(projectDir, { type: "advance", feature: s.feature, stage: s.stage, task, by: "split" });
+    persist(c);
+    return { feature: s.feature, task, status: "split requested" };
   });
 }
 

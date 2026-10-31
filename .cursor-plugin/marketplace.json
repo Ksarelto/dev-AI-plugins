@@ -232,6 +232,20 @@
         "planning",
         "app-dev-kitv2"
       ]
+    },
+    {
+      "name": "factory-role-frontend",
+      "source": "./app-dev-kitv2/factory-role-frontend",
+      "description": "app-dev-kitv2 frontend role: test author (red), builder (green) and sandboxed prototyper for React Feature-Sliced Design, gated by real test, typecheck, lint and build runs. Uses frontend-dev-kit; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "frontend",
+        "tdd",
+        "react",
+        "fsd",
+        "app-dev-kitv2"
+      ]
     }
   ]
 }

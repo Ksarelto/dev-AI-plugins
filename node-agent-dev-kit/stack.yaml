@@ -16,6 +16,7 @@ commands:
 test_report: vitest-json
 test_globs: ["tests/**/*.test.ts"]
 skills:
+  test: node-agent-dev-kit:agent-evals
   graph: node-agent-dev-kit:langgraph-agent
   state: node-agent-dev-kit:graph-state-design
   tool: node-agent-dev-kit:agent-tools

@@ -114,6 +114,22 @@
     {
       "prompt": "Here is a one-line request, take it in and open a feature",
       "expect": "intake"
+    },
+    {
+      "prompt": "This task is too big and keeps failing, split it into smaller tasks",
+      "expect": "split"
+    },
+    {
+      "prompt": "Replace TASK-007 with two or three smaller tasks",
+      "expect": "split"
+    },
+    {
+      "prompt": "Rebuild the component inventory after the merge",
+      "expect": "index"
+    },
+    {
+      "prompt": "Index the app so planning sees which slices exist",
+      "expect": "index"
     }
   ]
 }

@@ -1,0 +1,11 @@
+id: prototype
+title: S2.5 Prototype (optional)
+kind: agents
+agents: ["role:prototyper"]
+when: prototype.trigger
+context_role: prototype_role
+inputs: [stories, ux-notes?, app-profile?, capability-index?, component-inventory?]
+outputs: [prototype-report, prototype-sandbox]
+gate: proto
+human_gate: GATE-P
+requires: { factory: "^0.1" }

@@ -1,15 +1,17 @@
 id: gt04-coupons
-title: "GT-04 coupons at checkout — change request, analysis half (S0–S4)"
+title: "GT-04 coupons at checkout — change request from intake to the implemented feature (S0–S5) on the real stack"
+repo_from: fsd-app
+stack_kits: [frontend-dev-kit]
 intake: { title: Coupons at checkout }
 config:
-  roles: { frontend: { enabled: true, owns_paths: ["src/**"] } }
+  roles: { frontend: { enabled: true, owns_paths: ["src/**"], stack_overrides: { package_manager: pnpm } } }
   pipeline:
     profile: analysis
-    profiles: { analysis: [intake, discovery, requirements, stories, architecture, planning] }
+    profiles: { analysis: [intake, discovery, requirements, stories, architecture, planning, implementation] }
 expect:
   final_action: done
   final_status: done
-  dispatches_max: 16
+  dispatches_max: 24
   gates: [CLARIFY, GATE-D, GATE-A, GATE-B]
   verdicts:
     - { stage: intake, verdict: ask_human }
@@ -21,6 +23,12 @@ expect:
     - { stage: stories, verdict: advance }
     - { stage: architecture, verdict: advance }
     - { stage: planning, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: retry }
+    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: implementation, task: TASK-003, verdict: advance }
+    - { stage: implementation, task: TASK-003, verdict: advance }
   models:
     intake-normaliser: haiku
     codebase-analyst: sonnet
@@ -31,7 +39,10 @@ expect:
     planner: opus
     test-strategist: sonnet
     curator: haiku
+    fe-test-author: sonnet
+    fe-builder: sonnet
   denied_writes:
     - { agent: requirements-analyst, file: src/features/apply-coupon/hack.ts }
+    - { agent: fe-builder, file: src/entities/order/model/total.test.ts }
   notes: { HD-1: mapped, HD-2: mapped }
   trace: true

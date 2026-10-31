@@ -101,3 +101,38 @@ export function hook(projectDir, event, payload) {
 }
 
 export const readYamlFile = (path) => YAML.parse(readFileSync(path, "utf8"));
+
+// ---- task loop on a fake stack (tests/fixtures/fake-stack.mjs replays .fake/<command>.json) ----
+const ROOT = join(TESTS, "..", "..");
+const FAKE = join(TESTS, "fixtures", "fake-stack.mjs");
+
+/** A Vitest JSON report: { "<abs file>": [[name, status, message?]] | "load-error" }. */
+export const report = (files) => ({
+  numPassedTests: 0, numFailedTests: 0,
+  testResults: Object.entries(files).map(([name, tests]) =>
+    tests === "load-error"
+      ? { name, status: "failed", message: "Error: Failed to resolve import './nope'", assertionResults: [] }
+      : { name, status: tests.some((t) => t[1] === "failed") ? "failed" : "passed", assertionResults: tests.map(([fullName, status, msg]) => ({ fullName, status, failureMessages: msg ? [msg] : [] })) },
+  ),
+});
+
+/** A project at the implementation stage with the template plan, the frontend role and a fake stack. */
+export function loopSetup(extra = "") {
+  const dir = makeProject(
+    [
+      `packs: { factory-role-frontend: "${join(ROOT, "app-dev-kitv2", "factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}", factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}" }`,
+      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
+      "pipeline: { profiles: { test: [planning, implementation] }, stages: { planning: { pack: factory-analysis } } }",
+      extra,
+    ].join("\n"),
+  );
+  const featureDir = makeFeature(dir, { stages: ["implementation"] });
+  putIntake(dir);
+  putArtifact(featureDir, "delta-spec.yaml", "01-requirements/delta-spec.yaml");
+  putArtifact(featureDir, "tasks.yaml", "04-plan/tasks.yaml");
+  putArtifact(featureDir, "test-plan.yaml", "04-plan/test-plan.yaml");
+  mkdirSync(join(dir, ".fake"), { recursive: true });
+  const fake = (command, body) => writeFileSync(join(dir, ".fake", `${command}.json`), JSON.stringify(body));
+  return { dir, featureDir, fake };
+}
+

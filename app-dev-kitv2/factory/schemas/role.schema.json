@@ -19,25 +19,12 @@
       "type": "string"
     },
     "task_types": {
-      "type": "object",
-      "additionalProperties": {
-        "type": "object",
-        "properties": {
-          "skill": {
-            "type": "string"
-          },
-          "golden": {
-            "type": "string"
-          },
-          "tdd": {
-            "enum": [
-              "required",
-              "exempt"
-            ]
-          }
-        },
-        "additionalProperties": false
-      }
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      },
+      "description": "task types the planner may route to this role"
     },
     "agents": {
       "type": "object",

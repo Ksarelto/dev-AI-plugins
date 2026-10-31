@@ -15,6 +15,7 @@ commands:
 test_report: vitest-json
 test_globs: ["tests/**/*.test.ts", "src/**/*.test.ts"]
 skills:
+  test: node-backend-dev-kit:api-testing
   endpoint: node-backend-dev-kit:express-resource
   validation: node-backend-dev-kit:request-validation
   migration: node-backend-dev-kit:drizzle-database

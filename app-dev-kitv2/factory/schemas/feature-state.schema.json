@@ -161,6 +161,8 @@
             "enum": [
               "red",
               "green",
+              "char",
+              "split",
               "stage",
               "digest",
               "diagnose"
@@ -215,6 +217,7 @@
               "done",
               "blocked",
               "parked",
+              "replaced",
               "skipped_idempotent"
             ]
           },

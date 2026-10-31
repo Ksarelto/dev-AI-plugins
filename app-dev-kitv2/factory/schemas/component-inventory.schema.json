@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/component-inventory",
+  "title": "_index/component-inventory.yaml (Cartographer)",
+  "type": "object",
+  "required": [
+    "generated_by",
+    "components"
+  ],
+  "properties": {
+    "generated_by": {
+      "type": "string"
+    },
+    "index_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "generated_at": {
+      "type": "string"
+    },
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "path",
+          "layer"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "layer": {
+            "type": "string"
+          },
+          "slice": {
+            "type": "string"
+          },
+          "exports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "used_by": {
+            "type": "integer"
+          }
+        }
+      }
+    }
+  }
+}

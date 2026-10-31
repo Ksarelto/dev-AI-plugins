@@ -5,7 +5,9 @@
 //
 // Scenario layout (see scenarios/gt04-coupons):
 //   scenario.yaml           title, intake options, config overrides, expectations
-//   repo/                   the application the factory works on (copied into a temp git repo)
+//   repo/                   the application the factory works on (copied into a temp git repo), or
+//   repo_from: <fixture>    in scenario.yaml: a fixture app under tests/fixtures/ (node_modules is linked,
+//                           so the real stack — tests, typecheck, lint, build — runs in the gates)
 //   inbox/                  customer input (copied into .factory/inbox/)
 //   answers.yaml            human answers, in order, for every ask_human
 //   agents/[<FEAT>/]<stage>/<agent>/a<n>/envelope.yaml + files/{feature,factory,project}/…
@@ -13,7 +15,7 @@
 //                           (a feature-specific folder wins over the shared one)
 // A curator with no scripted folder writes an automatic digest listing every open tracked ID.
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,6 +39,7 @@ const guard = await import(join(ENGINE, "hooks", "guard.mjs"));
 const PACKS = readdirSync(FAMILY)
   .filter((n) => existsSync(join(FAMILY, n, ".claude-plugin", "plugin.json")))
   .map((n) => join(FAMILY, n));
+const ROOT = join(FAMILY, "..");
 
 function listTree(dir, base = dir) {
   if (!existsSync(dir)) return [];
@@ -106,10 +109,16 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
   const project = mkdtempSync(join(tmpdir(), `factory-e2e-${scenario.id}-`));
   const run = { scenario: scenario.id, dispatches: [], verdicts: [], denied: [], gates: [], halts: [], schemaErrors: [] };
   try {
-    cpSync(join(scenarioDir, "repo"), project, { recursive: true });
+    if (scenario.repo_from) {
+      const fixture = join(FAMILY, "tests", "fixtures", scenario.repo_from);
+      if (!existsSync(join(fixture, "node_modules"))) throw new Error(`fixture ${scenario.repo_from} has no node_modules — run: npm run setup:factory-fixtures`);
+      cpSync(fixture, project, { recursive: true, filter: (src) => !src.includes(`${scenario.repo_from}/node_modules`) });
+      symlinkSync(join(fixture, "node_modules"), join(project, "node_modules"), "dir");
+    } else cpSync(join(scenarioDir, "repo"), project, { recursive: true });
     execFileSync("git", ["init", "-q"], { cwd: project });
     init(project, { mode: scenario.mode ?? "unknown" });
-    const config = deepMerge({ version: 1, project: { name: scenario.id }, packs: Object.fromEntries(PACKS.map((p) => [p.split(/[\\/]/).pop(), p])) }, scenario.config ?? {});
+    const packs = [...PACKS, ...(scenario.stack_kits ?? []).map((k) => join(ROOT, k))];
+    const config = deepMerge({ version: 1, project: { name: scenario.id }, packs: Object.fromEntries(packs.map((p) => [p.split(/[\\/]/).pop(), p])) }, scenario.config ?? {});
     writeFileSync(join(project, ".factory", "factory.config.yaml"), YAML.stringify(config));
     cpSync(join(scenarioDir, "inbox"), join(project, ".factory", "inbox"), { recursive: true });
     const intook = intake(project, scenario.intake ?? {});
@@ -123,7 +132,7 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
         const featureDir = join(project, ".factory", app.features[s.feature].dir);
         for (const d of s.dispatches) {
           const attempt = Number(d.id.split("/a").pop());
-          const stageKey = d.phase === "digest" ? "digest" : d.stage;
+          const stageKey = d.phase === "digest" ? "digest" : d.task ? join(d.stage, `${d.task}.${d.phase}`) : d.stage;
           const specific = join(scenarioDir, "agents", s.feature, stageKey, d.agent, `a${attempt}`);
           const attemptDir = existsSync(specific) ? specific : join(scenarioDir, "agents", stageKey, d.agent, `a${attempt}`);
           run.dispatches.push({ id: d.id, agent: d.agent, model: d.model, phase: d.phase });
@@ -138,7 +147,7 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
           }
           const envelope = { pack_id: d.id, status: "done", artifacts_written: [], summary: `scripted ${d.agent}`, ...extra };
           const r = await conductor.record(project, { dispatchId: d.id, envelopeText: JSON.stringify(envelope), tokens: extra.tokens ?? 1000 });
-          if (r.verdict) run.verdicts.push({ feature: s.feature, stage: d.stage, verdict: r.verdict, reason: r.reason });
+          if (r.verdict) run.verdicts.push({ feature: s.feature, stage: d.stage, ...(d.task ? { task: d.task } : {}), verdict: r.verdict, reason: r.reason });
           log(`${d.id} [${d.model}] → ${r.verdict ?? r.action}`);
           for (const f of r.gate && !r.gate.pass ? r.gate.failures : []) log(`    gate ${r.gate.gate}: [${f.rule ?? f.check}] ${f.message}`);
         }
@@ -187,7 +196,7 @@ function check(run, expect) {
   if (expect.dispatches_max) add("dispatch budget", run.dispatches.length <= expect.dispatches_max, `${run.dispatches.length} dispatches`);
   if (expect.verdicts) {
     // Exact: an unexpected extra retry is a regression, not noise.
-    const fmt = (v) => `${v.feature ? `${v.feature}/` : ""}${v.stage}:${v.verdict}`;
+    const fmt = (v) => `${v.feature ? `${v.feature}/` : ""}${v.stage}${v.task ? `:${v.task}` : ""}:${v.verdict}`;
     const want = expect.verdicts.map((v) => fmt({ ...v, feature: v.feature ?? run.verdicts[0]?.feature }));
     add("verdict sequence (exact)", JSON.stringify(run.verdicts.map(fmt)) === JSON.stringify(want), run.verdicts.map(fmt).join(" "));
   }

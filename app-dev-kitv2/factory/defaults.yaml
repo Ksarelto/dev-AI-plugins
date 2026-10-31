@@ -44,14 +44,13 @@ pipeline:
     greenfield: [intake, bootstrap, requirements, stories, prototype, architecture, planning,
                  implementation, verification, qa, docs, delivery]
     patch: [intake, requirements-lite, implementation, verification-lite, delivery]
-  stages:                      # project overrides of stage.yaml defaults, key by key
-    prototype: { when: prototype.trigger }
+  stages: {}                   # project overrides of stage.yaml defaults, key by key
   digest_after: [requirements, planning, verification]
 
 prototype:
-  trigger:
-    any: [new_user_facing_surface, net_new_components>=2, stakeholder_alignment==unconfirmed]
-    skip_all: [variation_of_existing_pattern, points<=3]
+  # The prototype stage runs when stories name at least this many user-facing surfaces that the
+  # capability map and component inventory do not know yet (never for the patch tier).
+  min_new_surfaces: 1
 
 flow:
   policy: kanban               # kanban | iterations
