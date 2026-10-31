@@ -1,0 +1,31 @@
+{
+  "plugin": "factory-quality",
+  "source": "./app-dev-kitv2/factory-quality",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Write the acceptance tests from the spec without reading the source code",
+      "expect": "acceptance-test-author"
+    },
+    {
+      "prompt": "Author failing acceptance tests per acceptance criterion before implementation",
+      "expect": "acceptance-test-author"
+    },
+    {
+      "prompt": "Review the feature's change set and report blocking findings",
+      "expect": "reviewer"
+    },
+    {
+      "prompt": "Independent code reviewer for the diff against the spec and ADRs",
+      "expect": "reviewer"
+    },
+    {
+      "prompt": "Black-box QA of the built feature by charters, report defects",
+      "expect": "qa-engineer"
+    },
+    {
+      "prompt": "Exploratory testing of the running app without reading the code",
+      "expect": "qa-engineer"
+    }
+  ]
+}

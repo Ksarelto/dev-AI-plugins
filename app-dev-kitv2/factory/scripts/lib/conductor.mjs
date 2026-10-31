@@ -1,7 +1,7 @@
 // The Conductor protocol. The model in the main session only calls `step`, dispatches what it
 // returns, and passes each envelope to `record`. Everything that decides — stage order, retries,
 // escalation, gates, budgets — happens here, deterministically, from files.
-import { existsSync } from "node:fs";
+import { existsSync, renameSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
 import { UsageError, YAML, deepMerge, factoryPaths, matchesAny, now, readFrontMatter, readText, toPosix, writeAtomic, writeJson, writeYaml } from "./core.mjs";
 import { loadConfig, profileStages, enabledRoles } from "./config.mjs";
@@ -10,6 +10,8 @@ import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./sch
 import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, setActive, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
 import { backToRed, finishTask, loadTasks, taskGate, taskStep } from "./tasks.mjs";
+import { recordInLedger, ship } from "./delivery.mjs";
+import { nextId } from "./ids.mjs";
 import { gateContext, idCoverage, normaliseResult, runGate } from "./gatekeeper.mjs";
 import { RUNG_INSTRUCTIONS, decide, exhaustedBudgets } from "./warden.mjs";
 import { addNote, applyMappings, openNotes, readNotes } from "./notes.mjs";
@@ -75,6 +77,11 @@ const BUILTIN_CONDITIONS = {
     const root = factoryPaths(c.projectDir).root;
     return !existsSync(join(root, "app-profile.yaml")) || !existsSync(join(root, "_index", "capability-map.yaml"));
   },
+  // S9 runs only when PR comments were fetched (/factory:pr-feedback → factory comments).
+  "pr.comments": (c) => {
+    const file = join(c.feature.dir, "08-delivery", "comments.json");
+    return existsSync(file) && (JSON.parse(readText(file)) ?? []).length > 0;
+  },
   // Prototype when stories name user-facing surfaces the app does not have yet (never for patches).
   "prototype.trigger": (c) => {
     if (c.feature.state.tier === "patch") return false;
@@ -114,7 +121,8 @@ function nextStage(c) {
   }
   if (i === profile.length - 1) {
     s.status = "done";
-    appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: s.stage, to: "done" });
+    const entry = recordInLedger(c, loadTasks(c)?.tasks.filter((t) => s.tasks?.[t.id]?.status === "done"));
+    appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: s.stage, to: "done", ledger: entry.status });
     return;
   }
   const to = profile[i + 1];
@@ -139,6 +147,7 @@ function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung
   const pack = buildPack(c.projectDir, c.feature, c.config, {
     id, stageId, stage, agent: target.agent, subagent_type: target.subagent_type, model, attempt, rung, role: target.role,
     phase, feedback, instruction, extraReads, extraWrites, writeDeny, mission, task, gateTask, gate: gate === undefined ? stage?.gate : gate,
+    readDeny: stage?.read_deny ?? [],
     openNotes: phase === "stage" ? openNotes(c.feature.dir).map((n) => n.id) : [],
     // Outputs owned by another agent of the stage are not this agent's to write.
     notMine: Object.entries(owners).filter(([, agent]) => agent !== target.agent).map(([type]) => type),
@@ -254,7 +263,7 @@ export function step(projectDir, { feature } = {}) {
       if (st.diagnose_pending) {
         const target = engineTarget(c, "diagnostician");
         const d = makeDispatch(c, {
-          stageId, stage: { ...stage, outputs: ["root-cause"], writes: [] }, target, phase: "diagnose", attempt: st.attempts, rung: 3,
+          stageId, stage: { ...stage, outputs: ["root-cause"], writes: [] }, target, phase: "diagnose", attempt: attemptNo(st), rung: 3,
           model: target.model, feedback: st.feedback, gate: null,
           mission: `Diagnose why stage "${stageId}" keeps failing. Write diagnosis/${stageId}.md: root cause, evidence, recommended fix, approaches already tried. Do not fix anything yourself.`,
         });
@@ -295,13 +304,15 @@ export function step(projectDir, { feature } = {}) {
         persist(c);
         return { action: "halt", feature: s.feature, reason: `${badModel.subagent_type} declares model "${badModel.model}"; use ${MODELS.join(", ")}` };
       }
+      if ((stage.inputs ?? []).some((ref) => ref.replace(/\?$/, "") === "change-set")) writeChangeSet(c);
+      if (!st.done_agents?.length) st.findings = [];
       const done = new Set(st.done_agents ?? []);
       const todo = targets.filter((t) => !done.has(`${t.agent}@${t.role ?? ""}`));
       const batch = stage.parallel ? todo : todo.slice(0, 1);
       const rootCause = join(c.feature.dir, "diagnosis", `${stageId}.md`);
       const dispatches = batch.map((target) =>
         makeDispatch(c, {
-          stageId, stage, target, phase: "stage", attempt: (st.attempts ?? 0) + 1, rung: st.rung ?? 0,
+          stageId, stage, target, phase: "stage", attempt: attemptNo(st) + 1, rung: st.rung ?? 0,
           laterAgents: stage.parallel ? [] : todo.slice(1).map((t) => t.agent),
           model: st.model ?? target.model, feedback: st.feedback, instruction: st.instruction,
           extraReads: (st.rung ?? 0) >= 3 && existsSync(rootCause) ? [{ label: "Root cause", path: toPosix(relative(projectDir, rootCause)) }] : [],
@@ -374,7 +385,7 @@ export async function record(projectDir, { dispatchId, envelopeText, tokens = 0,
     });
 
     if (pending.phase === "digest") return finishDigest(cur, parsed);
-    if (pending.task) return finishTask(cur, pending, parsed, helpers, taskResult);
+    if (pending.task || pending.phase === "fixplan") return finishTask(cur, pending, parsed, helpers, taskResult);
     if (pending.stage !== st8.stage) {
       persist(cur);
       return { action: "continue", feature: st8.feature, note: `ignored a late envelope from stage "${pending.stage}"; the feature is at "${st8.stage}"` };
@@ -452,6 +463,9 @@ async function finishStageAgent(c, pending, envelope) {
     const mapping = applyMappings(c.feature.dir, envelope.notes_mapped, featureIds(c));
     appendEvent(c.projectDir, { type: "note", feature: s.feature, stage: stageId, mapped: mapping.applied, ignored: mapping.ignored });
   }
+  if (envelope.findings?.length) {
+    st.findings = [...(st.findings ?? []), ...envelope.findings.map((f) => ({ ...f, id: f.id ?? nextId(c.app.next_ids, "RV"), agent: pending.agent }))];
+  }
   let result = null;
   if (envelope.status === "done") {
     const remaining = resolveAgents(c, stage).filter((t) => !st.done_agents.includes(`${t.agent}@${t.role ?? ""}`));
@@ -459,6 +473,7 @@ async function finishStageAgent(c, pending, envelope) {
       persist(c);
       return { action: "continue", feature: s.feature, waiting_for: remaining.map((t) => t.subagent_type) };
     }
+    if ((stage.outputs ?? []).includes("review")) writeReview(c, st);
     const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, stage, packs: c.packs });
     const gateList = [stage.gate].flat().filter(Boolean);
     const results = [];
@@ -488,6 +503,27 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
       st.instruction = null;
       st.model = null;
       if ((c.config.pipeline?.digest_after ?? []).includes(stageId)) s.digest = { pending: true, after: stageId, attempts: 0 };
+      if (stage.after_pass === "ship") {
+        try {
+          const shipped = ship(c);
+          if (c.config.delivery?.dry_run === false && !shipped.pr.opened) {
+            block(c, `${stageId}: committed on ${shipped.branch}, but the pull request was not opened — ${shipped.pr.failed ?? shipped.pr.reason ?? ""}\n${shipped.pr.output ?? ""}`.trim());
+            return;
+          }
+          appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: stageId, shipped: shipped.branch, commits: shipped.commits.length, pr: shipped.pr.dry_run ? "dry-run" : shipped.pr.opened });
+        } catch (error) {
+          block(c, `${stageId}: shipping failed — ${error.message.split("\n")[0]}`);
+          return;
+        }
+      }
+      if (stage.after_pass === "triage_fixes") {
+        const changes = (gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config }).load("triage")?.data.comments ?? []).filter((x) => x.class === "change");
+        archiveComments(c);
+        if (changes.length) {
+          const target = /^fix:(.+)$/.exec(stage.on_fail ?? "")?.[1] ?? "implementation";
+          return requestFixes(c, stageId, target, changes.map((x) => ({ check: "pr-comment", rule: String(x.id), file: x.file, message: x.summary ?? "" })));
+        }
+      }
       if (stage.human_gate) {
         s.status = "awaiting_human";
         s.awaiting_human = { gate: stage.human_gate, stage: stageId, since: now() };
@@ -508,8 +544,11 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
         return;
       }
       const goto = /^goto:(.+)$/.exec(stage.on_fail ?? "")?.[1];
+      const fix = /^fix:(.+)$/.exec(stage.on_fail ?? "")?.[1];
+      st.findings = [];
       // Only a real gate failure sends the feature back; transient or envelope-only failures retry in place.
       if (goto && verdict.verdict === "retry" && result && !result.pass) return regress(c, stageId, goto, st.feedback);
+      if (fix && verdict.verdict === "retry" && result && !result.pass) return requestFixes(c, stageId, fix, result.failures);
       st.status = "pending";
       return;
     }
@@ -528,24 +567,74 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
   }
 }
 
-/** Backward edge (on_fail: goto:<stage>): rewinds to an earlier stage, counted against the regression budget. */
+/** Writes 06-verify/review.md from the findings the stage's reviewers and auditors returned. */
+function writeReview(c, st) {
+  const s = c.feature.state;
+  const findings = st.findings ?? [];
+  const front = { feature: s.feature, round: (st.attempts ?? 0) + 1, findings };
+  const lines = findings.map((f) => `- **${f.id} ${f.severity}** (${f.lens ?? "audit"}, ${f.agent}) ${f.file ? `\`${f.file}${f.line ? `:${f.line}` : ""}\` ` : ""}— ${f.claim}`);
+  writeAtomic(join(c.feature.dir, "06-verify", "review.md"), `---\n${YAML.stringify(front, { lineWidth: 0 })}---\n\n# Review — ${s.feature} round ${front.round}\n\n${lines.join("\n") || "No findings."}\n`);
+}
+
+/** Writes 06-verify/change-set.yaml: the files each finished task changed (input for reviewers). */
+function writeChangeSet(c) {
+  const s = c.feature.state;
+  const tasks = (loadTasks(c)?.tasks ?? []).filter((t) => s.tasks?.[t.id]?.status === "done");
+  writeYaml(join(c.feature.dir, "06-verify", "change-set.yaml"), {
+    feature: s.feature,
+    tasks: tasks.map((t) => ({ id: t.id, title: t.title, satisfies: t.satisfies, files: t.files_expected })),
+  });
+}
+
+/**
+ * The fix loop for verification, QA and PR review: the failures become fix items, the feature goes back
+ * to `to` (the implementation stage), and the task loop has the planner add fix tasks for them first.
+ */
+function requestFixes(c, from, to, items) {
+  const s = c.feature.state;
+  if (!regress(c, from, to, `Fix items from ${from} — the planner adds fix tasks for them first.`)) return;
+  s.fix_pending = {
+    source: from,
+    items: items.slice(0, 30).map((f) => ({ check: f.check, rule: f.rule ?? null, file: f.file ?? null, message: f.message })),
+    attempts: 0,
+  };
+}
+
+/** Moves fetched PR comments aside once triaged, so S9 runs again only when new comments arrive. */
+function archiveComments(c) {
+  const dir = join(c.feature.dir, "08-delivery");
+  const file = join(dir, "comments.json");
+  if (!existsSync(file)) return;
+  let n = 1;
+  while (existsSync(join(dir, `comments-handled-${n}.json`))) n++;
+  renameSync(file, join(dir, `comments-handled-${n}.json`));
+}
+
+/**
+ * Backward edge (on_fail: goto:/fix:): rewinds to an earlier stage, counted against the regression budget.
+ * The stages in between start fresh — escalation, findings and conditions — so a fix round is judged on
+ * its own; the edge budget is what stops a loop. Returns false when the feature blocked instead.
+ */
 function regress(c, from, to, feedback) {
   const s = c.feature.state;
   const profile = profileStages(c.config, s.profile);
+  if (!profile.includes(to)) {
+    block(c, `${from}: the gate failed and on_fail sends it to "${to}", which is not in the "${s.profile}" profile`);
+    return false;
+  }
   const edge = `${from}_to_${to}`;
   const limit = c.config.budgets?.backward_edges?.[edge];
   s.budgets.edges = { ...(s.budgets.edges ?? {}), [edge]: (s.budgets.edges?.[edge] ?? 0) + 1 };
   if (limit !== undefined && s.budgets.edges[edge] > limit) {
     block(c, `backward edge ${edge} used more than ${limit} time(s)`);
-    return;
+    return false;
   }
   s.budgets.regressions += 1;
-  for (const id of profile.slice(profile.indexOf(to), profile.indexOf(from) + 1)) {
-    s.stages[id] = { ...s.stages[id], status: "pending", done_agents: [] };
-  }
+  for (const id of profile.slice(profile.indexOf(to), profile.indexOf(from) + 1)) s.stages[id] = freshStage(s.stages[id]);
   s.stages[to].feedback = `Sent back from ${from}:\n${feedback}`;
   s.stage = to;
   appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: from, to, backward: true });
+  return true;
 }
 
 export function approve(projectDir, { gate, notes, feature, by }) {
@@ -660,7 +749,10 @@ export function reject(projectDir, { gate, reason, feature, by }) {
     resumeClock(s);
     const st = s.stages[g.stage];
     const task = g.task ? loadTasks(c)?.tasks.find((t) => t.id === g.task) : null;
-    if (task) backToRed(c, task, s.tasks[task.id], `A human sent ${task.id} back to its test author (${note.id}): ${reason}`);
+    const gateStage = resolveStage(c, g.stage);
+    const fixTarget = g.gate === gateStage?.human_gate ? /^fix:(.+)$/.exec(gateStage?.on_reject ?? "")?.[1] : null;
+    if (!task && fixTarget) requestFixes(c, g.stage, fixTarget, [{ check: "human-review", rule: g.gate, message: `${note.id}: ${reason}` }]);
+    else if (task) backToRed(c, task, s.tasks[task.id], `A human sent ${task.id} back to its test author (${note.id}): ${reason}`);
     else Object.assign(st, { status: "pending", done_agents: [], feedback: `Rejected at ${g.gate} by a human (${note.id}): ${reason}\nRevise your outputs to address it and map ${note.id} in your artifacts.` });
     appendEvent(projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "rejected", note: note.id });
     persist(c);
@@ -719,7 +811,11 @@ function clearPending(c) {
   c.feature.state.pending = [];
 }
 
-const FRESH = { attempts: 0, rung: 0, dispatches: 0, progress_signal: [], fingerprints: [], state_hashes: [], feedback: null, instruction: null, model: null, diagnose_pending: false, done_agents: [], entered: false };
+const FRESH = { attempts: 0, rung: 0, dispatches: 0, progress_signal: [], fingerprints: [], state_hashes: [], feedback: null, instruction: null, model: null, diagnose_pending: false, done_agents: [], entered: false, findings: [] };
+
+/** Dispatch ids count every attempt a stage ever had, so a fresh round never reuses an envelope's id. */
+const attemptNo = (st) => (st.prior_attempts ?? 0) + (st.attempts ?? 0);
+const freshStage = (st = {}) => ({ ...st, ...FRESH, prior_attempts: attemptNo(st), status: "pending" });
 
 /** Human-requested re-run of an earlier stage: it and every later stage start fresh. */
 export function replay(projectDir, { feature, stage, feedback }) {
@@ -732,12 +828,12 @@ export function replay(projectDir, { feature, stage, feedback }) {
     clearPending(c);
     const from = profile.indexOf(stage);
     const to = Math.max(profile.indexOf(s.stage), from);
-    for (const id of profile.slice(from, to + 1)) s.stages[id] = { ...s.stages[id], ...FRESH, status: "pending" };
+    for (const id of profile.slice(from, to + 1)) s.stages[id] = freshStage(s.stages[id]);
     s.stages[stage].feedback = `Replay requested by a human: ${feedback}`;
     // Replaying the plan or the build rebuilds every task: done tasks would otherwise be skipped.
     if (profile.indexOf(stage) <= profile.indexOf("implementation") || stage === "implementation") s.tasks = {};
     s.stages[stage].entered = true; // a replayed stage runs even when its condition would skip it
-    Object.assign(s, { stage, status: "active", awaiting_human: null, digest: null });
+    Object.assign(s, { stage, status: "active", awaiting_human: null, digest: null, fix_pending: null });
     resumeClock(s);
     appendEvent(projectDir, { type: "advance", feature: s.feature, stage, to: stage, by: "replay" });
     persist(c);
@@ -759,6 +855,7 @@ export function diagnose(projectDir, { feature, stage, task }) {
     else {
       clearPending(c);
       Object.assign(s.stages[stage], { status: "pending", rung: 3, diagnose_pending: true, instruction: RUNG_INSTRUCTIONS[3], done_agents: [] });
+      if (s.fix_pending) s.fix_pending.attempts = 0; // a blocked fix plan gets another try
     }
     Object.assign(s, { stage, status: "active", awaiting_human: null });
     resumeClock(s);

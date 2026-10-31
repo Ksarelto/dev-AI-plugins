@@ -11,6 +11,8 @@
     "app-dev-kit/feature-dev-kit",
     "app-dev-kitv2/factory",
     "app-dev-kitv2/factory-analysis",
-    "app-dev-kitv2/factory-role-frontend"
+    "app-dev-kitv2/factory-role-frontend",
+    "app-dev-kitv2/factory-quality",
+    "app-dev-kitv2/factory-delivery"
   ]
 }

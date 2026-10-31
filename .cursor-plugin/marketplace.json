@@ -246,6 +246,45 @@
         "fsd",
         "app-dev-kitv2"
       ]
+    },
+    {
+      "name": "factory-quality",
+      "source": "./app-dev-kitv2/factory-quality",
+      "description": "app-dev-kitv2 quality stages: acceptance tests from the spec before implementation, a seven-lens review with role auditors, and black-box QA by charters; failures become planner-made fix tasks. Needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "review",
+        "qa",
+        "acceptance-tests",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-delivery",
+      "source": "./app-dev-kitv2/factory-delivery",
+      "description": "app-dev-kitv2 delivery stages: living feature docs, a commit plan with task trailers and a PR body with a spec trace (shipped by the engine), and PR comment triage. Needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "docs",
+        "pull-request",
+        "changelog",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-adapter-github",
+      "source": "./app-dev-kitv2/factory-adapter-github",
+      "description": "app-dev-kitv2 GitHub adapter: push, draft PR and review comments via the gh CLI; dry-run by default. Needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "github",
+        "gh",
+        "adapter",
+        "app-dev-kitv2"
+      ]
     }
   ]
 }

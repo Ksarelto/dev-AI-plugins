@@ -1,6 +1,6 @@
 ---
 name: replay
-description: "Re-run an earlier factory stage (requirements, stories, architecture, planning) with human feedback, resetting the stages after it. Use for /factory:replay when an approved artifact needs rework."
+description: "Re-run an earlier factory stage (requirements, stories, architecture, planning) — send it back for rework with human feedback, resetting the stages after it. Use for /factory:replay when an approved artifact needs rework."
 argument-hint: "<stage> \"<feedback>\" [--feature FEAT-NNN]"
 disable-model-invocation: true
 allowed-tools: Bash(node:*)

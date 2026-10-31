@@ -3,12 +3,6 @@
 # command is neither implemented nor listed here.
 
 later_phase_agents:          # phase that builds them
-  - fe-auditor               # 4 (with the verification stage)
-  - acceptance-test-author   # 4 factory-quality
-  - reviewer                 # 4
-  - qa-engineer              # 4
-  - tech-writer              # 4 factory-delivery
-  - release-manager          # 4
   - be-test-author           # 5 factory-role-backend
   - be-builder               # 5
   - migration-author         # 5
@@ -20,7 +14,6 @@ later_phase_agents:          # phase that builds them
   - ai-test-author           # 5
 
 later_phase_commands:
-  - ship                     # 4 (delivery)
 
 # Artifact types whose producing stage arrives in a later phase.
 pending_artifact_types:
@@ -31,7 +24,8 @@ pending_artifact_types:
 later_phase_keys:
   - "budgets.task.wall_clock_min and budgets.prototype.* — hung-agent detection and prototype revision caps (phase 5)"
   - "flow.kanban.wip and quality.tdd.pipeline_red — parallel role tracks and pipelined red phases (phase 5)"
-  - "envelope deviations / follow_up_suggested — read by the reviewer (phase 4)"
+  - "envelope deviations / follow_up_suggested — kept in envelopes/ for humans; no stage reads them yet"
+  - "coverage of changed lines (quality.coverage_changed_lines_min) and axe a11y (quality.axe_critical_max) — need stack coverage/a11y commands; not gated yet"
 
 deviations:
   - "engine plugin is named `factory` (commands /factory:*), not `factory-core`"
@@ -51,5 +45,9 @@ deviations:
   - "the builder disputes a red test with a top-level envelope field test_dispute {test, reason} (Suggestions/03 sketches error.type: test_dispute)"
   - "the prototype is plain HTML in the feature's sandbox (quality-capped, no build); Suggestions/03 leaves the prototype stack open"
   - "red tests must be new files (gate-plan red-test-exists): extending an existing test file cannot produce a provable red"
+  - "acceptance tests are their own stage (acceptance) between planning and implementation, written from the spec with src/ unreadable; task gates ignore *.acceptance.test.* files until verification"
+  - "verification, QA and PR review share one fix loop (on_fail/on_reject fix:implementation): failures become fix items and the planner turns them into tasks; QA and the reviewer never create tasks"
+  - "the engine, not an agent, runs git and the adapter (after_pass: ship); the release manager only writes the commit plan and the PR body"
+  - "S9 feedback is a stage (feedback) that runs when PR comments were fetched (factory comments --file), using the release-manager agent's triage skill"
   - "acceptance criteria carry their text in the spec ({id, text}); Suggestions/04 lists AC ids only"
   - "context: fork is used on /factory:doctor; failure-analysis needs none because the diagnostician already runs in its own context"

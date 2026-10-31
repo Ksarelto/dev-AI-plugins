@@ -123,12 +123,35 @@ function missionFor(c, task, phase, role) {
   ].join("\n");
 }
 
+/** The planner is whoever owns tasks.yaml in the planning stage (owners), else its first agent. */
+function plannerTarget(c, h) {
+  const planning = h.resolveStage(c, "planning") ?? { agents: [] };
+  const agents = h.resolveAgents(c, planning);
+  return agents.find((t) => t.agent === planning.owners?.tasks) ?? agents[0];
+}
+
 /** The next dispatch of the task loop, or { advance: true } when every task is closed. */
 export function taskStep(c, stageId, stage, h) {
   const s = c.feature.state;
   const plan = loadTasks(c);
   if (!plan) return { action: "halt", feature: s.feature, reason: "04-plan/tasks.yaml is missing" };
   syncTasks(s, plan, c.config);
+  if (s.fix_pending) {
+    const planner = plannerTarget(c, h);
+    if (!planner?.pack) return { action: "halt", feature: s.feature, reason: "fix items are waiting, but no planner is installed" };
+    const round = (s.fix_rounds ?? 0) + 1;
+    const items = s.fix_pending.items.map((i) => `- [${i.check}${i.rule ? `/${i.rule}` : ""}] ${i.file ? `${i.file}: ` : ""}${i.message}`).join("\n");
+    return h.issue(c, [
+      h.makeDispatch(c, {
+        stageId, idStage: `${stageId}.fix${round}`, gateTask: null,
+        stage: { outputs: ["tasks", "test-plan"], inputs: ["prd|delta-spec", "stories?", "tasks", "test-plan", "change-set?", "review?", "defects?", "triage?", "human-notes?"], context_role: "analysis_roles" },
+        target: planner, phase: "fixplan", attempt: (s.fix_pending.attempts ?? 0) + 1, rung: 0, model: planner.model, gate: "plan", feedback: s.fix_pending.feedback ?? null,
+        mission:
+          `${s.fix_pending.source} failed. Add fix tasks to tasks.yaml (new IDs from "Next free IDs") for these items; keep done tasks as they are.\n${items}\n` +
+          "A fix that changes behaviour is test-first (a red test that reproduces it); add test-plan cases for new tests. Map any human note behind an item in notes_mapped.",
+      }),
+    ]);
+  }
   const open = plan.tasks.filter((t) => !CLOSED.includes(s.tasks[t.id].status));
   if (!open.length) {
     const parked = plan.tasks.filter((t) => s.tasks[t.id].status === "parked").map((t) => t.id);
@@ -150,10 +173,7 @@ export function taskStep(c, stageId, stage, h) {
   const round = unit.round ?? 1;
 
   if (unit.split_pending) {
-    // The planner is whoever owns tasks.yaml in the planning stage (owners), else its first agent.
-    const planning = h.resolveStage(c, "planning") ?? { agents: [] };
-    const agents = h.resolveAgents(c, planning);
-    const planner = agents.find((t) => t.agent === planning.owners?.tasks) ?? agents[0];
+    const planner = plannerTarget(c, h);
     if (!planner?.pack) return { action: "halt", feature: s.feature, reason: `${task.id} needs a split, but no planner is installed` };
     return h.issue(c, [
       h.makeDispatch(c, {
@@ -219,6 +239,24 @@ export async function taskGate(c, pending, envelope) {
 /** Records a task-phase envelope: Loop Warden verdict, red lock, split and dispute handling. */
 export async function finishTask(c, pending, envelope, h, result) {
   const s = c.feature.state;
+  if (pending.phase === "fixplan") {
+    if (envelope.notes_mapped?.length) applyMappings(c.feature.dir, envelope.notes_mapped, h.featureIds(c));
+    const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, packs: c.packs });
+    const planResult = await runGate("plan", ctx, { useCache: false });
+    if (!planResult.pass || envelope.status !== "done") {
+      // One more try with the gate's failures as feedback, then a human.
+      s.fix_pending.attempts = (s.fix_pending.attempts ?? 0) + 1;
+      s.fix_pending.feedback = planResult.pass ? `Previous attempt returned status "${envelope.status}": ${envelope.summary}` : h.formatFeedback(planResult);
+      if (s.fix_pending.attempts >= 2) h.block(c, `the fix plan for ${s.fix_pending.source} failed gate-plan (${planResult.failures.length} failure(s))`);
+    } else {
+      appendEvent(c.projectDir, { type: "verdict", feature: s.feature, stage: pending.stage, verdict: "advance", reason: `fix tasks planned for ${s.fix_pending.source}` });
+      s.fix_pending = null;
+      s.fix_rounds = (s.fix_rounds ?? 0) + 1;
+      syncTasks(s, loadTasks(c), c.config);
+    }
+    h.persist(c);
+    return { action: s.status === "blocked" ? "halt" : "continue", feature: s.feature, verdict: "fixplan", gate: h.summary(planResult) };
+  }
   // A split rewrites tasks.yaml, so the original task is gone from the plan by now: handle it first.
   if (pending.phase === "split") {
     const unit = s.tasks[pending.task];

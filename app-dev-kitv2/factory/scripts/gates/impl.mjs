@@ -3,9 +3,10 @@
 // typecheck, lint, the architecture check and the build are clean.
 import { join } from "node:path";
 import { fileHash } from "../lib/core.mjs";
-import { firstLine, freshReport, readVitestReport } from "../lib/vitest-report.mjs";
+import { firstLine, freshReport, isAcceptanceTest, readVitestReport } from "../lib/vitest-report.mjs";
 import { runStackCommand } from "../lib/stackexec.mjs";
 import { taskTestFiles } from "../lib/tasks.mjs";
+import { typecheckForTask } from "../lib/testrun.mjs";
 
 export const inputs = ["tasks"];
 export const cacheable = false;
@@ -25,7 +26,7 @@ export function run(ctx) {
   const run = runStackCommand(stack, "test", { vars: { report: reportFile, files: [] }, logName: `${task.id}-impl-test` });
   const report = readVitestReport(reportFile, ctx.projectDir);
   if (!report) failures.push({ check: "test", rule: "no-report", message: `the test command wrote no JSON report (exit ${run.code}):\n${run.tail}` });
-  for (const f of report?.files ?? []) {
+  for (const f of (report?.files ?? []).filter((x) => !isAcceptanceTest(x.file))) {
     if (!f.collected) failures.push({ check: "test", rule: "does-not-load", file: f.file, message: firstLine(f.error) });
     for (const t of f.tests.filter((x) => x.status === "failed")) failures.push({ check: "test", rule: "failing", file: f.file, message: `"${t.name}": ${firstLine(t.message)}` });
   }
@@ -40,7 +41,7 @@ export function run(ctx) {
   }
   const steps = ["typecheck", "lint", "architecture_check", ...(ctx.config.quality?.impl_build === false ? [] : ["build"])];
   for (const name of steps) {
-    const r = runStackCommand(stack, name, { logName: `${task.id}-impl-${name}` });
+    const r = name === "typecheck" ? typecheckForTask(stack, `${task.id}-impl-typecheck`) : runStackCommand(stack, name, { logName: `${task.id}-impl-${name}` });
     if (!r.ok && !r.skipped) failures.push({ check: name, rule: `${name}-failed`, message: r.tail || `${name} exited with ${r.code}` });
   }
   return failures;

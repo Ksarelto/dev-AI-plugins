@@ -1,0 +1,115 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/defects",
+  "title": "07-qa/defects.yaml",
+  "type": "object",
+  "required": [
+    "feature",
+    "charters",
+    "defects"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "charters": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "mission",
+          "timebox_min",
+          "result"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "mission": {
+            "type": "string"
+          },
+          "timebox_min": {
+            "type": "integer"
+          },
+          "result": {
+            "enum": [
+              "passed",
+              "defects",
+              "blocked"
+            ]
+          }
+        }
+      }
+    },
+    "defects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "type",
+          "severity",
+          "title",
+          "steps",
+          "expected",
+          "actual"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^DEF-\\d{3}$"
+          },
+          "type": {
+            "enum": [
+              "defect",
+              "spec_gap"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "S1",
+              "S2",
+              "S3",
+              "S4",
+              "S5"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "charter": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "expected": {
+            "type": "string"
+          },
+          "actual": {
+            "type": "string"
+          },
+          "ac": {
+            "type": "string",
+            "pattern": "^AC-\\d{4}$"
+          },
+          "waived_by": {
+            "type": "string",
+            "pattern": "^HD-\\d+$"
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

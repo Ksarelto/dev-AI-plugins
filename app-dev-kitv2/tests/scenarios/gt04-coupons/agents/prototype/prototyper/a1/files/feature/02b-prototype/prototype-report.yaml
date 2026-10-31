@@ -1,0 +1,5 @@
+feature: FEAT-001
+screens:
+  - { name: CheckoutSummary, file: sandbox/checkout-summary.html, stories: [STORY-0001] }
+spec_delta:
+  - { change: "Show the discount line above shipping", breaking: false }

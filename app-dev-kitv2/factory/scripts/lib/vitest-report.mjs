@@ -43,4 +43,7 @@ export function freshReport(file) {
   return file;
 }
 
+/** Acceptance tests fail by design until verification; task gates leave them out of "the suite passes". */
+export const isAcceptanceTest = (file) => /\.acceptance\.test\./.test(file);
+
 export const firstLine = (message) => String(message).split("\n").find((l) => l.trim())?.trim().slice(0, 200) ?? "";

@@ -1,0 +1,10 @@
+id: verification-lite
+title: S6 Verification (patch tier)
+kind: agents
+agents: [reviewer]
+context_role: review_roles
+inputs: ["prd|delta-spec", tasks, change-set]
+outputs: [review]
+gate: verify
+on_fail: fix:implementation
+requires: { factory: "^0.1" }

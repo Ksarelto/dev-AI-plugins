@@ -94,8 +94,9 @@
     },
     "on_fail": {
       "type": "string",
-      "pattern": "^(retry|block|goto:[a-z][a-z0-9-]*)$",
-      "default": "retry"
+      "pattern": "^(retry|block|goto:[a-z][a-z0-9-]*|fix:[a-z][a-z0-9-]*)$",
+      "default": "retry",
+      "description": "retry in place; block; goto:<stage> rewinds; fix:<stage> rewinds with the failures as fix items for the planner"
     },
     "when": {
       "type": "string",
@@ -139,6 +140,25 @@
         "type": "string"
       },
       "description": "artifact type \u2192 the one agent of this stage that writes it; others may not"
+    },
+    "on_reject": {
+      "type": "string",
+      "pattern": "^fix:[a-z][a-z0-9-]*$",
+      "description": "what a human reject at this stage's gate does (default: re-run the stage)"
+    },
+    "after_pass": {
+      "enum": [
+        "ship",
+        "triage_fixes"
+      ],
+      "description": "engine action when the gate passes: ship = commit plan + PR; triage_fixes = PR comments classified as change become fix items"
+    },
+    "read_deny": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "globs the stage's agents may not read (black-box roles)"
     }
   }
 }

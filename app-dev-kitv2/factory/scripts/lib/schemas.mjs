@@ -56,7 +56,13 @@ export function artifactBase(type, { factoryRoot, featureDir, projectDir }) {
 export function artifactFiles(type, dirs) {
   const def = ARTIFACT_TYPES[type];
   const base = artifactBase(type, dirs);
-  if (!base || def.scope === "project") return [];
+  if (!base) return [];
+  if (def.scope === "project") {
+    // Project-scope types (acceptance tests, docs) are listed only when their path is specific.
+    if (def.path === "**") return [];
+    if (!/[*?]/.test(def.path)) return existsSync(join(base, def.path)) ? [join(base, def.path)] : [];
+    return listFiles(base).filter((f) => !f.startsWith(".factory/") && matchesAny(f, [def.path])).map((f) => join(base, f));
+  }
   if (!/[*?]/.test(def.path)) return existsSync(join(base, def.path)) ? [join(base, def.path)] : [];
   return listFiles(base)
     .filter((f) => matchesAny(f, [def.path]))

@@ -40,10 +40,10 @@ pipeline:
   tier_profiles: { patch: patch }
   profiles:
     standard: [intake, discovery, requirements, stories, prototype, architecture, planning,
-               implementation, verification, qa, docs, delivery]
+               acceptance, implementation, verification, qa, docs, delivery, feedback]
     greenfield: [intake, bootstrap, requirements, stories, prototype, architecture, planning,
-                 implementation, verification, qa, docs, delivery]
-    patch: [intake, requirements-lite, implementation, verification-lite, delivery]
+                 acceptance, implementation, verification, qa, docs, delivery, feedback]
+    patch: [intake, requirements-lite, implementation, verification-lite, delivery, feedback]
   stages: {}                   # project overrides of stage.yaml defaults, key by key
   digest_after: [requirements, planning, verification]
 
@@ -66,7 +66,7 @@ quality:
     mode: required             # required | off
     author: separate           # separate | builder_two_phase
     pipeline_red: true
-    exempt_types: [characterisation, config, docs, styling-token, dependency-bump, rename]
+    exempt_types: [characterisation, refactor, config, docs, styling-token, dependency-bump, rename]
   vague_terms: [fast, quick, quickly, easy, easily, intuitive, user-friendly, simple, nice, helpful,
                 clear, good, better, modern, robust, seamless, efficient, appropriate, etc]
 
@@ -78,8 +78,11 @@ budgets:
   backward_edges:
     prototype_to_requirements: 1
     verification_to_implementation: 2
+    verification-lite_to_implementation: 2
     qa_to_implementation: 2
-    total_regressions_max: 4
+    delivery_to_implementation: 3      # changes requested on the PR (GATE-C reject)
+    feedback_to_implementation: 3      # PR comments classified as "change"
+    total_regressions_max: 6
 
 context:
   budgets:                     # tokens per dispatch

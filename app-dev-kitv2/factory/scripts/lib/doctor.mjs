@@ -53,7 +53,7 @@ export function doctor(projectDir, { register } = {}) {
         if (!(stage.outputs ?? []).some((ref) => ref.replace(/\?$/, "").split("|").includes(type))) report.push(`stage ${id}: owners names "${type}", which is not an output`);
         if (!(stage.agents ?? []).some((a) => a === agent || a.endsWith(`:${agent}`))) report.push(`stage ${id}: owner "${agent}" is not one of the stage's agents`);
       }
-      const goto = /^goto:(.+)$/.exec(stage.on_fail ?? "")?.[1];
+      const goto = /^(?:goto|fix):(.+)$/.exec(stage.on_fail ?? "")?.[1] ?? /^fix:(.+)$/.exec(stage.on_reject ?? "")?.[1];
       if (goto && stages.indexOf(goto) === -1) report.push(`stage ${id}: on_fail target "${goto}" is not in profile ${profile}`);
       if (goto && stages.indexOf(goto) > stages.indexOf(id)) report.push(`stage ${id}: on_fail must point backwards, "${goto}" comes later`);
       if (stage.kind !== "task_loop") {

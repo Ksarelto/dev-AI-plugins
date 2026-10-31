@@ -1,0 +1,23 @@
+{
+  "plugin": "factory-delivery",
+  "source": "./app-dev-kitv2/factory-delivery",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Document the finished feature for the next developer and update the changelog",
+      "expect": "tech-writer"
+    },
+    {
+      "prompt": "Technical writer for feature docs and promoted ADRs",
+      "expect": "tech-writer"
+    },
+    {
+      "prompt": "Prepare the release: commits and the pull request body",
+      "expect": "release-manager"
+    },
+    {
+      "prompt": "Release manager to triage review comments after the PR",
+      "expect": "release-manager"
+    }
+  ]
+}

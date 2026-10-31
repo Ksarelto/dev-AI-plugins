@@ -86,7 +86,10 @@ export function runStackCommand(resolved, name, { vars = {}, logName, timeoutMs 
   const log = join(logs, `${logName ?? name}.log`);
   writeFileSync(log, `$ ${argv.join(" ")}\n${output}`);
   // Project-relative paths keep failure messages short and fingerprints stable across checkouts.
-  const prefixes = [...new Set([resolved.cwd, realpathSync(resolved.cwd)])].flatMap((p) => [`${p}/`, `${p}\\`]);
+  // Longest first: /var/… is a suffix of /private/var/… on macOS.
+  const prefixes = [...new Set([resolved.cwd, realpathSync(resolved.cwd)])]
+    .flatMap((p) => [`${p}/`, `${p}\\`])
+    .sort((x, y) => y.length - x.length);
   const tail = output
     .trim()
     .split("\n")

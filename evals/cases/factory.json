@@ -130,6 +130,22 @@
     {
       "prompt": "Index the app so planning sees which slices exist",
       "expect": "index"
+    },
+    {
+      "prompt": "Commit the verified feature and open the pull request",
+      "expect": "ship"
+    },
+    {
+      "prompt": "Ship it: create the commits and the PR, dry run first",
+      "expect": "ship"
+    },
+    {
+      "prompt": "Bring the PR review comments back into the factory",
+      "expect": "pr-feedback"
+    },
+    {
+      "prompt": "Reviewers commented on the pull request, turn their change requests into fixes",
+      "expect": "pr-feedback"
     }
   ]
 }

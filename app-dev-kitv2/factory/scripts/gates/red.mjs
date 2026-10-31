@@ -2,8 +2,9 @@
 // for the right reason — an assertion or an explicit "not implemented" — while every other test still
 // passes. Skipped or todo tests are not a red.
 import { join } from "node:path";
-import { firstLine, freshReport, goodRedFailure, readVitestReport } from "../lib/vitest-report.mjs";
+import { firstLine, freshReport, goodRedFailure, isAcceptanceTest, readVitestReport } from "../lib/vitest-report.mjs";
 import { runStackCommand } from "../lib/stackexec.mjs";
+import { typecheckForTask } from "../lib/testrun.mjs";
 
 export const inputs = ["tasks"];
 export const cacheable = false;
@@ -15,7 +16,7 @@ export function run(ctx) {
   const red = task.tdd?.red_tests ?? [];
   if (!red.length) return [{ check: "red", rule: "no-red-tests", message: `${task.id} declares no red_tests` }];
   const failures = [];
-  const typecheck = runStackCommand(stack, "typecheck", { logName: `${task.id}-red-typecheck` });
+  const typecheck = typecheckForTask(stack, `${task.id}-red-typecheck`);
   if (!typecheck.ok) failures.push({ check: "typecheck", rule: "tests-do-not-compile", message: `tests or stubs do not type-check:\n${typecheck.tail}` });
 
   const reportFile = freshReport(join(ctx.paths.logs, `${task.id}-red-report.json`));
@@ -40,7 +41,7 @@ export function run(ctx) {
       else if (!goodRedFailure(t.message)) failures.push({ check: "red", rule: "wrong-failure", file, message: `"${t.name}" fails for the wrong reason: ${firstLine(t.message)}` });
     }
   }
-  for (const f of report.files.filter((x) => !red.includes(x.file))) {
+  for (const f of report.files.filter((x) => !red.includes(x.file) && !isAcceptanceTest(x.file))) {
     if (!f.collected) failures.push({ check: "regression", rule: "existing-test-broken", file: f.file, message: `existing test file no longer loads: ${firstLine(f.error)}` });
     for (const t of f.tests.filter((x) => x.status === "failed")) {
       failures.push({ check: "regression", rule: "existing-test-broken", file: f.file, message: `existing test "${t.name}" now fails: ${firstLine(t.message)}` });

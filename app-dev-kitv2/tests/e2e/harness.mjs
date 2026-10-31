@@ -116,6 +116,8 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
       symlinkSync(join(fixture, "node_modules"), join(project, "node_modules"), "dir");
     } else cpSync(join(scenarioDir, "repo"), project, { recursive: true });
     execFileSync("git", ["init", "-q"], { cwd: project });
+    execFileSync("git", ["config", "user.email", "factory-e2e@example.invalid"], { cwd: project });
+    execFileSync("git", ["config", "user.name", "Factory E2E"], { cwd: project });
     init(project, { mode: scenario.mode ?? "unknown" });
     const packs = [...PACKS, ...(scenario.stack_kits ?? []).map((k) => join(ROOT, k))];
     const config = deepMerge({ version: 1, project: { name: scenario.id }, packs: Object.fromEntries(packs.map((p) => [p.split(/[\\/]/).pop(), p])) }, scenario.config ?? {});
@@ -178,6 +180,11 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
       Object.entries(app.features).slice(1).map(([id, f]) => [id, JSON.parse(readFileSync(join(project, ".factory", f.dir, "state.json"), "utf8"))]),
     );
     run.unanswered = answers.length;
+    const shipFile = join(featureDir, "08-delivery", "ship.json");
+    run.ship = existsSync(shipFile) ? JSON.parse(readFileSync(shipFile, "utf8")) : null;
+    run.gitLog = run.ship ? execFileSync("git", ["log", "--format=%s%n%b---", run.ship.branch], { cwd: project, encoding: "utf8" }) : "";
+    const ledgerFile = join(project, ".factory", "ledger", "feature-ledger.yaml");
+    run.ledger = existsSync(ledgerFile) ? YAML.parse(readText(ledgerFile)).features : [];
     run.checks = check(run, scenario.expect ?? {});
     run.pass = run.checks.every((c) => c.pass);
     run.project = keep ? project : null;
@@ -225,6 +232,15 @@ function check(run, expect) {
   if (expect.features) add("features created", Object.keys(run.app.features).length === expect.features, Object.keys(run.app.features).join(", "));
   for (const [id, deps] of Object.entries(expect.split_depends_on ?? {})) {
     add(`${id} depends on`, JSON.stringify(run.children[id]?.depends_on ?? []) === JSON.stringify(deps), JSON.stringify(run.children[id]?.depends_on ?? null));
+  }
+  if (expect.ship) {
+    add("shipped commits", run.ship?.commits.length === expect.ship.commits, `${run.ship?.commits.length ?? 0} on ${run.ship?.branch ?? "no branch"}`);
+    for (const trailer of expect.ship.trailers ?? []) add(`commit trailer ${trailer}`, run.gitLog.includes(trailer), trailer);
+    if (expect.ship.dry_run) add("PR dry run recorded", run.ship?.pr.dry_run && run.ship.pr.commands.some((c) => c.includes("pr")), JSON.stringify(run.ship?.pr.commands?.at(-1)?.slice(0, 4)));
+  }
+  if (expect.ledger) {
+    const entry = run.ledger.find((f) => f.id === run.feature.feature);
+    add("ledger entry", entry?.status === expect.ledger, `${entry?.status ?? "missing"} v${entry?.version ?? "?"}`);
   }
   add("all scripted answers used", run.unanswered === 0, `${run.unanswered} left`);
   return out;

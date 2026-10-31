@@ -1,0 +1,39 @@
+{
+  "plugin": "factory-delivery",
+  "source": "./app-dev-kitv2/factory-delivery",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Write the feature documentation, promote the ADRs and add a CHANGELOG entry",
+      "expect": "feature-docs"
+    },
+    {
+      "prompt": "Update the living docs for the finished feature with every acceptance criterion",
+      "expect": "feature-docs"
+    },
+    {
+      "prompt": "Group the changes into conventional commits with task trailers",
+      "expect": "commit-grouping"
+    },
+    {
+      "prompt": "Plan one commit per finished task for the release",
+      "expect": "commit-grouping"
+    },
+    {
+      "prompt": "Write the pull request body with a spec trace table",
+      "expect": "pr-assembly"
+    },
+    {
+      "prompt": "Assemble the PR description with summary, docs and provenance",
+      "expect": "pr-assembly"
+    },
+    {
+      "prompt": "Triage the PR review comments into changes, questions and nits",
+      "expect": "pr-comment-triage"
+    },
+    {
+      "prompt": "Classify the reviewer's comments on the pull request",
+      "expect": "pr-comment-triage"
+    }
+  ]
+}

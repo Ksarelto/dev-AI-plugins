@@ -1,0 +1,11 @@
+id: verification
+title: S6 Verification (acceptance tests, seven-lens review, role auditors)
+kind: agents
+agents: [reviewer, "role:auditor"]
+parallel: true
+context_role: review_roles
+inputs: ["prd|delta-spec", stories, component-map?, adr?, api-contract?, test-plan, change-set, acceptance-tests?]
+outputs: [review]
+gate: verify
+on_fail: fix:implementation
+requires: { factory: "^0.1" }

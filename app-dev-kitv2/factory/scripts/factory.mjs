@@ -2,12 +2,13 @@
 // factory — the engine CLI. Every command prints one JSON document on stdout.
 // Exit codes: 0 ok · 1 check failed (gate, doctor, envelope) · 2 usage or setup error.
 // Project dir: --project <dir>, else $FACTORY_PROJECT_DIR, else $CLAUDE_PROJECT_DIR, else cwd.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { UsageError, readYaml } from "./lib/core.mjs";
+import { UsageError, readYaml, writeJson } from "./lib/core.mjs";
 import { explainConfig, loadConfig, profileFor, profileStages } from "./lib/config.mjs";
 import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, setOverride, split, step } from "./lib/conductor.mjs";
 import { buildIndex } from "./lib/cartographer.mjs";
+import { ship } from "./lib/delivery.mjs";
 import { resolvePacks } from "./lib/registry.mjs";
 import { doctor, init } from "./lib/doctor.mjs";
 import { resolveStack } from "./lib/stackexec.mjs";
@@ -15,7 +16,7 @@ import { intake } from "./lib/intake.mjs";
 import { brief, briefMarkdown } from "./lib/brief.mjs";
 import { gateContext, idCoverage, runGate } from "./lib/gatekeeper.mjs";
 import { setNoteStatus } from "./lib/notes.mjs";
-import { appendEvent, createFeature, loadAppState, readEvents, saveAppState, withLock } from "./lib/state.mjs";
+import { appendEvent, createFeature, loadAppState, readEvents, saveAppState, saveFeature, withLock } from "./lib/state.mjs";
 
 const HELP = `factory <command> [options]
   init [--mode M] [--name N] [--roles frontend,backend]   create .factory/
@@ -38,6 +39,8 @@ const HELP = `factory <command> [options]
   diagnose --stage S | --task T                           jump a stage or task to escalation rung 3
   split TASK-NNN                                          escalation rung 4: the planner splits the task
   index                                                   rebuild the component inventory (Cartographer)
+  comments --file F                                       PR review comments for S9 (JSON array)
+  ship                                                    (re)run the commit plan and open the PR (dry-run by default)
   abort --reason "..."                                    stop the feature for good
   events [--limit N]
 Common: --project <dir> --feature FEAT-NNN`;
@@ -177,6 +180,35 @@ async function main(argv) {
     case "split":
       if (!sub) throw new UsageError("usage: factory split TASK-NNN");
       return { out: split(project, { feature, task: sub }) };
+    case "comments": {
+      // S9 input: PR review comments as a JSON array [{ id, body, path?, line? }] (from gh or a file).
+      if (typeof args.file !== "string") throw new UsageError("usage: factory comments --file <comments.json>");
+      const comments = JSON.parse(readFileSync(resolve(args.file), "utf8"));
+      if (!Array.isArray(comments)) throw new UsageError("comments must be a JSON array");
+      return {
+        out: withLock(project, () => {
+          const c = load(project, feature);
+          const s = c.feature.state;
+          if (!existsSync(`${c.feature.dir}/08-delivery/ship.json`)) throw new UsageError(`${s.feature} has not shipped yet — PR comments come after delivery`);
+          if (!s.stages.feedback) throw new UsageError(`the "${s.profile}" profile of ${s.feature} has no feedback stage`);
+          // GitHub comment ids are numbers; triage.yaml ids are strings.
+          writeJson(`${c.feature.dir}/08-delivery/comments.json`, comments.map((x) => ({ ...x, id: String(x.id) })));
+          Object.assign(s.stages.feedback, { status: "pending", entered: false, done_agents: [] });
+          // A finished feature reopens at S9; one still at GATE-C reaches S9 after the approval.
+          if (s.status === "done") Object.assign(s, { status: "active", stage: "feedback" });
+          saveFeature(project, c.app, c.feature);
+          saveAppState(project, c.app);
+          return { feature: s.feature, comments: comments.length, stage: s.stage };
+        }),
+      };
+    }
+    case "ship":
+      return {
+        out: withLock(project, () => {
+          const c = load(project, feature);
+          return ship(c);
+        }),
+      };
     case "index": {
       const config = loadConfig(project);
       return { out: buildIndex(project, config, resolvePacks(project, config).packs) };

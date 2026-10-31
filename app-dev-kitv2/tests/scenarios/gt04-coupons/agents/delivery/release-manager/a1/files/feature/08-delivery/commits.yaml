@@ -1,0 +1,31 @@
+feature: FEAT-001
+commits:
+  - task: TASK-001
+    message: |
+      test(order): characterise the order total
+
+      Factory-Task: TASK-001
+    files: [src/entities/order/model/total.characterisation.test.ts]
+  - task: TASK-002
+    message: |
+      feat(order): subtract the coupon discount from the total
+
+      Factory-Task: TASK-002
+      Factory-ACs: AC-0003
+    files: [src/entities/order/model/total.ts, src/entities/order/model/total.test.ts]
+  - task: TASK-003
+    message: |
+      feat(apply-coupon): coupon field with discount and errors
+
+      Factory-Task: TASK-003
+      Factory-ACs: AC-0001, AC-0002, AC-0004
+    files: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx, src/features/apply-coupon/index.ts]
+  - task: TASK-004
+    message: |
+      fix(checkout): render the coupon field and the discounted total
+
+      Factory-Task: TASK-004
+      Factory-ACs: AC-0001, AC-0003
+    files: [src/pages/checkout/ui/checkout-page.tsx, src/pages/checkout/ui/checkout-page.test.tsx]
+  - message: "docs: coupons at checkout (FEAT-001)"
+    files: [docs/features/FEAT-001-coupons-at-checkout.md, docs/adr/adr-001-discount-in-total.md, CHANGELOG.md, src/pages/checkout/checkout.acceptance.test.tsx]

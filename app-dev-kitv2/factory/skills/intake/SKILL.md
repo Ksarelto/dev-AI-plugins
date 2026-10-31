@@ -1,6 +1,6 @@
 ---
 name: intake
-description: "Start the factory on new requirements: normalise everything in .factory/inbox/ (briefs, emails, tickets, screenshots) into source-tagged context, detect the mode (new app, extend an app, change a feature) and open a feature. Use for /factory:intake, with --text for a one-liner or --interview when little is written down."
+description: "Start the factory on new requirements: normalise everything in .factory/inbox/ (briefs, emails, tickets, screenshots) into source-tagged context, detect the mode (new app, extend an app, change a feature) and open a feature. Use for /factory:intake, with --text for a one-line request or --interview when little is written down."
 argument-hint: "[--text \"…\"] [--interview] [--new] [--title T] [--mode greenfield|brownfield-extend|change-request] [--tier patch]"
 disable-model-invocation: true
 allowed-tools: Bash(node:*), Read

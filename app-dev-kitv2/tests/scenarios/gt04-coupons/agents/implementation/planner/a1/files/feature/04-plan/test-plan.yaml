@@ -1,0 +1,8 @@
+feature: FEAT-001
+cases:
+  - { id: TEST-0001, ac: AC-0001, level: component, title: "B2B10 on 100.00 EUR shows -10.00 EUR", task: TASK-003 }
+  - { id: TEST-0002, ac: AC-0002, level: component, title: "expired coupon shows the message, total unchanged", task: TASK-003 }
+  - { id: TEST-0003, ac: AC-0003, level: unit, title: "60 + 40 - 10 + 5 = 95.00 EUR", task: TASK-002 }
+  - { id: TEST-0004, ac: AC-0004, level: component, title: "a loyalty discount blocks coupons", task: TASK-003 }
+  - { id: TEST-0005, ac: AC-0001, level: acceptance, title: "a guest sees no coupon field" }
+  - { id: TEST-0006, ac: AC-0003, level: component, title: "the page total drops to 95.00 EUR after B2B10", task: TASK-004 }

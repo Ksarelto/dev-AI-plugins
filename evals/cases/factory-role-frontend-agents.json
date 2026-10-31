@@ -26,6 +26,14 @@
     {
       "prompt": "Make a quick throwaway prototype for stakeholders",
       "expect": "prototyper"
+    },
+    {
+      "prompt": "Frontend auditor for raw colours and i18n in the change set",
+      "expect": "fe-auditor"
+    },
+    {
+      "prompt": "Mechanical frontend audit at verification",
+      "expect": "fe-auditor"
     }
   ]
 }

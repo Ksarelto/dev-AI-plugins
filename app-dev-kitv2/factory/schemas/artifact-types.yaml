@@ -29,3 +29,16 @@ test-plan:          { scope: feature, path: 04-plan/test-plan.yaml, format: yaml
 human-notes:        { scope: feature, path: human-notes.yaml, format: yaml, schema: human-notes, ids: [HD], producer: engine }
 digest:             { scope: feature, path: digest.md, format: markdown, producer: engine }
 root-cause:         { scope: feature, path: "diagnosis/*.md", format: markdown, producer: engine }
+acceptance-tests:   { scope: project, path: "**/*.acceptance.test.*", format: any }
+change-set:         { scope: feature, path: 06-verify/change-set.yaml, format: yaml, schema: change-set, producer: engine }
+review:             { scope: feature, path: 06-verify/review.md, format: frontmatter, schema: review, producer: engine }
+defects:            { scope: feature, path: 07-qa/defects.yaml, format: yaml, schema: defects }
+qa-report:          { scope: feature, path: 07-qa/qa-report.md, format: markdown }
+feature-doc:        { scope: project, path: "docs/features/*.md", format: markdown }
+adr-doc:            { scope: project, path: "docs/adr/*.md", format: markdown }
+changelog:          { scope: project, path: CHANGELOG.md, format: markdown }
+docs-report:        { scope: feature, path: 08-delivery/docs-report.md, format: markdown }
+pr-body:            { scope: feature, path: 08-delivery/pr.md, format: markdown }
+commit-plan:        { scope: feature, path: 08-delivery/commits.yaml, format: yaml, schema: commit-plan }
+pr-comments:        { scope: feature, path: 08-delivery/comments.json, format: json, producer: engine }
+triage:             { scope: feature, path: 08-delivery/triage.yaml, format: yaml, schema: triage }

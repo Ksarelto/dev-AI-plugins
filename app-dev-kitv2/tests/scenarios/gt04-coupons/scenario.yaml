@@ -1,5 +1,5 @@
 id: gt04-coupons
-title: "GT-04 coupons at checkout — change request from intake to the implemented feature (S0–S5) on the real stack"
+title: "GT-04 coupons at checkout — a change request from intake to a shipped branch and dry-run PR (S0–S9) on the real stack"
 repo_from: fsd-app
 stack_kits: [frontend-dev-kit]
 intake: { title: Coupons at checkout }
@@ -7,12 +7,12 @@ config:
   roles: { frontend: { enabled: true, owns_paths: ["src/**"], stack_overrides: { package_manager: pnpm } } }
   pipeline:
     profile: analysis
-    profiles: { analysis: [intake, discovery, requirements, stories, architecture, planning, implementation] }
+    profiles: { analysis: [intake, discovery, requirements, stories, prototype, architecture, planning, acceptance, implementation, verification, qa, docs, delivery, feedback] }
 expect:
   final_action: done
   final_status: done
-  dispatches_max: 24
-  gates: [CLARIFY, GATE-D, GATE-A, GATE-B]
+  dispatches_max: 34
+  gates: [CLARIFY, GATE-D, GATE-A, GATE-P, GATE-B, GATE-C]
   verdicts:
     - { stage: intake, verdict: ask_human }
     - { stage: intake, verdict: advance }
@@ -21,14 +21,24 @@ expect:
     - { stage: requirements, verdict: retry }
     - { stage: requirements, verdict: advance }
     - { stage: stories, verdict: advance }
+    - { stage: prototype, verdict: advance }
     - { stage: architecture, verdict: advance }
     - { stage: planning, verdict: advance }
+    - { stage: acceptance, verdict: advance }
     - { stage: implementation, task: TASK-001, verdict: advance }
     - { stage: implementation, task: TASK-002, verdict: advance }
     - { stage: implementation, task: TASK-002, verdict: retry }
     - { stage: implementation, task: TASK-002, verdict: advance }
     - { stage: implementation, task: TASK-003, verdict: advance }
     - { stage: implementation, task: TASK-003, verdict: advance }
+    - { stage: verification, verdict: retry }
+    - { stage: implementation, verdict: fixplan }
+    - { stage: implementation, task: TASK-004, verdict: advance }
+    - { stage: implementation, task: TASK-004, verdict: advance }
+    - { stage: verification, verdict: advance }
+    - { stage: qa, verdict: advance }
+    - { stage: docs, verdict: advance }
+    - { stage: delivery, verdict: advance }
   models:
     intake-normaliser: haiku
     codebase-analyst: sonnet
@@ -41,8 +51,17 @@ expect:
     curator: haiku
     fe-test-author: sonnet
     fe-builder: sonnet
+    prototyper: sonnet
+    acceptance-test-author: sonnet
+    reviewer: opus
+    fe-auditor: haiku
+    qa-engineer: sonnet
+    tech-writer: haiku
+    release-manager: haiku
   denied_writes:
     - { agent: requirements-analyst, file: src/features/apply-coupon/hack.ts }
     - { agent: fe-builder, file: src/entities/order/model/total.test.ts }
   notes: { HD-1: mapped, HD-2: mapped }
   trace: true
+  ship: { commits: 6, dry_run: true, trailers: ["Factory-Task: TASK-002", "Factory-Task: TASK-004"] }
+  ledger: changed

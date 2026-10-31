@@ -1,0 +1,13 @@
+feature: FEAT-001
+charters:
+  - { id: CH-1, mission: "Explore the coupon field with boundaries and input heuristics", timebox_min: 10, result: defects }
+  - { id: CH-2, mission: "Explore guest and logged-in states", timebox_min: 10, result: passed }
+defects:
+  - id: DEF-001
+    type: defect
+    severity: S3
+    title: Leading spaces in the code are not trimmed
+    steps: ["Type ' B2B10' with a leading space", "Press Apply"]
+    expected: The coupon applies
+    actual: '"This coupon has expired" appears'
+    ac: AC-0001

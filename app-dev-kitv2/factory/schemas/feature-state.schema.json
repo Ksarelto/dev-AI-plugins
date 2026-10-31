@@ -165,7 +165,8 @@
               "split",
               "stage",
               "digest",
-              "diagnose"
+              "diagnose",
+              "fixplan"
             ]
           },
           "parallel_group": {

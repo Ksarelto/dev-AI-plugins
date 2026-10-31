@@ -5,7 +5,7 @@ A thin Conductor in the main session dispatches single-purpose agents; they talk
 schema-checked files in `.factory/`, and **scripts, not models, decide pass/fail, retries and when to
 stop.**
 
-Status: **phase 3 of 5 (engine, analysis, frontend build loop).** Quality, delivery, the adapter and the backend / AI roles arrive in phases 4–5.
+Status: **phase 4 of 5 (engine, analysis, frontend build loop, quality, delivery).** The backend and AI roles arrive in phase 5.
 
 ## Plugins
 
@@ -14,8 +14,9 @@ Status: **phase 3 of 5 (engine, analysis, frontend build loop).** Quality, deliv
 | Engine | [`factory`](factory/) | ✅ phase 1 | `/factory:*` commands, CLI, schemas, gates, Loop Warden, Context Broker, hooks, `curator`, `diagnostician` |
 | Stage | [`factory-analysis`](factory-analysis/) | ✅ phase 2 | intake → bootstrap/discovery → requirements → stories → architecture → planning; 8 agents, 10 skills, worked-example templates |
 | Role | [`factory-role-frontend`](factory-role-frontend/) | ✅ phase 3 | test author (red), builder (green), prototyper; the task loop runs real tests, typecheck, lint, layer rules and build |
-| Stage | `factory-quality`, `factory-delivery` | phase 4 | review, QA, docs, PR |
-| Adapter | `factory-adapter-github` | phase 4 | draft PR (dry-run by default) |
+| Stage | [`factory-quality`](factory-quality/) | ✅ phase 4 | acceptance tests before the build, seven-lens review with the role auditors in parallel, exploratory QA; failures become fix tasks |
+| Stage | [`factory-delivery`](factory-delivery/) | ✅ phase 4 | feature docs and ADRs, commit plan and PR body, PR-comment triage (S9); the engine commits and ships |
+| Adapter | [`factory-adapter-github`](factory-adapter-github/) | ✅ phase 4 | `git push` + `gh pr create --draft`; dry-run by default (commands recorded, never run) |
 | Role | `factory-role-backend`, `factory-role-ai-agent` | phase 5 | Express and LangGraph tasks |
 
 Stack knowledge stays in the existing kits, each with a new `stack.yaml`:
@@ -37,6 +38,16 @@ the files it may write, the exit check to run, the inputs by path, and attempt f
 enforce the pack: writes outside the allowlist, unscoped searches, over-budget reads, package
 installs and force-pushes are denied for dispatched agents; engine-owned state files are denied for
 everyone.
+
+## The fix loop and delivery
+
+Verification, QA, a rejected GATE-C and `change` PR comments do not edit code. Their failures become
+fix items; the feature goes back to `implementation`, where the planner first adds fix tasks
+(`fixplan`), and those go through red → green like any task. Each backward edge has a budget in
+`defaults.yaml`. After the PR gate passes, the engine — not an agent — commits the release manager's
+plan on the feature branch (one commit per task, `Factory-Task:` trailer), commits the `.factory`
+artifacts, and runs the adapter. Set `delivery.dry_run: false` to open a real PR; `/factory:ship`
+asks first. `factory comments --file <json>` feeds review comments into S9.
 
 ## Context that is never lost
 

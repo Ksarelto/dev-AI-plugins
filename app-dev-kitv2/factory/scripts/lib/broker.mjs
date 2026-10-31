@@ -39,7 +39,7 @@ export function buildPack(projectDir, featureObj, config, d) {
   for (const ref of d.stage?.inputs ?? []) {
     const { names, optional } = parseArtifactRef(ref);
     for (const type of names) {
-      if (ARTIFACT_TYPES[type].scope === "project") continue;
+      if (ARTIFACT_TYPES[type].scope === "project" && ARTIFACT_TYPES[type].path === "**") continue;
       const files = artifactFiles(type, dirs);
       if (!files.length && optional) continue;
       inputs.push({ type, paths: files.map(rel), missing: !files.length });
