@@ -1,0 +1,20 @@
+---
+description: Agent observability — a fresh UsageCallbackHandler per request, token counts logged and returned as usage, config forwarded so callbacks reach nested runs, LangSmith via env only, no prompt or document text in logs, and llm / embeddings as optional readiness checks.
+globs: ["**/src/llm/usage-callback.ts", "**/src/agents/**/nodes/**/*.ts", "**/src/agents/**/tools/**/*.ts", "**/src/controllers/threads*.ts"]
+alwaysApply: false
+---
+
+# Agent observability
+
+- Logger setup, `req.log`, request ids and redaction are the `observability` rule of `node-backend-dev-kit`. This rule adds what is specific to model calls.
+- Each request gets a new `UsageCallbackHandler` from the factory injected into the controller, passed as `callbacks: [usage]`. Never a shared instance: usage would leak across users and requests.
+- `handleLLMEnd` reads `usage_metadata.input_tokens` / `output_tokens`, logs `{ inputTokens, outputTokens }` with a static message, and the reply returns `usage` (`inputTokens`, `outputTokens`, `calls`).
+- Nodes and tools forward `config` to every `invoke`, so callbacks, tracing and the abort signal reach nested runs.
+- Log with the injected logger, object first (`logger.warn({ err: error }, 'knowledge search failed')`). Never log prompts, message content, retrieved text, tool arguments carrying user data, or keys. Log counts, ids, durations and reasons.
+- Guardrail hits log at `warn` with `reasons` and `blocked`, never the input text.
+- LangSmith is switched on by env only (`LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`). No tracing client or wrapper code in `src/`. Tracing ships prompts and outputs to a third party: off by default, on only where data policy allows.
+- Trace labels go in the run config (`runName`, `tags`, `metadata` with `thread_id`), never user text or tokens.
+- Readiness: `llm` and `embeddings` are `critical: false` checks (no key, or breaker open → `degraded`); Postgres is critical. A health check never calls a model.
+- A reply carries `degraded: true` when a dependency failed mid-turn. Never drop the flag to make a response look healthy.
+
+Procedure: `agent-observability` skill.

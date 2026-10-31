@@ -1,0 +1,29 @@
+---
+description: The agent stack contract — which library owns which concern in a LangGraph.js + LangChain.js agent service built on the node-backend-dev-kit HTTP core. Do not add a second library for a concern that already has an owner.
+globs: ["**/src/llm/**/*.ts", "**/src/memory/**/*.ts", "**/src/rag/**/*.ts", "**/src/agents/**/graph.ts"]
+alwaysApply: false
+---
+
+# Agent stack
+
+The HTTP core (Node 22, Express 5, Zod 4, pino, jose, Drizzle, Vitest, Docker) is owned by the `stack` rule of `node-backend-dev-kit`. This table adds the agent layer only.
+
+| Concern | Owner |
+|---|---|
+| Orchestration | `@langchain/langgraph` 1.6: `StateGraph`, `Annotation`, `ToolNode` from `@langchain/langgraph/prebuilt` |
+| Messages, tools, runnables, callbacks | `@langchain/core` 1.3 |
+| Chat models and embeddings | `@langchain/openai` `ChatOpenAI` / `OpenAIEmbeddings`, pointed at OpenRouter through `configuration.baseURL` |
+| Chunking | `@langchain/textsplitters` `RecursiveCharacterTextSplitter` |
+| Conversation state | `@langchain/langgraph-checkpoint-postgres` `PostgresSaver`; `MemorySaver` in unit tests |
+| Vector and keyword search | Postgres 17 + pgvector (`vector(n)`, HNSW cosine) + a generated `tsvector`, in one SQL query |
+| Postgres driver | `pg` `Pool` + `drizzle-orm/node-postgres`, one pool shared with `PostgresSaver` |
+| Tracing | LangSmith, through `LANGSMITH_*` env vars only |
+| Test doubles | `RunnableLambda` scripted models, `SyntheticEmbeddings` from `@langchain/core/utils/testing` |
+
+- Agents are LangGraph + LangChain only. No `@openai/agents`, no direct `openai` SDK calls, no provider SDKs (`@anthropic-ai/sdk`, `@google/genai`), no LlamaIndex, no `langchain` umbrella chains or `AgentExecutor`.
+- Every model is reached through OpenRouter. Switching provider is a slug change in env (`MODEL_CHAT`, `MODEL_CHAT_FALLBACK`, `MODEL_EMBED`), never a new dependency.
+- No external vector database (Pinecone, Qdrant, Chroma) and no LangChain `VectorStore` wrapper. Vectors live in the service's own Postgres, behind a repository.
+- This service uses `pg`, not `postgres.js`: `PostgresSaver` requires a `pg.Pool`. One pool per process, closed on shutdown.
+- `@langchain/*` packages are upgraded together in one change, followed by `npm test` and `npm run eval`.
+
+Procedure: `scaffold-agent-service` skill.

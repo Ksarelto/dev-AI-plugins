@@ -1,0 +1,20 @@
+---
+description: TypeScript for Node ESM services — strict NodeNext, .js import specifiers, type-only imports, no any, explicit public return types, no floating promises.
+globs: ["**/src/routes/**/*.ts", "**/src/controllers/**/*.ts", "**/src/services/**/*.ts", "**/src/repositories/**/*.ts", "**/src/middleware/**/*.ts", "**/src/db/**/*.ts", "**/src/schemas/**/*.ts", "**/src/app.ts", "**/src/server.ts", "**/src/container.ts"]
+alwaysApply: false
+---
+
+# TypeScript (Node ESM)
+
+- `module`/`moduleResolution` are `NodeNext`. Relative imports end in `.js` (`'../lib/errors.js'`), never `.ts` and never extensionless. No path aliases.
+- `verbatimModuleSyntax` is on: a type-only import is `import type { X }` or `import { type X }`. ESLint enforces `consistent-type-imports`.
+- `strict`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noImplicitReturns` stay on. Handle the `undefined` of `rows[0]` (`const [row] = …; if (!row) …`) instead of `!`.
+- No `any`, no `as` casts to silence the compiler, no `@ts-ignore`. The allowed casts are `res.locals` reads behind a typed helper (`validated`, `requirePrincipal`).
+- Exported functions declare their return type (`Promise<User>`, `RequestHandler`, `Router`). Factory return types are inferred and exported as `ReturnType<typeof create…>`.
+- Node built-ins use the `node:` prefix (`node:crypto`, `node:http`, `node:timers/promises`).
+- Every promise is awaited, returned, or explicitly `void`-ed. No `.then()` chains in new code; `async`/`await` only.
+- Top-level `await` is allowed only in entry scripts (`src/index.ts`, `db/migrate.ts`, `db/seed.ts`).
+- Interfaces for object shapes, `type` for unions and derived types. Closed sets are `as const` arrays with a derived union (`ROLES` → `Role`), not TS `enum`.
+- Unused parameters are prefixed `_` (`_req`). `no-console` is an error.
+
+Procedure: `scaffold-service` skill (tsconfig, ESLint). Review: `code-review` skill.

@@ -23,6 +23,9 @@ app-dev-kit/                      # nested family — marketplace source is ./ap
   backend-dev-kit/
   agent-dev-kit/
   app-orchestrator-kit/
+backend-boilerplate/              # runnable Express 5 + Postgres starter (not a plugin; node-backend-dev-kit mirrors it)
+agent-boilerplate/                # runnable Express 5 + LangGraph.js starter (not a plugin; node-agent-dev-kit mirrors it)
+Suggestions/                      # AI-factory design proposal (Markdown + Mermaid)
 schemas/                          # JSON schemas for manifests
 scripts/                          # validation + Cursor local install
 evals/                            # discoverability evals for skills/agents (see evals/README.md)
@@ -82,6 +85,10 @@ run `npm run build:cursor-agents`; `npm run validate` fails while the copies are
 Adding a skill or agent to an *existing* plugin, or changing one's `description`, requires the same
 step 5 — add or update its case in that plugin's eval file. See [evals/README.md](evals/README.md).
 
+## Boilerplates
+
+`backend-boilerplate/` and `agent-boilerplate/` are standalone npm projects (Node 22, own `package-lock.json`, own `.gitignore`), not plugins and not in the marketplaces. Each has `typecheck`, `lint` (ESLint + dependency-cruiser layer rules), `test:unit`, `test:integration` (Testcontainers, needs Docker) and a Compose stack. When you change one, update the matching kit's examples (`node-backend-dev-kit`, `node-agent-dev-kit`) and run its checks. Do not add files named like existing kit references (`shadcn.mdc`, `mock-patterns.md`): `npm run validate` resolves cross-kit references by file name across root folders.
+
 ## Validation
 
 ```bash
@@ -102,6 +109,8 @@ npm run install:cursor-local
 |--------|------|-----------|-------|
 | `base-dev-kit` | `base-dev-kit/` | Rules: honesty, security (always applied). Skills: clean code, dependencies, documentation, git workflow, TDD | `evals/cases/base-dev-kit.json` |
 | `frontend-dev-kit` | `frontend-dev-kit/` | Rules + Skills + MCP (no agents): React 19 FSD — TypeScript, shadcn/ui, Tailwind, react-query, react-hook-form + zod, react-i18next, Vitest. Required companion of `feature-dev-kit` | `evals/cases/frontend-dev-kit.json` |
+| `node-backend-dev-kit` | `node-backend-dev-kit/` | Rules + Skills + MCP (no agents): layered Node 22 + Express 5 + TS APIs — Zod 4, Drizzle/Postgres, JWT + RBAC, problem+json, pino, resilience, OpenAPI, Docker, Vitest + Testcontainers. Mirrors `backend-boilerplate/` | `evals/cases/node-backend-dev-kit.json` |
+| `node-agent-dev-kit` | `node-agent-dev-kit/` | Rules + Skills + MCP (no agents): LangGraph.js + LangChain.js agent services on the same Express stack — tools, OpenRouter models, Postgres checkpoints, pgvector hybrid RAG, guardrails, SSE, evals. Requires `node-backend-dev-kit`. Mirrors `agent-boilerplate/` | `evals/cases/node-agent-dev-kit.json` |
 | `pptx-dev-kit` | `pptx-dev-kit/` | Skills + Agents: create a 16:9 `.pptx` via design schema → outline → `deck.json` → checked-in layout renderer; or edit an existing deck via OOXML unpack/replace/pack | `evals/cases/pptx-dev-kit.json`, `pptx-dev-kit-agents.json` |
 | `backend-dev-kit` | `app-dev-kit/backend-dev-kit/` | Rules + Skills + Agents + MCP: Node 22/TS Express 5 APIs with Drizzle, Zod, and Vitest; `/backend-dev` consumes a spec and optional prototype | `evals/cases/backend-dev-kit.json`, `backend-dev-kit-agents.json` |
 | `agent-dev-kit` | `app-dev-kit/agent-dev-kit/` | Rules + Skills + Agents + MCP: TypeScript/Node agents and RAG with the OpenAI SDK via OpenRouter (`@openai/agents` or LangGraph.js); `/agent-dev` consumes a spec and optional prototype | `evals/cases/agent-dev-kit.json`, `agent-dev-kit-agents.json` |

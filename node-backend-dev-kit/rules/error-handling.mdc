@@ -1,0 +1,20 @@
+---
+description: Expected failures are AppError subclasses with a stable code; one errorHandler renders RFC 9457 problem+json. Unknown errors become an opaque 500.
+globs: ["**/src/lib/errors.ts", "**/src/middleware/error-handler.ts", "**/src/services/**/*.ts", "**/src/controllers/**/*.ts", "**/src/db/errors.ts"]
+alwaysApply: false
+---
+
+# Error handling
+
+- Services throw `AppError` subclasses from `lib/errors.ts`: `BadRequestError` 400, `UnauthorizedError` 401, `ForbiddenError` 403, `NotFoundError` 404, `ConflictError` 409, `ValidationError` 422, `TooManyRequestsError` 429, `ServiceUnavailableError` 503. Never `throw new Error()` for an expected outcome, never `throw` a string or plain object.
+- Every thrown `AppError` passes a specific `UPPER_SNAKE_CASE` code (`'EMAIL_TAKEN'`, `'PROJECT_NOT_FOUND'`). Codes are part of the API contract: never rename or reuse one; clients branch on `code`, never on `detail`.
+- `errorHandler()` in `middleware/error-handler.ts` is the only place that turns an error into a response. It is registered last, after `notFound()`.
+- Controllers do not `try/catch` to set a status, and do not call `res.status(4xx/5xx)`. Express 5 forwards rejected promises from async handlers to the error handler; no `asyncHandler` wrapper, no `next(err)` boilerplate in handlers.
+- Middleware that signals an error from a callback API (rate limiter, timeout) calls `next(new …Error())`; synchronous and `async` middleware may simply `throw`.
+- 5xx responses never expose the message, stack, SQL or driver details: `INTERNAL_ERROR` / `An unexpected error occurred.`. The original error is logged with `req.log.error({ err })`.
+- Map driver errors at the service boundary: a unique violation (`isUniqueViolation(error)` from `db/errors.ts`, SQLSTATE 23505) becomes `ConflictError` with a specific code; anything else is rethrown unchanged.
+- Keep the cause when wrapping (`new UnauthorizedError(msg, code, { cause: error })`). Do not swallow errors with an empty `catch` unless the outcome is deliberately a boolean (`verifyPassword`).
+- Do not leak existence: a resource the caller may not see is `NotFoundError`, and login failures use one code (`INVALID_CREDENTIALS`) for unknown email and wrong password.
+- `ServiceUnavailableError` carries `retryAfterSeconds`; the handler sends `Retry-After`.
+
+Procedure: `error-handling` skill.

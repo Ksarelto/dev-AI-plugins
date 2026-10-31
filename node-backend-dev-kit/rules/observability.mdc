@@ -1,0 +1,19 @@
+---
+description: Structured logging with pino and pino-http — one root logger, req.log per request with X-Request-Id, levels by outcome, redaction of credentials, no console.
+globs: ["**/src/lib/logger.ts", "**/src/middleware/request-logger.ts", "**/src/middleware/error-handler.ts", "**/src/lib/shutdown.ts", "**/src/db/migrate.ts", "**/src/db/seed.ts"]
+alwaysApply: false
+---
+
+# Observability
+
+- One root logger from `createLogger()` in `lib/logger.ts`, created in the entry script and passed down. No `console.*` (ESLint `no-console` is an error), no second logger library, no `new pino()` elsewhere.
+- Inside a request, log with `req.log` (the pino-http child that carries the request id). Outside a request, use a child of the injected logger (`logger.child({ component: 'billing' })`).
+- Log objects first, message second: `log.info({ projectId }, 'project created')`. Errors go under the `err` key: `log.error({ err: error }, 'sync failed')` so the serializer keeps type, message and stack.
+- Message strings are static; variable data goes in the object. No template-string messages that embed ids or payloads.
+- Levels: `error` for 5xx and failed background work, `warn` for 4xx and degraded dependencies, `info` for lifecycle events, `debug` for diagnostics. `fatal` only before the process exits.
+- Never log request or response bodies, tokens, passwords, password hashes, cookies or full headers. New sensitive fields are added to `REDACT_PATHS`, not filtered at call sites.
+- `X-Request-Id` is accepted only when it matches `^[\w.-]{1,128}$`, otherwise a UUID is generated; it is echoed on the response. Never log or forward an unvalidated incoming id.
+- Health probes are excluded from access logs (`autoLogging.ignore`). `pino-pretty` is a dev-only transport behind `LOG_PRETTY`; production logs are JSON on stdout.
+- Tests run with `LOG_LEVEL=silent` or `createLogger({ level: 'silent', pretty: false })`.
+
+Procedure: `logging-observability` skill.

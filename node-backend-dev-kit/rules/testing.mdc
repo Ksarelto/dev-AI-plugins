@@ -1,0 +1,20 @@
+---
+description: Backend tests with Vitest — services unit-tested with in-memory repositories, routes integration-tested with supertest against real Postgres from Testcontainers; every change ships with tests.
+globs: ["**/tests/unit/**/*.ts", "**/tests/integration/**/*.ts", "**/tests/helpers/**/*.ts", "**/tests/setup/**/*.ts"]
+alwaysApply: false
+---
+
+# Testing
+
+- Every new or changed service, middleware, lib function and route ships with tests in the same change: unit tests in `tests/unit/<layer>/`, route tests in `tests/integration/<resource>.*.test.ts`.
+- Two Vitest projects: `unit` (no Docker, no network) and `integration` (real Postgres). A unit test that needs a database is an integration test.
+- Service unit tests call the `create<Name>Service` factory with in-memory repositories from `tests/helpers/in-memory-repositories.ts` that honour the repository contract (including unique violations as `{ code: '23505' }`). Do not mock Drizzle, `postgres`, or the query builder.
+- Integration tests use `createTestApp()` — the real `createContainer` + `createApp` against the Testcontainers database — and drive it with `supertest`. Do not mock repositories, services or middleware there.
+- Each integration file calls `beforeEach(testApp.reset)` (truncate) and `afterAll(testApp.close)`. A new table is added to the truncate list. Tests never depend on order or on data from another test.
+- Migrations run once in `tests/setup/global-setup.ts` exactly as in production; never `drizzle-kit push` in tests. `TEST_DATABASE_URL` switches to an existing database.
+- Assert the contract: status, `code` of problem responses, DTO shape, and that secrets are absent (`not.toHaveProperty('passwordHash')`). "Responds" or "is defined" is not a test.
+- Inject time and randomness (`now`, `fetchImpl`, breaker `now`) instead of sleeping; no `setTimeout` waits longer than a few ms in unit tests.
+- Test configuration comes from `testEnv(overrides)`; no reliance on a developer's `.env`.
+- Never report a test as passing without running it: `npm run test:unit`, `npm run test:integration`, `npm run typecheck`, `npm run lint`.
+
+Procedure: `api-testing` skill.

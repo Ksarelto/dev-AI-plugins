@@ -1,0 +1,29 @@
+---
+description: Layering of an agent service — services drive graphs; agents/<name>/ owns state, graph, nodes, tools and prompts and never sees HTTP or SQL; models, retrievers and checkpointers are built in container.ts and injected. dependency-cruiser enforces it.
+globs: ["**/src/agents/**/*.ts", "**/src/rag/**/*.ts", "**/src/memory/**/*.ts", "**/src/guardrails/**/*.ts"]
+alwaysApply: false
+---
+
+# Agent architecture
+
+HTTP layering (routes → controllers → services → repositories → db) is the `layered-architecture` rule of `node-backend-dev-kit`. The agent layers sit beside it:
+
+| Layer | Owns | Must not |
+|---|---|---|
+| `agents/<name>/` | `state.ts`, `graph.ts`, `nodes/`, `tools/`, `prompts.ts` | import Express, `services/`, `repositories/`, `db/`; build a model, retriever or checkpointer |
+| `services/` (chat) | thread ownership, turn input and run config, building the reply, mapping provider failures to `AppError` | import Express; build prompts |
+| `rag/` | splitter, ingestion pipeline, `KnowledgeRetriever` over a repository | know about agents or HTTP |
+| `llm/` | `createChatModel`, `createEmbeddings`, `UsageCallbackHandler` | import any layer above |
+| `memory/` | checkpointer (and store) factories | hold business rules |
+| `guardrails/` | deterministic input checks, untrusted-content wrapping, citation filtering | call a model; import another layer |
+
+- One folder per agent: `src/agents/<name>/`. The graph is built by `build<Name>Graph(deps)`, where `deps` is an interface (model, tools, checkpointer, breaker, limits, logger). Nothing in the folder reads `process.env` or `Env`.
+- `src/container.ts` is the only caller of `createChatModel`, `createEmbeddings`, `createPostgresCheckpointer`, `createKnowledgeRetriever` and `bindTools`. Tests replace them through `ContainerOptions`.
+- Tools reach data through injected interfaces (`KnowledgeRetriever`), never a repository or `db` import.
+- A graph is run only by a service (`ChatService.send` / `stream`). Controllers never call `graph.invoke` or `graph.stream`; routes never import `agents/`.
+- A missing provider is `undefined`, not a crash: the container skips the graph and the service throws 503 `LLM_NOT_CONFIGURED` / `EMBEDDINGS_NOT_CONFIGURED`.
+- Build the `StateGraph` explicitly. Do not swap it for `createReactAgent`; the guard node, step cap and circuit breaker live in the hand-built graph.
+- A second agent is a sibling folder with its own service, never a branch inside `assistant/`. See the `scaffold-agent-service` skill.
+- A new top-level folder under `src/` gets a dependency-cruiser rule in the same change; `npm run lint` stays green.
+
+Procedure: `langgraph-agent` skill.

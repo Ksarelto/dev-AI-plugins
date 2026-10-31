@@ -1,0 +1,21 @@
+---
+description: PostgreSQL through Drizzle ORM and postgres.js — schema in src/db/schema, committed SQL migrations from drizzle-kit, repositories that accept a DbExecutor, transactions owned by services, keyset pagination.
+globs: ["**/src/db/**/*.ts", "**/src/repositories/**/*.ts", "**/drizzle.config.ts", "**/drizzle/**/*.sql"]
+alwaysApply: false
+---
+
+# Database
+
+- One `postgres.js` pool per process, created by `createDatabase()` in `src/index.ts` and closed on shutdown. Never create a pool or a `drizzle()` instance inside a repository, service or request.
+- Tables live in `src/db/schema/<table>.ts` and are re-exported from `schema/index.ts`. Columns are snake_case in SQL, camelCase in TS (`createdAt: timestamp('created_at', { withTimezone: true })`). Timestamps are always `withTimezone: true`; ids are `uuid().primaryKey().defaultRandom()`.
+- Every foreign key declares `onDelete`, and every foreign key and every column used in a `where`/`orderBy` of a list query has an index.
+- Schema changes go through `npm run db:generate` → review the SQL → commit `drizzle/*.sql` and `drizzle/meta/*`. Never `drizzle-kit push` against a shared or production database. Never edit a migration that has been applied anywhere; add a new one.
+- Migrations run as a separate step (`npm run db:migrate`, the compose `migrate` service), never on API startup.
+- Repositories contain Drizzle queries only and take `executor: DbExecutor = db` as the last parameter, so the same query runs inside or outside a transaction.
+- Services own transactions through the injected `TransactionRunner` and pass `tx` to every repository call inside it. Repositories never call `db.transaction`.
+- No string-built SQL. Use the query builder or the `sql` tagged template; never interpolate user input with `sql.raw`.
+- Writes that must be race-safe use the database: unique constraints, conditional `update … where … returning`, not read-then-write checks in TS.
+- Lists are keyset-paginated (`orderBy(desc(createdAt), desc(id))`, `limit + 1`, opaque cursor from `lib/cursor.ts`) with a bounded `limit`. No `OFFSET` pagination on unbounded tables, no unbounded `select()`.
+- `select()` returns rows with secrets (`passwordHash`); map rows to domain objects in the service before they leave it.
+
+Procedure: `drizzle-database` skill.

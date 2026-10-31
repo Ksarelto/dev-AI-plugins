@@ -1,0 +1,21 @@
+---
+description: Retrieval-augmented generation on Postgres — RecursiveCharacterTextSplitter chunks, batched embeddings, document and chunks stored in one transaction, hybrid search (pgvector cosine + websearch_to_tsquery, fused with RRF k=60) in one SQL query, and a KnowledgeRetriever interface for agents.
+globs: ["**/src/rag/**/*.ts", "**/src/repositories/knowledge*.ts", "**/src/db/schema/knowledge*.ts"]
+alwaysApply: false
+---
+
+# RAG
+
+- Ingestion and query are separate paths. `rag/ingest.ts` (split → embed → store) runs from a service or a script, never from a tool or a graph node.
+- Chunking uses `createTextSplitter()` (`RecursiveCharacterTextSplitter`, 1000 / 150 by default). Change size or overlap only with an eval run before and after.
+- Embed with `embedDocuments` in batches (`EMBED_BATCH_SIZE`) before the transaction, then insert the document and all of its chunks in one `TransactionRunner` call. Never a document without its chunks.
+- A chunk row has `position`, `content`, `metadata`, `embedding vector(EMBEDDING_DIMENSIONS)` and a generated `search_vector tsvector`. Indexes: HNSW `vector_cosine_ops` on `embedding`, GIN on `search_vector`.
+- Search is hybrid, in one statement in `knowledge.repository.ts`: cosine (`<=>`) ranks and `websearch_to_tsquery` + `ts_rank_cd` ranks, each limited to `limit * 4` candidates, fused with reciprocal rank fusion (`RRF_K = 60`). No vector-only search, no fusion in JavaScript.
+- User text reaches SQL only as a bound parameter of the Drizzle `sql` template. Never `sql.raw` with query text.
+- Visibility filters (tenant, owner, document type) go in the `where` of both candidate CTEs, before ranking. Never filter retrieved results afterwards.
+- Agents depend on `KnowledgeRetriever.search(query, limit)` from `createKnowledgeRetriever(repository, embeddings)`, which embeds the query once with `embedQuery`.
+- Every result keeps `chunkId`, `documentId`, `title` and `source`; they become citations.
+- A new embedding model or size: change `EMBEDDING_DIMENSIONS` and env together, generate a migration, re-ingest every document. Vectors from two models in one column are a bug.
+- Ingestion is admin-only (`requireRole('admin')`) and size-capped by its request schema.
+
+Procedure: `rag-pipeline` skill.
