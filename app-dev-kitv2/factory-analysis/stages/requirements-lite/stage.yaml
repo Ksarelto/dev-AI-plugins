@@ -1,0 +1,11 @@
+id: requirements-lite
+title: S1 Requirements (patch tier)
+kind: agents
+agents: [requirements-analyst, planner, test-strategist]
+owners: { delta-spec: requirements-analyst, tasks: planner, test-plan: test-strategist }
+context_role: analysis_roles
+inputs: [normalised-sources, source-index, capability-index?, human-notes?]
+outputs: [delta-spec, tasks, test-plan]
+gate: [spec, plan]
+tracked_ids: [HD]
+requires: { factory: "^0.1" }

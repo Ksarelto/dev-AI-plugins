@@ -1,8 +1,0 @@
-topics:
-  users: { status: covered, sources: [SRC-001] }
-  goals: { status: covered, sources: [SRC-001] }
-  scope: { status: covered, sources: [SRC-001] }
-  data: { status: covered, sources: [SRC-002] }
-  rules: { status: covered, sources: [SRC-002] }
-  nfr: { status: not_applicable }
-  acceptance: { status: gap, note: "no explicit acceptance examples" }

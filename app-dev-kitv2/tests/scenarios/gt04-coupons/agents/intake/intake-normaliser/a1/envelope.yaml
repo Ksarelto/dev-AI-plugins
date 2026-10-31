@@ -1,0 +1,3 @@
+status: needs_clarification
+open_questions: ["Can a coupon be combined with the loyalty discount? (default: no — one discount per order)"]
+summary: Users, goals and scope are covered; the discount combination rule is a blocker gap.

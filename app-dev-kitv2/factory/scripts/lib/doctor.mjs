@@ -41,14 +41,18 @@ export function doctor(projectDir, { register } = {}) {
   const active = config.pipeline?.profile ?? "standard";
   for (const [profile, stages] of Object.entries(config.pipeline?.profiles ?? {})) {
     const report = profile === active ? errors : warnings;
-    const produced = new Set(Object.keys(ARTIFACT_TYPES).filter((t) => ARTIFACT_TYPES[t].external));
+    const produced = new Set(Object.keys(ARTIFACT_TYPES).filter((t) => ARTIFACT_TYPES[t].external || ARTIFACT_TYPES[t].producer === "engine"));
     for (const id of stages) {
       const stage = resolveStage(c, id);
       if (!stage) {
         report.push(`profile ${profile}: stage "${id}" is not provided by any installed pack`);
         continue;
       }
-      if (stage.gate && !gates.has(stage.gate)) report.push(`stage ${id}: unknown gate "${stage.gate}"`);
+      for (const g of [stage.gate].flat().filter(Boolean)) if (!gates.has(g)) report.push(`stage ${id}: unknown gate "${g}"`);
+      for (const [type, agent] of Object.entries(stage.owners ?? {})) {
+        if (!(stage.outputs ?? []).some((ref) => ref.replace(/\?$/, "").split("|").includes(type))) report.push(`stage ${id}: owners names "${type}", which is not an output`);
+        if (!(stage.agents ?? []).some((a) => a === agent || a.endsWith(`:${agent}`))) report.push(`stage ${id}: owner "${agent}" is not one of the stage's agents`);
+      }
       const goto = /^goto:(.+)$/.exec(stage.on_fail ?? "")?.[1];
       if (goto && stages.indexOf(goto) === -1) report.push(`stage ${id}: on_fail target "${goto}" is not in profile ${profile}`);
       if (goto && stages.indexOf(goto) > stages.indexOf(id)) report.push(`stage ${id}: on_fail must point backwards, "${goto}" comes later`);
@@ -97,7 +101,8 @@ export function doctor(projectDir, { register } = {}) {
   const adapter = config.delivery?.adapter;
   if (adapter && !packs[adapter]?.adapter) warnings.push(`delivery adapter "${adapter}" is not installed (needed at the delivery stage)`);
 
-  const packList = Object.fromEntries(Object.values(packs).map((p) => [p.name, { version: p.version, source: sources[p.name], root: p.root }]));
+  const relevant = Object.values(packs).filter((p) => p.name === ENGINE_PACK || Object.keys(p.stages).length || p.role || p.stack || p.adapter);
+  const packList = Object.fromEntries(relevant.map((p) => [p.name, { version: p.version, source: sources[p.name], root: p.root }]));
   return { ok: errors.length === 0, errors, warnings, packs: packList };
 }
 
@@ -119,7 +124,7 @@ export function init(projectDir, { mode = "unknown", name, roles } = {}) {
   writeJson(paths.state, { version: 1, mode, next_ids: {}, features: {}, active_feature: null, initialized_at: now() });
   appendEvent(projectDir, { type: "init", mode });
   const registered = [];
-  for (const root of [ENGINE_ROOT, ...scanCandidates()]) {
+  for (const root of [ENGINE_ROOT, ...(process.env.FACTORY_NO_SCAN ? [] : scanCandidates())]) {
     const pack = readPack(root);
     const isFactoryPack = pack && (pack.name === ENGINE_PACK || Object.keys(pack.stages).length || pack.role || pack.stack || pack.adapter);
     if (isFactoryPack) registered.push(registerPack(projectDir, root, "init").name);

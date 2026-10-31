@@ -1,0 +1,21 @@
+# Worked example (GT-04). OpenAPI 3.1; every operation names the ACs it serves in x-factory.acs.
+openapi: 3.1.0
+info: { title: Checkout API, version: 1.0.0 }
+paths:
+  /carts/{cartId}/coupon:
+    put:
+      operationId: applyCoupon
+      x-factory: { feature: FEAT-001, acs: [AC-0001, AC-0002], owner_role: backend }
+      parameters:
+        - { name: cartId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ApplyCoupon" } } }
+      responses:
+        "200": { description: Applied, content: { application/json: { schema: { $ref: "#/components/schemas/Cart" } } } }
+        "422": { description: "Expired or invalid code (AC-0002)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+components:
+  schemas:
+    ApplyCoupon: { type: object, required: [code], properties: { code: { type: string, minLength: 1 } } }
+    Cart: { type: object, required: [id, total], properties: { id: { type: string }, discount: { type: number }, total: { type: number } } }
+    Problem: { type: object, required: [title, status], properties: { type: { type: string }, title: { type: string }, status: { type: integer }, detail: { type: string } } }

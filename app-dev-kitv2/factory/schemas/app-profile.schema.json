@@ -46,6 +46,10 @@
         "greenfield",
         "discovered"
       ]
+    },
+    "notes": {
+      "type": "string",
+      "description": "conformance deviations and anything a later stage must know"
     }
   }
 }

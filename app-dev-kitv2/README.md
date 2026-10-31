@@ -5,14 +5,14 @@ A thin Conductor in the main session dispatches single-purpose agents; they talk
 schema-checked files in `.factory/`, and **scripts, not models, decide pass/fail, retries and when to
 stop.**
 
-Status: **phase 1 of 5 (engine).** Stage, role and adapter packs arrive in phases 2–5.
+Status: **phase 2 of 5 (engine + analysis).** Role, quality, delivery and adapter packs arrive in phases 3–5.
 
 ## Plugins
 
 | Layer | Plugin | Status | Ships |
 |---|---|---|---|
 | Engine | [`factory`](factory/) | ✅ phase 1 | `/factory:*` commands, CLI, schemas, gates, Loop Warden, Context Broker, hooks, `curator`, `diagnostician` |
-| Stage | `factory-analysis` | phase 2 | intake → requirements → stories → architecture → planning |
+| Stage | [`factory-analysis`](factory-analysis/) | ✅ phase 2 | intake → bootstrap/discovery → requirements → stories → architecture → planning; 8 agents, 10 skills, worked-example templates |
 | Role | `factory-role-frontend` | phase 3 | red/green task loop for React FSD |
 | Stage | `factory-quality`, `factory-delivery` | phase 4 | review, QA, docs, PR |
 | Adapter | `factory-adapter-github` | phase 4 | draft PR (dry-run by default) |
@@ -62,10 +62,17 @@ A task that fails twice moves to opus (rung 2). The policy is enforced by
 
 ```bash
 npm run test:factory     # Layer-1 control-plane tests (node:test, no model)
+npm run test:factory:e2e # mocked end-to-end scenarios: real engine, scripted agents (tests/scenarios)
 npm run check:factory    # duplication, wiring, model-policy and drift check
 npm run build:factory    # regenerate the vendored deps bundle and pack hooks
 npm run validate         # includes build:factory --check
 npm run eval             # discoverability, includes evals/cases/factory*.json
+```
+
+Real-model golden tickets (cost money; the runner prints its plan and spends nothing without `--yes`):
+
+```bash
+node app-dev-kitv2/tests/golden/run-golden.mjs app-dev-kitv2/tests/golden/GT-06-vague-conflicts
 ```
 
 The engine CLI can be driven by hand in any project:

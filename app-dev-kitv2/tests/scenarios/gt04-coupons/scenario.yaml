@@ -1,0 +1,37 @@
+id: gt04-coupons
+title: "GT-04 coupons at checkout — change request, analysis half (S0–S4)"
+intake: { title: Coupons at checkout }
+config:
+  roles: { frontend: { enabled: true, owns_paths: ["src/**"] } }
+  pipeline:
+    profile: analysis
+    profiles: { analysis: [intake, discovery, requirements, stories, architecture, planning] }
+expect:
+  final_action: done
+  final_status: done
+  dispatches_max: 16
+  gates: [CLARIFY, GATE-D, GATE-A, GATE-B]
+  verdicts:
+    - { stage: intake, verdict: ask_human }
+    - { stage: intake, verdict: advance }
+    - { stage: discovery, verdict: retry }
+    - { stage: discovery, verdict: advance }
+    - { stage: requirements, verdict: retry }
+    - { stage: requirements, verdict: advance }
+    - { stage: stories, verdict: advance }
+    - { stage: architecture, verdict: advance }
+    - { stage: planning, verdict: advance }
+  models:
+    intake-normaliser: haiku
+    codebase-analyst: sonnet
+    requirements-analyst: opus
+    story-writer: sonnet
+    solution-architect: opus
+    contract-steward: sonnet
+    planner: opus
+    test-strategist: sonnet
+    curator: haiku
+  denied_writes:
+    - { agent: requirements-analyst, file: src/features/apply-coupon/hack.ts }
+  notes: { HD-1: mapped, HD-2: mapped }
+  trace: true

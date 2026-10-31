@@ -4,7 +4,7 @@
   "component": "skills",
   "cases": [
     {
-      "prompt": "Set up the AI factory in this repo so I can start feeding it requirements",
+      "prompt": "Set up the AI factory in this repository for the first time",
       "expect": "init"
     },
     {
@@ -106,6 +106,14 @@
     {
       "prompt": "Write a diagnosis file with root cause, evidence and the recommended fix",
       "expect": "failure-analysis"
+    },
+    {
+      "prompt": "Start the factory on the new requirements I dropped in the inbox",
+      "expect": "intake"
+    },
+    {
+      "prompt": "Here is a one-line request, take it in and open a feature",
+      "expect": "intake"
     }
   ]
 }

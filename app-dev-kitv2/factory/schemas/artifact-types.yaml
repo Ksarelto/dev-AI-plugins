@@ -2,28 +2,29 @@
 # lives and which schema validates it. Paths are relative to .factory/ (scope: app) or to
 # .factory/features/<FEAT>-<slug>/ (scope: feature). `external` types come from outside the pipeline.
 # format: yaml | json | frontmatter (YAML front matter + Markdown) | markdown | any
+# producer: engine — written by the factory CLI itself (intake, notes, digest dispatch), not by a stage
 inbox:              { scope: app, path: "inbox/**", format: any, external: true }
 repository:         { scope: project, path: "**", format: any, external: true }
 config:             { scope: app, path: factory.config.yaml, format: yaml, external: true }
-normalised-sources: { scope: app, path: "context/normalised/*.md", format: markdown }
-source-index:       { scope: app, path: context/index.yaml, format: yaml, schema: source-index }
+normalised-sources: { scope: app, path: "context/normalised/*.md", format: markdown, producer: engine }
+source-index:       { scope: app, path: context/index.yaml, format: yaml, schema: source-index, producer: engine }
 coverage:           { scope: app, path: context/coverage.yaml, format: yaml, schema: coverage }
 app-profile:        { scope: app, path: app-profile.yaml, format: yaml, schema: app-profile }
-capability-index:   { scope: app, path: "_index/capability-map.yaml", format: yaml }
+capability-index:   { scope: app, path: "_index/capability-map.yaml", format: yaml, schema: capability-map }
 component-inventory: { scope: app, path: "_index/component-inventory.yaml", format: yaml }
 capability-slice:   { scope: app, path: "_index/slices/*.slice.md", format: markdown }
-feature-ledger:     { scope: app, path: ledger/feature-ledger.yaml, format: yaml }
+feature-ledger:     { scope: app, path: ledger/feature-ledger.yaml, format: yaml, schema: feature-ledger }
 prd:                { scope: feature, path: 01-requirements/prd.md, format: frontmatter, schema: prd, ids: [REQ, AC, OQ, SRC, HD] }
 delta-spec:         { scope: feature, path: 01-requirements/delta-spec.yaml, format: yaml, schema: delta-spec, ids: [REQ, AC, OQ, SRC, HD] }
 open-questions:     { scope: feature, path: 01-requirements/open-questions.md, format: markdown, ids: [OQ] }
 stories:            { scope: feature, path: 02-stories/stories.yaml, format: yaml, schema: stories, ids: [REQ, AC] }
 ux-notes:           { scope: feature, path: 02-stories/ux-notes.md, format: markdown }
 prototype-report:   { scope: feature, path: 02b-prototype/prototype-report.yaml, format: yaml }
-component-map:      { scope: feature, path: 03-architecture/component-map.md, format: markdown, ids: [ADR] }
-adr:                { scope: feature, path: "03-architecture/adr-*.md", format: markdown, ids: [ADR] }
+component-map:      { scope: feature, path: 03-architecture/component-map.md, format: frontmatter, schema: component-map, ids: [ADR] }
+adr:                { scope: feature, path: "03-architecture/adr-*.md", format: frontmatter, schema: adr, ids: [ADR] }
 api-contract:       { scope: feature, path: 03-architecture/api-contract.yaml, format: yaml, ids: [AC] }
 tasks:              { scope: feature, path: 04-plan/tasks.yaml, format: yaml, schema: tasks, ids: [AC] }
 test-plan:          { scope: feature, path: 04-plan/test-plan.yaml, format: yaml, schema: test-plan, ids: [AC] }
-human-notes:        { scope: feature, path: human-notes.yaml, format: yaml, schema: human-notes, ids: [HD] }
-digest:             { scope: feature, path: digest.md, format: markdown }
-root-cause:         { scope: feature, path: "diagnosis/*.md", format: markdown }
+human-notes:        { scope: feature, path: human-notes.yaml, format: yaml, schema: human-notes, ids: [HD], producer: engine }
+digest:             { scope: feature, path: digest.md, format: markdown, producer: engine }
+root-cause:         { scope: feature, path: "diagnosis/*.md", format: markdown, producer: engine }

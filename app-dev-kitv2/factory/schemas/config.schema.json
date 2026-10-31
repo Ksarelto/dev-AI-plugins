@@ -85,6 +85,18 @@
           "items": {
             "type": "string"
           }
+        },
+        "mode_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tier_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       }
     },

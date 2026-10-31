@@ -1,0 +1,37 @@
+feature: FEAT-001
+tasks:
+  - id: TASK-001
+    role: frontend
+    type: characterisation
+    title: Characterise the current order total
+    depends_on: []
+    satisfies: []
+    characterisation: true
+    files_expected: [src/entities/order/model/total.characterisation.test.ts]
+    tdd: { mode: exempt, reason: "characterisation tests document today's behaviour and pass before the change" }
+    reuse: { considered: [entities/order], reuse_rejected: null }
+    definition_of_done: ["Covers sum(lines) + shipping and half-even rounding (unchanged guarantee)"]
+    size: { files: 1, est_loc: 50 }
+  - id: TASK-002
+    role: frontend
+    type: entity-model
+    title: Discount in the order total
+    depends_on: [TASK-001]
+    satisfies: [AC-0003]
+    files_expected: [src/entities/order/model/total.ts, src/entities/order/model/total.test.ts]
+    tdd: { mode: required, red_tests: [src/entities/order/model/total.test.ts], stubs: ["calculateTotal(lines, shipping, discount?): number"] }
+    reuse: { considered: [entities/order], reuse_rejected: null }
+    definition_of_done: ["total = sum(lines) - discount + shipping; discount clamped >= 0"]
+    size: { files: 2, est_loc: 60 }
+  - id: TASK-003
+    role: frontend
+    type: feature-ui
+    title: CouponField in CheckoutSummary
+    depends_on: [TASK-002]
+    satisfies: [AC-0001, AC-0002, AC-0004]
+    files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx]
+    tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string; isGuest: boolean }): JSX.Element"] }
+    reuse: { considered: [shared/ui/input], reuse_rejected: "no coupon input exists" }
+    definition_of_done: ["Shows the discount or the inline error", "Hidden for guest users", "Shows the loyalty conflict message"]
+    size: { files: 2, est_loc: 140 }
+    contract_ops: [applyCoupon]

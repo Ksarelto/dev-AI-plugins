@@ -86,11 +86,11 @@ export function pickFeature(app, featureId) {
   if (featureId) return featureId;
   if (app.active_feature) return app.active_feature;
   const open = Object.entries(app.features).filter(([, f]) => !["done", "aborted"].includes(f.status));
-  if (open.length === 1) return open[0][0];
+  // Kanban pull order: the oldest open feature. Split features depend on earlier ones, never later.
+  if (open.length) return open[0][0];
   const all = Object.keys(app.features);
-  if (!open.length && all.length) return all.at(-1); // the last feature, so `step` can report it done
-  if (!open.length) throw new UsageError("no feature yet — run /factory:intake");
-  throw new UsageError(`several open features (${open.map(([id]) => id).join(", ")}); pass --feature`);
+  if (all.length) return all.at(-1); // the last feature, so `step` can report it done
+  throw new UsageError("no feature yet — run /factory:intake");
 }
 
 export function loadFeature(projectDir, app, featureId) {

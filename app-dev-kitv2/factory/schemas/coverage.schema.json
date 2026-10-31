@@ -27,7 +27,7 @@
             "type": "array",
             "items": {
               "type": "string",
-              "pattern": "^SRC-\\d{3,}$"
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
             }
           },
           "note": {

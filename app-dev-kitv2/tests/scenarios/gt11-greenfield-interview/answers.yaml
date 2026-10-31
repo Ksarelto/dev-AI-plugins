@@ -1,0 +1,2 @@
+- { gate: CLARIFY, approve: "B2B customers reorder spare parts they bought before; later they want coupons. Success = fewer phone orders." }
+- { gate: GATE-A, approve: true }

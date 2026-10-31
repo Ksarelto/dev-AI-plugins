@@ -1,0 +1,12 @@
+id: discovery
+title: A0 Discovery
+kind: agents
+agents: [codebase-analyst]
+modes: [brownfield-extend, change-request]
+when: discovery.needed
+context_role: analysis_roles
+inputs: [repository, normalised-sources, config]
+outputs: [app-profile, capability-index, feature-ledger]
+gate: discovery
+human_gate: GATE-D
+requires: { factory: "^0.1" }

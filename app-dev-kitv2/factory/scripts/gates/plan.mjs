@@ -87,7 +87,7 @@ export function run(ctx) {
 
   // Human notes made so far must be mapped to something in the plan, or declined.
   const known = new Set([...specAcs, ...byId.keys(), ...(spec?.reqs.map((r) => r.id) ?? [])]);
-  for (const note of ctx.load("human-notes")?.data ?? []) {
+  for (const note of (ctx.load("human-notes")?.data ?? []).filter((n) => ["open", "mapped"].includes(n.status))) {
     if (note.status === "open") fail("notes", "unmapped", `${note.id} ("${note.text.slice(0, 50)}") is not mapped to a REQ, AC or task`, "human-notes.yaml");
     for (const id of note.mapped_to) {
       if (/^(REQ|AC|TASK)-/.test(id) && !known.has(id)) fail("notes", "dangling", `${note.id} is mapped to ${id}, which does not exist`, "human-notes.yaml");

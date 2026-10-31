@@ -47,6 +47,12 @@ export function profileStages(config, profile) {
   return stages;
 }
 
+/** The profile a new feature runs: by tier (patch) first, then by entry mode, then the default. */
+export function profileFor(config, { mode, tier } = {}) {
+  const p = config.pipeline ?? {};
+  return p.tier_profiles?.[tier] ?? p.mode_profiles?.[mode] ?? p.profile ?? "standard";
+}
+
 export function enabledRoles(config) {
   return Object.entries(config.roles ?? {})
     .filter(([, role]) => role?.enabled)

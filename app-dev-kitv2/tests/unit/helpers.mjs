@@ -1,7 +1,7 @@
 // Shared helpers for the factory control-plane tests: temp projects wired to the fixture stage pack,
 // fixture artifacts, and a scripted "agent" that writes files and returns an envelope.
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,6 +15,9 @@ export const CLI = join(ENGINE, "scripts", "factory.mjs");
 export const GUARD = join(ENGINE, "hooks", "guard.mjs");
 export const FIXTURE_PACK = join(TESTS, "fixtures", "packs", "fixture-stages");
 export const ARTIFACTS = join(TESTS, "fixtures", "artifacts");
+/** The factory-analysis templates are the worked GT-04 example; tests use them as fixtures. */
+export const TEMPLATES = join(TESTS, "..", "factory-analysis", "templates");
+const fixturePath = (name) => (existsSync(join(ARTIFACTS, name)) ? join(ARTIFACTS, name) : join(TEMPLATES, `fa-${name}`));
 
 const lib = (name) => import(join(ENGINE, "scripts", "lib", `${name}.mjs`));
 export const { init } = await lib("doctor");
@@ -47,10 +50,10 @@ export function makeProject(extraConfig = "") {
 }
 
 /** Creates FEAT-001 in the project and returns its directory. */
-export function makeFeature(dir, { mode = "change-request" } = {}) {
+export function makeFeature(dir, { mode = "change-request", stages = ["requirements", "stories", "planning"] } = {}) {
   return state.withLock(dir, () => {
     const app = state.loadAppState(dir);
-    const f = state.createFeature(dir, app, { title: "Coupons at checkout", mode, profile: "test", stages: ["requirements", "stories", "planning"] });
+    const f = state.createFeature(dir, app, { title: "Coupons at checkout", mode, profile: "test", stages });
     state.saveAppState(dir, app);
     return f.dir;
   });
@@ -58,7 +61,7 @@ export function makeFeature(dir, { mode = "change-request" } = {}) {
 
 /** Copies a fixture artifact into the feature (or app) folder, optionally transforming its text. */
 export function putArtifact(featureDir, name, target, transform = (s) => s) {
-  const text = transform(readFileSync(join(ARTIFACTS, name), "utf8"));
+  const text = transform(readFileSync(fixturePath(name), "utf8"));
   const dest = join(featureDir, target);
   mkdirSync(dirname(dest), { recursive: true });
   writeFileSync(dest, text);
@@ -70,7 +73,7 @@ export function putIntake(projectDir) {
   mkdirSync(join(ctx, "normalised"), { recursive: true });
   cpSync(join(ARTIFACTS, "normalised", "brief.md"), join(ctx, "normalised", "brief.md"));
   cpSync(join(ARTIFACTS, "source-index.yaml"), join(ctx, "index.yaml"));
-  cpSync(join(ARTIFACTS, "coverage.yaml"), join(ctx, "coverage.yaml"));
+  cpSync(fixturePath("coverage.yaml"), join(ctx, "coverage.yaml"));
 }
 
 export const envelope = (packId, extra = {}) => JSON.stringify({ pack_id: packId, status: "done", artifacts_written: [], summary: "ok", ...extra });

@@ -1,6 +1,6 @@
 ---
 name: gate
-description: "Approve or reject the human gate a factory feature is waiting at (GATE-A spec, GATE-P prototype, GATE-B plan, GATE-C pull request, or a clarification). Notes and reasons are stored as HD notes the agents must address. Use for /factory:gate."
+description: "Approve or reject the human gate a factory feature is waiting at (GATE-D baseline, GATE-A spec, GATE-P prototype, GATE-B plan, GATE-C pull request, or a clarification). Notes and reasons are stored as HD notes the agents must address. Use for /factory:gate."
 argument-hint: "approve [\"notes\"] | reject \"<reason>\" [--feature FEAT-NNN]"
 disable-model-invocation: true
 allowed-tools: Bash(node:*)
@@ -19,4 +19,5 @@ The human decides; you only record the decision. Never approve on the human's be
   gated stage runs again with it as feedback. A reason is required.
 
 Pass the human's words verbatim. Then report the stored note ID and the stage the feature is in
-now, and suggest `/factory:run` to continue.
+now. If the output lists `backlog_features`, the approved PRD was split: name the new features and
+their dependencies. Suggest `/factory:run` to continue.

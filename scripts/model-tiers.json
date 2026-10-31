@@ -9,6 +9,7 @@
     "app-dev-kit/spec-dev-kit",
     "app-dev-kit/html-generator-kit",
     "app-dev-kit/feature-dev-kit",
-    "app-dev-kitv2/factory"
+    "app-dev-kitv2/factory",
+    "app-dev-kitv2/factory-analysis"
   ]
 }

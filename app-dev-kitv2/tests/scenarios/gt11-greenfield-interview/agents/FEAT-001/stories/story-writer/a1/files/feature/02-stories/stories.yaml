@@ -1,0 +1,13 @@
+feature: FEAT-001
+stories:
+  - id: STORY-0001
+    traces: [REQ-0001]
+    as_a: B2B buyer
+    i_want: to reorder a past order
+    so_that: I stop phoning the sales desk
+    acs:
+      - id: AC-0001
+        gherkin: |
+          Given a past order with 3 lines
+          When I press "Reorder"
+          Then the cart holds the same 3 lines with the same quantities

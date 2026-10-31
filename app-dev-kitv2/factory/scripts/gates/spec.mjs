@@ -44,6 +44,24 @@ export function run(ctx) {
     }
   }
 
+  // A PRD backlog must place every requirement exactly once and name only real dependencies.
+  const backlog = spec.data.backlog ?? [];
+  if (spec.kind === "prd" && backlog.length) {
+    const placed = backlog.flatMap((b) => b.requirements);
+    const titles = new Set(backlog.map((b) => b.title));
+    for (const r of spec.reqs) {
+      const n = placed.filter((id) => id === r.id).length;
+      if (n !== 1) fail("backlog", n ? "duplicate-placement" : "unplaced", `${r.id} is in ${n} backlog entries (expected 1)`);
+    }
+    const known = new Set(spec.reqs.map((r) => r.id));
+    for (const b of backlog) {
+      if (!b.requirements.length) fail("backlog", "empty-entry", `backlog entry "${b.title}" has no requirements`);
+      for (const id of b.requirements) if (!known.has(id)) fail("backlog", "unknown-req", `backlog entry "${b.title}" names ${id}, which is not a requirement`);
+      for (const t of b.depends_on ?? []) if (!titles.has(t)) fail("backlog", "unknown-dependency", `backlog entry "${b.title}" depends on "${t}", which is not an entry`);
+      if ((b.depends_on ?? []).includes(b.title)) fail("backlog", "self-dependency", `backlog entry "${b.title}" depends on itself`);
+    }
+  }
+
   if (spec.kind === "delta-spec") {
     for (const m of spec.data.modified ?? []) {
       for (const path of m.affected ?? []) {

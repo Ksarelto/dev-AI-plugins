@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/component-map",
+  "title": "component-map.md front matter (S3)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "feature",
+    "components",
+    "decisions"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "path",
+          "stories",
+          "reuse"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "layer": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "stories": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^STORY-\\d{4}$"
+            }
+          },
+          "reuse": {
+            "enum": [
+              "new",
+              "existing",
+              "extend"
+            ]
+          },
+          "reuse_considered": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reuse_rejected": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^ADR-\\d{3}$"
+      }
+    },
+    "contract_ops": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

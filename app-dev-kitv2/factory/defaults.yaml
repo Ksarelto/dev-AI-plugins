@@ -35,7 +35,9 @@ roles:
 shared_paths: {}
 
 pipeline:
-  profile: standard
+  profile: standard            # used for modes not listed in mode_profiles
+  mode_profiles: { greenfield: greenfield }
+  tier_profiles: { patch: patch }
   profiles:
     standard: [intake, discovery, requirements, stories, prototype, architecture, planning,
                implementation, verification, qa, docs, delivery]
@@ -65,9 +67,9 @@ quality:
     mode: required             # required | off
     author: separate           # separate | builder_two_phase
     pipeline_red: true
-    exempt_types: [config, docs, styling-token, dependency-bump, rename]
-  vague_terms: [fast, quick, quickly, easy, easily, intuitive, user-friendly, simple, nice,
-                modern, robust, seamless, efficient, appropriate, etc]
+    exempt_types: [characterisation, config, docs, styling-token, dependency-bump, rename]
+  vague_terms: [fast, quick, quickly, easy, easily, intuitive, user-friendly, simple, nice, helpful,
+                clear, good, better, modern, robust, seamless, efficient, appropriate, etc]
 
 budgets:
   feature: { tokens: 2500000, wall_clock_min: 240, dispatches: 60 }

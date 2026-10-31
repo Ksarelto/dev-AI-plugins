@@ -218,6 +218,20 @@
         "hooks",
         "app-dev-kitv2"
       ]
+    },
+    {
+      "name": "factory-analysis",
+      "source": "./app-dev-kitv2/factory-analysis",
+      "description": "app-dev-kitv2 analysis stages S0–S4: intake, bootstrap or discovery, requirements (PRD or delta-spec), stories, architecture with API contract, and test-first planning. Eight agents from haiku to opus; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "requirements",
+        "stories",
+        "architecture",
+        "planning",
+        "app-dev-kitv2"
+      ]
     }
   ]
 }

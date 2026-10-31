@@ -1,0 +1,18 @@
+id: GT-06
+title: "Vague requirement with conflicts — intake, discovery, requirements; stop at GATE-A"
+intake: { title: Order export }
+config:
+  roles: { frontend: { enabled: true, owns_paths: ["src/**"] } }
+  pipeline:
+    profile: golden
+    mode_profiles: { brownfield-extend: golden, change-request: golden }
+    profiles: { golden: [intake, discovery, requirements] }
+stop_at: GATE-A
+budget_usd: 8
+max_rounds: 6
+max_turns: 80
+conductor_model: sonnet
+estimate: "about 5–8 dispatches (haiku intake + digest, sonnet discovery, opus requirements, retries possible); the cap is the binding number"
+expect:
+  trace_requirements: true
+  min_open_questions: 1

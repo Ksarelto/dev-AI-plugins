@@ -1,0 +1,10 @@
+id: intake
+title: S0 Intake
+kind: agents
+agents: [intake-normaliser]
+context_role: mechanical_roles
+inputs: [inbox, source-index, normalised-sources, human-notes?]
+outputs: [source-index, normalised-sources, coverage]
+gate: intake
+tracked_ids: [HD]
+requires: { factory: "^0.1" }

@@ -2,11 +2,11 @@
 // no blocker gaps (a blocker gap sends the run to the guided interview).
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { readText } from "../lib/core.mjs";
+import { YAML, readText } from "../lib/core.mjs";
 import { isId } from "../lib/ids.mjs";
 import { validate } from "../lib/schemas.mjs";
 
-export const inputs = ["source-index", "normalised-sources", "coverage"];
+export const inputs = ["source-index", "normalised-sources", "coverage", "human-notes"];
 
 export function run(ctx) {
   const failures = [];
@@ -22,8 +22,15 @@ export function run(ctx) {
       continue;
     }
     const tagged = [];
-    for (const paragraph of readText(file).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)) {
-      if (paragraph.startsWith("#")) continue;
+    for (let paragraph of readText(file).split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean)) {
+      if (paragraph.startsWith("#")) {
+        paragraph = paragraph.split("\n").slice(1).join("\n").trim(); // text under a heading still needs an ID
+        if (!paragraph) continue;
+      }
+      if (paragraph.startsWith("<!--")) {
+        failures.push({ check: "normalised", rule: "placeholder", file: source.normalised, message: `${source.file} (${source.kind}) is not described yet` });
+        continue;
+      }
       const match = /^\[(SRC-\d{3,})\]\s+\S/.exec(paragraph);
       if (!match) {
         failures.push({ check: "normalised", rule: "untagged-paragraph", file: source.normalised, message: `paragraph without a source ID: "${paragraph.slice(0, 60)}"` });
@@ -40,6 +47,13 @@ export function run(ctx) {
     for (const id of listed) if (!tagged.includes(id) || !isId(id, "SRC")) failures.push({ check: "source-index", rule: "phantom-id", file: index.rel, message: `${id} is listed but not in ${source.normalised}` });
   }
 
+  // Coverage is app-wide; interview answers (HD notes) may come from any feature.
+  const notes = new Set(
+    Object.values(ctx.app?.features ?? {}).flatMap((f) => {
+      const file = join(ctx.paths.root, f.dir, "human-notes.yaml");
+      return existsSync(file) ? (YAML.parse(readText(file)) ?? []).map((n) => n.id) : [];
+    }),
+  );
   const coverage = ctx.load("coverage");
   if (!coverage) {
     failures.push({ check: "coverage", message: "context/coverage.yaml is missing" });
@@ -52,10 +66,10 @@ export function run(ctx) {
   }
   for (const [topic, value] of Object.entries(topics)) {
     if (value.status === "blocker_gap") {
-      failures.push({ check: "coverage", rule: "blocker-gap", file: coverage.rel, message: `blocker gap on "${topic}" — run the guided interview` });
+      failures.push({ check: "coverage", rule: "blocker-gap", file: coverage.rel, message: `blocker gap on "${topic}" — ask the human (return needs_clarification with questions)` });
     }
     for (const id of value.sources ?? []) {
-      if (!seen.has(id)) failures.push({ check: "coverage", rule: "unknown-source", file: coverage.rel, message: `${topic} cites unknown ${id}` });
+      if (!seen.has(id) && !notes.has(id)) failures.push({ check: "coverage", rule: "unknown-source", file: coverage.rel, message: `${topic} cites unknown ${id}` });
     }
   }
   return failures;

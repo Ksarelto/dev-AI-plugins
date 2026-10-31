@@ -68,11 +68,22 @@
       "description": "extra globs (project-relative) the stage's agents may write besides its outputs"
     },
     "gate": {
-      "type": [
-        "string",
-        "null"
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        }
       ],
-      "description": "engine gate name, or null for none"
+      "description": "engine gate name, a list of them (all must pass), or null"
     },
     "human_gate": {
       "type": [
@@ -121,6 +132,13 @@
         "factory"
       ],
       "additionalProperties": true
+    },
+    "owners": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "artifact type \u2192 the one agent of this stage that writes it; others may not"
     }
   }
 }

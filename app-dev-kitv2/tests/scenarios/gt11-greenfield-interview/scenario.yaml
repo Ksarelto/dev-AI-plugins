@@ -1,0 +1,23 @@
+id: gt11-greenfield-interview
+title: "GT-11 empty inbox, guided interview, new app — bootstrap, PRD, backlog split at GATE-A, both features write stories"
+intake: { interview: true, title: Ordering portal }
+config:
+  pipeline:
+    mode_profiles: { greenfield: discovery-free }
+    profiles: { discovery-free: [intake, bootstrap, requirements, stories] }
+expect:
+  final_action: done
+  final_status: done
+  gates: [CLARIFY, GATE-A]
+  verdicts:
+    - { stage: intake, verdict: ask_human }
+    - { stage: intake, verdict: advance }
+    - { stage: bootstrap, verdict: advance }
+    - { stage: requirements, verdict: advance }
+    - { stage: stories, verdict: advance }
+    - { feature: FEAT-002, stage: stories, verdict: advance }
+  models: { intake-normaliser: haiku, solution-architect: opus, requirements-analyst: opus }
+  notes: { HD-1: mapped }
+  features: 2
+  trace: stories
+  split_depends_on: { FEAT-002: [FEAT-001] }

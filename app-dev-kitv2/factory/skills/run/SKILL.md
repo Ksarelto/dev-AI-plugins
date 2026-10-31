@@ -11,7 +11,7 @@ allowed-tools: Bash(node:*), Agent, Read
 Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
 
 Read [the Conductor loop](../next/references/factory-conductor-loop.md) and repeat its iteration
-until `step` or `record` returns `ask_human`, `halt` or `done`, or after `--max-steps` iterations
+until `step` or `record` returns `ask_human`, `wait`, `halt` or `done`, or after `--max-steps` iterations
 (default 25).
 
 Between iterations, print one line per recorded result (`<dispatch id> → <verdict>`), nothing more.
@@ -19,7 +19,7 @@ Between iterations, print one line per recorded result (`<dispatch id> → <verd
 At the end, print:
 
 ```
-Stopped at: <ask_human GATE-X | halt: reason | done>
+Stopped at: <ask_human GATE-X | wait: reason | halt: reason | done>
 Feature: FEAT-NNN · stage <stage> · dispatches <n> · tokens <n>
 Next: <the exact command for the human>
 ```

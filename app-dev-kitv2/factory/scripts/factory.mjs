@@ -5,9 +5,10 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { UsageError, readYaml } from "./lib/core.mjs";
-import { explainConfig, loadConfig, profileStages } from "./lib/config.mjs";
+import { explainConfig, loadConfig, profileFor, profileStages } from "./lib/config.mjs";
 import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, setOverride, step } from "./lib/conductor.mjs";
 import { doctor, init } from "./lib/doctor.mjs";
+import { intake } from "./lib/intake.mjs";
 import { brief, briefMarkdown } from "./lib/brief.mjs";
 import { gateContext, idCoverage, runGate } from "./lib/gatekeeper.mjs";
 import { setNoteStatus } from "./lib/notes.mjs";
@@ -17,7 +18,9 @@ const HELP = `factory <command> [options]
   init [--mode M] [--name N] [--roles frontend,backend]   create .factory/
   doctor [--register <plugin-root>]                       check installed packs and config
   config explain [key]                                    merged value + which layer set it
-  feature new --title T --mode M [--profile P] [--tier T] start a feature
+  intake [--text "…"] [--interview] [--new] [--title T] [--mode M] [--tier patch]
+                                                          normalise new inbox files; start a feature
+  feature new --title T --mode M [--profile P] [--tier T] start a feature without intake
   state [--brief] [--markdown]                            feature state (brief: what the next step needs)
   status                                                  all features, one line each
   step                                                    next action: dispatch | ask_human | halt | done
@@ -69,13 +72,24 @@ async function main(argv) {
     case "config":
       if (sub !== "explain") throw new UsageError("usage: factory config explain [key]");
       return { out: explainConfig(project, args._[2]) };
+    case "intake":
+      return {
+        out: intake(project, {
+          text: typeof args.text === "string" ? args.text : undefined,
+          title: typeof args.title === "string" ? args.title : undefined,
+          mode: typeof args.mode === "string" ? args.mode : undefined,
+          tier: typeof args.tier === "string" ? args.tier : undefined,
+          newFeature: Boolean(args.new),
+          interview: Boolean(args.interview),
+        }),
+      };
     case "feature": {
       if (sub !== "new" || !args.title || !args.mode) throw new UsageError("usage: factory feature new --title T --mode greenfield|brownfield-extend|change-request");
       return {
         out: withLock(project, () => {
           const app = loadAppState(project);
           const config = loadConfig(project);
-          const profile = args.profile ?? (args.mode === "greenfield" && config.pipeline?.profiles?.greenfield ? "greenfield" : config.pipeline?.profile ?? "standard");
+          const profile = args.profile ?? profileFor(config, { mode: args.mode, tier: args.tier });
           if (app.mode === "unknown") app.mode = args.mode;
           const f = createFeature(project, app, { title: args.title, slug: args.slug, mode: args.mode, profile, tier: args.tier, stages: profileStages(config, profile) });
           saveAppState(project, app);
@@ -106,7 +120,9 @@ async function main(argv) {
       const c = load(project, feature);
       const task = args.task ? readTask(c, args.task) : undefined;
       const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task });
-      const out = await runGate(sub, ctx, { useCache: !args["no-cache"] });
+      const results = [];
+      for (const name of sub.split(",")) results.push(await runGate(name, ctx, { useCache: !args["no-cache"] }));
+      const out = results.length === 1 ? results[0] : { gate: sub, pass: results.every((r) => r.pass), results };
       return { out, code: out.pass ? 0 : 1 };
     }
     case "idcov": {

@@ -137,17 +137,17 @@ for (const f of readdirSync(schemaDir).filter((x) => x.endsWith(".schema.json"))
   const name = f.replace(".schema.json", "");
   if (!typeSchemas.has(name) && !engineCode.includes(`"${name}"`)) errors.push(`${rel(join(schemaDir, f))}: schema is never used`);
 }
-const produced = new Set(Object.keys(types).filter((t) => types[t].external));
+const produced = new Set(Object.keys(types).filter((t) => types[t].external || types[t].producer === "engine"));
 const consumed = new Set();
 for (const st of plugins.flatMap((p) => p.stages)) {
   for (const ref of st.data.outputs ?? []) for (const t of ref.replace(/\?$/, "").split("|")) produced.add(t);
   for (const ref of st.data.inputs ?? []) for (const t of ref.replace(/\?$/, "").split("|")) consumed.add(t);
 }
-const engineProduced = ["digest", "root-cause", "human-notes"];
-for (const t of engineProduced) produced.add(t);
 for (const t of consumed) {
   if (!types[t]) errors.push(`stage input "${t}" is not an artifact type`);
-  else if (!produced.has(t)) errors.push(`artifact type "${t}" is consumed by a stage but no stage produces it`);
+  else if (!produced.has(t) && !(ALLOW.pending_artifact_types ?? []).includes(t)) {
+    errors.push(`artifact type "${t}" is consumed by a stage but no stage produces it`);
+  }
 }
 for (const t of Object.keys(types)) {
   if (!produced.has(t) && !consumed.has(t) && !(ALLOW.pending_artifact_types ?? []).includes(t)) {

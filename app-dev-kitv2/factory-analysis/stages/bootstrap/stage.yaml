@@ -1,0 +1,10 @@
+id: bootstrap
+title: A0 Bootstrap
+kind: agents
+agents: [solution-architect]
+modes: [greenfield]
+context_role: analysis_roles
+inputs: [normalised-sources, coverage, config]
+outputs: [app-profile]
+gate: profile
+requires: { factory: "^0.1" }

@@ -3,14 +3,6 @@
 # command is neither implemented nor listed here.
 
 later_phase_agents:          # phase that builds them
-  - intake-normaliser        # 2 factory-analysis
-  - codebase-analyst         # 2
-  - requirements-analyst     # 2
-  - story-writer             # 2
-  - solution-architect       # 2
-  - contract-steward         # 2
-  - planner                  # 2
-  - test-strategist          # 2
   - fe-test-author           # 3 factory-role-frontend
   - fe-builder               # 3
   - fe-auditor               # 3
@@ -31,15 +23,16 @@ later_phase_agents:          # phase that builds them
   - ai-test-author           # 5
 
 later_phase_commands:
-  - intake                   # 2 (with the intake normaliser)
   - split                    # 3 (task-level escalation rung 4)
   - index                    # 3 (Cartographer v1)
   - ship                     # 4 (delivery)
 
 # Artifact types whose producing stage arrives in a later phase.
-pending_artifact_types: [normalised-sources, source-index, coverage, app-profile, capability-index,
-  component-inventory, capability-slice, feature-ledger, prd, delta-spec, open-questions, stories,
-  ux-notes, prototype-report, component-map, adr, api-contract, tasks, test-plan]
+pending_artifact_types:
+  - component-inventory     # Cartographer (phase 3)
+  - capability-slice        # Cartographer (phase 3)
+  - prototype-report        # prototype stage (phase 3)
+  - open-questions          # optional narrative; open questions live in the spec front matter
 
 # Config keys and schema fields that are defined now but first read in a later phase.
 later_phase_keys:

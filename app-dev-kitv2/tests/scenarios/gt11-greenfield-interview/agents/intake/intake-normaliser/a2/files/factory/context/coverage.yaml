@@ -1,0 +1,8 @@
+topics:
+  users: { status: covered, sources: [HD-1] }
+  goals: { status: covered, sources: [HD-1] }
+  scope: { status: covered, sources: [HD-1] }
+  data: { status: gap }
+  rules: { status: gap }
+  nfr: { status: gap }
+  acceptance: { status: gap }

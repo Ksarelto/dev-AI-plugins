@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/feature-ledger",
+  "title": "ledger/feature-ledger.yaml",
+  "type": "object",
+  "required": [
+    "features"
+  ],
+  "properties": {
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "status"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^FEAT-\\d{3}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "discovered",
+              "delivered",
+              "changed",
+              "removed"
+            ]
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pr": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+id: planning
+title: S4 Planning
+kind: agents
+agents: [planner, test-strategist]
+owners: { tasks: planner, test-plan: test-strategist }
+context_role: analysis_roles
+inputs: ["prd|delta-spec", stories, component-map, api-contract?, capability-index?, human-notes?]
+outputs: [tasks, test-plan]
+gate: plan
+human_gate: GATE-B
+tracked_ids: [AC, HD]
+requires: { factory: "^0.1" }

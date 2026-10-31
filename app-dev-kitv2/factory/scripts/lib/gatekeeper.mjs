@@ -3,7 +3,7 @@
 import { appendFileSync, existsSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { ENGINE_ROOT, factoryPaths, readJson, readText, sha, toPosix, writeJson, now } from "./core.mjs";
-import { TRACKED_KINDS, extractIds } from "./ids.mjs";
+import { TRACKED_KINDS, extractIds, kindOf } from "./ids.mjs";
 import { ARTIFACT_TYPES, artifactFiles, loadArtifact, parseArtifactRef, validate } from "./schemas.mjs";
 
 /** Everything a gate may look at. Gates read through these helpers, never by guessing paths. */
@@ -99,41 +99,60 @@ export function normaliseResult(gate, failures, hash = "") {
   };
 }
 
-/** IDs of the given kinds that are still open in an artifact (closed OQs and finished notes drop out). */
+/**
+ * IDs an artifact DEFINES that are still open (not IDs it merely cites). Only defined items have to be
+ * carried downstream: a spec defines REQ/AC/OQ, an ADR its own id, human-notes the open or mapped notes.
+ * A requirement's `sources: [HD-1]` cites HD-1; the note itself is tracked through human-notes.yaml.
+ */
 export function openIds(type, data, kinds) {
-  if (type === "human-notes") {
-    return (data ?? []).filter((n) => ["open", "mapped"].includes(n.status) && kinds.includes("HD")).map((n) => n.id);
+  const keep = (ids) => ids.filter((id) => kinds.includes(kindOf(id)));
+  if (!data || typeof data !== "object") return [];
+  if (type === "human-notes") return keep((data ?? []).filter((n) => ["open", "mapped"].includes(n.status)).map((n) => n.id));
+  if (type === "prd" || type === "delta-spec") {
+    const reqs = type === "prd" ? data.requirements ?? [] : [...(data.added ?? []), ...(data.modified ?? [])];
+    const questions = (data.open_questions ?? []).filter((q) => !["answered", "defaulted"].includes(q.status)).map((q) => q.id);
+    return keep([...reqs.flatMap((r) => [r.id, ...(r.acs ?? []).map((a) => a.id)]), ...questions]);
   }
-  const closedOq = new Set(
-    (data?.open_questions ?? []).filter((q) => ["answered", "defaulted"].includes(q.status)).map((q) => q.id),
-  );
-  const text = typeof data === "string" ? data : JSON.stringify(data ?? {});
-  return extractIds(text, kinds).filter((id) => !closedOq.has(id));
+  if (type === "adr") return keep(data.id ? [data.id] : []);
+  return [];
 }
 
 /**
- * ID coverage: every open ID of the tracked kinds found in a stage's inputs must appear in its outputs.
- * Returns failures in gate format. Inputs and outputs are artifact-type refs from stage.yaml.
+ * ID coverage: every open item defined in a stage's inputs must be referenced by its outputs.
+ * A human note counts as carried when its ID appears, or — once mapped — when one of its targets (or an
+ * acceptance criterion of a target requirement) appears. Returns failures in gate format.
  */
 export function idCoverage(ctx, { inputs = [], outputs = [], kinds = TRACKED_KINDS }) {
-  const collect = (refs) => {
-    const ids = new Set();
-    for (const ref of refs) {
-      for (const type of parseArtifactRef(ref).names) {
-        if (ARTIFACT_TYPES[type].external) continue;
-        for (const item of ctx.all(type)) for (const id of openIds(type, item.data, kinds)) ids.add(id);
+  const required = new Set();
+  const notes = [];
+  for (const ref of inputs) {
+    for (const type of parseArtifactRef(ref).names) {
+      if (ARTIFACT_TYPES[type].external) continue;
+      for (const item of ctx.all(type)) {
+        if (type === "human-notes") notes.push(...(item.data ?? []).filter((n) => kinds.includes("HD") && ["open", "mapped"].includes(n.status)));
+        else for (const id of openIds(type, item.data, kinds)) required.add(id);
       }
     }
-    return ids;
-  };
-  const upstream = collect(inputs);
+  }
+  // Whole files, not parsed data: an ID mentioned in a Markdown body carries the item forward too.
   const outputText = outputs
     .flatMap((ref) => parseArtifactRef(ref).names)
-    .flatMap((type) => ctx.all(type).map((item) => (typeof item.data === "string" ? item.data : JSON.stringify(item.data))))
+    .flatMap((type) => ctx.all(type).map((item) => readText(item.file)))
     .join("\n");
-  const present = new Set(extractIds(outputText, kinds));
-  return [...upstream]
+  const present = new Set(extractIds(outputText));
+  const acsOf = new Map((ctx.spec()?.reqs ?? []).map((r) => [r.id, r.acs.map((a) => a.id)]));
+  const failures = [...required]
     .filter((id) => !present.has(id))
     .map((id) => ({ check: "id-coverage", rule: "tracked-id-dropped", message: `${id} from the stage inputs is missing in its outputs` }));
+  for (const note of notes) {
+    const targets = note.mapped_to.flatMap((t) => [t, ...(acsOf.get(t) ?? [])]);
+    if (present.has(note.id) || (note.status === "mapped" && targets.some((t) => present.has(t)))) continue;
+    failures.push({
+      check: "id-coverage",
+      rule: "note-not-carried",
+      message: `${note.id} ("${note.text.slice(0, 50)}") is ${note.status === "open" ? "not mapped (notes_mapped) and not mentioned" : "mapped, but none of its targets appear"} in the stage outputs`,
+    });
+  }
+  return failures;
 }
 

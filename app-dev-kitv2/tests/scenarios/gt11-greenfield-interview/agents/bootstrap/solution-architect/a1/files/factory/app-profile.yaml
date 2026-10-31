@@ -1,0 +1,6 @@
+name: ordering-portal
+goal: B2B customers reorder spare parts online instead of by phone (HD-1)
+scope: [reorder, coupons]
+components: { frontend: { stack: frontend-dev-kit, path: "." } }
+conformance: conformant
+origin: greenfield

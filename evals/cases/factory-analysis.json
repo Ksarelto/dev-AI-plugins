@@ -1,0 +1,87 @@
+{
+  "plugin": "factory-analysis",
+  "source": "./app-dev-kitv2/factory-analysis",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Describe the screenshot in the inbox paragraph by paragraph with new source IDs",
+      "expect": "normalise-intake"
+    },
+    {
+      "prompt": "Rate intake coverage of users, goals, scope and acceptance for the normalised sources",
+      "expect": "normalise-intake"
+    },
+    {
+      "prompt": "Ask the human a short batch of questions with proposed defaults before writing requirements",
+      "expect": "guided-interview"
+    },
+    {
+      "prompt": "There is a blocker gap in the brief, how should the agent ask for clarification?",
+      "expect": "guided-interview"
+    },
+    {
+      "prompt": "Write the PRD for a brand new app with measurable acceptance criteria and a feature backlog",
+      "expect": "prd-authoring"
+    },
+    {
+      "prompt": "Greenfield product requirements document from the customer brief",
+      "expect": "prd-authoring"
+    },
+    {
+      "prompt": "Write the delta-spec for the existing app: added, modified and removed behaviour",
+      "expect": "delta-spec"
+    },
+    {
+      "prompt": "Change request against the current checkout, list unchanged guarantees too",
+      "expect": "delta-spec"
+    },
+    {
+      "prompt": "Split the approved spec into INVEST user stories with Gherkin acceptance criteria",
+      "expect": "story-writing"
+    },
+    {
+      "prompt": "Write the stories and UX notes for every surface and state",
+      "expect": "story-writing"
+    },
+    {
+      "prompt": "Design the component map with reuse decisions and ADRs for this feature",
+      "expect": "architecture-design"
+    },
+    {
+      "prompt": "Which existing components can we reuse, and record the architecture decision",
+      "expect": "architecture-design"
+    },
+    {
+      "prompt": "Define the OpenAPI contract for the coupon endpoint between frontend and backend",
+      "expect": "api-contract"
+    },
+    {
+      "prompt": "Write the API contract with problem+json errors traced to acceptance criteria",
+      "expect": "api-contract"
+    },
+    {
+      "prompt": "Break the feature into a test-first task DAG with roles and red tests",
+      "expect": "task-decomposition"
+    },
+    {
+      "prompt": "Decompose the plan into small tasks under three files each",
+      "expect": "task-decomposition"
+    },
+    {
+      "prompt": "Plan which tests cover each acceptance criterion and at what level",
+      "expect": "test-planning"
+    },
+    {
+      "prompt": "Write the test plan linking AC cases to tasks before any code exists",
+      "expect": "test-planning"
+    },
+    {
+      "prompt": "Map the existing application: capability map, routes and feature ledger",
+      "expect": "discovery-scan"
+    },
+    {
+      "prompt": "Discovery scan of the codebase with a conformance verdict",
+      "expect": "discovery-scan"
+    }
+  ]
+}

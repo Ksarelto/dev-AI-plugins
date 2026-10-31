@@ -1,0 +1,2 @@
+summary: Delta-spec with measurable ACs; the loyalty rule (HD-1) is AC-0004.
+notes_mapped: [{ id: HD-1, to: [REQ-0001, AC-0004] }]

@@ -3,16 +3,16 @@
 // escalation, gates, budgets — happens here, deterministically, from files.
 import { existsSync } from "node:fs";
 import { isAbsolute, join, relative } from "node:path";
-import { UsageError, deepMerge, factoryPaths, matchesAny, now, readFrontMatter, readText, toPosix, writeAtomic, writeJson } from "./core.mjs";
+import { UsageError, YAML, deepMerge, factoryPaths, matchesAny, now, readFrontMatter, readText, toPosix, writeAtomic, writeJson, writeYaml } from "./core.mjs";
 import { loadConfig, profileStages, enabledRoles } from "./config.mjs";
 import { resolvePacks, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./schemas.mjs";
-import { activeDispatches, appendEvent, clearActive, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, setActive, withLock } from "./state.mjs";
+import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, setActive, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
 import { gateContext, idCoverage, normaliseResult, runGate } from "./gatekeeper.mjs";
 import { RUNG_INSTRUCTIONS, decide, exhaustedBudgets } from "./warden.mjs";
-import { addNote, applyMappings, openNotes } from "./notes.mjs";
-import { extractIds } from "./ids.mjs";
+import { addNote, applyMappings, openNotes, readNotes } from "./notes.mjs";
+import { extractIds, formatId, observeId } from "./ids.mjs";
 
 export const ENGINE_PACK = "factory";
 /** Model aliases the Agent tool accepts per call; agents must declare one of these. */
@@ -67,9 +67,20 @@ const promptFor = (d, projectDir) =>
   `Read your context pack at ${toPosix(join(projectDir, d.pack))} and follow it exactly. ` +
   `End your reply with the JSON envelope it asks for (pack_id "${d.id}").`;
 
-function evalWhen(s, key) {
+/** Conditions the engine can answer from files; a feature flag of the same name overrides them. */
+const BUILTIN_CONDITIONS = {
+  // Discovery runs once per app: until the baseline (profile + capability map) exists.
+  "discovery.needed": (c) => {
+    const root = factoryPaths(c.projectDir).root;
+    return !existsSync(join(root, "app-profile.yaml")) || !existsSync(join(root, "_index", "capability-map.yaml"));
+  },
+};
+
+function evalWhen(c, key) {
   if (!key) return true;
-  return s.flags?.[key] === true;
+  const flag = c.feature.state.flags?.[key];
+  if (typeof flag === "boolean") return flag;
+  return BUILTIN_CONDITIONS[key]?.(c) ?? false;
 }
 
 function persist(c) {
@@ -105,13 +116,19 @@ function block(c, reason) {
   appendEvent(c.projectDir, { type: "halt", feature: s.feature, stage: s.stage, reason });
 }
 
-function makeDispatch(c, { stageId, stage, target, phase, attempt, rung, model, feedback, instruction, extraReads, extraWrites, mission, gate }) {
+function makeDispatch(c, { stageId, stage, target, phase, attempt, rung, model, feedback, instruction, extraReads, extraWrites, mission, gate, laterAgents = [] }) {
   const s = c.feature.state;
   const id = `${s.feature}/${stageId}/${target.agent}/a${attempt}`;
+  const owners = stage?.owners ?? {};
   const pack = buildPack(c.projectDir, c.feature, c.config, {
     id, stageId, stage, agent: target.agent, subagent_type: target.subagent_type, model, attempt, rung, role: target.role,
     phase, feedback, instruction, extraReads, extraWrites, mission, gate: gate ?? stage?.gate,
     openNotes: phase === "stage" ? openNotes(c.feature.dir).map((n) => n.id) : [],
+    // Outputs owned by another agent of the stage are not this agent's to write.
+    notMine: Object.entries(owners).filter(([, agent]) => agent !== target.agent).map(([type]) => type),
+    laterOwned: Object.entries(owners).filter(([, agent]) => laterAgents.includes(agent)).map(([type, agent]) => `${type} (${agent})`),
+    stacks: stackLines(c),
+    nextIds: nextFreeIds(c),
   });
   return { id, stage: stageId, agent: target.agent, subagent_type: target.subagent_type, pack: pack.rel, model, phase, ts: now(), context_degraded: pack.front.context_degraded };
 }
@@ -150,6 +167,11 @@ export function step(projectDir, { feature } = {}) {
     const s = c.feature.state;
     if (["done", "aborted"].includes(s.status)) return { action: "done", feature: s.feature, status: s.status };
     if (s.status === "blocked") return { action: "halt", feature: s.feature, reason: s.halts.at(-1)?.reason ?? "blocked" };
+    const deps = (s.depends_on ?? []).map((id) => [id, c.app.features[id]?.status]);
+    const aborted = deps.filter(([, status]) => status === "aborted").map(([id]) => id);
+    if (aborted.length) return { action: "halt", feature: s.feature, reason: `depends on ${aborted.join(", ")}, which was aborted — abort this feature too, or replan it` };
+    const waitingFor = deps.filter(([, status]) => status !== "done").map(([id, status]) => `${id}${status === "blocked" ? " (blocked)" : ""}`);
+    if (waitingFor.length) return { action: "wait", feature: s.feature, reason: `waiting for ${waitingFor.join(", ")} to finish` };
     if (s.pending.length) {
       return { action: "dispatch", feature: s.feature, resumed: true, dispatches: s.pending.map((d) => ({ ...d, prompt: promptFor(d, projectDir) })) };
     }
@@ -184,7 +206,8 @@ export function step(projectDir, { feature } = {}) {
         return { action: "halt", feature: s.feature, reason: `stage "${stageId}" is not provided by any installed pack — run: factory doctor` };
       }
       const st = s.stages[stageId];
-      const skip = (stage.modes && !stage.modes.includes(s.mode)) || (s.overrides?.[stageId] === "skip") || (s.overrides?.[stageId] !== "force" && !evalWhen(s, stage.when));
+      // Conditions are decided once, when the stage is first reached: a retry never skips a stage.
+      const skip = !st.entered && ((stage.modes && !stage.modes.includes(s.mode)) || s.overrides?.[stageId] === "skip" || (s.overrides?.[stageId] !== "force" && !evalWhen(c, stage.when)));
       if (skip && st.status === "pending") {
         st.status = "skipped";
         nextStage(c);
@@ -214,6 +237,7 @@ export function step(projectDir, { feature } = {}) {
         return { action: "halt", feature: s.feature, reason: s.halts.at(-1).reason };
       }
       st.status = "running";
+      st.entered = true;
       const targets = resolveAgents(c, stage);
       const missing = targets.filter((t) => !t.pack || !t.model);
       if (!targets.length || missing.length) {
@@ -232,6 +256,7 @@ export function step(projectDir, { feature } = {}) {
       const dispatches = batch.map((target) =>
         makeDispatch(c, {
           stageId, stage, target, phase: "stage", attempt: (st.attempts ?? 0) + 1, rung: st.rung ?? 0,
+          laterAgents: stage.parallel ? [] : todo.slice(1).map((t) => t.agent),
           model: st.model ?? target.model, feedback: st.feedback, instruction: st.instruction,
           extraReads: (st.rung ?? 0) >= 3 && existsSync(rootCause) ? [{ label: "Root cause", path: toPosix(relative(projectDir, rootCause)) }] : [],
         }),
@@ -333,6 +358,27 @@ async function finishDigest(c, envelope) {
   return { action: "continue", feature: s.feature, gate: summary(result) };
 }
 
+/** Stack lines for packs: each enabled role, its stack pack and that stack's reference architecture. */
+function stackLines(c) {
+  return enabledRoles(c.config).map((role) => {
+    const stack = c.packs[role.stack]?.stack;
+    return `${role.name}: ${role.stack}${stack?.reference_architecture ? ` — ${stack.reference_architecture}` : " (stack pack not installed)"}`;
+  });
+}
+
+/** Keeps the app's ID counters ahead of every ID agents have written, then returns the next free ones. */
+function nextFreeIds(c) {
+  const dirs = { factoryRoot: factoryPaths(c.projectDir).root, featureDir: c.feature.dir, projectDir: c.projectDir };
+  for (const type of Object.keys(ARTIFACT_TYPES).filter((t) => !ARTIFACT_TYPES[t].external)) {
+    for (const file of artifactFiles(type, dirs)) for (const id of extractIds(readText(file))) observeId(c.app.next_ids, id);
+  }
+  for (const f of Object.values(c.app.features)) {
+    const notes = join(factoryPaths(c.projectDir).root, f.dir, "human-notes.yaml");
+    if (existsSync(notes)) for (const id of extractIds(readText(notes))) observeId(c.app.next_ids, id);
+  }
+  return ["SRC", "REQ", "AC", "STORY", "TASK", "TEST", "OQ", "ADR"].map((k) => formatId(k, c.app.next_ids[k] ?? 1));
+}
+
 /** Every ID that exists in the feature's artifacts (targets a note may be mapped to). */
 function featureIds(c) {
   const dirs = { factoryRoot: factoryPaths(c.projectDir).root, featureDir: c.feature.dir, projectDir: c.projectDir };
@@ -365,7 +411,10 @@ async function finishStageAgent(c, pending, envelope) {
       return { action: "continue", feature: s.feature, waiting_for: remaining.map((t) => t.subagent_type) };
     }
     const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, stage });
-    const gated = stage.gate ? await runGate(stage.gate, ctx) : normaliseResult("none", []);
+    const gateList = [stage.gate].flat().filter(Boolean);
+    const results = [];
+    for (const name of gateList) results.push(await runGate(name, ctx));
+    const gated = results.length === 1 ? results[0] : normaliseResult(gateList.join("+") || "none", results.flatMap((r) => r.failures), results.map((r) => r.input_hash).join(""));
     const coverage = stage.tracked_ids?.length ? idCoverage(ctx, { inputs: stage.inputs, outputs: stage.outputs, kinds: stage.tracked_ids }) : [];
     result = coverage.length ? normaliseResult(gated.gate, [...gated.failures, ...coverage], gated.input_hash) : gated;
     appendEvent(c.projectDir, { type: "gate", feature: s.feature, stage: stageId, gate: result.gate, pass: result.pass, progress_signal: result.progress_signal, fingerprint: result.fingerprint, cached: result.cached });
@@ -470,10 +519,79 @@ export function approve(projectDir, { gate, notes, feature, by }) {
       st.status = "passed";
       nextStage(c);
     }
+    const split = g.gate === "GATE-A" ? splitBacklog(c, g.stage) : [];
     appendEvent(projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "approved", note: note?.id });
     persist(c);
-    return { action: "continue", feature: s.feature, gate: g.gate, note: note?.id ?? null, stage: s.stage };
+    return { action: "continue", feature: s.feature, gate: g.gate, note: note?.id ?? null, stage: s.stage, ...(split.length ? { backlog_features: split } : {}) };
   });
+}
+
+/**
+ * Greenfield: an approved PRD whose `backlog` lists several features becomes one feature per entry.
+ * This feature keeps the first entry; the others start after requirements with GATE-A inherited.
+ * The full approved PRD is kept as 01-requirements/prd-approved.md.
+ */
+function splitBacklog(c, gatedStage) {
+  const s = c.feature.state;
+  const prdFile = join(c.feature.dir, "01-requirements", "prd.md");
+  if (!existsSync(prdFile)) return [];
+  const { data, body } = readFrontMatter(prdFile);
+  const backlog = data.backlog ?? [];
+  if (backlog.length < 2) return [];
+  writeAtomic(join(c.feature.dir, "01-requirements", "prd-approved.md"), readText(prdFile));
+  const profile = profileStages(c.config, s.profile);
+  // Children skip everything up to and including the gated stage; GATE-A is inherited.
+  const inherited = profile.slice(0, profile.indexOf(gatedStage) + 1);
+  const firstOwn = profile[profile.indexOf(gatedStage) + 1];
+  const writePrd = (dir, featureId, entry) => {
+    const subset = { ...data, feature: featureId, requirements: data.requirements.filter((r) => entry.requirements.includes(r.id)), backlog: [] };
+    writeAtomic(join(dir, "01-requirements", "prd.md"), `---\n${YAML.stringify(subset, { lineWidth: 0 })}---\n${body}`);
+  };
+  const byTitle = { [backlog[0].title]: s.feature };
+  const children = [];
+  for (const entry of backlog.slice(1)) {
+    const child = createFeature(c.projectDir, c.app, { title: entry.title, mode: s.mode, profile: s.profile, tier: s.tier, stages: profile });
+    const cs = child.state;
+    for (const id of inherited) cs.stages[id] = { status: "passed", attempts: 0, rung: 0, reason: `inherited from ${s.feature}` };
+    if (firstOwn) cs.stage = firstOwn;
+    else {
+      cs.stage = gatedStage;
+      cs.status = "done";
+    }
+    cs.parent = s.feature;
+    cs.gates["GATE-A"] = { result: "approved", inherited_from: s.feature, at: now() };
+    writePrd(child.dir, cs.feature, entry);
+    byTitle[entry.title] = cs.feature;
+    children.push({ child, entry });
+  }
+  // Human notes follow the requirements they carry, so no mapping points at an ID that moved away.
+  const notes = readNotes(c.feature.dir);
+  const idsOf = (entry) => new Set(data.requirements.filter((r) => entry.requirements.includes(r.id)).flatMap((r) => [r.id, ...r.acs.map((a) => a.id)]));
+  const citedBy = (entry, noteId) => data.requirements.filter((r) => entry.requirements.includes(r.id) && r.sources.includes(noteId)).map((r) => r.id);
+  const notesFor = (entry, isParent) =>
+    notes.flatMap((n) => {
+      const ids = idsOf(entry);
+      const kept = n.mapped_to.filter((t) => (isParent && !/^(REQ|AC)-/.test(t)) || ids.has(t));
+      const targets = [...new Set([...kept, ...citedBy(entry, n.id)])];
+      if (targets.length) return [{ ...n, mapped_to: targets, status: ["done", "declined"].includes(n.status) ? n.status : "mapped" }];
+      if (!isParent) return [];
+      return [n.status === "mapped" ? { ...n, mapped_to: [], status: "done", reason: "carried by the features split off at GATE-A" } : n];
+    });
+  const digestAgain = (c.config.pipeline?.digest_after ?? []).includes(gatedStage) ? { pending: true, after: gatedStage, attempts: 0 } : null;
+  for (const { child, entry } of children) {
+    child.state.depends_on = (entry.depends_on ?? []).map((t) => byTitle[t]).filter(Boolean);
+    const childNotes = notesFor(entry, false);
+    if (childNotes.length) writeYaml(join(child.dir, "human-notes.yaml"), childNotes);
+    if (child.state.status !== "done") child.state.digest = digestAgain;
+    saveFeature(c.projectDir, c.app, child);
+  }
+  s.depends_on = (backlog[0].depends_on ?? []).map((t) => byTitle[t]).filter(Boolean);
+  writePrd(c.feature.dir, s.feature, backlog[0]);
+  if (notes.length) writeYaml(join(c.feature.dir, "human-notes.yaml"), notesFor(backlog[0], true));
+  if (s.status !== "done") s.digest = digestAgain; // the digest written before GATE-A still lists the moved requirements
+  c.app.active_feature = s.feature;
+  appendEvent(c.projectDir, { type: "feature", feature: s.feature, split_into: children.map(({ child }) => child.state.feature) });
+  return children.map(({ child }) => child.state.feature);
 }
 
 export function reject(projectDir, { gate, reason, feature, by }) {
@@ -533,7 +651,7 @@ function clearPending(c) {
   c.feature.state.pending = [];
 }
 
-const FRESH = { attempts: 0, rung: 0, dispatches: 0, progress_signal: [], fingerprints: [], state_hashes: [], feedback: null, instruction: null, model: null, diagnose_pending: false, done_agents: [] };
+const FRESH = { attempts: 0, rung: 0, dispatches: 0, progress_signal: [], fingerprints: [], state_hashes: [], feedback: null, instruction: null, model: null, diagnose_pending: false, done_agents: [], entered: false };
 
 /** Human-requested re-run of an earlier stage: it and every later stage start fresh. */
 export function replay(projectDir, { feature, stage, feedback }) {
@@ -548,6 +666,7 @@ export function replay(projectDir, { feature, stage, feedback }) {
     const to = Math.max(profile.indexOf(s.stage), from);
     for (const id of profile.slice(from, to + 1)) s.stages[id] = { ...s.stages[id], ...FRESH, status: "pending" };
     s.stages[stage].feedback = `Replay requested by a human: ${feedback}`;
+    s.stages[stage].entered = true; // a replayed stage runs even when its condition would skip it
     Object.assign(s, { stage, status: "active", awaiting_human: null, digest: null });
     resumeClock(s);
     appendEvent(projectDir, { type: "advance", feature: s.feature, stage, to: stage, by: "replay" });

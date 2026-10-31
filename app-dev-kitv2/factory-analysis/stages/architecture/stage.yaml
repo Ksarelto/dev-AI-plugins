@@ -1,0 +1,11 @@
+id: architecture
+title: S3 Architecture and contract
+kind: agents
+agents: [solution-architect, contract-steward]
+owners: { component-map: solution-architect, adr: solution-architect, api-contract: contract-steward }
+context_role: analysis_roles
+inputs: ["prd|delta-spec", stories, ux-notes?, app-profile?, capability-index?, component-inventory?, human-notes?]
+outputs: [component-map, adr, api-contract]
+gate: arch
+tracked_ids: [HD]
+requires: { factory: "^0.1" }

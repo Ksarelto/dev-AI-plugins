@@ -21,8 +21,9 @@ export function buildPack(projectDir, featureObj, config, d) {
   const budget = config.context?.budgets?.[contextRole] ?? 45000;
   const readMax = config.context?.read_allowlist_max?.[contextRole] ?? 12;
 
+  const notMine = new Set(d.notMine ?? []);
   const writeAllow = [
-    ...(d.stage?.outputs ?? []).flatMap((ref) => parseArtifactRef(ref).names.map((t) => rel(artifactGlob(t, dirs)))),
+    ...(d.stage?.outputs ?? []).flatMap((ref) => parseArtifactRef(ref).names.filter((t) => !notMine.has(t)).map((t) => rel(artifactGlob(t, dirs)))),
     ...(d.stage?.writes ?? []),
     ...(d.extraWrites ?? []),
   ];
@@ -48,7 +49,7 @@ export function buildPack(projectDir, featureObj, config, d) {
 
   const engineCli = toPosix(join(ENGINE_ROOT, "scripts", "factory.mjs"));
   const gateCmd = d.gate
-    ? `node ${engineCli} gate ${d.gate} --project ${toPosix(projectDir)} --feature ${s.feature}${d.task ? ` --task ${d.task.id}` : ""}`
+    ? `node ${engineCli} gate ${[d.gate].flat().join(",")} --project ${toPosix(projectDir)} --feature ${s.feature}${d.task ? ` --task ${d.task.id}` : ""}`
     : null;
   const outputs = (d.stage?.outputs ?? []).map((ref) => `  - ${ref}: ${parseArtifactRef(ref).names.map((t) => rel(artifactGlob(t, dirs))).join(" | ")}`);
 
@@ -58,13 +59,18 @@ export function buildPack(projectDir, featureObj, config, d) {
     lines.push(`Feature ${s.feature} "${s.title}" · mode ${s.mode} · stage ${d.stageId}${d.stage?.title ? ` (${d.stage.title})` : ""} · attempt ${d.attempt}${d.task ? ` · task ${d.task.id}` : ""}${d.phase && d.phase !== "stage" ? ` · phase ${d.phase}` : ""}`);
     if (d.mission) lines.push(d.mission);
     if (d.openNotes?.length) {
-      lines.push(`Open human notes: ${d.openNotes.join(", ")}. Address each one your stage can, and list it in the envelope's "notes_mapped" ({ "id": "HD-n", "to": [the REQ/AC/TASK/OQ/ADR IDs that now carry it] }).`);
+      lines.push(`Open human notes: ${d.openNotes.join(", ")} (human-notes.yaml). The stage gate fails unless each one is either mapped — envelope "notes_mapped": [{ "id": "HD-n", "to": [REQ/AC/TASK/OQ/ADR IDs in your outputs that now carry it] }] — or mentioned by ID in your outputs where it applies.`);
     }
     if (outputs.length) lines.push("Produce:", ...outputs);
     lines.push("You may write only:", ...writeAllow.map((w) => `  - ${w}`));
-    if (gateCmd) lines.push(`Exit check (run it before you return): ${gateCmd}`);
+    if (gateCmd) {
+      lines.push(`Exit check (run it before you return): ${gateCmd}`);
+      if (d.laterOwned?.length) lines.push(`  Agents after you write ${d.laterOwned.join(", ")}; failures about those files are expected now.`);
+    }
+    if (d.nextIds?.length) lines.push(`Next free IDs (use these for anything new; never reuse an ID): ${d.nextIds.join(", ")}`);
     lines.push(`Return: end your reply with one \`\`\`json block — the envelope (schema ${toPosix(join(ENGINE_ROOT, "schemas", "envelope.schema.json"))}) with "pack_id": "${d.id}" and a summary of at most ${config.context?.return_summary_max_words ?? 200} words.`);
     lines.push("", "## T1 — Orientation (read these first)");
+    if (d.stacks?.length) lines.push(...d.stacks.map((l) => `Stack · ${l}`));
     if (mandatory.length) for (const m of mandatory) lines.push(`${m.label}: ${m.path} [READ]`);
     else lines.push("(nothing yet — this is the first stage of the feature)");
     lines.push("", "## T2 — Inputs (paths only — read what you need)");

@@ -13,7 +13,8 @@
     "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall",
     "build:factory": "node scripts/build-factory.mjs",
     "check:factory": "node scripts/check-factory-consistency.mjs",
-    "test:factory": "node --test app-dev-kitv2/tests/unit/*.test.mjs"
+    "test:factory": "node --test app-dev-kitv2/tests/unit/*.test.mjs",
+    "test:factory:e2e": "node --test app-dev-kitv2/tests/e2e/*.test.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1",

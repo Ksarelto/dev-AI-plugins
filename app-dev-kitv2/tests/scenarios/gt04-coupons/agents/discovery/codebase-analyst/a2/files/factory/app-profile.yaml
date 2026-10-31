@@ -1,0 +1,6 @@
+name: acme-portal
+goal: Self-service portal for B2B customers to order spare parts
+scope: [catalogue, checkout]
+components: { frontend: { stack: frontend-dev-kit, path: "." } }
+conformance: conformant
+origin: discovered
