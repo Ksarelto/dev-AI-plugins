@@ -14,7 +14,7 @@ export function run(ctx) {
   const blocking = ctx.config.quality?.review_blocking ?? ["P0", "P1"];
   for (const f of review?.data.findings ?? []) {
     if (blocking.includes(f.severity)) {
-      failures.push({ check: "review", rule: `blocking-${f.severity}`, file: f.file, message: `${f.id ?? f.lens ?? "finding"}: ${f.claim}${f.fix_hint ? ` — ${f.fix_hint}` : ""}` });
+      failures.push({ check: "review", rule: `blocking-${f.severity}`, fix: true, file: f.file, message: `${f.id ?? f.lens ?? "finding"}: ${f.claim}${f.fix_hint ? ` — ${f.fix_hint}` : ""}` });
     }
   }
   const acceptance = ctx.all("acceptance-tests").map((a) => a.rel);
@@ -24,22 +24,23 @@ export function run(ctx) {
   for (const stack of stacks) {
     const { run, report } = runTests(ctx, stack, `${ctx.state.feature}-verify-${stack.role}`);
     if (!report) {
-      failures.push({ check: "test", rule: "no-report", message: `the test command wrote no report (exit ${run.code}):\n${run.tail}` });
+      // A test run that crashed (bad config, broken global setup) is a code problem; no output at all is not.
+      failures.push({ check: "test", rule: "no-report", fix: run.code !== 0 && Boolean(run.tail), message: `the test command wrote no report (exit ${run.code}):\n${run.tail}` });
       continue;
     }
     for (const f of report.files) {
       const kind = acceptance.includes(f.file) ? "acceptance" : "test";
-      if (!f.collected) failures.push({ check: kind, rule: "does-not-load", file: f.file, message: firstLine(f.error) });
+      if (!f.collected) failures.push({ check: kind, rule: "does-not-load", fix: true, file: f.file, message: firstLine(f.error) });
       for (const t of f.tests.filter((x) => x.status !== "passed")) {
-        failures.push({ check: kind, rule: kind === "acceptance" ? "acceptance-failing" : "failing", file: f.file, message: `"${t.name}" is ${t.status}: ${firstLine(t.message)}` });
+        failures.push({ check: kind, rule: kind === "acceptance" ? "acceptance-failing" : "failing", fix: true, file: f.file, message: `"${t.name}" is ${t.status}: ${firstLine(t.message)}` });
       }
     }
     ran.push(...report.files.map((f) => f.file));
     const typecheck = runStackCommand(stack, "typecheck", { logName: `${ctx.state.feature}-verify-${stack.role}-typecheck` });
-    if (!typecheck.ok && !typecheck.skipped) failures.push({ check: "typecheck", rule: "typecheck-failed", message: typecheck.tail });
+    if (!typecheck.ok && !typecheck.skipped) failures.push({ check: "typecheck", rule: "typecheck-failed", fix: true, message: typecheck.tail });
   }
   if (stacks.length && failures.every((f) => f.rule !== "no-report")) {
-    for (const file of acceptance) if (!ran.includes(file)) failures.push({ check: "acceptance", rule: "not-run", file, message: `${file} did not run` });
+    for (const file of acceptance) if (!ran.includes(file)) failures.push({ check: "acceptance", rule: "not-run", fix: true, file, message: `${file} did not run` });
   }
   return failures;
 }

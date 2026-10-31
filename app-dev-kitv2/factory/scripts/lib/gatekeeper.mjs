@@ -20,7 +20,7 @@ export function gateContext({ projectDir, app, feature, config, stage, task, sta
     const prd = load("prd");
     if (prd) return { ...prd, kind: "prd", reqs: prd.data.requirements ?? [] };
     const delta = load("delta-spec");
-    if (delta) return { ...delta, kind: "delta-spec", reqs: [...(delta.data.added ?? []), ...(delta.data.modified ?? [])] };
+    if (delta) return { ...delta, kind: "delta-spec", reqs: [...(delta.data.added ?? []), ...(delta.data.modified ?? [])], removed: (delta.data.removed ?? []).map((r) => r.id) };
     return null;
   };
   return { projectDir, paths, dirs, app, feature, state: feature?.state, config, stage, task, stack, packs, load, all, spec };

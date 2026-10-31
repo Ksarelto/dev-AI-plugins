@@ -8,4 +8,5 @@ inputs: [stories, ux-notes?, app-profile?, capability-index?, component-inventor
 outputs: [prototype-report, prototype-sandbox]
 gate: proto
 human_gate: GATE-P
+on_approve: spec_delta   # breaking spec deltas go back to requirements on approval
 requires: { factory: "^0.1" }

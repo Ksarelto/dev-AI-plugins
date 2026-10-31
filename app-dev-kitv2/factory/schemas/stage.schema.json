@@ -159,6 +159,18 @@
         "type": "string"
       },
       "description": "globs the stage's agents may not read (black-box roles)"
+    },
+    "before": {
+      "enum": [
+        "scaffold"
+      ],
+      "description": "engine work before the stage's agents run: scaffold copies each role's boilerplate into its folder and installs dependencies"
+    },
+    "on_approve": {
+      "enum": [
+        "spec_delta"
+      ],
+      "description": "spec_delta: approving the human gate with breaking spec deltas in the prototype report sends the feature back to requirements"
     }
   }
 }

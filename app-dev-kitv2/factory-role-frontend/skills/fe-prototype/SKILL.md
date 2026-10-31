@@ -29,5 +29,6 @@ spec_delta:
 ```
 
 `spec_delta` lists gaps or contradictions the prototype exposed. Mark `breaking: true` when the
-approved spec must change; the human decides at GATE-P whether to send the feature back to
-requirements. Run the exit check (`gate proto`) before you return.
+approved spec must change: approving GATE-P then sends the feature back to requirements with those
+deltas, and rejecting has the prototype revised (once the way back is used up, approving accepts
+them). List only differences from the current spec. Run the exit check (`gate proto`) before you return.

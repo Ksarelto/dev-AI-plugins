@@ -15,7 +15,7 @@ export function run(ctx) {
   for (const d of record.data.defects) {
     if (d.type !== "defect" || !blocking.includes(d.severity)) continue;
     if (d.waived_by && waived(d)) continue;
-    failures.push({ check: "qa", rule: `open-${d.severity}`, file: record.rel, message: `${d.id} (${d.severity}): ${d.title} — expected ${d.expected}, got ${d.actual}` });
+    failures.push({ check: "qa", rule: `open-${d.severity}`, fix: true, file: record.rel, message: `${d.id} (${d.severity}): ${d.title} — expected ${d.expected}, got ${d.actual}` });
   }
   if (!ctx.load("qa-report")) failures.push({ check: "qa", rule: "no-report", message: "07-qa/qa-report.md is missing" });
   return failures;

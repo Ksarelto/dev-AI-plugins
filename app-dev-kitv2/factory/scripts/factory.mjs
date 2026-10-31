@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { UsageError, readYaml, writeJson } from "./lib/core.mjs";
 import { explainConfig, loadConfig, profileFor, profileStages } from "./lib/config.mjs";
-import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, setOverride, split, step } from "./lib/conductor.mjs";
+import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, scaffold, setOverride, split, step } from "./lib/conductor.mjs";
 import { buildIndex } from "./lib/cartographer.mjs";
 import { ship } from "./lib/delivery.mjs";
 import { resolvePacks } from "./lib/registry.mjs";
@@ -41,6 +41,7 @@ const HELP = `factory <command> [options]
   split TASK-NNN                                          escalation rung 4: the planner splits the task
   index                                                   rebuild the component inventory (Cartographer)
   comments --file F                                       PR review comments for S9 (JSON array)
+  scaffold                                                greenfield: copy and install each role's boilerplate (resumable)
   ship                                                    (re)run the commit plan and open the PR (dry-run by default)
   abort --reason "..."                                    stop the feature for good
   events [--limit N]
@@ -204,6 +205,8 @@ async function main(argv) {
         }),
       };
     }
+    case "scaffold":
+      return { out: scaffold(project, { feature }) };
     case "ship":
       return {
         out: withLock(project, () => {

@@ -31,6 +31,14 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 - The prototype trigger is one deterministic rule (new user-facing surfaces ≥
   `prototype.min_new_surfaces`). The prototype is plain HTML in the feature's sandbox.
 
+- Greenfield A0 Bootstrap has an engine half, `factory scaffold` (the Conductor runs it when `step`
+  says `scaffold`): it copies each role's boilerplate into its folder without overwriting anything,
+  installs from the lockfile outside the state lock, and resumes after an interruption.
+- Human notes are never left behind: notes open when the build runs, or given with `/factory:note`
+  after it, go to the planner as fix items; an answer to a task's question is mapped to that task.
+- The Bash guard is best effort (a shell is a full language): it blocks factory control commands and
+  obvious writes and reads around the pack's rules; the gates keep the hard guarantees.
+
 **Roles**
 - `ai-test-author` exists: the role contract requires a test author per role.
 - A role routes specialist builders by task type (`role.yaml agents.builders`: migration →

@@ -88,6 +88,9 @@ export function run(ctx) {
     }
   }
   for (const ac of specAcs) if (!satisfied.has(ac)) fail("trace", "unsatisfied-ac", `${ac} is not satisfied by any task`);
+  // A removed requirement is work too: some task must take the behaviour out (tasks[].removes).
+  const removing = new Set(tasks.data.tasks.flatMap((t) => t.removes ?? []));
+  for (const id of ctx.spec()?.removed ?? []) if (!removing.has(id)) fail("trace", "removal-without-task", `${id} is removed in the delta-spec but no task removes it`);
 
   const tested = new Set();
   for (const c of plan.data.cases) {

@@ -40,8 +40,8 @@ export function run(ctx) {
   else {
     const text = readText(pr.file);
     for (const s of SECTIONS) if (!text.includes(s)) failures.push({ check: "pr", rule: "missing-section", file: pr.rel, message: `PR body lacks "${s}"` });
-    for (const ac of ctx.spec()?.reqs.flatMap((r) => r.acs.map((a) => a.id)) ?? []) {
-      if (!text.includes(ac)) failures.push({ check: "pr", rule: "trace-missing", file: pr.rel, message: `the spec trace has no row for ${ac}` });
+    for (const id of [...(ctx.spec()?.reqs.flatMap((r) => r.acs.map((a) => a.id)) ?? []), ...(ctx.spec()?.removed ?? [])]) {
+      if (!text.includes(id)) failures.push({ check: "pr", rule: "trace-missing", file: pr.rel, message: `the spec trace has no row for ${id}` });
     }
   }
   for (const n of ctx.load("human-notes")?.data ?? []) {

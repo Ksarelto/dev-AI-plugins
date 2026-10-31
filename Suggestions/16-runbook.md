@@ -31,8 +31,8 @@ What keeps the factory from rewriting existing code:
 
 ## B. New app from scratch
 
-1. Set the boilerplate per role in config (`backend-boilerplate`, `agent-boilerplate`, the React starter).
-2. `/factory:intake` (or `--interview`) → mode **greenfield** → A0 Bootstrap clones the boilerplates, writes `app-profile.yaml`, indexes the empty app.
+1. Set the boilerplate per role in config: `roles.<role>.boilerplate: { repo, ref?, path? }`, where `repo` is a local folder, a git URL, or `dev-AI-plugins` (this marketplace checkout: `backend-boilerplate`, `agent-boilerplate`). The frontend starter is per project. Each role's `path` is the folder it lands in.
+2. `/factory:intake` (or `--interview`) → mode **greenfield** → A0 Bootstrap: the engine copies each role's boilerplate into its folder and installs its dependencies from the lockfile, indexes the app, then the architect writes `app-profile.yaml`.
 3. GATE-A approves the **full PRD**. The PRD is split into a feature backlog with dependencies.
 4. Each feature then runs steps 5–8 of flow A. With `flow.policy: iterations`, GATE-A/B are batched at iteration planning and PRs are reviewed at the iteration review ([08](08-parallelism-and-flow.md#which-one-to-choose)).
 

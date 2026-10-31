@@ -16,8 +16,17 @@ export function configLayers(projectDir, featureDir) {
     .map((l) => ({ ...l, data: readYaml(l.path) }));
 }
 
+/** A role's boilerplate pointer is one value: a layer that sets it replaces it whole (no inherited path/ref). */
+function mergeLayer(acc, data) {
+  const merged = deepMerge(acc, data);
+  for (const [role, cfg] of Object.entries(data?.roles ?? {})) {
+    if (cfg && "boilerplate" in cfg) merged.roles[role].boilerplate = cfg.boilerplate;
+  }
+  return merged;
+}
+
 export function loadConfig(projectDir, featureDir) {
-  return configLayers(projectDir, featureDir).reduce((acc, layer) => deepMerge(acc, layer.data), {});
+  return configLayers(projectDir, featureDir).reduce((acc, layer) => mergeLayer(acc, layer.data), {});
 }
 
 /** For `factory config explain`: the merged value plus which layer last set each leaf key. */
@@ -32,7 +41,7 @@ export function explainConfig(projectDir, key, featureDir) {
     }
   };
   for (const layer of layers) walk(layer.data, "", layer.name);
-  const merged = layers.reduce((acc, layer) => deepMerge(acc, layer.data), {});
+  const merged = layers.reduce((acc, layer) => mergeLayer(acc, layer.data), {});
   const value = key ? getPath(merged, key) : merged;
   const set_by = Object.fromEntries(
     Object.entries(origins).filter(([path]) => !key || path === key || path.startsWith(`${key}.`)),

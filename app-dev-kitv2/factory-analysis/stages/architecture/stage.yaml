@@ -4,7 +4,7 @@ kind: agents
 agents: [solution-architect, contract-steward, "role:architect"]   # role:architect — e.g. ai-architect, when that role is enabled
 owners: { component-map: solution-architect, adr: solution-architect, api-contract: contract-steward, agent-design: ai-architect }
 context_role: analysis_roles
-inputs: ["prd|delta-spec", stories, ux-notes?, app-profile?, capability-index?, component-inventory?, human-notes?]
+inputs: ["prd|delta-spec", stories, prototype-report?, ux-notes?, app-profile?, capability-index?, component-inventory?, human-notes?]
 outputs: [component-map, adr, api-contract, agent-design?]
 gate: arch
 tracked_ids: [HD]

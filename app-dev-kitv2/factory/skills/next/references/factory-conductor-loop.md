@@ -15,6 +15,7 @@ engine, from files, every time you call `step` and `record`.
 |---|---|
 | `dispatch` | Send **every** item in `dispatches` in **one message**, one Agent call each: `subagent_type` = item `subagent_type`, `model` = item `model`, `prompt` = item `prompt`, a 3–5 word `description`. Then record each result (step 3). |
 | `ask_human` | Stop. Show the gate (`gate`), the files to review (`review`), any `questions`, and the open notes. Tell the human: `/factory:gate approve ["notes"]` or `/factory:gate reject "<reason>"`. |
+| `scaffold` | Run `F scaffold` (greenfield: copies and installs each role's boilerplate; it can take minutes — use the longest timeout your shell tool allows or run it in the background; if it is cut off, run it again, it resumes), then go back to step 1. If it reports `halt`, stop as for `halt`. |
 | `wait` | Stop. The feature depends on another one that has not finished (`reason`); work on that feature first (`--feature`). |
 | `halt` | Stop. Report `reason`. If the feature is blocked, point at `blockers.md` and offer `/factory:diagnose` or `/factory:abort`. |
 | `done` | Report that the feature finished and where its artifacts are. |

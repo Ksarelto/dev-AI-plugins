@@ -12,7 +12,7 @@ export function run(ctx) {
   if (!doc) failures.push({ check: "docs", rule: "no-feature-doc", message: `no docs/features/*.md mentions ${fid}` });
   else {
     const text = readText(doc.file);
-    for (const ac of ctx.spec()?.reqs.flatMap((r) => r.acs.map((a) => a.id)) ?? []) {
+    for (const ac of [...(ctx.spec()?.reqs.flatMap((r) => r.acs.map((a) => a.id)) ?? []), ...(ctx.spec()?.removed ?? [])]) {
       if (!text.includes(ac)) failures.push({ check: "docs", rule: "ac-missing", file: doc.rel, message: `${ac} is not in the feature doc` });
     }
   }

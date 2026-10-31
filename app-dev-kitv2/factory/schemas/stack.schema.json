@@ -370,6 +370,54 @@
               }
             }
           ]
+        },
+        "install": {
+          "description": "installs dependencies after a greenfield scaffold (default: npm ci / pnpm install --frozen-lockfile / yarn install --frozen-lockfile)",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
         }
       }
     },

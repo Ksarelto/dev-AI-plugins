@@ -89,11 +89,125 @@ export function decideRead(input, project, actives) {
   return null;
 }
 
-export function decideBash(input, actives) {
+/** Engine commands that move the pipeline: the Conductor and the human run them, never a dispatched agent. */
+const CONTROL = new Set(["approve", "reject", "note", "override", "replay", "diagnose", "split", "abort", "comments", "ship", "init", "record", "step", "feature", "intake", "scaffold"]);
+const READERS = new Set(["cat", "head", "tail", "less", "more", "nl", "od", "xxd", "strings", "sed", "awk", "grep", "rg", "egrep"]);
+const SCRIPTED = new Set(["sed", "awk", "grep", "rg", "egrep"]); // their first plain argument is a pattern, not a file
+const SCRATCH = /^(\/dev\/(null|stdout|stderr)|\/tmp\/|\/private\/tmp\/|\/var\/folders\/)/;
+const OPS = ["&&", "||", ">>", ";", "|", "&", "(", ")", ">", "<"];
+
+/** Words and operators of a command line; quotes respected, here-doc bodies dropped (they are data). */
+function tokenize(cmd) {
+  const text = cmd
+    .replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n[\s\S]*?\n[ \t]*\2[ \t]*(?=\n|$)/g, " $3")
+    .replace(/\d*>&\d+/g, " ")
+    .replace(/&>/g, " > ");
+  const tokens = [];
+  let word = null;
+  let quote = null;
+  const flush = () => {
+    if (word !== null) tokens.push({ word });
+    word = null;
+  };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (quote) {
+      if (ch === quote) quote = null;
+      else word += ch;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      word ??= "";
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      flush();
+      continue;
+    }
+    const op = OPS.find((o) => text.startsWith(o, i));
+    if (op && !(op === ">" && /^\d$/.test(word ?? "x"))) {
+      flush();
+      tokens.push({ op });
+      i += op.length - 1;
+      continue;
+    }
+    if (op === ">") word = null; // 2> — a file-descriptor redirect
+    if (op === ">") {
+      tokens.push({ op });
+      continue;
+    }
+    word = (word ?? "") + ch;
+  }
+  flush();
+  return tokens;
+}
+
+/** Files a shell command writes and reads (absolute, resolved from cwd and any `cd`), and factory control use. */
+export function shellTargets(cmd, cwd = process.cwd()) {
+  const writes = [];
+  const reads = [];
+  let control = null;
+  let dir = cwd;
+  const at = (f) => resolve(dir, f);
+  const segments = [[]];
+  for (const t of tokenize(cmd)) {
+    if (t.op && !["<", ">", ">>"].includes(t.op)) segments.push([]);
+    else segments.at(-1).push(t);
+  }
+  for (const seg of segments) {
+    const words = [];
+    for (let i = 0; i < seg.length; i++) {
+      const t = seg[i];
+      if (t.op === ">" || t.op === ">>") {
+        const target = seg[i + 1]?.word;
+        if (target && !target.startsWith("=")) writes.push(at(target));
+        i++;
+      } else if (t.op === "<") {
+        if (seg[i + 1]?.word) reads.push(at(seg[i + 1].word));
+        i++;
+      } else words.push(t.word);
+    }
+    const [bin, ...rest] = words;
+    if (!bin) continue;
+    const plain = rest.filter((x) => !x.startsWith("-"));
+    const factory = words.findIndex((w) => /(^|\/)factory(\.mjs)?$/.test(w));
+    if (factory !== -1) control ??= words.slice(factory + 1).find((w) => CONTROL.has(w)) ?? null;
+    if (bin === "cd") dir = resolve(dir, plain[0] ?? ".");
+    else if (bin === "tee") writes.push(...plain.map(at));
+    else if (["cp", "install", "ln"].includes(bin) && plain.length > 1) {
+      writes.push(at(plain.at(-1)));
+      reads.push(...plain.slice(0, -1).map(at));
+    } else if (bin === "mv") writes.push(...plain.map(at)); // the source disappears too
+    else if (["rm", "touch", "truncate", "unlink"].includes(bin)) writes.push(...plain.map(at));
+    else if (bin === "git" && ["rm", "mv"].includes(plain[0])) writes.push(...plain.slice(1).map(at));
+    else if ((bin === "sed" || bin === "perl") && rest.some((x) => /^-\w*i/.test(x))) writes.push(at(plain.at(-1)));
+    if (READERS.has(bin)) reads.push(...plain.slice(SCRIPTED.has(bin) && !rest.includes("-e") ? 1 : 0).map(at));
+  }
+  const keep = (f) => !SCRATCH.test(f);
+  return { writes: writes.filter(keep), reads: reads.filter(keep), control };
+}
+
+/**
+ * The shell guard for dispatched agents. Best effort: a shell is a full language, so the hard
+ * guarantees stay in the gates (red-test lock, commit plan); this stops the easy and the accidental.
+ */
+export function decideBash(input, actives, project = process.cwd(), config = {}) {
   const cmd = input.tool_input?.command ?? "";
   for (const [re, why] of BASH_DENY.slice(0, 1)) if (re.test(cmd)) return why;
-  if (!dispatchesFor(input, actives).length) return null;
+  const [d] = dispatchesFor(input, actives);
+  if (!d) return null;
   for (const [re, why] of BASH_DENY) if (re.test(cmd)) return why;
+  const { writes, reads, control } = shellTargets(cmd, resolve(project, input.cwd ?? "."));
+  if (control) return `factory ${control} is for the Conductor and the human; run only your exit check (factory gate …) and factory state`;
+  for (const file of writes) {
+    const why = decideWrite({ ...input, tool_name: "Write", tool_input: { file_path: file } }, project, actives, config);
+    if (why) return `shell write to ${why}`;
+  }
+  for (const file of reads) {
+    const target = relPath(project, file);
+    if (target && !target.startsWith("..") && matchesAny(target, d.read_deny ?? [])) return `${target} is not readable for ${d.agent} (black-box role)`;
+  }
   return null;
 }
 
@@ -143,7 +257,7 @@ async function main() {
       reason = decideRead(input, project, actives);
       return reason && deny("PreToolUse", reason);
     case "pre-bash":
-      reason = decideBash(input, actives);
+      reason = decideBash(input, actives, project, loadConfig(project));
       return reason && deny("PreToolUse", reason);
     case "post-write":
       reason = postWrite(input, project);

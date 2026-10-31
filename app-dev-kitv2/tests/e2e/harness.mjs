@@ -162,6 +162,13 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
           log(`${d.id} [${d.model}] → ${r.verdict ?? r.action}`);
           for (const f of r.gate && !r.gate.pass ? r.gate.failures : []) log(`    gate ${r.gate.gate}: [${f.rule ?? f.check}] ${f.message}`);
         }
+      } else if (s.action === "scaffold") {
+        const r = conductor.scaffold(project, {});
+        log(`scaffold → ${r.action}${r.reason ? `: ${r.reason}` : ""}`);
+        if (r.action === "halt") {
+          run.final = r;
+          break;
+        }
       } else if (s.action === "ask_human") {
         const answer = answers.shift();
         if (!answer) throw new Error(`no scripted answer for ${s.gate} at ${s.stage}`);

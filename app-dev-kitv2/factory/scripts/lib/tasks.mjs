@@ -10,10 +10,10 @@ import { appendEvent } from "./state.mjs";
 import { gateContext, runGate } from "./gatekeeper.mjs";
 import { resolveStack } from "./stackexec.mjs";
 import { decide } from "./warden.mjs";
-import { applyMappings } from "./notes.mjs";
+import { applyMappings, openNotes } from "./notes.mjs";
 
 const CLOSED = ["done", "parked", "replaced"];
-const DEFAULT_INPUTS = ["prd|delta-spec", "stories?", "ux-notes?", "component-map?", "api-contract?", "agent-design?", "tasks", "test-plan"];
+const DEFAULT_INPUTS = ["prd|delta-spec", "stories?", "ux-notes?", "component-map?", "api-contract?", "agent-design?", "prototype-report?", "tasks", "test-plan"];
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 /** Everything that resets when a task enters a new phase or round. */
 const FRESH = {
@@ -139,6 +139,15 @@ export function taskStep(c, stageId, stage, h) {
   const plan = loadTasks(c);
   if (!plan) return { action: "halt", feature: s.feature, reason: "04-plan/tasks.yaml is missing" };
   syncTasks(s, plan, c.config);
+  // Human notes still open when the build runs (given at GATE-B or with /factory:note since) reach
+  // the planner as fix items; the plan gate then requires every one to be mapped.
+  const noteItems = openNotes(c.feature.dir).map((n) => ({ check: "note", rule: n.id, file: null, message: `${n.id}: ${n.text}` }));
+  if (noteItems.length) {
+    // Joined to fix items already waiting (QA, review, PR) — the plan gate wants every open note mapped.
+    s.fix_pending ??= { source: "human notes", items: [], attempts: 0 };
+    const known = new Set(s.fix_pending.items.map((i) => i.rule));
+    s.fix_pending.items.push(...noteItems.filter((i) => !known.has(i.rule)));
+  }
   if (s.fix_pending) {
     const planner = plannerTarget(c, h);
     if (!planner?.pack) return { action: "halt", feature: s.feature, reason: "fix items are waiting, but no planner is installed" };

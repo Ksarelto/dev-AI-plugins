@@ -9,8 +9,10 @@ import { resolvePacks, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./schemas.mjs";
 import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, setActive, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
-import { backToRed, finishTask, loadTasks, taskGate, taskStep } from "./tasks.mjs";
+import { backToRed, finishTask, loadTasks, rolePath, taskGate, taskStep } from "./tasks.mjs";
 import { recordInLedger, ship } from "./delivery.mjs";
+import { scaffoldRoles } from "./scaffold.mjs";
+import { buildIndex } from "./cartographer.mjs";
 import { nextId } from "./ids.mjs";
 import { gateContext, idCoverage, normaliseResult, runGate } from "./gatekeeper.mjs";
 import { RUNG_INSTRUCTIONS, decide, exhaustedBudgets } from "./warden.mjs";
@@ -111,6 +113,16 @@ function persist(c) {
   saveAppState(c.projectDir, c.app);
 }
 
+/** A /factory:note given after the build sends the feature back through the planner; true when it did. */
+function lateNotesBack(c, stageId) {
+  const s = c.feature.state;
+  const profile = profileStages(c.config, s.profile);
+  const late = openNotes(c.feature.dir).filter((n) => n.at === "note");
+  if (!late.length || !profile.includes("implementation") || profile.indexOf(stageId) <= profile.indexOf("implementation")) return false;
+  requestFixes(c, stageId, "implementation", late.map((n) => ({ check: "note", rule: n.id, message: `${n.id}: ${n.text}` })));
+  return true;
+}
+
 function nextStage(c) {
   const s = c.feature.state;
   const profile = profileStages(c.config, s.profile);
@@ -120,6 +132,7 @@ function nextStage(c) {
     return;
   }
   if (i === profile.length - 1) {
+    if (lateNotesBack(c, s.stage)) return;
     s.status = "done";
     const entry = recordInLedger(c, loadTasks(c)?.tasks.filter((t) => s.tasks?.[t.id]?.status === "done"));
     appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: s.stage, to: "done", ledger: entry.status });
@@ -150,7 +163,7 @@ function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung
   const pack = buildPack(c.projectDir, c.feature, c.config, {
     id, stageId, stage, agent: target.agent, subagent_type: target.subagent_type, model, attempt, rung, role: target.role,
     phase, feedback, instruction, extraReads, extraWrites, writeDeny, mission, task, gateTask, gate: gate === undefined ? stage?.gate : gate,
-    readDeny: stage?.read_deny ?? [],
+    readDeny: roleScoped(c.config, stage?.read_deny ?? []),
     openNotes: phase === "stage" ? openNotes(c.feature.dir).map((n) => n.id) : [],
     // Outputs owned by another agent of the stage are not this agent's to write.
     notMine: Object.entries(owners).filter(([, agent]) => agent !== target.agent).map(([type]) => type),
@@ -162,6 +175,12 @@ function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung
     id, stage: stageId, agent: target.agent, subagent_type: target.subagent_type, pack: pack.rel, model, phase, ts: now(),
     ...(task ? { task: task.id } : {}), context_degraded: pack.front.context_degraded,
   };
+}
+
+/** Stage globs like src/** also apply inside each role's folder (api/src/**, apps/web/src/**). */
+function roleScoped(config, globs) {
+  const dirs = [...new Set(enabledRoles(config).map((r) => rolePath(config, r.name)).filter(Boolean))];
+  return [...globs, ...dirs.flatMap((d) => globs.filter((g) => !g.startsWith(`${d}/`)).map((g) => `${d}/${g}`))];
 }
 
 function engineTarget(c, agent) {
@@ -246,6 +265,11 @@ export function step(projectDir, { feature } = {}) {
         return { action: "halt", feature: s.feature, reason: `stage "${stageId}" is not provided by any installed pack — run: factory doctor` };
       }
       const st = s.stages[stageId];
+      if (lateNotesBack(c, stageId)) {
+        persist(c);
+        if (s.status === "blocked") return { action: "halt", feature: s.feature, reason: s.halts.at(-1).reason };
+        continue;
+      }
       // Conditions are decided once, when the stage is first reached: a retry never skips a stage.
       const skip = !st.entered && ((stage.modes && !stage.modes.includes(s.mode)) || s.overrides?.[stageId] === "skip" || (s.overrides?.[stageId] !== "force" && !evalWhen(c, stage.when)));
       if (skip && st.status === "pending") {
@@ -315,6 +339,12 @@ export function step(projectDir, { feature } = {}) {
       if (badModel) {
         persist(c);
         return { action: "halt", feature: s.feature, reason: `${badModel.subagent_type} declares model "${badModel.model}"; use ${MODELS.join(", ")}` };
+      }
+      if (stage.before === "scaffold" && s.scaffold?.status !== "done") {
+        // Greenfield: the role starters must exist first. Installing takes minutes, so it runs as its
+        // own command outside the state lock rather than inside step.
+        persist(c);
+        return { action: "scaffold", feature: s.feature, stage: stageId, command: "factory scaffold", reason: s.scaffold?.status === "running" ? "a scaffold started earlier did not finish; run it again (it resumes)" : "copy and install each role's boilerplate first" };
       }
       if ((stage.inputs ?? []).some((ref) => ref.replace(/\?$/, "") === "change-set")) writeChangeSet(c);
       if (!st.done_agents?.length) st.findings = [];
@@ -560,7 +590,10 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
       st.findings = [];
       // Only a real gate failure sends the feature back; transient or envelope-only failures retry in place.
       if (goto && verdict.verdict === "retry" && result && !result.pass) return regress(c, stageId, goto, st.feedback);
-      if (fix && verdict.verdict === "retry" && result && !result.pass) return requestFixes(c, stageId, fix, result.failures);
+      // Only code problems (failures a gate marks fix: true) go back to implementation; a malformed or
+      // missing output of this stage's own agents is retried here.
+      const fixable = (result?.failures ?? []).filter((f) => f.fix);
+      if (fix && verdict.verdict === "retry" && fixable.length) return requestFixes(c, stageId, fix, fixable);
       st.status = "pending";
       return;
     }
@@ -649,6 +682,38 @@ function regress(c, from, to, feedback) {
   return true;
 }
 
+/**
+ * `factory scaffold`: the engine half of greenfield bootstrap. Copies and installs every role's
+ * boilerplate outside the state lock (it can take minutes), then records the result; resumable.
+ */
+export function scaffold(projectDir, { feature } = {}) {
+  const fid = withLock(projectDir, () => {
+    const c = load(projectDir, feature);
+    const s = c.feature.state;
+    if (s.scaffold?.status === "done") return null;
+    s.scaffold = { status: "running", at: now() };
+    persist(c);
+    return s.feature;
+  });
+  if (!fid) return { action: "continue", note: "already scaffolded" };
+  const result = scaffoldRoles(load(projectDir, fid));
+  return withLock(projectDir, () => {
+    const c = load(projectDir, fid);
+    const s = c.feature.state;
+    if (result.error) {
+      s.scaffold = { status: "failed", error: result.error, at: now() };
+      block(c, `bootstrap: ${result.error}`);
+    } else {
+      s.scaffold = { status: "done", done: result.done, skipped: result.skipped, at: now() };
+      if (result.done.length) buildIndex(projectDir, c.config, c.packs);
+      if (s.status === "blocked") Object.assign(s, { status: "active" });
+      appendEvent(projectDir, { type: "advance", feature: s.feature, stage: s.stage, scaffolded: result.done.map((d) => `${d.role} ← ${d.from}`) });
+    }
+    persist(c);
+    return { action: s.status === "blocked" ? "halt" : "continue", feature: s.feature, reason: result.error ?? null, scaffold: s.scaffold };
+  });
+}
+
 export function approve(projectDir, { gate, notes, feature, by }) {
   return withLock(projectDir, () => {
     const c = load(projectDir, feature);
@@ -663,11 +728,12 @@ export function approve(projectDir, { gate, notes, feature, by }) {
     resumeClock(s);
     const st = s.stages[g.stage];
     if (g.gate === "CLARIFY" && g.task) {
+      if (note) applyMappings(c.feature.dir, [{ id: note.id, to: [g.task] }], new Set([g.task]));
       s.tasks[g.task].feedback = `Human answer${note ? ` (${note.id})` : ""}: ${notes ?? "(no text) — proceed with the defaults you proposed"}`;
     } else if (g.gate === "CLARIFY") {
       st.status = "pending";
       st.feedback = `Human answer${note ? ` (${note.id})` : ""}: ${notes ?? "(no text) — proceed with the defaults you proposed"}`;
-    } else {
+    } else if (!breakingDeltaBack(c, g, note)) {
       st.status = "passed";
       nextStage(c);
     }
@@ -676,6 +742,32 @@ export function approve(projectDir, { gate, notes, feature, by }) {
     persist(c);
     return { action: "continue", feature: s.feature, gate: g.gate, note: note?.id ?? null, stage: s.stage, ...(split.length ? { backlog_features: split } : {}) };
   });
+}
+
+/**
+ * on_approve: spec_delta (the prototype stage). Approving GATE-P with breaking spec deltas in the
+ * prototype report sends the feature back to requirements with them; the human rejects instead to
+ * have the prototype revised. Returns true when it sent the feature back.
+ */
+function breakingDeltaBack(c, g, note) {
+  const stage = resolveStage(c, g.stage);
+  if (stage?.on_approve !== "spec_delta") return false;
+  const report = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config }).load("prototype-report");
+  const breaking = (report?.data.spec_delta ?? []).filter((d) => d.breaking);
+  const profile = profileStages(c.config, c.feature.state.profile);
+  const target = ["requirements", "requirements-lite"].find((id) => profile.includes(id));
+  if (!breaking.length || !target) return false;
+  // Once the edge budget is spent, approving again accepts the deltas as they are and moves on.
+  const edge = `${g.stage}_to_${target}`;
+  const limit = c.config.budgets?.backward_edges?.[edge];
+  if (limit !== undefined && (c.feature.state.budgets.edges?.[edge] ?? 0) >= limit) {
+    appendEvent(c.projectDir, { type: "human", feature: c.feature.state.feature, stage: g.stage, gate: g.gate, result: "approved", accepted_spec_delta: breaking.length });
+    return false;
+  }
+  c.feature.state.stages[g.stage].status = "passed";
+  const lines = breaking.map((d) => `- ${d.change}${d.affects?.length ? ` (affects ${d.affects.join(", ")})` : ""}`).join("\n");
+  // A used-up prototype_to_requirements budget blocks the feature; either way it must not move on.
+  return regress(c, g.stage, target, `The approved prototype changes the spec (breaking):\n${lines}${note ? `\nHuman note ${note.id}: ${note.text}` : ""}\nUpdate the spec, then stories; the prototype is checked again.`) || c.feature.state.status === "blocked";
 }
 
 /**
@@ -764,7 +856,10 @@ export function reject(projectDir, { gate, reason, feature, by }) {
     const gateStage = resolveStage(c, g.stage);
     const fixTarget = g.gate === gateStage?.human_gate ? /^fix:(.+)$/.exec(gateStage?.on_reject ?? "")?.[1] : null;
     if (!task && fixTarget) requestFixes(c, g.stage, fixTarget, [{ check: "human-review", rule: g.gate, message: `${note.id}: ${reason}` }]);
-    else if (task) backToRed(c, task, s.tasks[task.id], `A human sent ${task.id} back to its test author (${note.id}): ${reason}`);
+    else if (task) {
+      applyMappings(c.feature.dir, [{ id: note.id, to: [task.id] }], new Set([task.id]));
+      backToRed(c, task, s.tasks[task.id], `A human sent ${task.id} back to its test author (${note.id}): ${reason}`);
+    }
     else Object.assign(st, { status: "pending", done_agents: [], feedback: `Rejected at ${g.gate} by a human (${note.id}): ${reason}\nRevise your outputs to address it and map ${note.id} in your artifacts.` });
     appendEvent(projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "rejected", note: note.id });
     persist(c);

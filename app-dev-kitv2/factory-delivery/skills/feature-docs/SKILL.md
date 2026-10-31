@@ -21,7 +21,8 @@ What it does, for whom, in two or three sentences.
 ## Decisions — links to docs/adr/
 ```
 
-The docs gate fails if any AC of the spec is missing.
+The docs gate fails if any AC of the spec is missing, or a removed REQ (delta-spec `removed`) is
+not named with what was taken out.
 
 ## 2. ADRs
 

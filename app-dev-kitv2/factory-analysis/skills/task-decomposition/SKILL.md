@@ -21,6 +21,8 @@ Write `04-plan/tasks.yaml` ([fa-tasks.yaml](../../templates/fa-tasks.yaml)).
   role's `owns_paths`. Colocated tests count, and so do generated files: a Drizzle migration task
   lists the schema file, the SQL, `drizzle/meta/_journal.json`, `drizzle/meta/<NNNN>_snapshot.json`
   and its `drizzle/rollback/<NNNN>_<name>.down.sql`.
+- **Removals.** Every REQ in the delta-spec's `removed` gets a task that takes the behaviour out,
+  naming it in `removes: [REQ-…]` (usually with a test that the behaviour is gone).
 
 ## Test-first
 

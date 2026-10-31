@@ -12,6 +12,7 @@ the PR title. Required sections (the ready gate checks them): `## Summary`, `## 
 
 - **Spec trace:** one row per AC of the spec — AC, story, task, planned tests, result. Take results
   from the gates' records, not from memory.
+  Add one row per REQ in the delta-spec's `removed` too (REQ, removing task, result).
 - **Review and QA:** list P2/P3 findings and S3+ defects that remain, so the human sees them.
 - **Human notes:** each `HD-n` and where it landed.
 - **Provenance:** dispatches, models used, tokens and wall-clock from the feature's state and events.

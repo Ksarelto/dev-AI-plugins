@@ -145,6 +145,14 @@
           },
           "tier": {
             "type": "string"
+          },
+          "removes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^REQ-\\d{4}$"
+            },
+            "description": "REQs from delta-spec.removed whose behaviour this task takes out"
           }
         }
       }

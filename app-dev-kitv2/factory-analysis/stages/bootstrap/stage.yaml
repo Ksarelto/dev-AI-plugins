@@ -1,6 +1,7 @@
 id: bootstrap
 title: A0 Bootstrap
 kind: agents
+before: scaffold   # the engine copies each role's boilerplate and installs it first
 agents: [solution-architect]
 modes: [greenfield]
 context_role: analysis_roles
