@@ -1,3 +1,0 @@
-summary: No raw colours; user-visible text is not translated (the project has no i18next).
-findings:
-  - { lens: audit, severity: P3, file: src/features/apply-coupon/ui/coupon-field.tsx, claim: "untranslated text: Apply" }

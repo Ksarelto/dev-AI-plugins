@@ -13,7 +13,9 @@ Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 (pass `--feature` through to every `F` call when given).
 
 Read [references/factory-conductor-loop.md](references/factory-conductor-loop.md) and run **one**
-iteration of it: one `F step`, the dispatches it returns, and one `F record` per result.
+iteration of it: one `F step`, the dispatches it returns, and one `F record` per result. Do not act
+on a `next` that the last `record` returns: its dispatches stay pending and the next `/factory:next`
+resumes them.
 
 Stop after that iteration and report in at most five lines:
 

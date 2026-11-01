@@ -1,26 +1,28 @@
 // gate-red (S5, red phase): the task's new tests compile against the stubs and every one of them fails
-// for the right reason — an assertion or an explicit "not implemented" — while every other test still
-// passes. Skipped or todo tests are not a red.
+// for the right reason — an assertion or an explicit "not implemented" — while every other test the
+// change touches still passes. Skipped or todo tests are not a red.
 import { join } from "node:path";
 import { firstLine, freshReport, goodRedFailure, isAcceptanceTest, readVitestReport } from "../lib/vitest-report.mjs";
-import { runStackCommand } from "../lib/stackexec.mjs";
-import { typecheckForTask } from "../lib/testrun.mjs";
+import { runStackCommandAsync } from "../lib/stackexec.mjs";
+import { scopeArgs, typecheckForTask } from "../lib/testrun.mjs";
 
 export const inputs = ["tasks"];
-export const cacheable = false;
+export const cacheable = "tree"; // a passing run is reused while the working tree is unchanged
 
-export function run(ctx) {
+export async function run(ctx) {
   const { task, stack } = ctx;
   if (!task) return [{ check: "red", message: "gate-red needs --task" }];
   if (stack?.error) return [{ check: "stack", message: stack.error }];
   const red = task.tdd?.red_tests ?? [];
   if (!red.length) return [{ check: "red", rule: "no-red-tests", message: `${task.id} declares no red_tests` }];
   const failures = [];
-  const typecheck = typecheckForTask(stack, `${task.id}-red-typecheck`);
+  const reportFile = freshReport(join(ctx.paths.logs, `${task.id}-red-report.json`));
+  const [typecheck, run] = await Promise.all([
+    typecheckForTask(stack, `${task.id}-red-typecheck`),
+    runStackCommandAsync(stack, "test", { vars: { report: reportFile, files: [], extra: scopeArgs(ctx, stack) }, logName: `${task.id}-red-test` }),
+  ]);
   if (!typecheck.ok) failures.push({ check: "typecheck", rule: "tests-do-not-compile", message: `tests or stubs do not type-check:\n${typecheck.tail}` });
 
-  const reportFile = freshReport(join(ctx.paths.logs, `${task.id}-red-report.json`));
-  const run = runStackCommand(stack, "test", { vars: { report: reportFile, files: [] }, logName: `${task.id}-red-test` });
   const report = readVitestReport(reportFile, ctx.projectDir);
   if (!report) return [...failures, { check: "test", rule: "no-report", message: `the test command wrote no JSON report (exit ${run.code}):\n${run.tail}` }];
 

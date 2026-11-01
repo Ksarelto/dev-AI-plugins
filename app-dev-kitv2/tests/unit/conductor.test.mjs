@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { conductor, envelope, makeFeature, makeProject, putArtifact, putIntake, readYamlFile } from "./helpers.mjs";
+import { ENGINE, conductor, envelope, makeFeature, makeProject, putArtifact, putIntake, readYamlFile } from "./helpers.mjs";
+
+const { gateContext, runGate } = await import(`${ENGINE}/scripts/lib/gatekeeper.mjs`);
 
 const { step, record, approve, reject } = conductor;
 const featureState = (featureDir) => JSON.parse(readFileSync(join(featureDir, "state.json"), "utf8"));
@@ -217,4 +219,22 @@ test("every pack written validates against the pack schema and lists its write a
   assert.ok(front.write_allow.some((w) => w.endsWith("01-requirements/delta-spec.yaml")));
   const active = readdirSync(join(env.dir, ".factory", ".active"));
   assert.deepEqual(active, ["FEAT-001.requirements.spec-writer.a1.json"]);
+});
+
+test("the engine writes the digest by default: every open ID, no curator dispatch, within the word limit", async () => {
+  const dir = makeProject("context: { digest: engine, digest_max_words: 120 }");
+  const featureDir = makeFeature(dir);
+  putIntake(dir);
+  const d = conductor.step(dir).dispatches[0];
+  putArtifact(featureDir, "delta-spec.yaml", "01-requirements/delta-spec.yaml");
+  await conductor.record(dir, { dispatchId: d.id, envelopeText: envelope(d.id) });
+  conductor.approve(dir, { gate: "GATE-A", by: "t" });
+  const next = conductor.step(dir);
+  assert.ok(next.dispatches.every((x) => x.agent !== "curator"), next.dispatches.map((x) => x.agent).join());
+  const digest = readFileSync(join(featureDir, "digest.md"), "utf8");
+  for (const id of ["REQ-0001", "REQ-0002", "AC-0001", "AC-0002", "AC-0003"]) assert.match(digest, new RegExp(id));
+  assert.ok(digest.split(/\s+/).filter(Boolean).length <= 120, digest);
+  const c = conductor.load(dir);
+  const ctx = gateContext({ projectDir: dir, app: c.app, feature: c.feature, config: c.config });
+  assert.equal((await runGate("digest", ctx, { useCache: false })).pass, true, "the digest gate accepts it");
 });

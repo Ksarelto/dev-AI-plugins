@@ -26,14 +26,6 @@
     {
       "prompt": "Add a new table migration; a DROP COLUMN needs human approval",
       "expect": "migration-authoring"
-    },
-    {
-      "prompt": "Audit the generated OpenAPI document against the agreed API contract",
-      "expect": "be-audit"
-    },
-    {
-      "prompt": "Run the backend auditor's migration and contract checks on the change set",
-      "expect": "be-audit"
     }
   ]
 }

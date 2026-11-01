@@ -3,13 +3,13 @@
 // A file that fails to import (the feature's modules do not exist yet) is a valid red: its declared
 // test names count, as failing.
 import { firstLine } from "../lib/vitest-report.mjs";
-import { declaredTests, enabledStacks, featureAcceptance, runTests } from "../lib/testrun.mjs";
+import { declaredTests, enabledStacks, featureAcceptance, runTests, scopeArgs } from "../lib/testrun.mjs";
 import { resolveStack } from "../lib/stackexec.mjs";
 
 export const inputs = ["acceptance-tests", "prd", "delta-spec"];
 export const cacheable = false;
 
-export function run(ctx) {
+export async function run(ctx) {
   const { acs, files, source } = featureAcceptance(ctx);
   if (!files.length) return [{ check: "acceptance", rule: "none", message: `no acceptance test (*.acceptance.test.*) names ${acs.join(", ") || "an acceptance criterion"}` }];
   const stacks = enabledStacks(ctx, resolveStack);
@@ -17,8 +17,10 @@ export function run(ctx) {
   const failures = [];
   // Each role's stack runs in its own folder: coverage is judged over every stack's report together.
   const mine = [];
-  for (const stack of stacks) {
-    const { run, report } = runTests(ctx, stack, `${ctx.state.feature}-acceptance-${stack.role}`);
+  // New acceptance files are uncommitted changes, so a scoped run (vitest --changed) includes them.
+  const runs = await Promise.all(stacks.map((stack) => runTests(ctx, stack, `${ctx.state.feature}-acceptance-${stack.role}`, { extra: scopeArgs(ctx, stack) })));
+  for (const [i, stack] of stacks.entries()) {
+    const { run, report } = runs[i];
     if (!report) failures.push({ check: "acceptance", rule: "no-report", message: `${stack.role}: the test command wrote no report (exit ${run.code}):\n${run.tail}` });
     else mine.push(...report.files.filter((f) => files.includes(f.file)));
   }

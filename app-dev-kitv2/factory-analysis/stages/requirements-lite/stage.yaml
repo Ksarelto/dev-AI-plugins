@@ -1,8 +1,9 @@
 id: requirements-lite
 title: S1 Requirements (patch tier)
 kind: agents
-agents: [requirements-analyst, planner, test-strategist]
-owners: { delta-spec: requirements-analyst, tasks: planner, test-plan: test-strategist }
+agents: [requirements-analyst, planner]
+owners: { delta-spec: requirements-analyst, tasks: planner, test-plan: planner }
+models: { requirements-analyst: sonnet, planner: sonnet }   # a patch is one or two tasks: no opus, one planner
 context_role: analysis_roles
 inputs: [normalised-sources, source-index, capability-index?, human-notes?]
 outputs: [delta-spec, tasks, test-plan]

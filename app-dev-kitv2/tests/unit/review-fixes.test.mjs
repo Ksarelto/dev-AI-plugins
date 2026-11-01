@@ -36,7 +36,7 @@ test("#1 two records at once (separate processes) both land — the lock covers 
   const results = await Promise.all(dispatches.map((d) => cliAsync(env.dir, ["record", "--dispatch", d.id], envelope(d.id))));
   assert.deepEqual(results.map((r) => r.code), [0, 0]);
   const s = featureState(env.featureDir);
-  assert.equal(s.pending.length, 0);
+  assert.ok(s.pending.every((d) => d.stage !== "requirements"), "nothing of the batch is left; the last record issued the next step");
   assert.equal(s.stages.requirements.status, "passed");
   assert.equal(s.stages.requirements.attempts, 1, "gated once, after both agents");
 });

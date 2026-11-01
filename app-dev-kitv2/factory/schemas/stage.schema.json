@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "factory/stage",
-  "title": "stage.yaml \u2014 one pipeline stage shipped by a stage pack",
+  "title": "stage.yaml — one pipeline stage shipped by a stage pack",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -139,7 +139,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "artifact type \u2192 the one agent of this stage that writes it; others may not"
+      "description": "artifact type → the one agent of this stage that writes it; others may not"
     },
     "on_reject": {
       "type": "string",
@@ -183,6 +183,27 @@
     "exit_check": {
       "type": "boolean",
       "description": "false: the pack names no exit check (read-only agents whose gate needs files the engine writes after them)"
+    },
+    "precheck": {
+      "type": "string",
+      "description": "a gate the engine runs before dispatching the stage's agents (outside the lock); its fix: true failures go straight to the on_fail fix target"
+    },
+    "audits": {
+      "enum": [
+        "roles"
+      ],
+      "description": "roles: the engine runs every enabled role's gates.audits on the change set and adds their findings to the review"
+    },
+    "models": {
+      "type": "object",
+      "additionalProperties": {
+        "enum": [
+          "opus",
+          "sonnet",
+          "haiku"
+        ]
+      },
+      "description": "agent → model for this stage only (the patch tier plans on sonnet)"
     }
   }
 }

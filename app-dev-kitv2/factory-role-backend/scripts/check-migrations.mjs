@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// Migration check for the backend role (gate-impl for every backend task, and the auditor):
-//   node check-migrations.mjs --project <role folder> [--task-type <type>] [--notes HD-1:approved,HD-2:open,…] --files <changed files…>
+// Migration check for the backend role (gate-impl for every backend task, and an engine audit of the
+// whole change set at verification with --findings):
+//   node check-migrations.mjs --project <role folder> [--task-type <type>] [--notes HD-1:approved,HD-2:open,…] [--findings] --files <changed files…>
 // Every changed <dir>/drizzle/<tag>.sql needs a journal entry (<dir>/drizzle/meta/_journal.json) and a
 // rollback (<dir>/drizzle/rollback/<tag>.down.sql) with at least one real statement. A destructive
 // statement needs "-- factory: approved HD-<n>" right above it, naming a human note the engine passes as
 // "approved" (mapped to this task or naming its migration; with --notes — without it the note is not checked). A migration task must change a
-// migration. Prints one problem per line and exits 1 when there is any.
+// migration. Prints one problem per line and exits 1 when there is any; --findings prints them as review
+// findings (JSON, P1) and exits 0.
 import { existsSync, readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 
@@ -77,6 +79,14 @@ for (const file of migrations) {
     else if (notes && notes.get(approval[1]) === "open") problems.push(`${file}:${at + 1}: ${approval[1]} is still open — the human has not settled it`);
     else if (notes && notes.get(approval[1]) !== "approved") problems.push(`${file}:${at + 1}: ${approval[1]} is not an approval of this migration — the note must be mapped to the task or name ${tag}`);
   }
+}
+if (args.includes("--findings")) {
+  const findings = problems.map((p) => {
+    const at = /^(\S+?\.sql)(?::(\d+))?:/.exec(p);
+    return { ...(at ? { file: at[1], ...(at[2] ? { line: Number(at[2]) } : {}) } : {}), rule: "migration", severity: "P1", claim: at ? p.slice(at[0].length).trim() : p };
+  });
+  process.stdout.write(`${JSON.stringify(findings, null, 2)}\n`);
+  process.exit(0);
 }
 process.stdout.write(problems.length ? `${problems.join("\n")}\n` : `ok: ${migrations.length} migration(s) checked\n`);
 process.exit(problems.length ? 1 : 0);

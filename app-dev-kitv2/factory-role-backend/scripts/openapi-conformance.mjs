@@ -1,9 +1,10 @@
 #!/usr/bin/env node
-// OpenAPI conformance for the backend auditor:
+// OpenAPI conformance, an engine audit (role.yaml gates.audits):
 //   node openapi-conformance.mjs --contract <api-contract.yaml> --document <src/openapi/document.ts>
 // Compares the contract's operations (paths → methods) with the document's registry.registerPath
-// calls and prints [{ rule, method, path }]: missing-in-document, not-in-contract (only under the
-// contract's path prefixes). Reads the YAML by indentation, so it needs no packages.
+// calls and prints review findings [{ file, rule, severity, claim }]: missing-in-document (P1),
+// not-in-contract (P2, only under the contract's path prefixes). Reads the YAML by indentation, so it
+// needs no packages.
 import { readFileSync } from "node:fs";
 
 const arg = (name) => process.argv[process.argv.indexOf(name) + 1];
@@ -32,9 +33,10 @@ for (const call of source.matchAll(/registerPath\(\{([\s\S]*?)\}\)/g)) {
 
 const prefixes = [...new Set([...contract].map((op) => op.split(" ")[1].split("/").slice(0, 4).join("/")))];
 const hits = [];
-for (const op of contract) if (!documented.has(op)) hits.push({ rule: "missing-in-document", method: op.split(" ")[0], path: op.split(" ")[1] });
+const file = arg("--document");
+for (const op of contract) if (!documented.has(op)) hits.push({ file, rule: "missing-in-document", severity: "P1", method: op.split(" ")[0], path: op.split(" ")[1], claim: `the contract's ${op.split(" ")[0].toUpperCase()} ${op.split(" ")[1]} is not registered in the OpenAPI document` });
 for (const op of documented) {
   const p = op.split(" ")[1];
-  if (!contract.has(op) && prefixes.some((x) => p === x || p.startsWith(`${x}/`))) hits.push({ rule: "not-in-contract", method: op.split(" ")[0], path: p });
+  if (!contract.has(op) && prefixes.some((x) => p === x || p.startsWith(`${x}/`))) hits.push({ file, rule: "not-in-contract", severity: "P2", method: op.split(" ")[0], path: p, claim: `${op.split(" ")[0].toUpperCase()} ${p} is documented but not in the agreed contract` });
 }
 process.stdout.write(`${JSON.stringify(hits, null, 2)}\n`);

@@ -10,7 +10,7 @@ import { isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ENGINE_ROOT, factoryPaths, matchesAny, toPosix } from "../scripts/lib/core.mjs";
 import { loadConfig } from "../scripts/lib/config.mjs";
-import { activeDispatches, activeName } from "../scripts/lib/state.mjs";
+import { activeDispatches, activeName, savedEnvelopeFile } from "../scripts/lib/state.mjs";
 import { typeOfPath, validateArtifactFile } from "../scripts/lib/schemas.mjs";
 import { brief, briefMarkdown } from "../scripts/lib/brief.mjs";
 import { checkEnvelope, parseEnvelope } from "../scripts/lib/conductor.mjs";
@@ -261,6 +261,26 @@ export function postWrite(input, project) {
   return errors.length ? `${file} does not match the ${type} schema:\n- ${errors.slice(0, 15).join("\n- ")}` : null;
 }
 
+/** Keeps a dispatched agent's valid envelope for `factory record --saved`; returns its file or null. */
+export function saveEnvelope(project, input, actives, maxWords) {
+  // Cursor's union ("*") cannot tell which dispatch is speaking: an envelope could claim another's pack_id.
+  if (input.agent_type === "*") return null;
+  const candidates = dispatchesFor(input, actives);
+  if (!candidates.length) return null;
+  let envelope;
+  try {
+    envelope = parseEnvelope(input.last_assistant_message ?? "");
+  } catch {
+    return null;
+  }
+  const d = candidates.find((x) => x.id === envelope?.pack_id);
+  if (!d || checkEnvelope(envelope, { packId: d.id, maxWords }).length) return null;
+  const file = savedEnvelopeFile(project, d.id);
+  writeFileSync(`${file}.tmp`, JSON.stringify(envelope));
+  renameSync(`${file}.tmp`, file);
+  return file;
+}
+
 export function subagentStop(input, actives, maxWords) {
   const candidates = dispatchesFor(input, actives);
   if (!candidates.length || input.stop_hook_active) return null;
@@ -421,6 +441,13 @@ async function main() {
       // Cursor passes a summary, not always the whole reply: check an envelope only when one is there.
       if (!cursor || (raw.status === "completed" && (raw.loop_count ?? 0) < 2 && /```json|"pack_id"/.test(input.last_assistant_message))) {
         reason = subagentStop(input, actives, loadConfig(project).context?.return_summary_max_words);
+      }
+      if (!reason) {
+        try {
+          saveEnvelope(project, input, actives, loadConfig(project).context?.return_summary_max_words);
+        } catch {
+          // Not saved: the Conductor passes the envelope on stdin instead.
+        }
       }
       // A subagent asked to fix its envelope keeps running, so it keeps its marker until then.
       if (cursor && !reason) {

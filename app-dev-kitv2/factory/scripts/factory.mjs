@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { UsageError, readYaml, writeJson } from "./lib/core.mjs";
 import { explainConfig, loadConfig, profileFor, profileStages } from "./lib/config.mjs";
-import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, scaffold, setOverride, split, step } from "./lib/conductor.mjs";
+import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, scaffold, setOverride, split, stepAsync } from "./lib/conductor.mjs";
 import { buildIndex } from "./lib/cartographer.mjs";
 import { ship } from "./lib/delivery.mjs";
 import { resolvePacks } from "./lib/registry.mjs";
@@ -29,7 +29,7 @@ const HELP = `factory <command> [options]
   state [--brief] [--markdown]                            feature state (brief: what the next step needs)
   status                                                  all features, one line each
   step                                                    next action: dispatch | ask_human | halt | done
-  record [--dispatch ID] [--file F | stdin] [--tokens N]  persist an envelope, run gate + warden
+  record --dispatch ID [--saved | --file F | stdin] [--tokens N]  persist an envelope, run gate + warden; returns the next step
   gate <name> [--task ID]                                 run one gate now
   idcov --stage S                                         tracked-ID coverage of a stage
   envelope check [--file F | stdin] [--pack-id ID]        validate an envelope
@@ -121,9 +121,10 @@ async function main(argv) {
       return { out: { mode: app.mode, active_feature: app.active_feature, features: app.features } };
     }
     case "step":
-      return { out: step(project, { feature }) };
+      return { out: await stepAsync(project, { feature }) };
     case "record": {
-      const out = await record(project, { dispatchId: args.dispatch, envelopeText: readInput(args), tokens: args.tokens, feature });
+      // --saved: the envelope the SubagentStop hook kept, so the Conductor need not copy it.
+      const out = await record(project, { dispatchId: args.dispatch, envelopeText: args.saved ? null : readInput(args), tokens: args.tokens, feature });
       return { out, code: out.action === "redispatch" ? 1 : 0 };
     }
     case "gate": {

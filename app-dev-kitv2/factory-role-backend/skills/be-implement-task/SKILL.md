@@ -11,7 +11,7 @@ user-invocable: false
 1. The red tests are the specification; read them first, then the stack skill and golden file in
    T0 ("Procedure", "Golden file").
 2. Check `03-architecture/api-contract.yaml` for the agreed paths, bodies and error codes. The
-   OpenAPI document (`src/openapi/document.ts`) must describe what you build — the auditor compares
+   OpenAPI document (`src/openapi/document.ts`) must describe what you build — the engine's OpenAPI audit compares
    the two.
 
 ## Layer rules

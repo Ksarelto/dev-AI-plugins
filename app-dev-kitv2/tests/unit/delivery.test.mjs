@@ -66,19 +66,20 @@ test("gate-acceptance: a file that cannot import the unbuilt feature is a red; o
   assert.deepEqual(rules(await gate(env, "acceptance")), []);
 });
 
-test("verification: findings from reviewer and auditor land in review.md; P1 and failing acceptance block; P2 does not", async () => {
+test("verification: reviewer findings and role audits land in review.md; P1 and failing acceptance block; P2 does not", async () => {
   const env = setup(["verification", "qa"]);
   env.write(ACCEPT, "// acceptance\n");
+  env.write("src/features/apply-coupon/ui/coupon-field.tsx", 'export const CouponField = () => <input style={{ color: "#ff0000" }} />;\n');
   env.fake("test", { code: 1, report: report({ [join(env.dir, ACCEPT)]: [["AC-0001 discount line", "failed", "Unable to find a label"]] }) });
   const s = conductor.step(env.dir);
-  assert.deepEqual(s.dispatches.map((d) => d.agent).sort(), ["fe-auditor", "reviewer"], "reviewer and role auditor run in parallel");
-  const byAgent = Object.fromEntries(s.dispatches.map((d) => [d.agent, d]));
-  await conductor.record(env.dir, { dispatchId: byAgent.reviewer.id, envelopeText: envelope(byAgent.reviewer.id, { findings: [{ lens: "spec-adr-drift", severity: "P1", claim: "the page never renders the field" }, { lens: "edge-cases", severity: "P2", claim: "no max length" }] }) });
-  const r = await conductor.record(env.dir, { dispatchId: byAgent["fe-auditor"].id, envelopeText: envelope(byAgent["fe-auditor"].id, { findings: [] }) });
+  assert.deepEqual(s.dispatches.map((d) => d.agent), ["reviewer"], "role audits are engine scripts, not agents");
+  const [d] = s.dispatches;
+  const r = await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id, { findings: [{ lens: "spec-adr-drift", severity: "P1", claim: "the page never renders the field" }, { lens: "edge-cases", severity: "P2", claim: "no max length" }] }) });
   assert.deepEqual(r.gate.failures.map((f) => f.rule).sort(), ["acceptance-failing", "blocking-P1"]);
   const review = readFileSync(join(env.featureDir, "06-verify", "review.md"), "utf8");
   assert.match(review, /RV-1 P1/);
   assert.match(review, /RV-2 P2/);
+  assert.match(review, /RV-3 P2\*\* \(audit, frontend:raw-colours\) `src\/features\/apply-coupon\/ui\/coupon-field\.tsx:1` — raw colour instead of a design token/);
   const st = featureState(env.featureDir);
   assert.equal(st.status, "blocked", "no implementation stage in this profile: block instead of a broken regress");
   assert.match(st.halts.at(-1).reason, /not in the "test" profile/);
@@ -231,13 +232,13 @@ test("S9: fetched PR comments reopen feedback; 'change' comments become fix item
   assert.equal(after.stages.feedback.entered, false, "S9 checks for new comments again after the fix round");
 });
 
-test("task typecheck ignores errors that are only in acceptance tests", () => {
+test("task typecheck ignores errors that are only in acceptance tests", async () => {
   const env = setup(["implementation"]);
   env.fake("typecheck", { code: 2, output: "src/pages/checkout/checkout.acceptance.test.tsx(13,24): error TS2322: Property 'isGuest' does not exist\n" });
   const stack = { cwd: env.dir, stack: { package_manager: "npm", commands: { typecheck: ["node", FAKE, "typecheck"] } } };
-  assert.equal(typecheckForTask(stack, "t").ok, true);
+  assert.equal((await typecheckForTask(stack, "t")).ok, true);
   env.fake("typecheck", { code: 2, output: "src/pages/checkout/checkout.acceptance.test.tsx(1,1): error TS1\nsrc/x.ts(2,2): error TS2322: bad\n" });
-  assert.equal(typecheckForTask(stack, "t2").ok, false);
+  assert.equal((await typecheckForTask(stack, "t2")).ok, false);
 });
 
 // ── Regression tests for the phase-4 review findings ──
@@ -295,7 +296,7 @@ test("a fix round starts verification fresh: no stale findings, no escalation, a
   }
   const st = featureState(env.featureDir);
   assert.deepEqual([st.stages.verification.attempts, st.stages.verification.prior_attempts, st.stages.verification.fingerprints, st.stages.verification.findings, st.stages.verification.instruction], [0, 1, [], [], null]);
-  Object.assign(st, { stage: "verification", fix_pending: null });
+  Object.assign(st, { stage: "verification", fix_pending: null, pending: [] }); // drop the fix plan record already issued
   st.stages.implementation.status = "passed";
   writeFileSync(join(env.featureDir, "state.json"), JSON.stringify(st));
   const again = conductor.step(env.dir).dispatches;

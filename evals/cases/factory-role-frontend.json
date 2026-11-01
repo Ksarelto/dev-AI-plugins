@@ -26,14 +26,6 @@
     {
       "prompt": "Build a throwaway prototype and report spec gaps for GATE-P",
       "expect": "fe-prototype"
-    },
-    {
-      "prompt": "Audit the frontend change set for raw colours and untranslated strings",
-      "expect": "fe-audit"
-    },
-    {
-      "prompt": "Run the frontend audit scripts on the changed files",
-      "expect": "fe-audit"
     }
   ]
 }

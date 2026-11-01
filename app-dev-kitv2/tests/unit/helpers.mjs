@@ -41,6 +41,8 @@ export function makeProject(extraConfig = "") {
     packs: { "fixture-stages": FIXTURE_PACK },
     roles: { frontend: { enabled: true, owns_paths: ["src/**"] } },
     pipeline: { profile: "test", profiles: { test: ["requirements", "stories", "planning"] } },
+    // The flow tests script the curator's dispatch; the engine digest has its own tests.
+    context: { digest: "curator" },
   };
   const config = deepMerge(base, YAML.parse(extraConfig) ?? {});
   writeFileSync(join(dir, ".factory", "factory.config.yaml"), YAML.stringify(config));

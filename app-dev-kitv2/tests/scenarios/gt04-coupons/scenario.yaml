@@ -31,8 +31,7 @@ expect:
     - { stage: implementation, task: TASK-002, verdict: advance }
     - { stage: implementation, task: TASK-003, verdict: advance }
     - { stage: implementation, task: TASK-003, verdict: advance }
-    - { stage: verification, verdict: retry }
-    - { stage: implementation, verdict: fixplan }
+    - { stage: implementation, verdict: fixplan }   # the precheck finds the failing acceptance tests: no review round
     - { stage: implementation, task: TASK-004, verdict: advance }
     - { stage: implementation, task: TASK-004, verdict: advance }
     - { stage: verification, verdict: advance }
@@ -46,15 +45,13 @@ expect:
     story-writer: sonnet
     solution-architect: opus
     contract-steward: sonnet
-    planner: opus
+    planner: { default: opus, fixplan: sonnet }   # a fix plan for a known failure list is execution-tier work
     test-strategist: sonnet
-    curator: haiku
     fe-test-author: sonnet
     fe-builder: sonnet
     prototyper: sonnet
     acceptance-test-author: sonnet
     reviewer: opus
-    fe-auditor: haiku
     qa-engineer: sonnet
     tech-writer: haiku
     release-manager: sonnet

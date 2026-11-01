@@ -107,11 +107,11 @@ test("gate-verify: old skips elsewhere are not the feature's problem; skips in i
   assert.ok(r.failures.some((f) => f.rule === "integration-failing" && f.fix), JSON.stringify(r.failures));
 });
 
-test("the change set carries the real diff; reviewers get no exit check and do not write review.md", () => {
+test("the change set carries the real diff; reviewers get no exit check and do not write review.md", async () => {
   const env = shipped(["verification"]);
   write(env.dir, "src/entities/order/model/total.ts", "export const total = 1;\n");
   write(env.dir, "src/stray.ts", "export const stray = 1;\n");
-  const d = conductor.step(env.dir).dispatches.find((x) => x.agent === "reviewer");
+  const d = (await conductor.stepAsync(env.dir)).dispatches.find((x) => x.agent === "reviewer");
   const set = YAML.parse(readFileSync(join(env.featureDir, "06-verify", "change-set.yaml"), "utf8"));
   assert.ok(set.changed.includes("src/entities/order/model/total.ts") && set.outside_plan.includes("src/stray.ts"), JSON.stringify(set));
   assert.match(readFileSync(join(env.featureDir, "06-verify", "change.diff"), "utf8"), /\+export const stray = 1;/);

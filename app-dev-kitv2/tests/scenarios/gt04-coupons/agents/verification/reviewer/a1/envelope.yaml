@@ -1,13 +1,3 @@
-summary: The coupon field exists but the checkout page never renders it, so AC-0001..AC-0004 are unreachable.
+summary: Every AC is reachable from the checkout page; tests cover the exact values.
 findings:
-  - lens: spec-adr-drift
-    severity: P1
-    file: src/pages/checkout/ui/checkout-page.tsx
-    ac: AC-0001
-    claim: CouponField is never rendered on the checkout page, so no customer can apply a coupon
-    evidence: checkout-page.tsx renders only the heading and the total
-    fix_hint: render CouponField and pass the discount into calculateTotal
-  - lens: over-engineering
-    severity: P3
-    file: src/features/apply-coupon/ui/coupon-field.tsx
-    claim: ApplyResult is exported from the UI file; consider the slice's model folder
+  - { lens: over-engineering, severity: P3, file: src/features/apply-coupon/ui/coupon-field.tsx, claim: "ApplyResult could live in the slice's model folder" }

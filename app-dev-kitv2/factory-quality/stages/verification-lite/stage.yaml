@@ -2,9 +2,11 @@ id: verification-lite
 title: S6 Verification (patch tier)
 kind: agents
 agents: [reviewer]
+audits: roles
 context_role: review_roles
 inputs: ["prd|delta-spec", tasks, change-set, change-diff?]
 outputs: [review]
+precheck: checks    # the whole suite, typecheck, lint and build run before the reviewers
 gate: verify
 exit_check: false   # reviewers are read-only and the engine writes review.md after them
 on_fail: fix:implementation

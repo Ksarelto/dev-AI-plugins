@@ -8,6 +8,11 @@ agents:
   test_author: fe-test-author
   builder: fe-builder
   prototyper: prototyper
-  auditor: fe-auditor
-gates: { red: red, impl: impl }
+gates:
+  red: red
+  impl: impl
+  # Run by the engine at verification on the change set; their findings join the review.
+  audits:
+    - { name: raw-colours, node: scripts/audit-raw-colours.mjs, files: "\\.(tsx?|css)$" }
+    - { name: i18n, node: scripts/audit-i18n.mjs, files: "\\.tsx$" }
 requires: { factory: "^0.1" }

@@ -11,13 +11,13 @@ Status: **all five phases built** — engine, analysis, three roles, quality, de
 
 | Layer | Plugin | Status | Ships |
 |---|---|---|---|
-| Engine | [`factory`](factory/) | ✅ phase 1 | `/factory:*` commands, CLI, schemas, gates, Loop Warden, Context Broker, hooks, `curator`, `diagnostician` |
+| Engine | [`factory`](factory/) | ✅ phase 1 | `/factory:*` commands, CLI, schemas, gates, Loop Warden, Context Broker, hooks, engine digest, `curator` (optional), `diagnostician` |
 | Stage | [`factory-analysis`](factory-analysis/) | ✅ phase 2 | intake → bootstrap/discovery → requirements → stories → architecture → planning; 8 agents, 10 skills, worked-example templates |
 | Role | [`factory-role-frontend`](factory-role-frontend/) | ✅ phase 3 | test author (red), builder (green), prototyper; the task loop runs real tests, typecheck, lint, layer rules and build |
-| Stage | [`factory-quality`](factory-quality/) | ✅ phase 4 | acceptance tests before the build, seven-lens review with the role auditors in parallel, exploratory QA; failures become fix tasks |
+| Stage | [`factory-quality`](factory-quality/) | ✅ phase 4 | acceptance tests before the build, machine checks then the seven-lens review plus the roles' scripted audits, exploratory QA; failures become fix tasks |
 | Stage | [`factory-delivery`](factory-delivery/) | ✅ phase 4 | feature docs and ADRs, commit plan and PR body, PR-comment triage (S9); the engine commits and ships |
 | Adapter | [`factory-adapter-github`](factory-adapter-github/) | ✅ phase 4 | `git push` + `gh pr create --draft`; dry-run by default (commands recorded, never run) |
-| Role | [`factory-role-backend`](factory-role-backend/) | ✅ phase 5 | test author, builder and migration author for Express 5 + Zod + Drizzle; the migration check (journal, rollback, approved destructive SQL) runs in gate-impl; OpenAPI-conformance auditor |
+| Role | [`factory-role-backend`](factory-role-backend/) | ✅ phase 5 | test author, builder and migration author for Express 5 + Zod + Drizzle; the migration check (journal, rollback, approved destructive SQL) runs in gate-impl; OpenAPI-conformance audit at verification |
 | Role | [`factory-role-ai-agent`](factory-role-ai-agent/) | ✅ phase 5 | architect (agent-design.md at S3), test author against a scripted model, LangGraph and RAG builders, eval author; model-facing tasks pass only with an eval run |
 
 Stack knowledge stays in the existing kits, each with a new `stack.yaml`:
@@ -39,6 +39,23 @@ the files it may write, the exit check to run, the inputs by path, and attempt f
 enforce the pack: writes outside the allowlist, unscoped searches, over-budget reads, package
 installs and force-pushes are denied for dispatched agents; engine-owned state files are denied for
 everyone.
+
+## Doing each check once
+
+- Task gates run typecheck, lint, the architecture check, the build, the tests and the role's checks
+  side by side (`quality.gate_concurrency`, default 4). They leave out a dependency-cruiser run the
+  lint script already does and a build that is only `tsc`; verification runs lint and build in full.
+- A task gate runs the tests (and evals) the uncommitted changes touch — the stack's
+  `test_scoped_args`, `vitest --changed` — and the role's last task runs them all; verification runs
+  the whole suite and the full eval suite once (`at_verify`). `quality.task_tests: full` turns it off.
+- A passing red, impl or verification check is cached against a hash of the working tree: the agent's
+  own exit check is not run again at `record` unless a file changed.
+- Verification runs its machine checks (`precheck: checks`) before dispatching the reviewer: failing
+  code goes back to implementation without a review round. Role audits (raw colours, i18n, OpenAPI
+  drift) are scripts the engine runs (`role.yaml gates.audits`), not agents.
+- The engine writes the feature digest (`context.digest: engine`), and every pack inlines it with the
+  human notes. `record` returns the next step (`next`), and reads the envelope the stop hook saved
+  (`--saved`), so the Conductor neither calls `step` nor copies envelopes.
 
 ## The fix loop and delivery
 
@@ -64,7 +81,8 @@ roles that share a folder take turns.
   `factory state --brief`, including open human notes.
 - Human instructions are stored as `HD-*` notes (`/factory:note`, gate notes) before anything acts
   on them; the plan gate fails while a note is unmapped.
-- Every stage exit checks tracked-ID coverage, and the curator's digest is rejected if it drops an
+- Every stage exit checks tracked-ID coverage, and the digest (written by the engine; by the curator
+  when `context.digest: curator`) is rejected if it drops an
   open `REQ`, `AC`, `ADR`, `OQ` or `HD` ID.
 
 ## Models
@@ -73,9 +91,10 @@ roles that share a folder take turns.
 |---|---|
 | opus | requirements-analyst, solution-architect, planner, reviewer, ai-architect, diagnostician |
 | sonnet | builders, test authors, story-writer, contract-steward, test-strategist, codebase-analyst, QA, prototyper, release-manager (PR trace and comment triage) |
-| haiku | intake-normaliser, curator, tech-writer, auditors |
+| haiku | intake-normaliser, curator (when enabled), tech-writer |
 
-A task that fails twice moves to opus (rung 2). The policy is enforced by
+A task that fails twice moves to opus (rung 2). The patch tier plans on sonnet (`stage.models`), and
+a fix plan for a known failure list runs on sonnet. The policy is enforced by
 `scripts/check-factory-consistency.mjs`.
 
 ## Cursor

@@ -141,8 +141,10 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
     log(`intake: ${intook.added.length} source(s), ${intook.feature} (${intook.mode}: ${intook.mode_reason})`);
     run.mode = intook.mode;
 
+    let next = null; // record hands back the following step once a batch is fully recorded
     for (let i = 0; i < (scenario.max_steps ?? 60); i++) {
-      const s = conductor.step(project, {});
+      const s = next ?? (await conductor.stepAsync(project, {}));
+      next = null;
       if (s.action === "dispatch") {
         const app = state.loadAppState(project);
         const featureDir = join(project, ".factory", app.features[s.feature].dir);
@@ -164,6 +166,10 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
           }
           const envelope = { pack_id: d.id, status: "done", artifacts_written: [], summary: `scripted ${d.agent}`, ...extra };
           const r = await conductor.record(project, { dispatchId: d.id, envelopeText: JSON.stringify(envelope), tokens: extra.tokens ?? 1000 });
+          if (r.next) {
+            run.next_steps = (run.next_steps ?? 0) + 1;
+            next = r.next;
+          }
           if (r.verdict) run.verdicts.push({ feature: s.feature, stage: d.stage, ...(d.task ? { task: d.task } : {}), verdict: r.verdict, reason: r.reason });
           log(`${d.id} [${d.model}] → ${r.verdict ?? r.action}`);
           for (const f of r.gate && !r.gate.pass ? r.gate.failures : []) log(`    gate ${r.gate.gate}: [${f.rule ?? f.check}] ${f.message}`);
@@ -235,9 +241,12 @@ function check(run, expect) {
     add("verdict sequence (exact)", JSON.stringify(run.verdicts.map(fmt)) === JSON.stringify(want), run.verdicts.map(fmt).join(" "));
   }
   add("scripted outputs pass their schemas", run.schemaErrors.length === 0, run.schemaErrors.join(" | ").slice(0, 300) || "ok");
+  // A model per agent, or "<phase>: model" pairs for an agent whose tier depends on the phase.
   for (const [agent, model] of Object.entries(expect.models ?? {})) {
-    const used = [...new Set(run.dispatches.filter((d) => d.agent === agent).map((d) => d.model))];
-    add(`model ${agent}`, used.length && used.every((m) => m === model), used.join(",") || "never dispatched");
+    const mine = run.dispatches.filter((d) => d.agent === agent);
+    const want = (d) => (typeof model === "string" ? model : model[d.phase] ?? model.default);
+    const used = [...new Set(mine.map((d) => `${d.phase}:${d.model}`))];
+    add(`model ${agent}`, mine.length > 0 && mine.every((d) => d.model === want(d)), used.join(",") || "never dispatched");
   }
   if (expect.denied_writes) {
     const got = run.denied.map((d) => `${d.agent}:${d.file}`).sort();

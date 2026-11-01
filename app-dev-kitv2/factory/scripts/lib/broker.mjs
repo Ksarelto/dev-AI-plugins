@@ -3,7 +3,7 @@
 // sections first and are stamped context_degraded.
 import { existsSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { ENGINE_ROOT, YAML, toPosix, writeAtomic } from "./core.mjs";
+import { ENGINE_ROOT, YAML, readText, toPosix, writeAtomic } from "./core.mjs";
 import { ARTIFACT_TYPES, artifactFiles, artifactGlob, parseArtifactRef, validate } from "./schemas.mjs";
 
 const tokensOf = (bytes) => Math.ceil(bytes / 4);
@@ -29,11 +29,12 @@ export function buildPack(projectDir, featureObj, config, d) {
     ...(d.extraWrites ?? []),
   ];
 
+  // The digest and the human notes are inlined: every agent needs them, and a Read turn each costs more.
   const mandatory = [];
   const digest = join(featureObj.dir, "digest.md");
-  if (existsSync(digest)) mandatory.push({ label: "Feature digest", path: rel(digest) });
+  const digestText = existsSync(digest) ? readText(digest).trim() : null;
   const notesFile = join(featureObj.dir, "human-notes.yaml");
-  if (existsSync(notesFile)) mandatory.push({ label: "Human notes (HD-*)", path: rel(notesFile) });
+  const notes = existsSync(notesFile) ? (YAML.parse(readText(notesFile)) ?? []).filter((n) => n.status !== "declined") : [];
   for (const extra of d.extraReads ?? []) mandatory.push(extra);
 
   const inputs = [];
@@ -78,8 +79,12 @@ export function buildPack(projectDir, featureObj, config, d) {
     lines.push("", "## T1 — Orientation (read these first)");
     if (d.stacks?.length) lines.push(...d.stacks.map((l) => `Stack · ${l}`));
     if (d.planRules?.length) lines.push("Plan rules (gate-plan checks every one):", ...d.planRules.map((l) => `  - ${l}`));
-    if (mandatory.length) for (const m of mandatory) lines.push(`${m.label}: ${m.path} [READ]`);
-    else lines.push("(no mandatory reads)");
+    if (notes.length) {
+      lines.push(`Human notes (${rel(notesFile)}):`, ...notes.map((n) => `  - ${n.id} (${n.status}${n.mapped_to?.length ? ` → ${n.mapped_to.join(", ")}` : ""}): ${String(n.text).replace(/\s+/g, " ")}`));
+    }
+    for (const m of mandatory) lines.push(`${m.label}: ${m.path} [READ]`);
+    if (digestText) lines.push(`Feature digest (${rel(digest)}), inline — open the full artifacts in T2 for detail:`, "", digestText, "");
+    if (!mandatory.length && !digestText && !notes.length) lines.push("(no mandatory reads)");
     lines.push("", "## T2 — Inputs (paths only — read what you need)");
     if (!inputs.length) lines.push("(no upstream artifacts)");
     for (const i of inputs) lines.push(`- ${i.type}: ${i.missing ? "(missing — report it in the envelope)" : i.paths.join(", ")}`);
@@ -96,7 +101,9 @@ export function buildPack(projectDir, featureObj, config, d) {
 
   let sections = optionalSections;
   let body = render(sections);
-  const estimate = (text) => tokensOf(Buffer.byteLength(text)) + mandatory.reduce((n, m) => n + fileTokens(join(projectDir, m.path)), 0);
+  // What the agent is likely to read: the pack, the mandatory reads and every listed input (an upper bound).
+  const inputTokens = inputs.flatMap((i) => i.paths).reduce((n, p) => n + fileTokens(join(projectDir, p)), 0);
+  const estimate = (text) => tokensOf(Buffer.byteLength(text)) + mandatory.reduce((n, m) => n + fileTokens(join(projectDir, m.path)), 0) + inputTokens;
   let degraded = false;
   while (estimate(body) > budget && sections.some((sec) => sec.lines.length)) {
     sections = sections.map((sec, i) => (i === sections.findIndex((x) => x.lines.length) ? { ...sec, lines: [] } : sec));

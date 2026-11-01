@@ -157,7 +157,8 @@ export function taskStep(c, stageId, stage, h) {
       h.makeDispatch(c, {
         stageId, idStage: `${stageId}.fix${round}`, gateTask: null,
         stage: { outputs: ["tasks", "test-plan"], inputs: ["prd|delta-spec", "stories?", "tasks", "test-plan", "change-set?", "review?", "defects?", "triage?", "human-notes?"], context_role: "analysis_roles" },
-        target: planner, phase: "fixplan", attempt: (s.fix_pending.attempts ?? 0) + 1, rung: 0, model: planner.model, gate: "plan", feedback: s.fix_pending.feedback ?? null,
+        // Fix tasks for a known failure list are execution-tier work; a split (rung 4) keeps the planner's own model.
+        target: planner, phase: "fixplan", attempt: (s.fix_pending.attempts ?? 0) + 1, rung: 0, model: c.config.model_tiers?.execution ?? "sonnet", gate: "plan", feedback: s.fix_pending.feedback ?? null,
         mission:
           `${s.fix_pending.source} failed. Add fix tasks to tasks.yaml (new IDs from "Next free IDs") for these items; keep done tasks as they are.\n${items}\n` +
           "A fix that changes behaviour is test-first (a red test that reproduces it); add test-plan cases for new tests. Map any human note behind an item in notes_mapped.",
@@ -287,7 +288,8 @@ export async function taskGate(c, pending, envelope) {
   if (!rolePack?.role) return null;
   const gate = pending.phase === "red" ? rolePack.role.gates.red : rolePack.role.gates.impl;
   const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, task, stack: resolveStack(c, task.role), packs: c.packs });
-  return runGate(gate, ctx, { useCache: false });
+  // The agent ran this gate as its exit check: a pass on the same working tree is reused, not re-run.
+  return runGate(gate, ctx);
 }
 
 /** Records a task-phase envelope: Loop Warden verdict, red lock, split and dispute handling. */

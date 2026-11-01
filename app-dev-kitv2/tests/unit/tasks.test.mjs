@@ -133,8 +133,8 @@ test("split: the planner replaces the task, gate-plan re-checks the plan, the ol
   assert.equal(r.verdict, "split", JSON.stringify(r));
   const tasks = featureState(env.featureDir).tasks;
   assert.equal(tasks["TASK-002"].status, "replaced");
-  assert.equal(tasks["TASK-004"].status, "pending");
-  assert.equal(conductor.step(env.dir).dispatches[0].task, "TASK-004");
+  assert.equal(r.next.dispatches[0].task, "TASK-004", "record hands back the next step: the new task's red phase");
+  assert.equal(tasks["TASK-004"].status, "red");
 });
 
 test("tasks of a disabled role are parked; the stage ends when only parked tasks remain", () => {

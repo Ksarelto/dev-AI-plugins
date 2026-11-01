@@ -13,6 +13,7 @@ commands:
   test_integration: { script: "test:integration" }
   build: { script: build }
 test_report: vitest-json
+test_scoped_args: [--changed]   # task gates run only the tests the uncommitted changes touch; verification runs all
 test_globs: ["tests/**/*.test.ts", "src/**/*.test.ts"]
 skills:
   test: node-backend-dev-kit:api-testing

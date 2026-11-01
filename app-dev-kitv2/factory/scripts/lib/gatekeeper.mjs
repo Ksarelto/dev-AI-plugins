@@ -2,7 +2,7 @@
 // { gate, pass, progress_signal, fingerprint, failures, cached }. Gates never make judgement calls.
 import { appendFileSync, existsSync, readdirSync } from "node:fs";
 import { join, relative } from "node:path";
-import { ENGINE_ROOT, factoryPaths, readJson, readText, sha, toPosix, writeJson, now } from "./core.mjs";
+import { ENGINE_ROOT, factoryPaths, readJson, readText, sha, toPosix, treeHash, writeJson, now } from "./core.mjs";
 import { TRACKED_KINDS, extractIds, kindOf } from "./ids.mjs";
 import { ARTIFACT_TYPES, artifactFiles, loadArtifact, parseArtifactRef, validate } from "./schemas.mjs";
 
@@ -50,23 +50,36 @@ const normalise = (text) =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** Hash of every input artifact a gate depends on; unchanged inputs reuse the cached result. */
-function inputHash(ctx, inputs) {
+/**
+ * Hash of every input artifact a gate depends on; unchanged inputs reuse the cached result. Gates that
+ * run code (cacheable: "tree") also hash the working tree, the locks they check and the quality
+ * settings, so the agent's own passing exit check is reused at record instead of run a second time.
+ */
+function inputHash(ctx, inputs, cacheable) {
   const parts = [];
   for (const type of inputs) {
     for (const file of artifactFiles(type, ctx.dirs)) parts.push(`${type}:${sha(readText(file))}`);
   }
   if (ctx.task) parts.push(JSON.stringify(ctx.task));
+  if (cacheable === "tree") {
+    const tree = treeHash(ctx.projectDir);
+    if (!tree) return null; // outside git nothing proves the code is the same: never reuse
+    const unit = ctx.task ? ctx.state?.tasks?.[ctx.task.id] : null;
+    parts.push(tree, JSON.stringify([unit?.red_lock ?? null, ctx.state?.acceptance_lock ?? null, ctx.config?.quality ?? null, ctx.stack?.stack ?? null, ctx.config?.roles ?? null]));
+  }
   return sha(parts.join("\n"));
 }
 
 export async function runGate(name, ctx, { useCache = true } = {}) {
   const mod = await gateModule(name);
-  const hash = inputHash(ctx, mod.inputs ?? []);
+  const hash = inputHash(ctx, mod.inputs ?? [], mod.cacheable);
   const cacheFile = ctx.feature ? join(ctx.feature.dir, "gate-cache.json") : null;
   const cache = cacheFile ? readJson(cacheFile, {}) : {};
   const key = ctx.task ? `${name}:${ctx.task.id}` : name;
-  if (useCache && mod.cacheable !== false && cache[key]?.input_hash === hash) {
+  // A "tree" gate reuses only a pass: a failure is cheap to confirm and may have been flaky.
+  // The tree after the run counts too: a gate's own output (a tsbuildinfo, a snapshot) is not a change.
+  const reusable = mod.cacheable !== false && hash && (cache[key]?.input_hash === hash || cache[key]?.input_hash_after === hash) && (mod.cacheable !== "tree" || cache[key].pass);
+  if (useCache && reusable) {
     return { ...cache[key], cached: true };
   }
   let failures;
@@ -75,12 +88,13 @@ export async function runGate(name, ctx, { useCache = true } = {}) {
   } catch (error) {
     failures = [{ check: "gate-error", message: error.message }];
   }
-  const result = normaliseResult(name, failures, hash);
+  const result = normaliseResult(name, failures, hash ?? "");
   const invalid = validate("gate-result", result);
   if (invalid.length) throw new Error(`gate ${name} produced an invalid result: ${invalid.join("; ")}`);
   if (cacheFile) {
-    cache[key] = result;
-    writeJson(cacheFile, cache);
+    // Re-read: a gate may run another gate (verify → checks) that wrote its own entry meanwhile.
+    const after = mod.cacheable === "tree" ? inputHash(ctx, mod.inputs ?? [], mod.cacheable) : null;
+    writeJson(cacheFile, { ...readJson(cacheFile, {}), [key]: after && after !== hash ? { ...result, input_hash_after: after } : result });
     appendFileSync(join(ctx.feature.dir, "gate-log.jsonl"), `${JSON.stringify({ ts: now(), ...result })}\n`);
   }
   return result;

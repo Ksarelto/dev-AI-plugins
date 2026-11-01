@@ -12,6 +12,7 @@ commands:
   test: { script: "test:run", args: [--reporter=json, "--outputFile={report}", "{files}"] }
   build: { script: build }
 test_report: vitest-json
+test_scoped_args: [--changed]   # task gates run only the tests the uncommitted changes touch; verification runs all
 test_globs: ["src/**/*.test.ts", "src/**/*.test.tsx"]
 skills:
   test: frontend-dev-kit:testing

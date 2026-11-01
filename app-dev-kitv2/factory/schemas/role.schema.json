@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "factory/role",
-  "title": "role.yaml \u2014 the role contract implemented by a role pack",
+  "title": "role.yaml — the role contract implemented by a role pack",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -40,9 +40,6 @@
         "test_author": {
           "type": "string"
         },
-        "auditor": {
-          "type": "string"
-        },
         "prototyper": {
           "type": "string"
         },
@@ -57,7 +54,7 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "task type \u2192 specialist builder agent (green phase); other types use builder"
+          "description": "task type → specialist builder agent (green phase); other types use builder"
         },
         "architect": {
           "type": "string",
@@ -81,8 +78,34 @@
         },
         "audits": {
           "type": "array",
+          "description": "engine audits at verification: a node script from the role pack, run in the role's folder on the change set; it prints a JSON array of review findings { file?, line?, rule, severity, claim, evidence? }",
           "items": {
-            "type": "string"
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "node"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "node": {
+                "type": "string",
+                "description": "script path relative to the role pack"
+              },
+              "files": {
+                "type": "string",
+                "description": "regex on the changed files to pass (default: all but tests)"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "arguments; {files} = the matching changed files (the default), {<artifact type>} = that feature artifact's path (the audit is skipped without it)"
+              }
+            }
           }
         },
         "checks": {
@@ -136,6 +159,10 @@
               "per_ac": {
                 "type": "boolean",
                 "description": "with a report: when tests ran, each AC the task satisfies needs a passing test whose name has the AC id"
+              },
+              "at_verify": {
+                "type": "boolean",
+                "description": "also run the whole command once at verification (gate-checks); task gates run only what the change touches"
               }
             }
           }

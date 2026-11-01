@@ -26,14 +26,6 @@
     {
       "prompt": "Schema change: new Drizzle table with forward SQL and down migration",
       "expect": "migration-author"
-    },
-    {
-      "prompt": "Check OpenAPI conformance and migration rules at verification",
-      "expect": "be-auditor"
-    },
-    {
-      "prompt": "Backend audit of the change set: contract drift and rollbacks",
-      "expect": "be-auditor"
     }
   ]
 }

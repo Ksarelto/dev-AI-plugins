@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "factory/stack",
-  "title": "stack.yaml \u2014 how the factory drives one technology stack",
+  "title": "stack.yaml — how the factory drives one technology stack",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -426,6 +426,13 @@
         "vitest-json"
       ]
     },
+    "test_scoped_args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "arguments that limit a test (or eval) run to what the uncommitted changes touch, e.g. vitest --changed; task gates use them, verification runs everything"
+    },
     "test_globs": {
       "type": "array",
       "items": {
@@ -443,7 +450,7 @@
       "additionalProperties": {
         "type": "string"
       },
-      "description": "task type \u2192 stack skill (plugin:skill)"
+      "description": "task type → stack skill (plugin:skill)"
     },
     "index_adapter": {
       "enum": [

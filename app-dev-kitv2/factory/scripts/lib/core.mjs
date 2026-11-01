@@ -1,4 +1,5 @@
 // Shared helpers for the factory engine: paths, file IO with atomic writes, hashing, globbing.
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
@@ -75,6 +76,34 @@ export function sha(text, algo = "sha256") {
 /** Hash of a file with line endings normalised, so CRLF checkouts hash the same. */
 export function fileHash(path) {
   return existsSync(path) ? sha(readText(path)) : null;
+}
+
+/** Environment that changes what a stack command runs; part of every tree hash. */
+const RUN_ENV = /^(PATH|NODE_OPTIONS|NODE_ENV|NODE_PATH|CI|FACTORY_NODE_BIN|npm_config_.*|VITEST_.*)$/;
+
+/**
+ * The state of the project's working tree: HEAD plus every changed, untracked or ignored file (not
+ * .factory/) with its content hash, and the environment that changes what commands run. Ignored
+ * directories (node_modules, dist) count by name only. Null outside git, or when a nested repository
+ * or submodule hides its changes — then nothing proves the code is the same.
+ */
+export function treeHash(projectDir) {
+  const git = (args) => spawnSync("git", args, { cwd: projectDir, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const head = git(["rev-parse", "--verify", "--quiet", "HEAD"]);
+  const status = git(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching", "--ignore-submodules=none", "--", ".", ":(exclude).factory"]);
+  const root = git(["rev-parse", "--show-toplevel"]).stdout.trim();
+  if (status.status !== 0 || !root) return null;
+  const entries = [];
+  for (const e of status.stdout.split("\0").filter(Boolean)) {
+    const code = e.slice(0, 2);
+    const file = e.slice(3);
+    const full = join(root, file);
+    const isDir = file.endsWith("/") || (existsSync(full) && statSync(full).isDirectory());
+    if (isDir && code !== "!!") return null; // a nested repository or submodule: its changes are invisible here
+    entries.push(`${code} ${file} ${isDir || !existsSync(full) ? "-" : fileHash(full)}`);
+  }
+  const env = Object.keys(process.env).filter((k) => RUN_ENV.test(k)).sort().map((k) => `${k}=${process.env[k]}`);
+  return sha(`${head.stdout.trim()}\n${entries.sort().join("\n")}\n${env.join("\n")}`);
 }
 
 export const toPosix = (p) => p.split(sep).join("/");

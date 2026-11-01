@@ -150,13 +150,20 @@ test("a stage with a gate list runs every gate (patch tier: spec + plan)", async
   const featureDir = makeFeature(dir, { stages: ["requirements-lite"] });
   putIntake(dir);
   const agents = [];
-  for (const file of [["delta-spec.yaml", "01-requirements/delta-spec.yaml", (t) => t.replace("sources: [SRC-001]", "sources: [SRC-999]")], ["tasks.yaml", "04-plan/tasks.yaml"], ["test-plan.yaml", "04-plan/test-plan.yaml"]]) {
+  const models = [];
+  const outputs = [
+    [["delta-spec.yaml", "01-requirements/delta-spec.yaml", (t) => t.replace("sources: [SRC-001]", "sources: [SRC-999]")]],
+    [["tasks.yaml", "04-plan/tasks.yaml"], ["test-plan.yaml", "04-plan/test-plan.yaml"]], // one planner writes both
+  ];
+  for (const files of outputs) {
     const d = conductor.step(dir).dispatches[0];
     agents.push(d.agent);
-    putArtifact(featureDir, file[0], file[1], file[2]);
+    models.push(d.model);
+    for (const file of files) putArtifact(featureDir, file[0], file[1], file[2]);
     var r = await conductor.record(dir, { dispatchId: d.id, envelopeText: envelope(d.id) });
   }
-  assert.deepEqual(agents, ["requirements-analyst", "planner", "test-strategist"]);
+  assert.deepEqual(agents, ["requirements-analyst", "planner"]);
+  assert.deepEqual(models, ["sonnet", "sonnet"], "a patch plans on sonnet (stage.models)");
   assert.equal(r.verdict, "retry");
   assert.equal(r.gate.gate, "spec+plan");
   assert.ok(r.gate.failures.some((f) => f.rule === "unknown-source"), "the patch tier's delta-spec is spec-gated");

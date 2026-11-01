@@ -1,6 +1,6 @@
 ---
 name: test-planning
-description: Procedure for the factory test-strategist — plan which tests cover each acceptance criterion and at which level (unit, component, integration, acceptance, e2e, eval), linked to the task that makes them pass, before any code exists. Preloaded by the test-strategist; not for direct use.
+description: Procedure for the factory test-strategist — plan which tests cover each acceptance criterion and at which level (unit, component, integration, acceptance, e2e, eval), linked to the task that makes them pass, before any code exists. Preloaded by the test-strategist (and the planner in the patch tier); not for direct use.
 user-invocable: false
 ---
 

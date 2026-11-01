@@ -1,6 +1,6 @@
 // App and feature state: the only files the stage machine reads to decide anything.
 // All writes go through withLock (one writer at a time, also across track runners) and writeJson (atomic).
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, statSync, unlinkSync, writeSync } from "node:fs";
 import { appendFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { UsageError, factoryPaths, now, readJson, writeJson } from "./core.mjs";
@@ -60,7 +60,16 @@ function lockIsStale(lock) {
     process.kill(pid, 0); // throws ESRCH when the holder is gone
     return false;
   } catch (error) {
-    return error.code === "ESRCH" || error instanceof SyntaxError;
+    if (error.code === "ESRCH") return true;
+    // An empty or half-written file is a holder between create and write — stale only once it is old.
+    if (error instanceof SyntaxError) {
+      try {
+        return Date.now() - statSync(lock).mtimeMs > 5_000;
+      } catch {
+        return false; // gone already: the next attempt takes it
+      }
+    }
+    return false;
   }
 }
 
@@ -185,19 +194,22 @@ export function activeDispatches(projectDir) {
   const dir = factoryPaths(projectDir).active;
   if (!existsSync(dir)) return [];
   return readdirSync(dir)
-    .filter((f) => f.endsWith(".json"))
+    .filter((f) => f.endsWith(".json") && !f.endsWith(".envelope.json"))
     .map((f) => readJson(join(dir, f)));
 }
 
 /** File name for a dispatch id (ids contain "/"). Also used by the hooks for read counters. */
 export const activeName = (dispatchId) => dispatchId.replaceAll("/", ".");
 
+/** Where the SubagentStop hook keeps a dispatch's valid envelope for `factory record --saved`. */
+export const savedEnvelopeFile = (projectDir, dispatchId) => join(factoryPaths(projectDir).active, `${activeName(dispatchId)}.envelope.json`);
+
 export function setActive(projectDir, dispatch) {
   writeJson(join(factoryPaths(projectDir).active, `${activeName(dispatch.id)}.json`), dispatch);
 }
 
 export function clearActive(projectDir, dispatchId) {
-  for (const ext of [".json", ".reads"]) {
+  for (const ext of [".json", ".reads", ".envelope.json"]) {
     const file = join(factoryPaths(projectDir).active, `${activeName(dispatchId)}${ext}`);
     if (existsSync(file)) unlinkSync(file);
   }

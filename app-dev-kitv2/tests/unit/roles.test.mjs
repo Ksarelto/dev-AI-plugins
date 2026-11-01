@@ -212,7 +212,7 @@ test("openapi-conformance compares the contract with the backend boilerplate's O
   writeFileSync(join(dir, "contract.yaml"), "openapi: 3.1.0\npaths:\n  /api/v1/users:\n    get:\n      summary: list\n  /api/v1/version:\n    get:\n      summary: version\n");
   const r = run("openapi-conformance.mjs", ["--contract", join(dir, "contract.yaml"), "--document", join(ROOT, "backend-boilerplate", "src", "openapi", "document.ts")]);
   const hits = JSON.parse(r.stdout);
-  assert.deepEqual(hits.filter((h) => h.rule === "missing-in-document"), [{ rule: "missing-in-document", method: "get", path: "/api/v1/version" }]);
+  assert.deepEqual(hits.filter((h) => h.rule === "missing-in-document").map(({ severity, method, path, claim }) => ({ severity, method, path, claim })), [{ severity: "P1", method: "get", path: "/api/v1/version", claim: "the contract's GET /api/v1/version is not registered in the OpenAPI document" }]);
   assert.ok(hits.some((h) => h.rule === "not-in-contract" && h.path.startsWith("/api/v1/users/")), JSON.stringify(hits));
 });
 
@@ -357,6 +357,8 @@ test("gate-verify and gate-acceptance judge 'did it run' and AC coverage over ev
   mkdirSync(join(env.featureDir, "06-verify"), { recursive: true });
   writeFileSync(join(env.featureDir, "06-verify", "review.md"), "---\nfeature: FEAT-001\nround: 1\nfindings: []\n---\n");
   env.fake("web", "test", { code: 0, report: report({ [join(env.dir, accept)]: failing.map(([n]) => [n, "passed"]) }) });
+  // The AI role's eval suite (at_verify) runs whole at verification.
+  env.fake("agent", "eval", { code: 0, report: report({ [join(env.dir, "agent/evals/a.eval.test.ts")]: [["AC-0001 golden", "passed"]] }) });
   assert.deepEqual(rules(await runGate("verify", ctx, { useCache: false })), []);
 });
 

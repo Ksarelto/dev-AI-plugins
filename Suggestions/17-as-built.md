@@ -45,6 +45,14 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 - `release-manager` runs on sonnet, not haiku: it writes the PR trace and triages review comments,
   which the gates now check closely.
 
+- Fewer dispatches and repeated runs (audit batch 5): the engine writes the digest (the curator is
+  optional, `context.digest: curator`); role audits are scripts in `role.yaml gates.audits`, not the
+  fe-/be-auditor agents; verification runs `gate-checks` before the reviewer; the patch tier is one
+  sonnet analyst and one sonnet planner (who also writes the test plan); fix plans run on sonnet.
+- Task gates run their commands in parallel, only the tests the change touches (`test_scoped_args`)
+  until a role's last task, and reuse a passing result for an unchanged working tree. `record` returns
+  the next step.
+
 **Roles**
 - `ai-test-author` exists: the role contract requires a test author per role.
 - A role routes specialist builders by task type (`role.yaml agents.builders`: migration →

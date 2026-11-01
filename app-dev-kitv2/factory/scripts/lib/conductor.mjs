@@ -3,15 +3,17 @@
 // escalation, gates, budgets — happens here, deterministically, from files.
 import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { dirname, isAbsolute, join, relative } from "node:path";
-import { UsageError, YAML, deepMerge, factoryPaths, fileHash, matchesAny, now, readFrontMatter, readText, toPosix, writeAtomic, writeJson, writeYaml } from "./core.mjs";
+import { UsageError, YAML, deepMerge, factoryPaths, fileHash, matchesAny, now, readFrontMatter, readText, toPosix, treeHash, writeAtomic, writeJson, writeYaml } from "./core.mjs";
 import { loadConfig, profileStages, enabledRoles } from "./config.mjs";
 import { resolvePacks, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./schemas.mjs";
-import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, setActive, withLock } from "./state.mjs";
+import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, savedEnvelopeFile, setActive, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
 import { backToRed, finishTask, loadTasks, rolePath, taskGate, taskStep } from "./tasks.mjs";
 import { featureChanges, recordInLedger, ship } from "./delivery.mjs";
 import { scaffoldRoles } from "./scaffold.mjs";
+import { runAudits } from "./audits.mjs";
+import { engineDigest } from "./digest.mjs";
 import { featureAcceptance } from "./testrun.mjs";
 import { buildIndex } from "./cartographer.mjs";
 import { nextId } from "./ids.mjs";
@@ -66,7 +68,8 @@ export function resolveAgents(c, stage) {
     const [packName, agent] = ref.includes(":") ? ref.split(":") : [stage.pack, ref];
     targets.push({ agent, pack: c.packs[packName] });
   }
-  return targets.map((t) => ({ ...t, subagent_type: `${t.pack?.name}:${t.agent}`, model: t.pack ? agentModel(t.pack, t.agent) : null }));
+  // stage.models lowers (or raises) an agent's tier for this stage only, e.g. sonnet for patch planning.
+  return targets.map((t) => ({ ...t, subagent_type: `${t.pack?.name}:${t.agent}`, model: t.pack ? stage.models?.[t.agent] ?? agentModel(t.pack, t.agent) : null }));
 }
 
 const promptFor = (d, projectDir) =>
@@ -244,6 +247,13 @@ export function step(projectDir, { feature } = {}) {
       return { action: "halt", feature: s.feature, reason: s.halts.at(-1).reason };
     }
 
+    if (s.digest?.pending && (c.config.context?.digest ?? "engine") === "engine") {
+      // The engine writes the digest from the artifacts: every open ID by construction, no dispatch.
+      engineDigest(c, s.digest.after);
+      appendEvent(projectDir, { type: "digest", feature: s.feature, pass: true, by: "engine", after: s.digest.after });
+      s.digest = null;
+      persist(c);
+    }
     if (s.digest?.pending) {
       const target = engineTarget(c, "curator");
       const d = makeDispatch(c, {
@@ -360,6 +370,14 @@ export function step(projectDir, { feature } = {}) {
         return { action: "scaffold", feature: s.feature, stage: stageId, command: "factory scaffold", reason: s.scaffold?.status === "running" ? "a scaffold started earlier did not finish; run it again (it resumes)" : "copy and install each role's boilerplate first" };
       }
       if ((stage.inputs ?? []).some((ref) => ref.replace(/\?$/, "") === "change-set")) writeChangeSet(c);
+      if (stage.precheck && !st.done_agents?.length) {
+        // Machine checks first (stepAsync runs them outside the lock): failing code skips the reviewers.
+        const tree = treeHash(projectDir);
+        if (tree && st.precheck?.tree !== tree) {
+          persist(c);
+          return { action: "precheck", feature: s.feature, stage: stageId, gate: stage.precheck };
+        }
+      }
       if (!st.done_agents?.length) st.findings = [];
       const done = new Set(st.done_agents ?? []);
       const todo = targets.filter((t) => !done.has(`${t.agent}@${t.role ?? ""}`));
@@ -377,6 +395,45 @@ export function step(projectDir, { feature } = {}) {
     }
     persist(c);
     return { action: "halt", feature: s.feature, reason: "no runnable stage found" };
+  });
+}
+
+/**
+ * `factory step` for the CLI and the runners: a stage with a precheck gate (verification: the whole
+ * suite, typecheck, lint, build) runs it first, outside the state lock, so failing code goes back to
+ * implementation without dispatching the reviewers. Then the ordinary step.
+ */
+export async function stepAsync(projectDir, opts = {}) {
+  for (let i = 0; i < 3; i++) {
+    const r = step(projectDir, opts);
+    if (r.action !== "precheck") return r;
+    await precheck(projectDir, { ...opts, feature: r.feature });
+  }
+  return step(projectDir, opts);
+}
+
+/** Runs the current stage's precheck gate and records it; fix: true failures go to the fix loop. */
+async function precheck(projectDir, { feature } = {}) {
+  const c = load(projectDir, feature);
+  const s = c.feature.state;
+  const stageId = s.stage;
+  const stage = resolveStage(c, stageId);
+  if (!stage?.precheck || !treeHash(projectDir)) return;
+  withLock(projectDir, () => restoreAcceptance(load(projectDir, feature))); // a drifted holdout is put back first
+  const ctx = gateContext({ projectDir, app: c.app, feature: c.feature, config: c.config, stage, packs: c.packs });
+  const result = await runGate(stage.precheck, ctx);
+  // The tree after the run: files the checks themselves write must not ask for another precheck.
+  const tree = treeHash(projectDir);
+  withLock(projectDir, () => {
+    const cur = load(projectDir, feature);
+    const s2 = cur.feature.state;
+    if (s2.stage !== stageId || s2.pending.length) return;
+    s2.stages[stageId].precheck = { tree, pass: result.pass, fingerprint: result.fingerprint };
+    appendEvent(projectDir, { type: "gate", feature: s2.feature, stage: stageId, gate: result.gate, pass: result.pass, progress_signal: result.progress_signal, fingerprint: result.fingerprint, cached: result.cached, precheck: true });
+    const fix = /^fix:(.+)$/.exec(stage.on_fail ?? "")?.[1];
+    const fixable = result.failures.filter((f) => f.fix);
+    if (fix && fixable.length) requestFixes(cur, stageId, fix, fixable);
+    persist(cur);
   });
 }
 
@@ -419,7 +476,24 @@ function restoreAcceptance(c) {
   return restored;
 }
 
-export async function record(projectDir, { dispatchId, envelopeText, tokens = 0, feature }) {
+/**
+ * Records one agent result. When nothing of the batch is left pending and the feature can go on, the
+ * result carries `next`: the following step, so the Conductor does not call `step` itself.
+ */
+export async function record(projectDir, opts) {
+  // Decided under the lock: of two records running at once, only the one that empties the batch steps on.
+  const batch = { emptied: false };
+  const result = await recordOne(projectDir, opts, batch);
+  if (result.action !== "continue" || !batch.emptied) return result;
+  return { ...result, next: await stepAsync(projectDir, { feature: opts.feature }) };
+}
+
+async function recordOne(projectDir, { dispatchId, envelopeText, tokens = 0, feature }, batch = {}) {
+  if (envelopeText == null) {
+    const saved = dispatchId ? savedEnvelopeFile(projectDir, dispatchId) : null;
+    if (!saved || !existsSync(saved)) throw new UsageError(`no saved envelope for ${dispatchId ?? "(no --dispatch)"} — pass the agent's envelope on stdin instead`);
+    envelopeText = readText(saved);
+  }
   let parsed;
   let parseError = null;
   try {
@@ -444,6 +518,7 @@ export async function record(projectDir, { dispatchId, envelopeText, tokens = 0,
     const cur = load(projectDir, feature);
     const st8 = cur.feature.state;
     st8.pending = st8.pending.filter((d) => d.id !== pending.id);
+    batch.emptied = st8.pending.length === 0;
     clearActive(projectDir, pending.id);
     writeJson(join(cur.feature.dir, "envelopes", `${pending.id.split("/").slice(1).join(".")}.json`), parsed);
     st8.budgets.tokens += Number(tokens) || 0;
@@ -561,6 +636,13 @@ async function finishStageAgent(c, pending, envelope) {
       persist(c);
       return { action: "continue", feature: s.feature, waiting_for: remaining.map((t) => t.subagent_type) };
     }
+    if (stage.audits === "roles") {
+      // Role audits are scripts, not agents: their findings join the reviewers' in review.md.
+      const set = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config }).load("change-set")?.data;
+      const changed = set?.changed ?? (set?.tasks ?? []).flatMap((t) => t.files ?? []);
+      const artifact = (type) => (ARTIFACT_TYPES[type] ? artifactFiles(type, { factoryRoot: factoryPaths(c.projectDir).root, featureDir: c.feature.dir, projectDir: c.projectDir })[0] ?? null : null);
+      st.findings = [...(st.findings ?? []), ...runAudits(c, changed, artifact).map((f) => ({ ...f, id: nextId(c.app.next_ids, "RV") }))];
+    }
     if ((stage.outputs ?? []).includes("review")) writeReview(c, st);
     const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, stage, packs: c.packs });
     const gateList = [stage.gate].flat().filter(Boolean);
@@ -668,7 +750,7 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
   }
 }
 
-/** Writes 06-verify/review.md from the findings the stage's reviewers and auditors returned. */
+/** Writes 06-verify/review.md from the reviewers' findings and the role audits'. */
 function writeReview(c, st) {
   const s = c.feature.state;
   const findings = st.findings ?? [];
@@ -990,7 +1072,7 @@ function clearPending(c) {
   c.feature.state.pending = [];
 }
 
-const FRESH = { attempts: 0, rung: 0, dispatches: 0, progress_signal: [], fingerprints: [], state_hashes: [], feedback: null, instruction: null, model: null, diagnose_pending: false, done_agents: [], entered: false, findings: [] };
+const FRESH = { attempts: 0, rung: 0, dispatches: 0, precheck: null, progress_signal: [], fingerprints: [], state_hashes: [], feedback: null, instruction: null, model: null, diagnose_pending: false, done_agents: [], entered: false, findings: [] };
 
 /** Dispatch ids count every attempt a stage ever had, so a fresh round never reuses an envelope's id. */
 const attemptNo = (st) => (st.prior_attempts ?? 0) + (st.attempts ?? 0);

@@ -105,6 +105,7 @@ context:
     mechanical_roles: 20000
   read_allowlist_max: { analysis_roles: 30, execution_roles: 12, review_roles: 20, prototype_role: 8, mechanical_roles: 10 }
   return_summary_max_words: 200
+  digest: engine               # engine: written from the artifacts (no dispatch); curator: the curator agent writes it
   digest_max_words: 600
 
 model_tiers: { reasoning: opus, execution: sonnet, mechanical: haiku }

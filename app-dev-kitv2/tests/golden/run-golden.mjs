@@ -105,7 +105,7 @@ try {
       break;
     }
 
-    const s = conductor.step(project, { feature: card.feature });
+    const s = await conductor.stepAsync(project, { feature: card.feature });
     if (s.action === "ask_human") {
       card.gates.push(s.gate);
       if (s.gate === ticket.stop_at) break;

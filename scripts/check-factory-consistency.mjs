@@ -20,7 +20,7 @@ const MODEL_POLICY = {
   sonnet: ["codebase-analyst", "story-writer", "contract-steward", "test-strategist", "acceptance-test-author", "qa-engineer",
     "fe-test-author", "fe-builder", "prototyper", "be-test-author", "be-builder", "migration-author",
     "ai-builder", "ai-rag-builder", "eval-author", "ai-test-author", "release-manager"],
-  haiku: ["intake-normaliser", "curator", "tech-writer", "fe-auditor", "be-auditor"],
+  haiku: ["intake-normaliser", "curator", "tech-writer"],
 };
 // Names from the design that are implemented in later phases or deliberately different.
 const ALLOW = YAML.parse(readFileSync(join(family, "consistency-allowlist.yaml"), "utf8"));
