@@ -12,7 +12,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSy
 import { tmpdir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { enabledRoles } from "./config.mjs";
-import { factoryPaths, readJson, writeJson } from "./core.mjs";
+import { factoryPaths, readJson, toPosix, writeJson } from "./core.mjs";
 import { resolveStack, runStackCommand } from "./stackexec.mjs";
 
 const SKIP = new Set(["node_modules", ".git", ".factory", ".claude", "dist", "coverage", ".env"]);
@@ -84,7 +84,7 @@ function copyStarter(src, into, tracked) {
     mkdirSync(dirname(join(into, f)), { recursive: true });
     cpSync(join(src, f), join(into, f), { force: false, errorOnExist: true });
   }
-  return null;
+  return files;
 }
 
 /** Copies and installs each role's starter; returns { done: [...], skipped: [...], error? }. */
@@ -109,15 +109,17 @@ export function scaffoldRoles(c) {
       }
       const src = sourceFor(c, role, bp);
       if (src.error) return { done, skipped, error: `role ${role.name}: ${src.error}` };
-      let clash;
+      let copied;
       try {
         mkdirSync(into, { recursive: true });
-        clash = copyStarter(src.dir, into, src.tracked);
+        copied = copyStarter(src.dir, into, src.tracked);
       } finally {
         src.cleanup?.();
       }
-      if (clash) return { done, skipped, error: `role ${role.name}: ${clash}` };
-      Object.assign(marker, { copied: true, from: `${bp.repo}${bp.path ? `/${bp.path}` : ""}${bp.ref ? `@${bp.ref}` : ""}` });
+      if (typeof copied === "string") return { done, skipped, error: `role ${role.name}: ${copied}` };
+      // The copied files ship with the feature (a chore(scaffold) commit); paths relative to the project.
+      const at = (f) => toPosix(relative(c.projectDir, join(into, f)));
+      Object.assign(marker, { copied: true, from: `${bp.repo}${bp.path ? `/${bp.path}` : ""}${bp.ref ? `@${bp.ref}` : ""}`, files: copied.map(at) });
       writeJson(markerFile, marker);
     }
     if (!marker.installed) {
@@ -130,7 +132,7 @@ export function scaffoldRoles(c) {
       marker.installed = true;
       writeJson(markerFile, marker);
     }
-    done.push({ role: role.name, from: marker.from, into: role.path ?? "." });
+    done.push({ role: role.name, from: marker.from, into: role.path ?? ".", files: marker.files ?? [] });
   }
   return { done, skipped };
 }

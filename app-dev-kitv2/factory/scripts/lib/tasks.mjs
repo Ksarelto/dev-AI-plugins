@@ -269,7 +269,8 @@ function taskDispatch(c, stageId, stage, task, h) {
   const rootCause = join(c.feature.dir, "diagnosis", `${task.id}.md`);
   return h.makeDispatch(c, {
     stageId, idStage: `${stageId}.${task.id}.${phase}${round > 1 ? round : ""}`, task,
-    stage: { outputs: [], inputs, context_role: stage.context_role ?? "execution_roles" },
+    // The acceptance tests are the holdout: test authors and builders never read them.
+    stage: { outputs: [], inputs, context_role: stage.context_role ?? "execution_roles", read_deny: ["**/*.acceptance.test.*"] },
     target, phase, attempt: (unit.attempts ?? 0) + 1, rung: unit.rung ?? 0, model: unit.model ?? target.model,
     feedback: unit.feedback, instruction: unit.instruction, gate: phase === "red" ? rolePack.role.gates.red : rolePack.role.gates.impl,
     extraWrites: writes, writeDeny: phase === "green" ? red : [],

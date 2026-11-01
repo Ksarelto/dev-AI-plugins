@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import { UsageError, factoryPaths, now, readJson, writeJson } from "./core.mjs";
 import { nextId } from "./ids.mjs";
 import { validate } from "./schemas.mjs";
+import { workingTreeChanges } from "./delivery.mjs";
 
 // A lock is stale only when its holder process is gone: a live holder may legitimately run long.
 
@@ -144,6 +145,8 @@ export function createFeature(projectDir, app, { title, slug, mode, profile, tie
     digest: null,
     index_sha: null,
     branch: null,
+    // Changes already in the working tree when the feature starts are not the feature's to ship.
+    baseline: workingTreeChanges(projectDir)?.hashes ?? {},
     halts: [],
     created_at: now(),
     updated_at: now(),

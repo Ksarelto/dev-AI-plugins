@@ -12,9 +12,12 @@ user-invocable: false
 2. Add the cases to the eval dataset (`evals/golden/*.json`) with explicit expectations — words the
    answer must mention, sources it must cite, or that it must refuse. Expectations are checked by
    code, not by another model, unless the design says otherwise.
-3. Add or extend the suite (`evals/*.eval.ts`): run every case through the real graph, compute the
-   pass rate, and fail below the threshold from the design (default 0.8). The suite skips when the
-   provider key is missing, exactly like the existing suite.
+3. Add or extend the suite (`evals/*.eval.ts`): one test per golden case, named with the case id (so
+   its AC id) — `it.each(cases)('$id', …)` — plus the pass-rate test with the threshold from the design
+   (default 0.8). The gate needs a passing test per AC the task claims, so a suite-wide rate cannot
+   hide a failing case. The suite skips when the provider key is missing, like the existing one. If
+   the suite also has a model judge for faithfulness to the knowledge base, cases answered by a tool
+   rather than by documents opt out of it (for example `judge: false` on the case).
 4. Run the exit check (`gate impl`). The eval run is part of it; without a key the gate fails as
    "skipped" unless the project allows skipped checks — say so in your summary.
 

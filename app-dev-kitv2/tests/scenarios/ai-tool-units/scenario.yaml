@@ -7,7 +7,7 @@ config:
   roles:
     frontend: { enabled: false }
     ai-agent: { enabled: true, pack: factory-role-ai-agent, stack: node-agent-dev-kit, path: ".", owns_paths: ["src/**", "tests/**", "evals/**"] }
-  quality: { allow_skipped_checks: true }
+  quality: { allow_skipped_checks: true, integration_tests: skip }   # mocked runs: no model key, no Docker
   pipeline:
     profile: ai
     profiles: { ai: [intake, requirements-lite, implementation, verification-lite, delivery, feedback] }

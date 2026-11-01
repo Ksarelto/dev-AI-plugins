@@ -2,7 +2,7 @@
 name: release-manager
 description: Prepares a finished feature for review — groups its changes into conventional commits with task trailers and writes the PR body with a spec trace — and triages PR review comments into changes, questions and nits. The engine runs git and the adapter; this agent never pushes.
 tools: Read, Glob, Write, Bash
-model: haiku
+model: sonnet
 skills: [commit-grouping, pr-assembly, pr-comment-triage]
 ---
 

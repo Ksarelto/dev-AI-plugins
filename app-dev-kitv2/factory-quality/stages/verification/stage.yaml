@@ -4,8 +4,9 @@ kind: agents
 agents: [reviewer, "role:auditor"]
 parallel: true
 context_role: review_roles
-inputs: ["prd|delta-spec", stories, component-map?, adr?, api-contract?, test-plan, change-set, acceptance-tests?]
+inputs: ["prd|delta-spec", stories, component-map?, adr?, api-contract?, test-plan, change-set, change-diff?, acceptance-tests?]
 outputs: [review]
 gate: verify
+exit_check: false   # reviewers are read-only and the engine writes review.md after them
 on_fail: fix:implementation
 requires: { factory: "^0.1" }

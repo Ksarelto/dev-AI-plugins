@@ -25,10 +25,14 @@ commits:
 Rules (the ready gate checks them):
 
 - One commit per **done** task (the change set lists them), in dependency order, with exactly that
-  task's `files_expected` (those that exist) and the trailers `Factory-Task` and `Factory-ACs`.
-- Conventional subject: `feat|fix|test|refactor|docs|chore(scope): imperative summary`.
+  task's `files_expected` — those that exist, and those it deleted or moved (a move commits the old
+  and the new path) — and the trailers `Factory-Task` and `Factory-ACs`. A task commit holds only its
+  own task's files.
+- Greenfield: when the change set lists `scaffold` files (the starter the engine copied), they go
+  first, in one `chore(scaffold): <role> starter` commit.
 - One `test:` commit with the feature's acceptance tests (`*.acceptance.test.*` naming its ACs).
-- One docs commit with the files the tech writer wrote. No file outside a task, the acceptance tests
-  or the docs; every file of a done task that exists must be in a commit.
+- One docs commit with the files the tech writer wrote. No file outside a task, the scaffold, the
+  acceptance tests or the docs; every file the feature changed must be in a commit (the gate compares
+  the plan with the working tree).
 - The engine names the branch (`policy.branch_pattern`) and also commits the feature's `.factory/`
   folder; do not list either.

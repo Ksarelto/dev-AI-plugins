@@ -113,7 +113,7 @@ test("the fix loop: a failing verification sends fix items to the planner, who a
   assert.equal(conductor.step(env.dir).dispatches[0].task, "TASK-004");
 });
 
-test("gate-qa: an open S2 blocks; a human waiver lets it through; spec gaps never block", async () => {
+test("gate-qa: an open S2 defect or S1 spec gap blocks; a human waiver that names it lets it through", async () => {
   const env = setup(["qa"]);
   const record = (defects) =>
     writeFileSync(join(env.featureDir, "07-qa", "defects.yaml"), YAML.stringify({ feature: "FEAT-001", charters: [{ id: "CH-1", mission: "m", timebox_min: 10, result: "defects" }], defects }));
@@ -121,7 +121,7 @@ test("gate-qa: an open S2 blocks; a human waiver lets it through; spec gaps neve
   writeFileSync(join(env.featureDir, "07-qa", "qa-report.md"), "report\n");
   const d = (extra) => ({ id: "DEF-001", type: "defect", severity: "S2", title: "t", steps: ["s"], expected: "e", actual: "a", ...extra });
   record([d(), { ...d(), id: "DEF-002", type: "spec_gap", severity: "S1" }]);
-  assert.deepEqual(rules(await gate(env, "qa")), ["open-S2"]);
+  assert.deepEqual(rules(await gate(env, "qa")), ["open-S2", "open-spec-gap-S1"]);
   conductor.note(env.dir, { text: "Accept DEF-001 for this release" });
   record([d({ waived_by: "HD-1" })]);
   assert.deepEqual(rules(await gate(env, "qa")), []);
@@ -151,7 +151,7 @@ function deliverySetup(extra = "") {
       commit(null, "docs: coupons (FEAT-001)", ["CHANGELOG.md"]),
     ],
   };
-  const pr = "# feat: Coupons (FEAT-001)\n\n## Summary\nx\n\n## Spec trace\nAC-0001 AC-0002 AC-0003\n\n## Docs\nx\n\n## Provenance\nx\n";
+  const pr = "# feat: Coupons (FEAT-001)\n\n## Summary\nx\n\n## Spec trace\n| AC | Task | Tests |\n|---|---|---|\n| AC-0001 | TASK-003 | TEST-0001 |\n| AC-0002 | TASK-003 | TEST-0002 |\n| AC-0003 | TASK-002 | TEST-0003 |\n\n## Docs\nx\n\n## Provenance\nx\n";
   return { env, plan, pr };
 }
 

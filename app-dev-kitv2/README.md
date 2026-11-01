@@ -72,8 +72,8 @@ roles that share a folder take turns.
 | Tier | Agents |
 |---|---|
 | opus | requirements-analyst, solution-architect, planner, reviewer, ai-architect, diagnostician |
-| sonnet | builders, test authors, story-writer, contract-steward, test-strategist, codebase-analyst, QA, prototyper |
-| haiku | intake-normaliser, curator, tech-writer, release-manager, auditors |
+| sonnet | builders, test authors, story-writer, contract-steward, test-strategist, codebase-analyst, QA, prototyper, release-manager (PR trace and comment triage) |
+| haiku | intake-normaliser, curator, tech-writer, auditors |
 
 A task that fails twice moves to opus (rung 2). The policy is enforced by
 `scripts/check-factory-consistency.mjs`.

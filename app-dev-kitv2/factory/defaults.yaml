@@ -64,6 +64,7 @@ quality:
   coverage_changed_lines_min: 90
   axe_critical_max: 0
   review_blocking: [P0, P1]
+  integration_tests: run         # run: verification runs each stack's test_integration (Docker for Testcontainers); skip: never
   task_limits: { files_max: 3, loc_max: 200 }
   task_limits_by_type: {}      # e.g. { migration: { files_max: 4 } }; wins over a role's budgets.task_limits
   tdd:

@@ -132,6 +132,10 @@
               "allow_skipped": {
                 "type": "boolean",
                 "description": "skipped tests or an empty report pass (default false); a project can set quality.allow_skipped_checks"
+              },
+              "per_ac": {
+                "type": "boolean",
+                "description": "with a report: when tests ran, each AC the task satisfies needs a passing test whose name has the AC id"
               }
             }
           }

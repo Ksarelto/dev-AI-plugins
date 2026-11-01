@@ -25,14 +25,16 @@ in T0's files, or the commit plan leaves it out. If the plan lacks one (often th
 ## Safe by default
 
 - Additive changes (new table, nullable column, column with a default, new index) need nothing more.
-- **Destructive** statements — `DROP TABLE`, `DROP COLUMN`, `TRUNCATE`, a column type change, a
-  rename — lose data or break running code. Do not write them on your own: return
-  `needs_clarification` asking the human to approve, with the data at risk. With an approval note
-  (`HD-…` in T2), put `-- factory: approved HD-<n>` on the line above the statement.
+- **Destructive** statements — `DROP TABLE` / `COLUMN` / `TYPE` / `CONSTRAINT`, `TRUNCATE`, any
+  `DELETE`, an `UPDATE` without `WHERE`, a column type change, `SET NOT NULL` on an existing column,
+  a rename — lose data or break running code. Do not write them on your own: return
+  `needs_clarification` asking the human to approve, with the data at risk. The human's answer becomes
+  a note mapped to your task (`HD-…` in T2); put `-- factory: approved HD-<n>` on the line above the
+  statement. The check refuses a note that is open, declined, or about something else.
 - Never run the migration; integration tests and deployment do that.
 
 ## Exit
 
 Run the exit check (`gate impl`). Besides typecheck, lint and build it runs the role's migration
-check, which fails on: a migration without a journal entry, a missing or empty rollback file, or a
-destructive statement without an approval line.
+check, which fails on: a migration without a journal entry, a rollback with no real statement, or a
+destructive statement without a valid approval line.

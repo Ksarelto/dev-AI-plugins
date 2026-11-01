@@ -57,7 +57,7 @@ expect:
     fe-auditor: haiku
     qa-engineer: sonnet
     tech-writer: haiku
-    release-manager: haiku
+    release-manager: sonnet
   denied_writes:
     - { agent: requirements-analyst, file: src/features/apply-coupon/hack.ts }
     - { agent: fe-builder, file: src/entities/order/model/total.test.ts }

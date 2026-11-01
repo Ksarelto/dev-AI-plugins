@@ -1,17 +1,18 @@
 // The Conductor protocol. The model in the main session only calls `step`, dispatches what it
 // returns, and passes each envelope to `record`. Everything that decides — stage order, retries,
 // escalation, gates, budgets — happens here, deterministically, from files.
-import { existsSync, renameSync } from "node:fs";
-import { isAbsolute, join, relative } from "node:path";
-import { UsageError, YAML, deepMerge, factoryPaths, matchesAny, now, readFrontMatter, readText, toPosix, writeAtomic, writeJson, writeYaml } from "./core.mjs";
+import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
+import { dirname, isAbsolute, join, relative } from "node:path";
+import { UsageError, YAML, deepMerge, factoryPaths, fileHash, matchesAny, now, readFrontMatter, readText, toPosix, writeAtomic, writeJson, writeYaml } from "./core.mjs";
 import { loadConfig, profileStages, enabledRoles } from "./config.mjs";
 import { resolvePacks, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./schemas.mjs";
 import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, setActive, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
 import { backToRed, finishTask, loadTasks, rolePath, taskGate, taskStep } from "./tasks.mjs";
-import { recordInLedger, ship } from "./delivery.mjs";
+import { featureChanges, recordInLedger, ship } from "./delivery.mjs";
 import { scaffoldRoles } from "./scaffold.mjs";
+import { featureAcceptance } from "./testrun.mjs";
 import { buildIndex } from "./cartographer.mjs";
 import { nextId } from "./ids.mjs";
 import { gateContext, idCoverage, normaliseResult, runGate } from "./gatekeeper.mjs";
@@ -123,6 +124,11 @@ function lateNotesBack(c, stageId) {
   return true;
 }
 
+function ledgerEntry(c) {
+  const file = join(factoryPaths(c.projectDir).root, "ledger", "feature-ledger.yaml");
+  return (existsSync(file) ? YAML.parse(readText(file))?.features ?? [] : []).find((f) => f.id === c.feature.state.feature) ?? { status: "unknown" };
+}
+
 function nextStage(c) {
   const s = c.feature.state;
   const profile = profileStages(c.config, s.profile);
@@ -134,7 +140,9 @@ function nextStage(c) {
   if (i === profile.length - 1) {
     if (lateNotesBack(c, s.stage)) return;
     s.status = "done";
-    const entry = recordInLedger(c, loadTasks(c)?.tasks.filter((t) => s.tasks?.[t.id]?.status === "done"));
+    // A shipped feature was recorded at ship (and committed); one that never shipped is recorded now.
+    const shipped = existsSync(join(c.feature.dir, "08-delivery", "ship.json"));
+    const entry = shipped ? ledgerEntry(c) : recordInLedger(c, loadTasks(c)?.tasks.filter((t) => s.tasks?.[t.id]?.status === "done"));
     appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: s.stage, to: "done", ledger: entry.status });
     return;
   }
@@ -397,6 +405,20 @@ const formatFeedback = (result) =>
     ...result.failures.slice(0, 20).map((f) => `- [${f.check}${f.rule ? `/${f.rule}` : ""}] ${f.file ? `${f.file}: ` : ""}${f.message}`),
     ...(result.failures.length > 20 ? [`- … ${result.failures.length - 20} more in gate-log.jsonl`] : [])].join("\n");
 
+/** Puts locked acceptance tests back as they were at gate-acceptance; returns the files it restored. */
+function restoreAcceptance(c) {
+  const restored = [];
+  for (const [f, hash] of Object.entries(c.feature.state.acceptance_lock ?? {})) {
+    const copy = join(c.feature.dir, "acceptance-lock", `${f}.snapshot`);
+    if (fileHash(join(c.projectDir, f)) === hash || !existsSync(copy)) continue;
+    mkdirSync(dirname(join(c.projectDir, f)), { recursive: true });
+    copyFileSync(copy, join(c.projectDir, f));
+    restored.push(f);
+  }
+  if (restored.length) appendEvent(c.projectDir, { type: "advance", feature: c.feature.state.feature, stage: c.feature.state.stage, restored_acceptance: restored });
+  return restored;
+}
+
 export async function record(projectDir, { dispatchId, envelopeText, tokens = 0, feature }) {
   let parsed;
   let parseError = null;
@@ -414,6 +436,7 @@ export async function record(projectDir, { dispatchId, envelopeText, tokens = 0,
   if (errors.length) {
     return { action: "redispatch", reason: `invalid envelope: ${errors.join("; ")}`, dispatch: { ...pending, prompt: promptFor(pending, projectDir) } };
   }
+  restoreAcceptance(c);
   // Task gates run real tests, typecheck and builds: run them before taking the state lock.
   const taskResult = pending.task ? await taskGate(c, pending, parsed) : null;
 
@@ -581,6 +604,16 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
           return;
         }
       }
+      if (stage.after_pass === "lock_acceptance") {
+        // Hash and keep a copy: a formatter or a stray edit later is undone before any gate runs.
+        const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config });
+        const files = featureAcceptance(ctx).files;
+        s.acceptance_lock = Object.fromEntries(files.map((f) => [f, fileHash(join(c.projectDir, f))]));
+        for (const f of files) {
+          mkdirSync(dirname(join(c.feature.dir, "acceptance-lock", f)), { recursive: true });
+          copyFileSync(join(c.projectDir, f), join(c.feature.dir, "acceptance-lock", `${f}.snapshot`));
+        }
+      }
       if (stage.after_pass === "triage_fixes") {
         const changes = (gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config }).load("triage")?.data.comments ?? []).filter((x) => x.class === "change");
         archiveComments(c);
@@ -648,10 +681,17 @@ function writeReview(c, st) {
 function writeChangeSet(c) {
   const s = c.feature.state;
   const tasks = (loadTasks(c)?.tasks ?? []).filter((t) => s.tasks?.[t.id]?.status === "done");
+  // What really changed (git), next to what was planned: reviewers judge the diff, not the plan.
+  const tree = featureChanges(c.projectDir, s.baseline ?? {});
+  const planned = new Set([...tasks.flatMap((t) => t.files_expected), ...(s.scaffold?.done ?? []).flatMap((d) => d.files ?? [])]);
+  const docsOrAcceptance = /^(docs\/|CHANGELOG\.md$|README\.md$)|\.acceptance\.test\./;
   writeYaml(join(c.feature.dir, "06-verify", "change-set.yaml"), {
     feature: s.feature,
     tasks: tasks.map((t) => ({ id: t.id, title: t.title, satisfies: t.satisfies, files: t.files_expected })),
+    ...(tree ? { changed: tree.changed, outside_plan: tree.changed.filter((f) => !planned.has(f) && !docsOrAcceptance.test(f)) } : {}),
+    ...(s.scaffold?.done?.length ? { scaffold: s.scaffold.done.flatMap((d) => d.files ?? []) } : {}),
   });
+  if (tree) writeAtomic(join(c.feature.dir, "06-verify", "change.diff"), tree.diff || "(no changes against the last commit)\n");
 }
 
 /**
@@ -744,7 +784,10 @@ export function approve(projectDir, { gate, notes, feature, by }) {
     if (!s.awaiting_human) throw new UsageError(`${s.feature} is not waiting for a human gate`);
     const g = s.awaiting_human;
     if (gate && gate !== g.gate) throw new UsageError(`${s.feature} is waiting for ${g.gate}, not ${gate}`);
-    const note = notes ? addNote(c.app, c.feature.dir, { text: notes, at: g.gate, by }) : null;
+    // An answer to a question about defects names them, so the QA gate can match the waiver.
+    const defs = g.gate === "CLARIFY" ? [...new Set((g.questions ?? []).join(" ").match(/\bDEF-\d+\b/g) ?? [])] : [];
+    const text = notes && defs.length && !defs.every((d) => notes.includes(d)) ? `${notes} (answers ${defs.join(", ")})` : notes;
+    const note = text ? addNote(c.app, c.feature.dir, { text, at: g.gate, by }) : null;
     s.gates[g.gate] = { result: "approved", by: by ?? process.env.USER ?? "human", at: now(), notes: note ? [note.id] : [] };
     s.awaiting_human = null;
     s.status = "active";
@@ -967,7 +1010,9 @@ export function replay(projectDir, { feature, stage, feedback }) {
     for (const id of profile.slice(from, to + 1)) s.stages[id] = freshStage(s.stages[id]);
     s.stages[stage].feedback = `Replay requested by a human: ${feedback}`;
     // Replaying the plan or the build rebuilds every task: done tasks would otherwise be skipped.
-    if (profile.indexOf(stage) <= profile.indexOf("implementation") || stage === "implementation") s.tasks = {};
+    // Replaying only the acceptance stage (between plan and build) keeps the tasks: it re-locks the tests.
+    if (profile.indexOf(stage) <= profile.indexOf("planning") || stage === "implementation") s.tasks = {};
+    if (stage === "acceptance") s.acceptance_lock = null;
     s.stages[stage].entered = true; // a replayed stage runs even when its condition would skip it
     Object.assign(s, { stage, status: "active", awaiting_human: null, queued_human: [], digest: null, fix_pending: null });
     resumeClock(s);

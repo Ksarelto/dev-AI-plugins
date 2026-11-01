@@ -23,6 +23,9 @@ export function run(ctx) {
       failures.push({ check: "red-lock", rule: "red-test-changed", file, message: `${file} changed after gate-red; red tests are read-only in the green phase (dispute it instead)` });
     }
   }
+  for (const [file, hash] of Object.entries(ctx.state?.acceptance_lock ?? {})) {
+    if (fileHash(join(ctx.projectDir, file)) !== hash) failures.push({ check: "acceptance-lock", rule: "acceptance-test-changed", file, message: `${file} changed after gate-acceptance; acceptance tests are the holdout and stay as written` });
+  }
   const reportFile = freshReport(join(ctx.paths.logs, `${task.id}-impl-report.json`));
   const run = runStackCommand(stack, "test", { vars: { report: reportFile, files: [] }, logName: `${task.id}-impl-test` });
   const report = readVitestReport(reportFile, ctx.projectDir);
@@ -58,9 +61,15 @@ function roleChecks(ctx) {
     if (check.task_types && !check.task_types.includes(task.type)) continue;
     const label = `${task.id}-impl-${check.name}`;
     const reportFile = check.report ? freshReport(join(ctx.paths.logs, `${label}-report.json`)) : null;
+    // A note approves a destructive migration only when it is about this task: mapped to it, or naming
+    // one of its migration tags. Declined, open or unrelated notes are passed on as what they are.
+    const tags = task.files_expected.filter((f) => /\.sql$/.test(f)).map((f) => f.split("/").pop().replace(/\.sql$/, ""));
+    const noteArg = (ctx.load("human-notes")?.data ?? [])
+      .map((n) => `${n.id}:${["mapped", "done"].includes(n.status) && ((n.mapped_to ?? []).includes(task.id) || tags.some((t) => (n.text ?? "").includes(t))) ? "approved" : n.status}`)
+      .join(",");
     const resolved = check.node
       ? // The script runs in the role's folder and gets the task's files relative to it.
-        { ...stack, stack: { ...stack.stack, commands: { [check.name]: [process.execPath, join(pack.root, check.node), "--project", stack.cwd, "--task-type", task.type, "--files", ...task.files_expected.map((f) => toPosix(relative(stack.cwd, join(ctx.projectDir, f))))] } } }
+        { ...stack, stack: { ...stack.stack, commands: { [check.name]: [process.execPath, join(pack.root, check.node), "--project", stack.cwd, "--task-type", task.type, "--notes", noteArg || "-", "--files", ...task.files_expected.map((f) => toPosix(relative(stack.cwd, join(ctx.projectDir, f))))] } } }
       : stack;
     const command = check.node ? check.name : check.command;
     if (!resolved.stack.commands?.[command]) {
@@ -75,6 +84,19 @@ function roleChecks(ctx) {
       for (const t of f.tests.filter((x) => x.status === "failed")) failures.push({ check: check.name, rule: `${check.name}-failing`, file: f.file, message: `"${t.name}": ${firstLine(t.message)}` });
     }
     const ran = (report?.files ?? []).flatMap((f) => f.tests).filter((t) => ["passed", "failed"].includes(t.status)).length;
+    // per_ac: the ACs this task's planned eval cases cover (an eval task: its own ACs) each need a
+    // passing test named after them — a suite-wide pass rate must not hide one. Skips count as allowed
+    // only where the project allows skipped checks.
+    if (check.per_ac && report) {
+      const planned = (ctx.load("test-plan")?.data.cases ?? []).filter((c) => c.task === task.id && c.level === "eval" && c.ac).map((c) => c.ac);
+      const tests = (report.files ?? []).flatMap((f) => f.tests);
+      for (const ac of new Set(planned.length ? planned : task.type === "eval" ? task.satisfies ?? [] : [])) {
+        const named = tests.filter((t) => new RegExp(`\\b${ac}\\b`).test(t.name));
+        if (named.some((t) => t.status === "passed")) continue;
+        if (allowSkipped && !named.some((t) => t.status === "failed") && (named.length || !ran)) continue;
+        failures.push({ check: check.name, rule: `${check.name}-ac-not-proven`, message: `no passing ${check.name} test names ${ac} — name each golden case's test with its AC id` });
+      }
+    }
     if (report && !ran && !allowSkipped) failures.push({ check: check.name, rule: `${check.name}-skipped`, message: `${check.name} ran no test (all skipped or none found) — an AI task needs a real eval run; set quality.allow_skipped_checks only where evals cannot run` });
     if (!r.ok && !(report && failures.some((f) => f.check === check.name))) failures.push({ check: check.name, rule: `${check.name}-failed`, message: r.tail || `${check.name} exited with ${r.code}` });
   }

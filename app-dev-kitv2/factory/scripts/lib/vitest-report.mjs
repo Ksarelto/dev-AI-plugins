@@ -28,13 +28,19 @@ export function readVitestReport(file, projectDir) {
 }
 
 const LOAD_ERRORS = /Cannot find module|Failed to (resolve|load)|SyntaxError|is not exported|does not provide an export|is not a function|is not a constructor|ReferenceError/i;
-// Word-bounded: "Unexpected token" is a load error, not an assertion.
-const GOOD_RED = /AssertionError|\bexpected\b|\btoBe\w*|\btoEqual\b|\btoHave\w*|\btoMatch\w*|\btoThrow\b|\btoContain\w*|Unable to find|not implemented/i;
+// An assertion is a red whatever it compares — even `toThrow(ZodError)` or an expected ETIMEDOUT code.
+const ASSERTION = /^(AssertionError|TestingLibraryElementError|JestAssertionError)\b|^\w*Error: expect\(.*\)\.(not\.)?(to|resolves|rejects)\w*|not implemented/i;
+// Otherwise the environment failing is never a red: config validation, a database or network that is not there.
+const ENV_ERRORS = /^(\w*Error: )?(Invalid environment|ZodError)|ECONNREFUSED|ENOTFOUND|EADDRINUSE|ETIMEDOUT|EAI_AGAIN|getaddrinfo|Test timed out|Hook timed out|Timeout of \d+ms/i;
+// Assertion wording without the class name: vitest's "expected X to …" and Testing Library lookups.
+const GOOD_RED = /Unable to find an? (accessible )?(element|label|role|text)|\bexpected\b.*\bto\b/i;
 
 /** Whether a failing test fails for the right reason (assertion or explicit "not implemented"). */
 export function goodRedFailure(message) {
-  if (/not implemented/i.test(message)) return true;
-  return GOOD_RED.test(message) && !LOAD_ERRORS.test(message.split("\n")[0]);
+  const first = firstLine(message);
+  if (ASSERTION.test(first)) return true;
+  if (ENV_ERRORS.test(first)) return false;
+  return GOOD_RED.test(first) && !LOAD_ERRORS.test(first);
 }
 
 /** Removes a report before a run, so a crashed or misconfigured runner can never leave a stale pass. */

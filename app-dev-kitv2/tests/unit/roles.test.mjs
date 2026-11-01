@@ -40,6 +40,7 @@ function setup(tasks, { extra = "", paths = { frontend: "web", backend: "api", "
         role("ai-agent", "factory-role-ai-agent", "node-agent-dev-kit", paths["ai-agent"], fakeCommands({ eval: ["node", FAKE, "eval", "{report}"] })),
       ].join(", ")} }`,
       "pipeline: { profiles: { test: [planning, implementation] }, stages: { planning: { pack: factory-analysis } } }",
+      extra.includes("quality:") ? "" : "quality: { integration_tests: skip }",
       extra,
     ].join("\n"),
   );
@@ -117,7 +118,9 @@ test("gate-impl runs the AI eval check: failing or all-skipped evals fail; a pro
   env.fake("agent", "eval", { code: 1, report: report({ [evalFile]: [["AC-0003 answers with the time", "failed", "pass rate 0.5 < 0.8"]] }) });
   assert.deepEqual(rules(await implGate(env, "TASK-004")), ["eval-failing"]);
   const cfg = join(env.dir, ".factory", "factory.config.yaml");
-  writeFileSync(cfg, `${readFileSync(cfg, "utf8")}quality: { allow_skipped_checks: true }\n`);
+  const merged = YAML.parse(readFileSync(cfg, "utf8"));
+  merged.quality = { ...merged.quality, allow_skipped_checks: true };
+  writeFileSync(cfg, YAML.stringify(merged));
   env.fake("agent", "eval", { code: 0, report: report({ [evalFile]: [["AC-0003 answers with the time", "skipped"]] }) });
   assert.deepEqual(rules(await implGate(env, "TASK-004")), []);
   const state = task("TASK-005", "ai-agent", "state", ["agent/src/agents/a/state.ts"]);
@@ -380,7 +383,7 @@ test("check-migrations: a migration task must change one; nested drizzle folders
   mkdirSync(join(dir, "apps", "api", "drizzle", "meta"), { recursive: true });
   mkdirSync(join(dir, "apps", "api", "drizzle", "rollback"), { recursive: true });
   writeFileSync(join(dir, "apps/api/drizzle/meta/_journal.json"), JSON.stringify({ entries: [{ tag: "0003_x" }] }));
-  writeFileSync(join(dir, "apps/api/drizzle/rollback/0003_x.down.sql"), "SELECT 1;\n");
+  writeFileSync(join(dir, "apps/api/drizzle/rollback/0003_x.down.sql"), "INSERT INTO users (id) VALUES (1);\n");
   writeFileSync(join(dir, "apps/api/drizzle/0003_x.sql"), "DELETE FROM users WHERE id = 1;\n");
   r = run("check-migrations.mjs", ["--project", dir, "--task-type", "migration", "--files", "apps/api/drizzle/0003_x.sql"]);
   assert.match(r.stdout, /0003_x\.sql:1: destructive statement/);

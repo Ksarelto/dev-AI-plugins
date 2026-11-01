@@ -7,6 +7,7 @@ config:
   roles:
     frontend: { enabled: false }
     backend: { enabled: true, pack: factory-role-backend, stack: node-backend-dev-kit, path: ".", owns_paths: ["src/**", "tests/**", "drizzle/**"] }
+  quality: { integration_tests: skip }   # mocked runs: no Docker
   pipeline:
     profile: be
     profiles: { be: [intake, requirements-lite, implementation, verification-lite, delivery, feedback] }
@@ -29,7 +30,7 @@ expect:
     be-builder: sonnet
     migration-author: sonnet
     reviewer: opus
-    release-manager: haiku
+    release-manager: sonnet
   ship: { commits: 3, dry_run: true, trailers: ["Factory-Task: TASK-001", "Factory-Task: TASK-002"] }
   ledger: delivered
   files_contain:

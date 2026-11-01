@@ -7,6 +7,7 @@ config:
   roles:
     frontend: { enabled: true, path: web, owns_paths: ["web/**"], stack_overrides: { package_manager: pnpm } }
     backend: { enabled: true, pack: factory-role-backend, stack: node-backend-dev-kit, path: api, owns_paths: ["api/**"] }
+  quality: { integration_tests: skip }   # mocked runs: no Docker
   pipeline:
     profile: gt12
     profiles: { gt12: [intake, requirements, stories, planning, implementation, verification-lite, docs, delivery] }

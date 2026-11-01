@@ -4,7 +4,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { join, relative } from "node:path";
-import { factoryPaths, now, readText, readYaml, toPosix, writeJson, writeYaml } from "./core.mjs";
+import { factoryPaths, fileHash, now, readText, readYaml, toPosix, writeJson, writeYaml } from "./core.mjs";
 
 const git = (cwd, args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
 
@@ -37,6 +37,10 @@ export function ship(c) {
     git(cwd, ["commit", "--quiet", "-m", commit.message, "--", ...commit.files]);
     commits.push({ sha: git(cwd, ["rev-parse", "--short", "HEAD"]), message: commit.message.split("\n")[0], task: commit.task ?? null });
   }
+  // The ledger entry goes into the artifacts commit, so the branch carries its own record.
+  const planFile = join(c.feature.dir, "04-plan", "tasks.yaml");
+  const done = existsSync(planFile) ? (readYaml(planFile).tasks ?? []).filter((t) => s.tasks?.[t.id]?.status === "done") : [];
+  recordInLedger(c, done, { branch });
   // The feature's .factory record, without the task snapshots (copies of source files at red).
   const featureRel = toPosix(relative(cwd, c.feature.dir));
   const artifacts = [featureRel, ".factory/context", ".factory/app-profile.yaml", ".factory/_index", ".factory/ledger"].filter((p) => existsSync(join(cwd, p)));
@@ -77,18 +81,66 @@ function openPr(c, branch, alreadyOpened) {
   return { opened: true, dry_run: false, commands, output: output.trim().slice(0, 500), ...(alreadyOpened ? { updated: true } : {}) };
 }
 
-/** Records a finished feature in the ledger (new entry, or a new version of a changed one). */
-export function recordInLedger(c, tasks) {
+/**
+ * What the working tree changed since the last commit, outside .factory, with paths relative to the
+ * project (which may sit in a subfolder of the repository): changed files, deleted ones, renames
+ * (old → new), each file's content hash, and a unified diff (new files as additions) capped at
+ * maxBytes. Null when the project is not a git repository with a commit to compare against.
+ */
+export function workingTreeChanges(projectDir, maxBytes = 400_000) {
+  const run = (args) => spawnSync("git", args, { cwd: projectDir, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  if (run(["rev-parse", "--verify", "--quiet", "HEAD"]).status !== 0) return null;
+  const prefix = run(["rev-parse", "--show-prefix"]).stdout.trim();
+  const status = run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", ".", ":(exclude).factory"]);
+  if (status.status !== 0) return null;
+  const local = (p) => (prefix && p.startsWith(prefix) ? p.slice(prefix.length) : p);
+  const fields = status.stdout.split("\0");
+  const changed = [];
+  const deleted = [];
+  const untracked = [];
+  const renames = {};
+  for (let i = 0; i < fields.length; i++) {
+    const entry = fields[i];
+    if (!entry) continue;
+    const code = entry.slice(0, 2);
+    const path = local(entry.slice(3));
+    changed.push(path);
+    if (code.includes("D")) deleted.push(path);
+    if (code === "??") untracked.push(path);
+    if (code.includes("R") || code.includes("C")) renames[local(fields[++i])] = path; // -z: the old path follows
+  }
+  let diff = run(["diff", "--relative", "HEAD", "--", ".", ":(exclude).factory"]).stdout;
+  for (const f of untracked) {
+    if (diff.length > maxBytes) break;
+    diff += run(["diff", "--no-index", "--", "/dev/null", f]).stdout; // exits 1 when there is a difference
+  }
+  if (diff.length > maxBytes) diff = `${diff.slice(0, maxBytes)}\n… diff cut at ${maxBytes} bytes; read the files for the rest\n`;
+  const hashes = Object.fromEntries(changed.map((f) => [f, deleted.includes(f) ? null : fileHash(join(projectDir, f))]));
+  return { changed, deleted, renames, hashes, diff };
+}
+
+/** The working-tree changes since the baseline taken when the feature started (or was scaffolded). */
+export function featureChanges(projectDir, baseline = {}) {
+  const tree = workingTreeChanges(projectDir);
+  if (!tree) return null;
+  const mine = tree.changed.filter((f) => !(f in baseline) || baseline[f] !== tree.hashes[f]);
+  return { ...tree, changed: mine };
+}
+
+/** Records a feature in the ledger (new entry, or a new version of a changed one) — at ship, so the entry is committed with it. */
+export function recordInLedger(c, tasks, { branch } = {}) {
   const s = c.feature.state;
   const file = join(factoryPaths(c.projectDir).root, "ledger", "feature-ledger.yaml");
-  const ledger = existsSync(file) ? readYaml(file) : { features: [] };
+  const ledger = existsSync(file) ? readYaml(file) ?? {} : {};
+  ledger.features ??= [];
   const shipFile = join(c.feature.dir, "08-delivery", "ship.json");
   const pr = existsSync(shipFile) ? JSON.parse(readText(shipFile)).pr : null;
   const paths = [...new Set((tasks ?? []).flatMap((t) => t.files_expected))];
   const existing = ledger.features.find((f) => f.id === s.feature);
   const entry = {
     id: s.feature, name: s.title, status: s.mode === "change-request" ? "changed" : "delivered",
-    version: (existing?.version ?? 0) + 1, paths, pr: pr ? (pr.dry_run ? "dry-run" : String(pr.output ?? "")) : "none",
+    // One version per delivery: re-shipping the same branch (a GATE-C or PR-comment fix round) keeps it.
+    version: existing && existing.pr === `branch ${branch}` && branch ? existing.version : (existing?.version ?? 0) + 1, paths, pr: branch ? `branch ${branch}` : pr ? (pr.dry_run ? "dry-run" : String(pr.output ?? "")) : "none",
   };
   ledger.features = [...ledger.features.filter((f) => f.id !== s.feature), entry];
   writeYaml(file, ledger);

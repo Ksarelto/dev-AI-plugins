@@ -126,6 +126,10 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
     execFileSync("git", ["init", "-q"], { cwd: project });
     execFileSync("git", ["config", "user.email", "factory-e2e@example.invalid"], { cwd: project });
     execFileSync("git", ["config", "user.name", "Factory E2E"], { cwd: project });
+    // A real project has history: the app as copied is the baseline the feature's diff is taken against.
+    writeFileSync(join(project, ".git", "info", "exclude"), "node_modules\n");
+    execFileSync("git", ["add", "-A"], { cwd: project });
+    execFileSync("git", ["commit", "-q", "--allow-empty", "-m", "baseline"], { cwd: project });
     init(project, { mode: scenario.mode ?? "unknown" });
     const packs = [...PACKS, ...(scenario.stack_kits ?? []).map((k) => join(ROOT, k))];
     const config = deepMerge({ version: 1, project: { name: scenario.id }, packs: Object.fromEntries(packs.map((p) => [p.split(/[\\/]/).pop(), p])) }, scenario.config ?? {});

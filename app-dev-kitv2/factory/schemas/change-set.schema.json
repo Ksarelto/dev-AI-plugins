@@ -40,6 +40,27 @@
           }
         }
       }
+    },
+    "changed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "files changed in the working tree (git), .factory excluded"
+    },
+    "outside_plan": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "changed files no done task planned (and not docs or acceptance tests)"
+    },
+    "scaffold": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "greenfield: the starter files the engine copied; they ship in a chore(scaffold) commit"
     }
   }
 }

@@ -21,7 +21,8 @@ export function buildPack(projectDir, featureObj, config, d) {
   const budget = config.context?.budgets?.[contextRole] ?? 45000;
   const readMax = config.context?.read_allowlist_max?.[contextRole] ?? 12;
 
-  const notMine = new Set(d.notMine ?? []);
+  // Files only the engine writes (review.md from findings, the change set) are never an agent's to write.
+  const notMine = new Set([...(d.notMine ?? []), ...Object.keys(ARTIFACT_TYPES).filter((t) => ARTIFACT_TYPES[t].engine_writes)]);
   const writeAllow = [
     ...(d.stage?.outputs ?? []).flatMap((ref) => parseArtifactRef(ref).names.filter((t) => !notMine.has(t)).map((t) => rel(artifactGlob(t, dirs)))),
     ...(d.stage?.writes ?? []),
@@ -49,10 +50,14 @@ export function buildPack(projectDir, featureObj, config, d) {
   const optionalSections = [{ name: "golden", lines: (d.golden ?? []).map((g) => `  - ${g}`) }];
 
   const engineCli = toPosix(join(ENGINE_ROOT, "scripts", "factory.mjs"));
-  const gateCmd = d.gate
+  const gateCmd = d.gate && d.stage?.exit_check !== false
     ? `node ${engineCli} gate ${[d.gate].flat().join(",")} --project ${toPosix(projectDir)} --feature ${s.feature}${d.gateTask ? ` --task ${d.gateTask.id}` : ""}`
     : null;
-  const outputs = (d.stage?.outputs ?? []).map((ref) => `  - ${ref}: ${parseArtifactRef(ref).names.map((t) => rel(artifactGlob(t, dirs))).join(" | ")}`);
+  const outputs = (d.stage?.outputs ?? []).map((ref) =>
+    parseArtifactRef(ref).names.every((t) => ARTIFACT_TYPES[t].engine_writes)
+      ? `  - ${ref}: written by the engine from your envelope (findings) — do not write it`
+      : `  - ${ref}: ${parseArtifactRef(ref).names.map((t) => rel(artifactGlob(t, dirs))).join(" | ")}`,
+  );
 
   const render = (sections) => {
     const lines = [];

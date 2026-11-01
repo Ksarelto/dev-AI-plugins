@@ -14,7 +14,9 @@ Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Ar
    - given `--file`, use it;
    - otherwise, with the GitHub adapter and `gh` signed in, run the adapter's `read_comments` command
      for the feature branch (see `08-delivery/ship.json`) and save its output to a file.
-2. Run `F comments --file <file>`. The feedback stage reopens for the feature.
+2. Run `F comments --file <file>`. A finished feature reopens at the feedback stage. One still
+   waiting at GATE-C keeps the comments for after the approval: approve GATE-C to have them triaged
+   (rejecting starts a fix round from your reject reason instead, without the comments).
 3. Run `/factory:run`. The release manager classifies every comment; comments classified as
    `change` become fix items, and the planner adds tasks for them before the build loop continues.
 

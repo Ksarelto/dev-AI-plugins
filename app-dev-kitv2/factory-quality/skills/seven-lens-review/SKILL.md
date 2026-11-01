@@ -14,7 +14,7 @@ against the spec, stories, contract and ADRs — one lens at a time, so nothing 
 | `behaviour` | Did the change alter behaviour the spec did not authorise (`unchanged_guarantees`, removed list)? | change requests |
 | `assumptions` | What does the code assume about data, APIs, errors, users that the spec does not guarantee? | yes |
 | `spec-adr-drift` | Does it do what the ACs say, and respect recorded decisions and the reference architecture? Is every AC reachable by a user? | yes |
-| `tests` | Do the tests prove the ACs with the exact values, or only the happy path? | yes |
+| `tests` | Do the tests prove the ACs with the exact values, or only the happy path? Does any test fake the behaviour it claims to prove, or any code special-case the test's values? | yes |
 | `edge-cases` | Empty, boundary, failure, concurrency, locale | standard and full tiers |
 | `security` | Input handling, injection, secrets, auth paths, unsafe HTML | yes |
 | `over-engineering` | Abstractions, options or dependencies no AC asks for | yes |

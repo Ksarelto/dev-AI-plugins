@@ -127,7 +127,7 @@ export function doctor(projectDir, { register } = {}) {
   return { ok: errors.length === 0, errors, warnings, packs: packList };
 }
 
-const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", "features/*/snapshots/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
+const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", "features/*/snapshots/", "features/*/acceptance-lock/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
 
 export function init(projectDir, { mode = "unknown", name, roles } = {}) {
   const paths = factoryPaths(projectDir);

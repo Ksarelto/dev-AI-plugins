@@ -3,8 +3,9 @@ title: S6 Verification (patch tier)
 kind: agents
 agents: [reviewer]
 context_role: review_roles
-inputs: ["prd|delta-spec", tasks, change-set]
+inputs: ["prd|delta-spec", tasks, change-set, change-diff?]
 outputs: [review]
 gate: verify
+exit_check: false   # reviewers are read-only and the engine writes review.md after them
 on_fail: fix:implementation
 requires: { factory: "^0.1" }

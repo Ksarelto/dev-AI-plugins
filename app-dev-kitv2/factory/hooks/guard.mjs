@@ -31,7 +31,6 @@ const FREE_READS = [".factory/features/*/packs/**", ".factory/features/*/digest.
 const BASH_DENY = [
   [/\bgit\s+push\b[^\n]*(--force\b|\s-f\b|--force-with-lease\b)/, "force-push is human-only"],
   [/\b(npm|pnpm|yarn|bun)\s+(i|install|add)\b(\s+-\S+)*\s+[^-\s]/, "installing packages needs an approved dependency task"],
-  [/\b(curl|wget)\s+https?:/, "network calls are not allowed from a dispatched agent"],
   [/\brm\s+-rf?\s+(\/|~|\.factory\b)/, "destructive delete"],
 ];
 
@@ -143,6 +142,37 @@ function tokenize(cmd) {
   return tokens;
 }
 
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+const VALUED = new Set(["-X", "--request", "-H", "--header", "-d", "--data", "--data-raw", "--data-binary", "--data-urlencode", "-F", "--form", "-o", "--output", "-O", "-u", "--user", "-A", "--user-agent", "-e", "--referer", "-w", "--write-out", "-T", "--upload-file", "-m", "--max-time", "--connect-timeout", "-b", "--cookie", "-c", "--cookie-jar", "--header", "-P", "--directory-prefix", "--post-data", "--method", "--body-data", "-t", "--tries", "-T", "--timeout"]);
+
+/** curl/wget targets that leave this machine (QA may drive the app it started on loopback only). */
+export function outsideUrls(cmd) {
+  const out = [];
+  const segments = [[]];
+  for (const t of tokenize(cmd)) {
+    if (t.op && !["<", ">", ">>"].includes(t.op)) segments.push([]);
+    else if (t.word !== undefined) segments.at(-1).push(t.word);
+  }
+  for (const [bin, ...args] of segments) {
+    if (!/(^|\/)(curl|wget)$/.test(bin ?? "")) continue;
+    for (let i = 0; i < args.length; i++) {
+      if (VALUED.has(args[i])) {
+        i++;
+        continue;
+      }
+      if (args[i].startsWith("-")) continue;
+      let url;
+      try {
+        url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(args[i]) ? args[i] : `http://${args[i]}`);
+      } catch {
+        continue;
+      }
+      if (url.username || url.password || !LOOPBACK.has(url.hostname.toLowerCase())) out.push(args[i]);
+    }
+  }
+  return out;
+}
+
 /** Files a shell command writes and reads (absolute, resolved from cwd and any `cd`), and factory control use. */
 export function shellTargets(cmd, cwd = process.cwd()) {
   const writes = [];
@@ -198,6 +228,8 @@ export function decideBash(input, actives, project = process.cwd(), config = {})
   const [d] = dispatchesFor(input, actives);
   if (!d) return null;
   for (const [re, why] of BASH_DENY) if (re.test(cmd)) return why;
+  const away = outsideUrls(cmd);
+  if (away.length) return `network calls outside this machine are not allowed from a dispatched agent (${away[0]}); only localhost`;
   const { writes, reads, control } = shellTargets(cmd, resolve(project, input.cwd ?? "."));
   if (control) return `factory ${control} is for the Conductor and the human; run only your exit check (factory gate …) and factory state`;
   for (const file of writes) {

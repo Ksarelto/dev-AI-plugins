@@ -39,6 +39,12 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 - The Bash guard is best effort (a shell is a full language): it blocks factory control commands and
   obvious writes and reads around the pack's rules; the gates keep the hard guarantees.
 
+- Acceptance tests are a locked holdout: builders and test authors cannot read them, and they are
+  hashed when gate-acceptance passes. Verification runs each stack's integration tests
+  (`quality.integration_tests`), and AI tasks need a passing eval test per AC they claim.
+- `release-manager` runs on sonnet, not haiku: it writes the PR trace and triages review comments,
+  which the gates now check closely.
+
 **Roles**
 - `ai-test-author` exists: the role contract requires a test author per role.
 - A role routes specialist builders by task type (`role.yaml agents.builders`: migration →

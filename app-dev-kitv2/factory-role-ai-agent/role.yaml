@@ -14,7 +14,7 @@ gates:
   red: red
   impl: impl
   checks:
-    - { name: eval, command: eval, report: true, task_types: [graph, node, tool, prompt, model, rag, guardrail, eval] }
+    - { name: eval, command: eval, report: true, per_ac: true, task_types: [graph, node, tool, prompt, model, rag, guardrail, eval] }
 # A tool is its factory, the registry and a test; a graph change also touches state and a node.
 budgets: { task_limits: { tool: { files_max: 4 }, graph: { files_max: 5 }, rag: { files_max: 4 } } }
 requires: { factory: "^0.1" }

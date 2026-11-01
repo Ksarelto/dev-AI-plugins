@@ -149,9 +149,10 @@
     "after_pass": {
       "enum": [
         "ship",
-        "triage_fixes"
+        "triage_fixes",
+        "lock_acceptance"
       ],
-      "description": "engine action when the gate passes: ship = commit plan + PR; triage_fixes = PR comments classified as change become fix items"
+      "description": "engine action when the gate passes: ship = commit plan + PR; triage_fixes = PR comments classified as change become fix items; lock_acceptance = hash the feature's acceptance tests so no later phase can change them"
     },
     "read_deny": {
       "type": "array",
@@ -178,6 +179,10 @@
         "type": "string"
       },
       "description": "artifact refs shown to the human at this stage's gate besides its outputs (e.g. GATE-B shows the architecture)"
+    },
+    "exit_check": {
+      "type": "boolean",
+      "description": "false: the pack names no exit check (read-only agents whose gate needs files the engine writes after them)"
     }
   }
 }
