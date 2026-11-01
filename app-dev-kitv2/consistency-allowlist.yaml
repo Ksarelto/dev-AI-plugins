@@ -22,7 +22,7 @@ deviations:
   - "engine plugin is named `factory` (commands /factory:*), not `factory-core`"
   - "diagnostician lives in the engine (loop control), not in a stage pack"
   - "ai-test-author added: the role contract requires a test author per role"
-  - "roles route specialist builders by task type (role.yaml agents.builders: migration → migration-author, rag → rag-builder, eval → eval-author)"
+  - "roles route specialist builders by task type (role.yaml agents.builders: migration → migration-author, rag → ai-rag-builder, eval → eval-author)"
   - "role gate scripts are role.yaml gates.checks run inside gate-impl (an eval run, a migration check), not separate gate-impl/gate-verify scripts per role"
   - "ai-architect joins the architecture stage through a role:architect slot and writes 03-architecture/agent-design.md"
   - "migration and eval tasks are TDD-exempt: a migration is proven by its rollback check and integration tests, an eval task is itself the test"

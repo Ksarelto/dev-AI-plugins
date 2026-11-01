@@ -1,7 +1,7 @@
 // Builds the generated parts of the app-dev-kitv2 factory plugins:
 //   1. app-dev-kitv2/factory/scripts/vendor/deps.bundle.mjs — yaml, ajv, ajv-formats and picomatch in
 //      one ESM file, so the engine runs without installing anything at session start.
-//   2. <pack>/hooks/register.mjs + hooks.json for every non-engine pack, from one template.
+//   2. <pack>/hooks/register.mjs + hooks.json + cursor-hooks.json for every non-engine pack, from one template.
 //   node scripts/build-factory.mjs          regenerate
 //   node scripts/build-factory.mjs --check  exit 1 when a generated file is out of date
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -80,11 +80,25 @@ function packHooks() {
       ],
     },
   };
+  // Cursor runs plugin hooks in its own format (camelCase events, CURSOR_PLUGIN_ROOT).
+  const cursorHooks = {
+    version: 1,
+    hooks: {
+      sessionStart: [
+        {
+          command:
+            '[ -d "${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory" ] || { echo \'{}\'; exit 0; }; node "${CURSOR_PLUGIN_ROOT}/hooks/register.mjs"; echo \'{}\'',
+          timeout: 10,
+        },
+      ],
+    },
+  };
   for (const name of readdirSync(family)) {
     const pack = join(family, name);
     if (name === "factory" || !existsSync(join(pack, ".claude-plugin", "plugin.json"))) continue;
     emit(join(pack, "hooks", "register.mjs"), generated);
     emit(join(pack, "hooks", "hooks.json"), `${JSON.stringify(hooks, null, 2)}\n`);
+    emit(join(pack, "hooks", "cursor-hooks.json"), `${JSON.stringify(cursorHooks, null, 2)}\n`);
   }
 }
 

@@ -19,7 +19,7 @@ const MODEL_POLICY = {
   opus: ["requirements-analyst", "solution-architect", "planner", "reviewer", "ai-architect", "diagnostician"],
   sonnet: ["codebase-analyst", "story-writer", "contract-steward", "test-strategist", "acceptance-test-author", "qa-engineer",
     "fe-test-author", "fe-builder", "prototyper", "be-test-author", "be-builder", "migration-author",
-    "ai-builder", "rag-builder", "eval-author", "ai-test-author", "release-manager"],
+    "ai-builder", "ai-rag-builder", "eval-author", "ai-test-author", "release-manager"],
   haiku: ["intake-normaliser", "curator", "tech-writer", "fe-auditor", "be-auditor"],
 };
 // Names from the design that are implemented in later phases or deliberately different.
@@ -165,7 +165,7 @@ for (const f of walk(family, (x) => /[\\/](references|templates|fixtures)[\\/]/.
 }
 
 // 5. Duplication: exact files and near-duplicate paragraphs ------------------------------------
-const GENERATED = /[\\/](hooks[\\/](register\.mjs|hooks\.json))$/;
+const GENERATED = /[\\/](hooks[\\/](register\.mjs|(cursor-)?hooks\.json))$/;
 const corpus = [
   ...walk(family, (f) => /\.(md|mdc|yaml|mjs|json)$/.test(f) && !f.includes(`${join("app-dev-kitv2", "tests")}`) && !GENERATED.test(f)),
   ...STACK_KITS.flatMap((k) => walk(join(root, k), (f) => /\.(md|mdc)$/.test(f))),

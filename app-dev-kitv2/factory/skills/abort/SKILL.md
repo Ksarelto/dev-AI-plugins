@@ -8,7 +8,8 @@ allowed-tools: Bash(node:*)
 
 # /factory:abort
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
+Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 
 Confirm with the human first: aborting is terminal. Then run `F abort --reason "<reason>"`.
 

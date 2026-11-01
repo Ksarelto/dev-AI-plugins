@@ -254,7 +254,7 @@ function taskDispatch(c, stageId, stage, task, h) {
     });
   }
 
-  // A task type may have a specialist builder (migration-author, rag-builder, …); red is always the test author.
+  // A task type may have a specialist builder (migration-author, ai-rag-builder, …); red is always the test author.
   const slot = phase === "green" ? (rolePack.role.agents.builders?.[task.type] ? `builders.${task.type}` : "builder") : "test_author";
   const agent = phase === "green" ? (rolePack.role.agents.builders?.[task.type] ?? rolePack.role.agents.builder) : rolePack.role.agents.test_author;
   const model = agent ? h.agentModel(rolePack, agent) : null;

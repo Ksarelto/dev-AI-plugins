@@ -18,6 +18,6 @@
   ],
   "category": "productivity",
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
+  "hooks": "./hooks/cursor-hooks.json",
   "agents": "./cursor-agents/"
 }

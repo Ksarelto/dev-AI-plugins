@@ -78,6 +78,22 @@ roles that share a folder take turns.
 A task that fails twice moves to opus (rung 2). The policy is enforced by
 `scripts/check-factory-consistency.mjs`.
 
+## Cursor
+
+Every plugin also ships for Cursor (`.cursor-plugin/plugin.json`; install with
+`npm run install:cursor-local`). The differences:
+
+- Agents come from `cursor-agents/` (generated, Cursor model ids). Cursor names agents without the
+  plugin prefix, so the Conductor dispatches by the step's `agent` field and leaves out `model`; the
+  rung-2 move to opus does not apply there.
+- Skills find the engine through their own folder when `${CLAUDE_SKILL_DIR}` is not set.
+- Hooks run from `hooks/cursor-hooks.json` through `guard.mjs --cursor`. Cursor's tool calls carry no
+  agent type, so `subagentStart` records which conversation belongs to which factory subagent; the
+  Conductor's chat and any chat that fired `sessionStart` are never restricted. A pathless Grep is not
+  blocked there, since Cursor does not document the Grep tool's path field.
+- Not yet run against a live Cursor; field names Cursor does not document (the `Write` tool's path)
+  fail open, and the gates still enforce the red-test lock and the commit plan.
+
 ## Development
 
 ```bash

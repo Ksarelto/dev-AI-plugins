@@ -31,7 +31,7 @@ app-dev-kitv2/                    # AI factory v2 (Suggestions/ design) — mark
   factory-delivery/               # stage pack S8/S9: docs, commit plan + PR body, PR-comment triage
   factory-adapter-github/         # adapter.yaml only: push + draft PR (dry-run by default)
   factory-role-backend/           # role pack: be-test-author, be-builder, migration-author, be-auditor
-  factory-role-ai-agent/          # role pack: ai-architect, ai-test-author, ai-builder, rag-builder, eval-author
+  factory-role-ai-agent/          # role pack: ai-architect, ai-test-author, ai-builder, ai-rag-builder, eval-author
   tests/                          # not a plugin: unit tests, e2e harness + scenarios, golden tickets
   consistency-allowlist.yaml      # scheduled later-phase items and deliberate deviations
 backend-boilerplate/              # runnable Express 5 + Postgres starter (not a plugin; node-backend-dev-kit mirrors it)

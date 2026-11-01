@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" session-start --cursor",
+        "timeout": 15
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Write|Delete",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" pre-write --cursor",
+        "timeout": 10
+      },
+      {
+        "matcher": "Grep",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" pre-grep --cursor",
+        "timeout": 10
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" pre-read --cursor",
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" pre-bash --cursor",
+        "timeout": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "matcher": "Write",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" post-write --cursor",
+        "timeout": 10
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" subagent-start --cursor",
+        "timeout": 10
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" subagent-stop --cursor",
+        "timeout": 10,
+        "loop_limit": 2
+      }
+    ],
+    "stop": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; node \"${CURSOR_PLUGIN_ROOT}/hooks/guard.mjs\" stop --cursor",
+        "timeout": 10
+      }
+    ]
+  }
+}

@@ -16,5 +16,5 @@
     "app-dev-kitv2"
   ],
   "category": "productivity",
-  "hooks": "./hooks/hooks.json"
+  "hooks": "./hooks/cursor-hooks.json"
 }

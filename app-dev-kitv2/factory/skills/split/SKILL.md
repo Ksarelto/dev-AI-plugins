@@ -8,7 +8,8 @@ allowed-tools: Bash(node:*), Agent, Read
 
 # /factory:split
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
+Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 
 1. Run `F split <TASK>`. The task gets `split_pending`; any dispatch in flight is dropped.
 2. Run one iteration of [the Conductor loop](../next/references/factory-conductor-loop.md): `step`

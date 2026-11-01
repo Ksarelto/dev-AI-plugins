@@ -29,11 +29,11 @@
     },
     {
       "prompt": "Implement document ingestion and hybrid retrieval for the agent",
-      "expect": "rag-builder"
+      "expect": "ai-rag-builder"
     },
     {
       "prompt": "Build the retriever with vector plus keyword fusion",
-      "expect": "rag-builder"
+      "expect": "ai-rag-builder"
     },
     {
       "prompt": "Write golden datasets and eval scorers for the feature",

@@ -8,7 +8,7 @@ task_types: [characterisation, fix, refactor, graph, state, node, tool, prompt, 
 agents:
   test_author: ai-test-author
   builder: ai-builder
-  builders: { rag: rag-builder, eval: eval-author }
+  builders: { rag: ai-rag-builder, eval: eval-author }
   architect: ai-architect
 gates:
   red: red

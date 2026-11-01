@@ -48,7 +48,7 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 **Roles**
 - `ai-test-author` exists: the role contract requires a test author per role.
 - A role routes specialist builders by task type (`role.yaml agents.builders`: migration →
-  migration-author, rag → rag-builder, eval → eval-author). The red phase always belongs to the test author.
+  migration-author, rag → ai-rag-builder, eval → eval-author). The red phase always belongs to the test author.
 - Role gate scripts are `role.yaml gates.checks`, run inside gate-impl (the AI role's eval run, the
   backend's migration check), not separate gate-impl / gate-verify scripts per role.
 - `ai-architect` joins the architecture stage through a `role:architect` slot and writes
@@ -73,6 +73,11 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 - The diagnosis file is `diagnosis/<stage-or-task>.md`.
 - `context: fork` is used only on `/factory:doctor`.
 
+**Cursor**
+- Same plugins, Cursor manifests. Hooks have a second file in Cursor's format
+  (`hooks/cursor-hooks.json`, `guard.mjs --cursor`); dispatches use the plain agent name and the agent
+  file's model. Agent names are unique across the marketplace (`ai-rag-builder`, not `rag-builder`).
+
 ## Not built yet
 
 - `flow.policy: iterations` (batched gates at iteration planning and review): only Kanban is built.
@@ -82,6 +87,7 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 - Coverage-of-changed-lines and axe gates (`quality.coverage_changed_lines_min`,
   `quality.axe_critical_max`) — they need stack commands that do not exist yet.
 - Per-domain capability slices (Cartographer v2).
+- A live Cursor smoke test of the hook adapter and dispatch by plain name.
 - Real-model golden runs: the harness (`tests/golden/run-golden.mjs`) exists; scorecards come when a run
   is approved.
 

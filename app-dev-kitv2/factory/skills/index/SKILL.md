@@ -8,7 +8,7 @@ allowed-tools: Bash(node:*)
 
 # /factory:index
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`).
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
 
 Run `F index`. The Cartographer writes `.factory/_index/component-inventory.yaml` with the git commit
 it was built from, using the index adapter of each enabled role's stack (FSD today).

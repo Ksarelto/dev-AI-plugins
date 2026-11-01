@@ -137,7 +137,7 @@ test("RAG and eval tasks go to their specialist builders; red phases stay with t
   const s = featureState(env.featureDir);
   s.tasks = { "TASK-006": { status: "green", phase: "green", round: 1 } };
   writeFileSync(join(env.featureDir, "state.json"), JSON.stringify(s));
-  assert.equal(conductor.step(env.dir).dispatches[0].agent, "rag-builder");
+  assert.equal(conductor.step(env.dir).dispatches[0].agent, "ai-rag-builder");
   const env2 = setup([task("TASK-006", "ai-agent", "rag", ["agent/src/rag/retriever.ts", "agent/tests/unit/rag/r.test.ts"], { red: ["agent/tests/unit/rag/r.test.ts"] })]);
   assert.equal(conductor.step(env2.dir).dispatches[0].agent, "ai-test-author");
   const env3 = setup([task("TASK-007", "ai-agent", "eval", ["agent/evals/golden/a.json"])]);

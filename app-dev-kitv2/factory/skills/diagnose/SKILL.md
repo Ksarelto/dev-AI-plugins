@@ -8,7 +8,8 @@ allowed-tools: Bash(node:*), Agent, Read
 
 # /factory:diagnose
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
+Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 
 1. Run `F diagnose --task <TASK-NNN>` when the argument is a task, else `F diagnose --stage <stage>`.
    This also reopens a blocked feature there.

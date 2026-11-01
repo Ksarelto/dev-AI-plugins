@@ -8,7 +8,8 @@ allowed-tools: Bash(node:*)
 
 # /factory:proto
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
+Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 
 | Argument | Run |
 |---|---|

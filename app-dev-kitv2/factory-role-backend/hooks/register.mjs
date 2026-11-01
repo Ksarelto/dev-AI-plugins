@@ -5,8 +5,9 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const project = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const root = process.env.CLAUDE_PLUGIN_ROOT;
+// Claude Code and Cursor (hooks/cursor-hooks.json) name the folders differently.
+const project = process.env.CLAUDE_PROJECT_DIR || process.env.CURSOR_PROJECT_DIR || process.cwd();
+const root = process.env.CLAUDE_PLUGIN_ROOT || process.env.CURSOR_PLUGIN_ROOT;
 const factory = join(project, ".factory");
 if (!root || !existsSync(factory)) process.exit(0);
 
@@ -17,12 +18,14 @@ try {
   // No or invalid stdin (e.g. run by hand): register without a session id.
 }
 
-const plugin = JSON.parse(readFileSync(join(root, ".claude-plugin", "plugin.json"), "utf8"));
+const manifest = [".claude-plugin", ".cursor-plugin"].map((d) => join(root, d, "plugin.json")).find(existsSync);
+if (!manifest) process.exit(0);
+const plugin = JSON.parse(readFileSync(manifest, "utf8"));
 const entry = {
   name: plugin.name,
   version: plugin.version ?? "0.0.0",
   root,
-  session_id: input.session_id ?? "manual",
+  session_id: input.session_id ?? input.conversation_id ?? "manual",
   ts: new Date().toISOString(),
 };
 const dir = join(factory, ".registry");

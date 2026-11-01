@@ -8,7 +8,7 @@ allowed-tools: Bash(node:*)
 
 # /factory:status
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`).
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
 
 Run `F state --markdown $ARGUMENTS` and show its output as is. It is built from `.factory/` only, so
 it is correct even after a compaction or in a new chat.

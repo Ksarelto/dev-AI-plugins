@@ -25,6 +25,8 @@ import { fileURLToPath } from "node:url";
 process.env.FACTORY_NO_SCAN = "1"; // only the packs this harness configures
 // Mocked runs never call a model: the real stack's eval suites skip without these keys.
 for (const key of ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"]) delete process.env[key];
+// `npm run -s` would silence the nested stack scripts, whose echoed command lines the checks read.
+delete process.env.npm_config_loglevel;
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FAMILY = join(HERE, "..", "..");
 const ENGINE = join(FAMILY, "factory");

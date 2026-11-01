@@ -8,7 +8,8 @@ allowed-tools: Bash(node:*), Read, Edit
 
 # /factory:init
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
+Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 
 1. Run `F init $ARGUMENTS`. It creates `.factory/` (config, state, inbox, `.gitignore`) and records
    the factory packs it can find. It does nothing if `.factory/state.json` already exists.

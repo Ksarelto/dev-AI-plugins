@@ -20,7 +20,7 @@ flowchart TB
     subgraph RP["Role packs — routed by task.role"]
         FE["role-frontend (v1)<br/>fe-builder · fe-test-author · fe-auditor · prototyper"]
         BE["role-backend (later)<br/>be-builder · be-test-author · migration-author"]
-        AI["role-ai-agent (later)<br/>ai-architect · ai-builder · rag-builder · eval-author"]
+        AI["role-ai-agent (later)<br/>ai-architect · ai-builder · ai-rag-builder · eval-author"]
     end
     subgraph SK["Stack packs — knowledge"]
         S1["frontend-dev-kit<br/>React FSD (architecturev2)"]
@@ -130,7 +130,7 @@ Why one `fe-builder` instead of today's six layer engineers (shared/entities/fea
 
 ### role-ai-agent (later)
 
-`ai-architect` (opus — graph topology, state schema, tool design), `ai-builder` (LangGraph.js graphs, nodes and tools), `rag-builder` (ingestion, hybrid retrieval), `eval-author` (golden datasets + scorer config). Its gate adds an **eval run** with thresholds — the AI-feature equivalent of tests. Stack: `node-agent-dev-kit`; new services start from `agent-boilerplate`.
+`ai-architect` (opus — graph topology, state schema, tool design), `ai-builder` (LangGraph.js graphs, nodes and tools), `ai-rag-builder` (ingestion, hybrid retrieval), `eval-author` (golden datasets + scorer config). Its gate adds an **eval run** with thresholds — the AI-feature equivalent of tests. Stack: `node-agent-dev-kit`; new services start from `agent-boilerplate`.
 
 All three share the same lifecycle, gates framework, delivery and observability. That is what "handled in the same way" means.
 

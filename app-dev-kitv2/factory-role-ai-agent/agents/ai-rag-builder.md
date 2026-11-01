@@ -1,5 +1,5 @@
 ---
-name: rag-builder
+name: ai-rag-builder
 description: Builder for retrieval tasks in the AI-agent factory role — builds the retriever with vector plus keyword fusion, and the pipeline that loads documents into the knowledge index for it.
 tools: Read, Glob, Grep, Write, Edit, Bash
 model: sonnet

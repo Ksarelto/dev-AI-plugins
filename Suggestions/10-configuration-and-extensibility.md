@@ -205,7 +205,7 @@ flowchart TB
 | Stage | `factory-delivery` | S8a–S9: tech-writer, release-manager; PR template, provenance, comment triage | `stage.yaml` | factory + an adapter | docs and PR conventions |
 | Role | `factory-role-frontend` | fe-test-author, fe-builder, fe-auditor, prototyper, task-type skills, FE gate scripts | `role.yaml` | factory, `frontend-dev-kit` | how a frontend developer works |
 | Role | `factory-role-backend` (P6) | be-test-author, be-builder, migration-author, OpenAPI and migration audits | `role.yaml` | factory, `node-backend-dev-kit` | |
-| Role | `factory-role-ai-agent` (P7) | ai-architect, ai-builder, rag-builder, eval-author, eval gate | `role.yaml` | factory, `node-agent-dev-kit` | |
+| Role | `factory-role-ai-agent` (P7) | ai-architect, ai-builder, ai-rag-builder, eval-author, eval gate | `role.yaml` | factory, `node-agent-dev-kit` | |
 | Stack | `frontend-dev-kit`, `node-backend-dev-kit`, `node-agent-dev-kit`, `base-dev-kit` (exist) | rules, skills, golden files, boilerplate pointer | `stack.yaml` (new, small) | `node-agent-dev-kit` → `node-backend-dev-kit` | the technology changes |
 | Adapter | `factory-adapter-github`; later `-gitlab`, `-jira` | PR assembly, comment ingestion via `gh`, ticket import | `adapter.yaml` | factory | the hosting platform changes |
 

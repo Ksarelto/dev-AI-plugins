@@ -8,7 +8,8 @@ allowed-tools: Bash(node:*), Agent, Read
 
 # /factory:run — until the next human gate
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
+Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 
 Read [the Conductor loop](../next/references/factory-conductor-loop.md) and repeat its iteration
 until `step` or `record` returns `ask_human`, `wait`, `halt` or `done`, or after `--max-steps` iterations

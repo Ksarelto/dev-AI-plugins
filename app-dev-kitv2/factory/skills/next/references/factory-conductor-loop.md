@@ -13,7 +13,7 @@ engine, from files, every time you call `step` and `record`.
 
 | `action` | Do this |
 |---|---|
-| `dispatch` | Send **every** item in `dispatches` in **one message**, one Agent call each: `subagent_type` = item `subagent_type`, `model` = item `model`, `prompt` = item `prompt`, a 3–5 word `description`. Then record each result (step 3). |
+| `dispatch` | Send **every** item in `dispatches` in **one message**, one Agent call each (Cursor: Task): `subagent_type` = item `subagent_type`, `model` = item `model`, `prompt` = item `prompt`, a 3–5 word `description`. **In Cursor**, `subagent_type` = item `agent` (Cursor names agents without the plugin prefix) and leave out `model` (the agent file sets it; escalation to a stronger model does not apply). Then record each result (step 3). |
 | `ask_human` | Stop. Show the gate (`gate`), the files to review (`review`), any `questions`, and the open notes. Tell the human: `/factory:gate approve ["notes"]` or `/factory:gate reject "<reason>"`. |
 | `scaffold` | Run `F scaffold` (greenfield: copies and installs each role's boilerplate; it can take minutes — use the longest timeout your shell tool allows or run it in the background; if it is cut off, run it again, it resumes), then go back to step 1. If it reports `halt`, stop as for `halt`. |
 | `wait` | Stop. The feature depends on another one that has not finished (`reason`); work on that feature first (`--feature`). |

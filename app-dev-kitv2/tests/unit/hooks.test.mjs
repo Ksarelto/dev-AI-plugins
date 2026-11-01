@@ -110,3 +110,134 @@ test("hooks.json short-circuits outside factory projects", () => {
     for (const h of entries.flatMap((e) => e.hooks)) assert.match(h.command, /^\[ -f "\$CLAUDE_PROJECT_DIR\/\.factory\/state\.json" \] \|\| exit 0; /);
   }
 });
+
+// ---- Cursor (hooks/cursor-hooks.json → guard.mjs <event> --cursor) ----------------------------
+function cursor(projectDir, event, payload) {
+  const r = spawnSync(process.execPath, [join(ENGINE, "hooks", "guard.mjs"), event, "--cursor"], {
+    input: JSON.stringify(payload),
+    encoding: "utf8",
+    env: { ...process.env, CURSOR_PROJECT_DIR: projectDir, CLAUDE_PROJECT_DIR: projectDir },
+  });
+  assert.equal(r.status, 0);
+  return JSON.parse(r.stdout);
+}
+const MAIN = "conv-main";
+const SUB = "sub-1";
+
+test("cursor: permission hooks always answer; the Conductor's own calls are not restricted", () => {
+  const { dir, agent, file } = active();
+  cursor(dir, "subagent-start", { subagent_id: SUB, subagent_type: agent, parent_conversation_id: MAIN, conversation_id: MAIN });
+  const write = (p, conv) => cursor(dir, "pre-write", { conversation_id: conv, tool_name: "Write", tool_input: { file_path: file(p) } }).permission;
+  assert.equal(write("src/app.ts", MAIN), "allow", "the parent conversation is the Conductor");
+  assert.equal(write(".factory/state.json", MAIN), "deny", "engine-owned files stay denied");
+  assert.equal(write("src/app.ts", SUB), "deny", "the subagent's own conversation is matched exactly");
+  assert.equal(write(".factory/features/FEAT-001-coupons-at-checkout/01-requirements/delta-spec.yaml", SUB), "allow");
+  assert.equal(write("src/app.ts", "conv-unknown"), "deny", "an unknown conversation while a factory subagent runs gets the union");
+  const bash = (command, conv) => cursor(dir, "pre-bash", { conversation_id: conv, command, cwd: dir });
+  assert.equal(bash("node factory.mjs record --dispatch x", MAIN).permission, "allow");
+  const denied = bash("curl https://example.com", SUB);
+  assert.equal(denied.permission, "deny");
+  assert.match(denied.agent_message, /only localhost/);
+  cursor(dir, "subagent-stop", { subagent_type: agent, status: "completed", summary: "done", conversation_id: MAIN });
+  assert.equal(write("src/app.ts", "conv-unknown"), "allow", "nothing runs after subagent-stop");
+});
+
+test("cursor: beforeReadFile honours read_deny; stop clears what the turn started", () => {
+  const { dir, agent, file } = active();
+  const activeFile = join(dir, ".factory", ".active", "FEAT-001.requirements.spec-writer.a1.json");
+  const act = JSON.parse(spawnSync("cat", [activeFile], { encoding: "utf8" }).stdout);
+  writeFileSync(activeFile, JSON.stringify({ ...act, read_deny: ["src/**"] }));
+  cursor(dir, "subagent-start", { subagent_id: SUB, subagent_type: agent, parent_conversation_id: MAIN });
+  const read = (p) => cursor(dir, "pre-read", { conversation_id: SUB, file_path: file(p), content: "" }).permission;
+  assert.equal(read("src/entities/order/model/total.ts"), "deny");
+  assert.equal(read("README.md"), "allow");
+  cursor(dir, "stop", { conversation_id: MAIN, status: "completed" });
+  assert.equal(read("src/entities/order/model/total.ts"), "allow", "a stale marker is cleared when the turn ends");
+});
+
+test("cursor: subagent-stop asks for a fixed envelope only when one is in the summary", () => {
+  const { dir, agent, d } = active();
+  const stop = (summary, extra = {}) => cursor(dir, "subagent-stop", { subagent_type: agent, status: "completed", summary, ...extra });
+  assert.deepEqual(stop("all done"), {}, "a plain summary is left to record");
+  assert.match(stop(envelope("wrong/id")).followup_message, /pack_id/);
+  assert.deepEqual(stop(envelope(d.id)), {});
+  assert.deepEqual(stop(envelope("wrong/id"), { loop_count: 2 }), {}, "never loops");
+});
+
+test("cursor: session-start gives additional_context; a hook that throws still answers allow", () => {
+  const { dir } = active();
+  conductor.note(dir, { text: "Hide the coupon field for guests" });
+  assert.match(cursor(dir, "session-start", { session_id: "c-1" }).additional_context, /HD-1/);
+  const broken = mkdtempSync(join(tmpdir(), "factory-broken-"));
+  mkdirSync(join(broken, ".factory"), { recursive: true });
+  writeFileSync(join(broken, ".factory", "factory.config.yaml"), "this: [is: not yaml");
+  mkdirSync(join(broken, ".factory", ".active", "cursor"), { recursive: true });
+  writeFileSync(join(broken, ".factory", ".active", "cursor", "x.json"), JSON.stringify({ id: "s", type: "t", parent: "p", ts: "1" }));
+  writeFileSync(join(broken, ".factory", ".active", "d.json"), JSON.stringify({ agent: "t", subagent_type: "p:t" }));
+  assert.deepEqual(cursor(broken, "pre-write", { conversation_id: "s", tool_input: { file_path: join(broken, "a.ts") } }), { permission: "allow" });
+});
+
+test("cursor: a subagent asked to fix its envelope stays restricted until it stops cleanly", () => {
+  const { dir, agent, d, file } = active();
+  cursor(dir, "subagent-start", { subagent_id: SUB, subagent_type: agent, parent_conversation_id: MAIN });
+  const write = () => cursor(dir, "pre-write", { conversation_id: SUB, tool_input: { file_path: file("src/app.ts") } }).permission;
+  const stop = (summary) => cursor(dir, "subagent-stop", { subagent_type: agent, status: "completed", summary, conversation_id: SUB });
+  assert.ok(stop(envelope("wrong/id")).followup_message);
+  assert.equal(write(), "deny", "still running after the followup");
+  assert.deepEqual(stop(envelope(d.id)), {});
+  assert.equal(write(), "allow", "stopped");
+});
+
+test("cursor: leftover markers and the human's other chats never restrict the human", () => {
+  const { dir, agent, file } = active();
+  cursor(dir, "subagent-start", { subagent_id: SUB, subagent_type: agent, parent_conversation_id: MAIN });
+  const write = (conv) => cursor(dir, "pre-write", { conversation_id: conv, tool_input: { file_path: file("src/app.ts") } }).permission;
+  assert.equal(write("conv-2"), "deny", "an unknown chat while a subagent runs gets the union");
+  cursor(dir, "session-start", { conversation_id: "conv-2" });
+  assert.equal(write("conv-2"), "allow", "a chat that fired sessionStart is the human's");
+  assert.equal(write(SUB), "deny", "the subagent itself is still matched");
+  conductor.abort(dir, { reason: "test" });
+  assert.equal(write("conv-3"), "allow", "a marker whose dispatch is gone is ignored");
+  writeFileSync(join(dir, ".factory/.active/cursor/half.json"), "{");
+  assert.equal(write("conv-3"), "allow", "a half-written marker is skipped");
+});
+
+test("cursor: Grep honours read_deny on a known path, and lets a pathless search through", () => {
+  const { dir, agent, file } = active();
+  const activeFile = join(dir, ".factory", ".active", "FEAT-001.requirements.spec-writer.a1.json");
+  const act = JSON.parse(spawnSync("cat", [activeFile], { encoding: "utf8" }).stdout);
+  writeFileSync(activeFile, JSON.stringify({ ...act, read_deny: ["src/**"] }));
+  cursor(dir, "subagent-start", { subagent_id: SUB, subagent_type: agent, parent_conversation_id: MAIN });
+  const grep = (input) => cursor(dir, "pre-grep", { conversation_id: SUB, tool_name: "Grep", tool_input: input }).permission;
+  assert.equal(grep({ pattern: "x", path: file("src/a.acceptance.test.ts") }), "deny");
+  assert.equal(grep({ pattern: "x", path: file("docs") }), "allow");
+  assert.equal(grep({ pattern: "x" }), "allow");
+});
+
+test("claude: the read budget still applies when the same agent runs for two features", () => {
+  const { dir, agent, file } = active();
+  const activeFile = join(dir, ".factory", ".active", "FEAT-001.requirements.spec-writer.a1.json");
+  const act = JSON.parse(spawnSync("cat", [activeFile], { encoding: "utf8" }).stdout);
+  writeFileSync(activeFile, JSON.stringify({ ...act, read_budget: 0 }));
+  writeFileSync(join(dir, ".factory", ".active", "FEAT-002.requirements.spec-writer.a1.json"), JSON.stringify({ ...act, id: "FEAT-002/requirements/spec-writer/a1", read_budget: 0 }));
+  assert.equal(decision(hook(dir, "pre-read", { tool_name: "Read", agent_type: agent, tool_input: { file_path: file("README.md") } })), "deny");
+});
+
+test("cursor-hooks.json: camelCase events, plugin-root paths, and an answer outside factory projects", () => {
+  const engineHooks = JSON.parse(spawnSync("cat", [join(ENGINE, "hooks", "cursor-hooks.json")], { encoding: "utf8" }).stdout);
+  assert.equal(engineHooks.version, 1);
+  const outside = mkdtempSync(join(tmpdir(), "factory-none-"));
+  for (const [event, entries] of Object.entries(engineHooks.hooks)) {
+    assert.match(event, /^[a-z][A-Za-z]+$/, event);
+    for (const h of entries) {
+      assert.match(h.command, /\$\{CURSOR_PLUGIN_ROOT\}\/hooks\/guard\.mjs" [a-z-]+ --cursor$/);
+      const r = spawnSync("sh", ["-c", h.command], { encoding: "utf8", env: { ...process.env, CURSOR_PROJECT_DIR: outside, CURSOR_PLUGIN_ROOT: ENGINE } });
+      const answerJson = JSON.parse(r.stdout);
+      if (["preToolUse", "beforeReadFile", "beforeShellExecution", "subagentStart"].includes(event)) assert.equal(answerJson.permission, "allow", event);
+    }
+  }
+  const pack = JSON.parse(spawnSync("cat", [join(ENGINE, "..", "factory-analysis", "hooks", "cursor-hooks.json")], { encoding: "utf8" }).stdout);
+  const [start] = pack.hooks.sessionStart;
+  const r = spawnSync("sh", ["-c", start.command], { encoding: "utf8", env: { ...process.env, CURSOR_PROJECT_DIR: outside } });
+  assert.deepEqual(JSON.parse(r.stdout), {});
+});

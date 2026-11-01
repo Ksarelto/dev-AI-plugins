@@ -1,6 +1,6 @@
 ---
 name: rag-implementation
-description: Procedure for the factory RAG builder — idempotent ingestion (split, embed in batches, upsert by a stable document id) and hybrid retrieval that fuses vector and keyword results with filters and top-k behind the retriever; fake embeddings in unit tests. Preloaded by rag-builder; not for direct use.
+description: Procedure for the factory RAG builder — idempotent ingestion (split, embed in batches, upsert by a stable document id) and hybrid retrieval that fuses vector and keyword results with filters and top-k behind the retriever; fake embeddings in unit tests. Preloaded by ai-rag-builder; not for direct use.
 user-invocable: false
 ---
 

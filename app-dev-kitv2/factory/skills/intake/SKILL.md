@@ -8,7 +8,8 @@ allowed-tools: Bash(node:*), Read
 
 # /factory:intake
 
-Engine: `node "${CLAUDE_SKILL_DIR}/../../scripts/factory.mjs"` (call it `F`). Arguments: `$ARGUMENTS`.
+Engine: `node "<engine>/scripts/factory.mjs"` (call it `F`); `<engine>` is `${CLAUDE_SKILL_DIR}/../..` — in Cursor, which leaves that placeholder unfilled, `{this SKILL.md's folder}/../..`.
+Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 
 1. If `.factory/` does not exist, tell the human to run `/factory:init` first and stop.
 2. Run `F intake $ARGUMENTS`. It gives every new inbox file a normalised copy with a source ID per
