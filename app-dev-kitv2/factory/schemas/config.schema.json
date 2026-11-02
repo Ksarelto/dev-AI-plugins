@@ -1,0 +1,180 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/config",
+  "title": "factory.config.yaml (merged with defaults)",
+  "type": "object",
+  "required": [
+    "version",
+    "roles",
+    "pipeline",
+    "budgets",
+    "context",
+    "policy"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "project": {
+      "type": "object"
+    },
+    "packs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "roles": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "pack",
+          "stack",
+          "owns_paths"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "pack": {
+            "type": "string"
+          },
+          "stack": {
+            "type": "string"
+          },
+          "owns_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "boilerplate": {
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "stack_overrides": {
+            "type": "object",
+            "description": "merged over the stack pack's stack.yaml for this project (package_manager, commands, node_version, …)"
+          },
+          "path": {
+            "type": "string",
+            "description": "the role's package directory, relative to the project (default: the project root); its stack commands run there"
+          },
+          "checks_off": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "role checks and audits (role.yaml gates.checks / gates.audits names) this project turns off, e.g. [conventions] for an app that predates the stack's conventions"
+          }
+        }
+      }
+    },
+    "pipeline": {
+      "type": "object",
+      "required": [
+        "profiles"
+      ],
+      "properties": {
+        "profile": {
+          "type": "string"
+        },
+        "profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "stages": {
+          "type": "object"
+        },
+        "digest_after": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mode_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "tier_profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "flow": {
+      "type": "object",
+      "properties": {
+        "policy": {
+          "enum": [
+            "kanban",
+            "iterations"
+          ]
+        },
+        "role_tracks": {
+          "enum": [
+            "parallel",
+            "sequential"
+          ]
+        }
+      }
+    },
+    "automation": {
+      "type": "object",
+      "properties": {
+        "autopilot": {
+          "type": "boolean",
+          "description": "auto-approve every human_gate (never a CLARIFY stop) so the pipeline runs unattended through delivery"
+        }
+      }
+    },
+    "quality": {
+      "type": "object"
+    },
+    "budgets": {
+      "type": "object"
+    },
+    "context": {
+      "type": "object"
+    },
+    "model_tiers": {
+      "type": "object"
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "protected_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "intake": {
+      "type": "object"
+    },
+    "delivery": {
+      "type": "object"
+    },
+    "prototype": {
+      "type": "object"
+    },
+    "shared_paths": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "factory-delivery",
+  "displayName": "Factory Delivery (app-dev-kitv2 stages S8a\u2013S9)",
+  "description": "Delivery stages of the app-dev-kitv2 AI factory: living docs for the feature (feature doc, promoted ADRs, CHANGELOG), a commit plan with task trailers and a PR body with a spec trace, shipped by the engine through an adapter, and PR comment triage. Needs the factory engine.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "factory",
+    "documentation",
+    "changelog",
+    "pull-request",
+    "commits",
+    "app-dev-kitv2"
+  ],
+  "category": "productivity",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "agents": "./agents/*.md"
+}

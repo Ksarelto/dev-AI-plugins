@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/review",
+  "title": "06-verify/review.md front matter \u2014 written by the engine from reviewer and auditor envelopes",
+  "type": "object",
+  "required": [
+    "feature",
+    "round",
+    "findings"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "round": {
+      "type": "integer"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "severity",
+          "claim"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^RV-\\d+$"
+          },
+          "lens": {
+            "enum": [
+              "behaviour",
+              "assumptions",
+              "spec-adr-drift",
+              "tests",
+              "edge-cases",
+              "security",
+              "over-engineering",
+              "audit"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "P0",
+              "P1",
+              "P2",
+              "P3"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "line": {
+            "type": "integer"
+          },
+          "claim": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "fix_hint": {
+            "type": "string"
+          },
+          "ac": {
+            "type": "string",
+            "pattern": "^AC-\\d{4}$"
+          },
+          "agent": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

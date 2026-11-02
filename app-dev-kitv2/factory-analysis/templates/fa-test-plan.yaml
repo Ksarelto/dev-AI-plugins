@@ -1,0 +1,6 @@
+# Worked example (GT-04: coupons at checkout). Validated by factory/schemas/test-plan.schema.json
+feature: FEAT-001
+cases:
+  - { id: TEST-0001, ac: AC-0001, level: component, title: valid coupon shows discount line, task: TASK-003 }
+  - { id: TEST-0002, ac: AC-0002, level: component, title: expired coupon shows error, task: TASK-003 }
+  - { id: TEST-0003, ac: AC-0003, level: unit, title: total with discount and shipping, task: TASK-002 }

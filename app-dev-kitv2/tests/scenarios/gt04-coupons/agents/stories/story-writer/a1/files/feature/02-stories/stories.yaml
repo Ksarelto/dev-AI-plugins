@@ -1,0 +1,37 @@
+feature: FEAT-001
+stories:
+  - id: STORY-0001
+    traces: [REQ-0001]
+    as_a: returning B2B customer
+    i_want: to apply a coupon code at checkout
+    so_that: I get my negotiated discount
+    acs:
+      - id: AC-0001
+        gherkin: |
+          Given a cart with total 100.00 EUR
+          When I apply the coupon "B2B10"
+          Then the discount line shows -10.00 EUR
+      - id: AC-0002
+        gherkin: |
+          Given a cart
+          When I apply an expired coupon
+          Then I see "This coupon has expired"
+          And the total is unchanged
+      - id: AC-0004
+        gherkin: |
+          Given a cart with a loyalty discount
+          When I apply a coupon
+          Then I see "Coupons cannot be combined with the loyalty discount"
+    ux: { surfaces: [CheckoutSummary], states: [empty, loading, applied, invalid, not-combinable] }
+  - id: STORY-0002
+    traces: [REQ-0002]
+    as_a: customer
+    i_want: the total to include the discount
+    so_that: I pay the right amount
+    no_unhappy_path: a calculation over valid lines; a rejected coupon is STORY-0001's error AC
+    acs:
+      - id: AC-0003
+        gherkin: |
+          Given lines of 60.00 and 40.00 EUR, discount 10.00 and shipping 5.00
+          When the total is calculated
+          Then it is 95.00 EUR

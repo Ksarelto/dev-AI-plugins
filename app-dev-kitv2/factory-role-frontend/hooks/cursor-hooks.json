@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "[ -d \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory\" ] || { echo '{}'; exit 0; }; node ./hooks/register.mjs; echo '{}'",
+        "timeout": 10
+      }
+    ]
+  }
+}

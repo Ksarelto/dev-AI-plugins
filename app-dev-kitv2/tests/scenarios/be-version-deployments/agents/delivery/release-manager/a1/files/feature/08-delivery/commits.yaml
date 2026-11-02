@@ -1,0 +1,16 @@
+feature: FEAT-001
+commits:
+  - task: TASK-001
+    message: |
+      feat(health): report the service version on liveness
+
+      Factory-Task: TASK-001
+      Factory-ACs: AC-0001
+    files: [src/controllers/health.controller.ts, src/container.ts, src/config/env.ts, tests/unit/controllers/health.controller.test.ts]
+  - task: TASK-002
+    message: |
+      feat(db): deployments table with rollback
+
+      Factory-Task: TASK-002
+      Factory-ACs: AC-0002
+    files: [src/db/schema/deployments.ts, src/db/schema/index.ts, drizzle/0001_deployments.sql, drizzle/meta/_journal.json, drizzle/rollback/0001_deployments.down.sql]

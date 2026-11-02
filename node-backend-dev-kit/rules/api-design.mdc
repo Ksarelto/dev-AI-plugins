@@ -1,0 +1,19 @@
+---
+description: REST contract for versioned Express APIs — resource paths under /api/v1, status codes per method, DTOs instead of rows, problem+json errors, keyset pagination, and an OpenAPI entry for every route.
+globs: ["**/src/routes/**/*.ts", "**/src/controllers/**/*.ts", "**/src/schemas/**/*.ts", "**/src/openapi/**/*.ts"]
+alwaysApply: false
+---
+
+# API design
+
+- Every business route lives under `/api/v1/<plural-kebab-noun>` (`/api/v1/projects`, `/api/v1/projects/:id`). Health stays at `/health/live` and `/health/ready`, outside `/api`, unversioned and without auth or rate limit.
+- No verbs in paths except auth actions (`/auth/login`, `/auth/refresh`). The caller's own data is `/me` or a filter derived from the principal; never make a client send its own user id to mean "me".
+- Status codes: `GET` 200, `POST` create 201 with the created DTO, `PATCH`/`PUT` 200 with the updated DTO, `DELETE` 204 with no body, idempotent actions 204. Errors use the `AppError` statuses only.
+- JSON fields are camelCase. Timestamps are ISO-8601 strings with offset. Ids are UUIDs. Never return database rows, password hashes, token hashes or internal flags.
+- Collections return `{ items, nextCursor }` with `limit` (default 20, max 100) and an opaque `cursor`; `nextCursor` is `null` on the last page.
+- Partial updates are `PATCH` with every field optional and at least one required. Do not accept the id, owner, role or timestamps in a body.
+- Errors are `application/problem+json`: `{ type, title, status, detail, code, instance, errors? }`. Clients branch on `code`.
+- Breaking changes (removed field, renamed code, changed type) need a new version prefix; additive changes do not.
+- Every route has a `registry.registerPath()` in `src/openapi/document.ts` using the same Zod schemas that validate it, with its success and problem responses and `security` for protected routes. A route without a docs entry is unfinished.
+
+Procedure: `express-resource` skill. Docs: `openapi-docs` skill.

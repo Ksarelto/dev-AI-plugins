@@ -1,0 +1,19 @@
+---
+description: Graceful degradation — fail fast on config, liveness vs readiness, critical vs optional dependencies, timeouts on every outbound call, retries only for idempotent work, circuit breakers, request deadlines, graceful shutdown.
+globs: ["**/src/lib/resilience.ts", "**/src/lib/http-client.ts", "**/src/lib/health.ts", "**/src/lib/shutdown.ts", "**/src/lib/lifecycle.ts", "**/src/middleware/timeout.ts", "**/src/controllers/health.controller.ts", "**/Dockerfile", "**/docker-compose.yml"]
+alwaysApply: false
+---
+
+# Resilience
+
+- Every outbound call has a timeout. HTTP goes through `createResilientHttpClient` (per-attempt `AbortSignal.timeout`, `retry` with full jitter, `createCircuitBreaker`); other awaits on a dependency use `withTimeout(promise, ms, label)`. No bare `fetch` to another service.
+- Retry only idempotent operations and only retryable failures (network, 5xx, 429). Never retry 4xx, validation or business errors, and never retry a non-idempotent `POST` without an idempotency key.
+- An open breaker throws `CircuitOpenError` (503 `DEPENDENCY_UNAVAILABLE` + `Retry-After`). Do not catch it to return fake data unless the feature has a defined degraded response.
+- `/health/live` never checks dependencies. `/health/ready` runs `createHealthRegistry` checks, each with a timeout: a `critical: true` dependency down → 503 `down`; an optional one down → 200 `degraded`. A new dependency is registered in `container.ts` with an explicit `critical` flag.
+- The process starts even if Postgres is not ready yet; readiness reports it. Bad configuration fails fast at startup (`loadEnv()`).
+- `requestTimeout(REQUEST_TIMEOUT_MS)` answers 503 `REQUEST_TIMEOUT`; long work receives `res.locals.signal` and passes it to downstream calls.
+- Shutdown goes through `registerGracefulShutdown`: readiness → 503, optional drain delay, `server.close()` for in-flight requests, then each resource in `resources` (db pool, queues) closes, with a forced exit after `SHUTDOWN_TIMEOUT_MS`. New pools, consumers or intervals are added to `resources`.
+- Timers that must not keep the process alive call `.unref()`. Unhandled rejections and uncaught exceptions log `fatal` and shut down with exit code 1.
+- Containers run `node` under `tini` so SIGTERM reaches it, probe `/health/live` in `HEALTHCHECK`, and set a `stop_grace_period` longer than `SHUTDOWN_TIMEOUT_MS`.
+
+Procedure: `resilience` skill. Containers: `docker-deploy` skill.

@@ -1,0 +1,3 @@
+summary: Every AC is reachable from the checkout page; tests cover the exact values.
+findings:
+  - { lens: over-engineering, severity: P3, file: src/features/apply-coupon/ui/coupon-field.tsx, claim: "ApplyResult could live in the slice's model folder" }

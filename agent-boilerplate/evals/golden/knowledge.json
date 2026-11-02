@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Refund policy",
+    "source": "kb/refunds.md",
+    "content": "Annual plans can be refunded in full within 30 days of purchase. After 30 days, annual plans are not refundable.\n\nMonthly plans are not refundable, but they can be cancelled at any time and stay active until the end of the paid month.\n\nRefunds are returned to the original payment method within 5 to 10 business days."
+  },
+  {
+    "title": "Pricing",
+    "source": "kb/pricing.md",
+    "content": "The Starter plan costs 12 USD per user per month. The Team plan costs 25 USD per user per month and adds SSO and audit logs.\n\nAnnual billing gives a 20 percent discount on both plans. Enterprise pricing is agreed with the sales team."
+  },
+  {
+    "title": "Data retention",
+    "source": "kb/data-retention.md",
+    "content": "Deleted projects stay in the trash for 14 days and can be restored by a workspace admin.\n\nAudit logs are kept for 365 days on the Team plan. Backups are encrypted and kept for 35 days."
+  }
+]

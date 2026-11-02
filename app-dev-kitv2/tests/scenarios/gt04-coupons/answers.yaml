@@ -1,0 +1,6 @@
+- { gate: CLARIFY, approve: "Coupons cannot be combined with the loyalty discount." }
+- { gate: GATE-D, approve: true }
+- { gate: GATE-A, approve: "Hide the coupon field for guest users." }
+- { gate: GATE-P, approve: true }
+- { gate: GATE-B, approve: true }
+- { gate: GATE-C, approve: true }

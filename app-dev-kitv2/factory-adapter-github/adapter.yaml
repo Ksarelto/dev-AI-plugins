@@ -1,0 +1,10 @@
+# Operations the engine runs for delivery. Placeholders: {title} {body} {base} {head} {draft}.
+# With delivery.dry_run (the default) the engine records the commands in 08-delivery/ship.json and
+# runs nothing; set delivery.dry_run: false to push and open a real pull request.
+name: github
+operations:
+  push: [git, push, --set-upstream, origin, "{head}"]
+  open_pr: [gh, pr, create, "{draft}", --title, "{title}", --body-file, "{body}", --base, "{base}", --head, "{head}"]
+  read_comments: [gh, pr, view, "{head}", --json, comments, --jq, ".comments"]
+dry_run_default: true
+requires: { factory: "^0.1" }

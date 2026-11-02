@@ -60,7 +60,7 @@ export { PendingButton } from './pending-button';
 // features/catalogue/ui/listing-list/listing-list.tsx
 import { useTranslation } from 'react-i18next';
 import { ListingCard } from '@/entities/listing';
-import { useListings } from '../../api/useListings';
+import { useListings } from '../../hooks/useListings';
 import { catalogueKeys } from '../../locales/keys';
 import { ListingListEmpty } from './ui/listing-list-empty';
 import { ListingListError } from './ui/listing-list-error';
@@ -103,7 +103,7 @@ export const ListingList = (): JSX.Element => {
 };
 ```
 
-Each state component (`listing-list-skeleton`, `listing-list-error`, `listing-list-empty`) is its own folder under `ui/`, with `tests/{name}.test.tsx`. Error and empty copy come from `catalogueKeys`, and the error state uses `Alert` + `Button`.
+Each state component (`listing-list-skeleton`, `listing-list-error`, `listing-list-empty`) is its own folder under `ui/`, with `tests/{name}.test.tsx` and `{name}.stories.tsx`. Error and empty copy come from `catalogueKeys`, and the error state uses `Alert` + `Button`.
 
 ## Bad → Good
 

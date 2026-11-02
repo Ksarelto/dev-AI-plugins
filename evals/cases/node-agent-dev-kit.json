@@ -1,0 +1,33 @@
+{
+  "plugin": "node-agent-dev-kit",
+  "source": "./node-agent-dev-kit",
+  "component": "skills",
+  "cases": [
+    { "prompt": "Scaffold a new AI agent service from agent-boilerplate with pgvector and the checkpointer migrations", "expect": "scaffold-agent-service" },
+    { "prompt": "Start a new chatbot assistant service and add a second agent folder under src/agents", "expect": "scaffold-agent-service" },
+    { "prompt": "Build a LangGraph agent with a StateGraph, ToolNode and conditional edges to END", "expect": "langgraph-agent" },
+    { "prompt": "Add a new node and change the tool-calling loop routing in our LangGraph agent graph", "expect": "langgraph-agent" },
+    { "prompt": "Add a new state field with a reducer and default to the Annotation.Root state schema", "expect": "graph-state-design" },
+    { "prompt": "Conversation history grows too large; trim messages with RemoveMessage and a rolling summary in graph state", "expect": "graph-state-design" },
+    { "prompt": "Create a new tool with a bounded Zod schema and register it in the tools registry", "expect": "agent-tools" },
+    { "prompt": "The model picks the wrong tool; fix the tool description and return content_and_artifact", "expect": "agent-tools" },
+    { "prompt": "Switch the LLM model slug on OpenRouter and add a fallback model with withFallbacks", "expect": "llm-models" },
+    { "prompt": "Get structured JSON from the model with withStructuredOutput and handle provider 429s and timeouts", "expect": "llm-models" },
+    { "prompt": "Persist conversations with the PostgresSaver checkpointer and read history with getState", "expect": "checkpointing-memory" },
+    { "prompt": "Store user preferences in long-term memory across threads with a BaseStore", "expect": "checkpointing-memory" },
+    { "prompt": "Pause the agent with interrupt() so a human can approve sending an email, then resume with Command", "expect": "human-in-the-loop" },
+    { "prompt": "Require a person to confirm or reject a ticket-creating action before the tool runs", "expect": "human-in-the-loop" },
+    { "prompt": "Coordinate several agents with a supervisor that routes to specialist subgraphs", "expect": "multi-agent" },
+    { "prompt": "Fan out work in parallel with Send to multiple worker agents and merge the results", "expect": "multi-agent" },
+    { "prompt": "Ingest documents into pgvector with chunking and hybrid retrieval for RAG", "expect": "rag-pipeline" },
+    { "prompt": "Retrieval returns irrelevant results; tune chunk size and reciprocal rank fusion search", "expect": "rag-pipeline" },
+    { "prompt": "Stream agent answers token by token to the browser over Server-Sent Events", "expect": "streaming-api" },
+    { "prompt": "Fix the streaming chat endpoint so text/event-stream aborts on client disconnect", "expect": "streaming-api" },
+    { "prompt": "Write golden-set evals with an LLM-as-judge and a pass-rate threshold for the agent", "expect": "agent-evals" },
+    { "prompt": "Unit test the agent graph with a scripted model and SyntheticEmbeddings", "expect": "agent-evals" },
+    { "prompt": "Harden the agent against prompt injection and jailbreaks with an input guard", "expect": "guardrails-safety" },
+    { "prompt": "Wrap retrieved text as untrusted documents and add output guardrails to stop data leaks", "expect": "guardrails-safety" },
+    { "prompt": "Track token usage and cost per request with a callback handler", "expect": "agent-observability" },
+    { "prompt": "Turn on LangSmith tracing and add runName, tags and metadata to agent runs", "expect": "agent-observability" }
+  ]
+}

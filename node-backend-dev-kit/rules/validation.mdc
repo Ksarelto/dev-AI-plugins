@@ -1,0 +1,19 @@
+---
+description: Every external input is parsed with Zod 4 at the edge — request params, query and body through validate(), environment through config/env.ts. Handlers read typed values with validated(res, schemas).
+globs: ["**/src/schemas/**/*.ts", "**/src/middleware/validate.ts", "**/src/routes/**/*.ts", "**/src/controllers/**/*.ts", "**/src/config/env.ts"]
+alwaysApply: false
+---
+
+# Validation
+
+- Every route with params, query or body mounts `validate(<resource>Request)` before the controller. The request object is `{ params?, query?, body? } satisfies ValidationSchemas`, exported from `schemas/<resource>.schema.ts`.
+- Controllers read input only through `validated(res, <resource>Request)`. Never read `req.body`, `req.query` or `req.params` directly in a controller.
+- Express 5 makes `req.query` a read-only getter. Never assign to `req.query`/`req.params`; parsed values live on `res.locals.validated`.
+- Body schemas are `.strict()` objects (unknown keys → 422). Query schemas are `.strict()` and use `z.coerce.number()` for numbers, with `.min()`, `.max()` and a `.default()`.
+- Every string has an upper bound (`.max()`); ids are `z.uuid()`, emails `z.email()`, URLs `z.url()`, timestamps `z.iso.datetime()`. These are Zod 4 top-level formats; do not use the deprecated `z.string().email()` chains in new code.
+- Normalisation that changes meaning (lower-casing an email) happens in the service, not only in the schema.
+- Validation failure is a 422 `VALIDATION_FAILED` problem with `errors[]` of `{ path: 'body.email', message, code }`. Do not hand-roll 400s for schema failures.
+- Response DTOs are Zod schemas too (`userResponseSchema`), mapped by a `to<Entity>Response()` function. Dates go out as ISO strings. Rows are never serialised directly.
+- Environment variables are parsed once by `parseEnv()` and fail fast with `z.flattenError(...).fieldErrors`. Secrets have a minimum length (`JWT_SECRET` ≥ 32).
+
+Procedure: `request-validation` skill.

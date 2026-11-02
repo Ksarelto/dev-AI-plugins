@@ -1,0 +1,12 @@
+# Worked example. Validated by factory/schemas/capability-map.schema.json; every path must match a file.
+generated_by: codebase-analyst
+index_sha: null
+features:
+  - name: checkout
+    paths: ["src/pages/checkout/**", "src/entities/order/**"]
+    routes: [/checkout]
+    summary: Cart summary, shipping and order total
+  - name: catalogue
+    paths: ["src/pages/catalogue/**"]
+    routes: [/catalogue]
+    summary: Browse and search parts

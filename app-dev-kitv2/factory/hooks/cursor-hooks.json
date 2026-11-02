@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" session-start --cursor",
+        "timeout": 15
+      }
+    ],
+    "preToolUse": [
+      {
+        "matcher": "Write|Delete",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" pre-write --cursor",
+        "timeout": 10
+      },
+      {
+        "matcher": "Grep",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" pre-grep --cursor",
+        "timeout": 10
+      },
+      {
+        "matcher": "Task",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" task-start --cursor",
+        "timeout": 10
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" pre-read --cursor",
+        "timeout": 10
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" pre-bash --cursor",
+        "timeout": 10
+      }
+    ],
+    "postToolUse": [
+      {
+        "matcher": "Write",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" post-write --cursor",
+        "timeout": 10
+      },
+      {
+        "matcher": "Task",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" task-end --cursor",
+        "timeout": 10
+      }
+    ],
+    "subagentStart": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" subagent-start --cursor",
+        "timeout": 10
+      }
+    ],
+    "subagentStop": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" subagent-stop --cursor",
+        "timeout": 10,
+        "loop_limit": 2
+      }
+    ],
+    "stop": [
+      {
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" stop --cursor",
+        "timeout": 10
+      }
+    ]
+  }
+}

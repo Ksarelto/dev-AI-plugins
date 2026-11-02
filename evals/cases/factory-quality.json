@@ -1,0 +1,31 @@
+{
+  "plugin": "factory-quality",
+  "source": "./app-dev-kitv2/factory-quality",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Write acceptance tests for every acceptance criterion from the spec before implementation",
+      "expect": "acceptance-tests"
+    },
+    {
+      "prompt": "Black-box acceptance tests named after each AC that must fail before the build",
+      "expect": "acceptance-tests"
+    },
+    {
+      "prompt": "Review the change set through the seven lenses with severity-tagged findings",
+      "expect": "seven-lens-review"
+    },
+    {
+      "prompt": "Do a code review for spec drift, hidden assumptions, security and over-engineering",
+      "expect": "seven-lens-review"
+    },
+    {
+      "prompt": "Run time-boxed exploratory QA charters and record defects with steps",
+      "expect": "qa-heuristics"
+    },
+    {
+      "prompt": "Test the running feature with QA heuristics like boundaries and interruption",
+      "expect": "qa-heuristics"
+    }
+  ]
+}

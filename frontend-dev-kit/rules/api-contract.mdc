@@ -12,5 +12,6 @@ alwaysApply: false
 - Form input rules live on `FormFieldConfig.rules` (`requiredRule` and the rest from `@/shared/ui/form`). They are not a `ui/<form>/schema.ts` and they are not the server-entity schema.
 - Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on an `httpClient` / `http` call. `shared/api/base.ts` already sets them. Do not read `API_BASE` outside `shared/api`.
 - Omit `staleTime` and query `retry` when `query-client.ts` already has that policy. A different policy is a named constant imported from `shared/api`, not a numeric literal in the hook.
+- Every `useQuery` and `useMutation` for one owning slice lives in that slice's `api/hooks.ts`. Do not add `api/useThing.ts` per hook.
 
 Procedure: `api-client` skill. Hooks: `react-query-hook` skill.

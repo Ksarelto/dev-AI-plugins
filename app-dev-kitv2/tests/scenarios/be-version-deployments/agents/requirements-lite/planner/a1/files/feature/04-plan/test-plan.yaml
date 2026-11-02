@@ -1,0 +1,4 @@
+feature: FEAT-001
+cases:
+  - { id: TEST-0001, ac: AC-0001, level: unit, title: "live() with version 1.4.2 answers status and version", task: TASK-001 }
+  - { id: TEST-0002, ac: AC-0002, level: integration, title: "migrate up creates deployments; rollback drops it", task: TASK-002 }

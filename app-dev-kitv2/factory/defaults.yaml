@@ -1,0 +1,148 @@
+# Factory defaults: the bottom configuration layer. Later layers override key by key:
+# defaults → ~/.factory/org.yaml → .factory/factory.config.yaml → features/<id>/overrides.yaml.
+# Inspect the merged result with: factory config explain [key]
+version: 1
+
+project:
+  name: app
+  default_branch: main
+  repo_host: github
+
+# Explicit pack locations (name → absolute or project-relative path). Optional: packs normally
+# register themselves at session start. Use this for Cursor, CI and --plugin-dir testing.
+packs: {}
+
+roles:
+  frontend:
+    enabled: true
+    pack: factory-role-frontend
+    stack: frontend-dev-kit
+    owns_paths: ["src/**", "e2e/**", "public/**"]
+    boilerplate: null          # per project, e.g. { repo: <git url>, ref: <branch|tag>, path: . }
+  backend:
+    enabled: false
+    pack: factory-role-backend
+    stack: node-backend-dev-kit
+    path: apps/api               # its package folder: commands and gates run here
+    owns_paths: ["apps/api/**"]
+    boilerplate: { repo: dev-AI-plugins, path: backend-boilerplate, ref: main }
+  ai-agent:
+    enabled: false
+    pack: factory-role-ai-agent
+    stack: node-agent-dev-kit
+    path: apps/agents
+    owns_paths: ["apps/agents/**"]
+    boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }
+
+shared_paths: {}
+
+pipeline:
+  profile: standard            # used for modes not listed in mode_profiles
+  mode_profiles: { greenfield: greenfield }
+  tier_profiles: { patch: patch }
+  profiles:
+    standard: [intake, discovery, requirements, stories, prototype, architecture, planning,
+               acceptance, implementation, verification, qa, docs, delivery, feedback]
+    greenfield: [intake, bootstrap, requirements, stories, prototype, architecture, planning,
+                 acceptance, implementation, verification, qa, docs, delivery, feedback]
+    patch: [intake, requirements-lite, implementation, verification-lite, delivery, feedback]
+  stages: {}                   # project overrides of stage.yaml defaults, key by key
+  digest_after: [requirements, planning, verification]
+
+prototype:
+  # The living app prototype (.factory/prototype/, static HTML) is updated by every feature whose
+  # stories add, change or remove a user-facing surface (never for the patch tier). false turns it off.
+  enabled: true
+
+flow:
+  policy: kanban               # kanban | iterations
+  role_tracks: parallel        # parallel: one task per role at a time, in parallel when roles have different paths
+  kanban: { wip: { verify: 2 } }
+  iterations: { length_days: 10, token_budget: 9000000 }
+
+automation:
+  # When true, the engine approves every stage's human_gate itself (GATE-D, GATE-A, GATE-P, GATE-B,
+  # GATE-C) the moment it is reached — same code path as a human `factory approve` (HD notes,
+  # splitBacklog, breakingDeltaBack all still run), recorded with `by: "autopilot"` so events and
+  # `factory metrics` show it. /factory:run then goes from intake straight through implementation,
+  # quality and delivery (a real PR opens there only if delivery.dry_run is also false) without
+  # stopping, on to the feedback stage. A CLARIFY stop — an agent that cannot proceed without an
+  # answer — is never auto-approved; there is no safe default to invent. A human-owned action
+  # (policy.human_owned) is never touched by autopilot either.
+  autopilot: false
+
+quality:
+  # gate-spec in the requirements stage: completeness.yaml must score at least this (0 turns it off).
+  # Below it the engine asks one batch of the analyst's gap questions, then shows the rest at GATE-A.
+  completeness_min: 85
+  coverage_changed_lines_min: 90
+  axe_critical_max: 0              # frontend axe audit: critical violations beyond this are P1 (blocking)
+  axe_routes: ["/"]                # routes of the built app the axe audit opens
+  bundle_kb_max: 250               # frontend bundle audit: gzip KB per JavaScript chunk (P2 above it)
+  review_blocking: [P0, P1]
+  integration_tests: run         # run: verification runs each stack's test_integration (Docker for Testcontainers); skip: never
+  task_limits: { files_max: 3, loc_max: 200 }
+  task_limits_by_type: {}      # e.g. { migration: { files_max: 4 } }; wins over a role's budgets.task_limits
+  tdd:
+    mode: required             # required | off
+    author: separate           # separate | builder_two_phase
+    pipeline_red: true
+    exempt_types: [characterisation, refactor, config, docs, styling-token, dependency-bump, rename, migration, eval]
+    exempt_may_satisfy: [migration, eval]   # the only exempt types that may satisfy an AC
+  vague_terms: [fast, quick, quickly, easy, easily, intuitive, intuitively, user-friendly, simple, nice,
+                helpful, clear message, clear error, clearly, good, better, modern, robust, seamless,
+                seamlessly, efficient, efficiently, appropriate, appropriately, etc, works well, well enough,
+                correctly, properly, gracefully, smooth, smoothly,
+                reasonable, reasonably, acceptable, adequate, sufficient, responsive, performant, scalable,
+                optimal, flexible, as expected, as needed, if needed, and so on, in a timely manner,
+                works fine, handles errors]   # matched as phrases; an AC needs a measure to use one
+
+budgets:
+  feature: { tokens: 2500000, wall_clock_min: 240, dispatches: 60 }
+  stage: { attempts_max: 3, dispatches_max: 8 }
+  task: { attempts_max: 3 }
+  prototype: { revisions_max: 3, tokens: 180000 }
+  backward_edges:
+    prototype_to_requirements: 1
+    verification_to_implementation: 2
+    verification-lite_to_implementation: 2
+    qa_to_implementation: 2
+    delivery_to_implementation: 3      # changes requested on the PR (GATE-C reject)
+    feedback_to_implementation: 3      # PR comments classified as "change"
+    total_regressions_max: 6
+
+context:
+  budgets:                     # tokens per dispatch
+    conductor: 20000
+    analysis_roles: 60000
+    execution_roles: 45000
+    review_roles: 35000
+    prototype_role: 45000
+    mechanical_roles: 20000
+  read_allowlist_max: { analysis_roles: 30, execution_roles: 12, review_roles: 20, prototype_role: 20, mechanical_roles: 10 }
+  return_summary_max_words: 200
+  digest: engine               # engine: written from the artifacts (no dispatch); curator: the curator agent writes it
+  digest_max_words: 600
+
+model_tiers: { reasoning: opus, execution: sonnet, mechanical: haiku }
+
+policy:
+  # halt: a step stops when files outside .factory/ changed since the engine's last action (a person
+  # or a stray tool edited the tree); keep them with `factory accept-changes`. off: no check.
+  unexpected_changes: halt
+  protected_paths: [".github/**", "**/.env", "**/.env.*", "pnpm-lock.yaml", "package-lock.json", "infra/**"]
+  commit_convention: conventional
+  branch_pattern: "factory/{feature}-{slug}"
+  human_owned: [new_dependency, destructive_migration, public_api_removal, gate_override, merge]
+
+intake:
+  source: local
+  inbox: .factory/inbox
+  coverage_topics: [users, goals, scope, data, rules, nfr, acceptance]
+  essential_topics: [users, goals]   # never a plain gap: covered with a source, or asked
+
+delivery:
+  adapter: factory-adapter-github
+  draft_pr: true
+  dry_run: true                # never opens a real PR until set to false
+  reviewers: []

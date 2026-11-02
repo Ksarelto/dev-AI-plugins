@@ -1,0 +1,47 @@
+{
+  "plugin": "factory-role-ai-agent",
+  "source": "./app-dev-kitv2/factory-role-ai-agent",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Design the LangGraph agent: topology, state, tools, model tiers and eval plan",
+      "expect": "ai-design"
+    },
+    {
+      "prompt": "Write agent-design.md for the new assistant feature",
+      "expect": "ai-design"
+    },
+    {
+      "prompt": "Write failing tests for the new agent tool using the scripted model",
+      "expect": "ai-red-tests"
+    },
+    {
+      "prompt": "Red tests for the graph routing with a fake retriever, no API key",
+      "expect": "ai-red-tests"
+    },
+    {
+      "prompt": "Implement the LangGraph tool until its red tests and the eval run pass",
+      "expect": "ai-implement-task"
+    },
+    {
+      "prompt": "Build the agent node and register the tool with injected models",
+      "expect": "ai-implement-task"
+    },
+    {
+      "prompt": "Implement hybrid retrieval and idempotent ingestion behind the retriever",
+      "expect": "rag-implementation"
+    },
+    {
+      "prompt": "Build the RAG ingestion pipeline with chunking and pgvector search",
+      "expect": "rag-implementation"
+    },
+    {
+      "prompt": "Write golden eval cases and a pass-rate threshold for the agent behaviour",
+      "expect": "eval-authoring"
+    },
+    {
+      "prompt": "Author the eval suite that proves the acceptance criteria against real models",
+      "expect": "eval-authoring"
+    }
+  ]
+}

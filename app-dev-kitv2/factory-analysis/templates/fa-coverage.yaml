@@ -1,0 +1,9 @@
+# Worked example (GT-04: coupons at checkout). Validated by factory/schemas/coverage.schema.json
+topics:
+  users: { status: covered, sources: [SRC-001] }
+  goals: { status: covered, sources: [SRC-001] }
+  scope: { status: covered, sources: [SRC-001] }
+  data: { status: covered, sources: [SRC-002] }
+  rules: { status: covered, sources: [SRC-002] }
+  nfr: { status: not_applicable, note: "a calculation change with no new load or latency concern" }
+  acceptance: { status: gap, note: "no explicit acceptance examples" }

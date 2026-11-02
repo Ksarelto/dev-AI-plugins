@@ -1,0 +1,9 @@
+summary: Coverage complete.
+topics:
+  users: { status: covered, sources: [SRC-002] }
+  goals: { status: covered, sources: [SRC-002] }
+  scope: { status: covered, sources: [SRC-001, SRC-002, SRC-003] }
+  data: { status: covered, sources: [SRC-002] }
+  rules: { status: covered, sources: [SRC-003] }
+  nfr: { status: gap, note: "no latency target given" }
+  acceptance: { status: covered, sources: [SRC-002, SRC-003] }

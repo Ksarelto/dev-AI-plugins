@@ -111,3 +111,5 @@ Smells stay judgement calls. A documented standard overrides a smell. Skip anyth
 | [references/i18n.md](references/i18n.md) | new or changed user-facing copy |
 | [references/data-fetching.md](references/data-fetching.md) | `api/` |
 | [references/testing.md](references/testing.md) | every executable file in the diff |
+
+When a finding under `rules/general-coding-principles.mdc` needs its rationale, naming table, or an example, read [references/clean-code-principles.md](references/clean-code-principles.md) and [references/code-syntax-and-formatting.md](references/code-syntax-and-formatting.md). For one under `rules/typescript.mdc`, read [references/typescript-patterns.md](references/typescript-patterns.md).

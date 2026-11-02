@@ -23,6 +23,20 @@ app-dev-kit/                      # nested family — marketplace source is ./ap
   backend-dev-kit/
   agent-dev-kit/
   app-orchestrator-kit/
+app-dev-kitv2/                    # AI factory v2 (Suggestions/ design) — marketplace source is ./app-dev-kitv2/<name>
+  factory/                        # engine: /factory:* skills, CLI (scripts/factory.mjs), schemas, gates, hooks
+  factory-analysis/               # stage pack S0–S4: 8 agents, 10 skills, templates (also the test fixtures)
+  factory-role-frontend/          # role pack: fe-test-author (red), fe-builder (green), prototype-designer + prototyper (living HTML prototype); check/audit scripts
+  factory-quality/                # stage pack S5a/S6/S7: acceptance tests, review, QA
+  factory-delivery/               # stage pack S8/S9: docs, commit plan + PR body, PR-comment triage
+  factory-adapter-github/         # adapter.yaml only: push + draft PR (dry-run by default)
+  factory-role-backend/           # role pack: be-test-author, be-builder, migration-author; OpenAPI audit script
+  factory-role-ai-agent/          # role pack: ai-architect, ai-test-author, ai-builder, ai-rag-builder, eval-author
+  tests/                          # not a plugin: unit tests, e2e harness + scenarios, golden tickets
+  consistency-allowlist.yaml      # scheduled later-phase items and deliberate deviations
+backend-boilerplate/              # runnable Express 5 + Postgres starter (not a plugin; node-backend-dev-kit mirrors it)
+agent-boilerplate/                # runnable Express 5 + LangGraph.js starter (not a plugin; node-agent-dev-kit mirrors it)
+Suggestions/                      # AI-factory design proposal (Markdown + Mermaid)
 schemas/                          # JSON schemas for manifests
 scripts/                          # validation + Cursor local install
 evals/                            # discoverability evals for skills/agents (see evals/README.md)
@@ -82,13 +96,33 @@ run `npm run build:cursor-agents`; `npm run validate` fails while the copies are
 Adding a skill or agent to an *existing* plugin, or changing one's `description`, requires the same
 step 5 — add or update its case in that plugin's eval file. See [evals/README.md](evals/README.md).
 
+## Boilerplates
+
+`backend-boilerplate/` and `agent-boilerplate/` are standalone npm projects (Node 22, own `package-lock.json`, own `.gitignore`), not plugins and not in the marketplaces. Each has `typecheck`, `lint` (ESLint + dependency-cruiser layer rules), `test:unit`, `test:integration` (Testcontainers, needs Docker) and a Compose stack. When you change one, update the matching kit's examples (`node-backend-dev-kit`, `node-agent-dev-kit`) and run its checks. Do not add files named like existing kit references (`shadcn.mdc`, `mock-patterns.md`): `npm run validate` resolves cross-kit references by file name across root folders.
+
 ## Validation
 
 ```bash
 npm install
-npm run validate   # manifest/schema/structure checks
+npm run validate   # manifest/schema/structure checks (+ generated factory files up to date)
 npm run eval        # skill/agent discoverability checks
 ```
+
+## app-dev-kitv2 (AI factory)
+
+The engine (`app-dev-kitv2/factory`) decides everything deterministically from `.factory/` files; agents
+only produce artifacts. When you change it:
+
+- `npm run test:factory` — Layer-1 tests (Node 20 and 22). Add a test for every gate rule or warden change.
+- `npm run test:factory:e2e` — mocked scenarios through the real engine; a new stage or gate needs a scenario step.
+  GT-04 runs S0–S9 on the real stack of `tests/fixtures/fsd-app` (run `npm run setup:factory-fixtures` once; needs Node 22 via nvm);
+  GT-12 and the role scenarios run on copies of `backend-boilerplate/` and `agent-boilerplate/` (the same setup script installs them).
+- Real-model golden tickets (`tests/golden/run-golden.mjs`) cost money: never run with `--yes` without the user's OK.
+- `npm run check:factory` — duplication, agent/stage wiring, model policy, line limits, unique file names,
+  drift from `Suggestions/`. Update `app-dev-kitv2/consistency-allowlist.yaml` when a phase lands.
+- `npm run build:factory` — after changing `factory/hooks/register.mjs` or bumping yaml/ajv/picomatch.
+- ID formats live only in `factory/scripts/lib/ids.mjs`; schema patterns must match it (tested).
+- Each phase ends with a fresh-context reviewer subagent pass before it is committed.
 
 ## Cursor local install
 
@@ -102,6 +136,16 @@ npm run install:cursor-local
 |--------|------|-----------|-------|
 | `base-dev-kit` | `base-dev-kit/` | Rules: honesty, security (always applied). Skills: clean code, dependencies, documentation, git workflow, TDD | `evals/cases/base-dev-kit.json` |
 | `frontend-dev-kit` | `frontend-dev-kit/` | Rules + Skills + MCP (no agents): React 19 FSD — TypeScript, shadcn/ui, Tailwind, react-query, react-hook-form + zod, react-i18next, Vitest. Required companion of `feature-dev-kit` | `evals/cases/frontend-dev-kit.json` |
+| `node-backend-dev-kit` | `node-backend-dev-kit/` | Rules + Skills + MCP (no agents): layered Node 22 + Express 5 + TS APIs — Zod 4, Drizzle/Postgres, JWT + RBAC, problem+json, pino, resilience, OpenAPI, Docker, Vitest + Testcontainers. Mirrors `backend-boilerplate/` | `evals/cases/node-backend-dev-kit.json` |
+| `node-agent-dev-kit` | `node-agent-dev-kit/` | Rules + Skills + MCP (no agents): LangGraph.js + LangChain.js agent services on the same Express stack — tools, OpenRouter models, Postgres checkpoints, pgvector hybrid RAG, guardrails, SSE, evals. Requires `node-backend-dev-kit`. Mirrors `agent-boilerplate/` | `evals/cases/node-agent-dev-kit.json` |
+| `factory` | `app-dev-kitv2/factory/` | Skills + 2 agents + rule + hooks: AI-factory engine — `/factory:*` commands, Conductor step protocol, schemas, gates, Loop Warden, context packs, HD notes. Stage/role packs plug in via manifests (phases 2–5) | `evals/cases/factory.json`, `factory-agents.json` |
+| `factory-analysis` | `app-dev-kitv2/factory-analysis/` | Stages + 8 agents + 10 skills + templates: factory S0–S4 — intake, bootstrap/discovery, requirements (PRD or delta-spec), stories, architecture + API contract, test-first planning | `evals/cases/factory-analysis.json`, `factory-analysis-agents.json` |
+| `factory-role-frontend` | `app-dev-kitv2/factory-role-frontend/` | role.yaml + 4 agents + 4 skills + scripts + MCP (shadcn, context7): frontend role of the factory — red tests and stubs first, builder makes them green (real Vitest, tsc, ESLint, dependency-cruiser, build, plus the convention and duplicate checks ported from feature-dev-kit); the living app prototype in `.factory/prototype/` (prototype-designer, then one prototyper per screen); audits at verification (raw colours, i18n, conventions, duplicates, bundle, axe). Uses `frontend-dev-kit` (stack.yaml) | `evals/cases/factory-role-frontend.json`, `factory-role-frontend-agents.json` |
+| `factory-role-backend` | `app-dev-kitv2/factory-role-backend/` | role.yaml + 3 agents + 3 skills + scripts: backend role — red tests against in-memory fakes, layered Express 5 builder, migration author (journal + rollback, destructive SQL needs an HD note); OpenAPI-conformance audit at verification. Uses `node-backend-dev-kit` | `evals/cases/factory-role-backend.json`, `factory-role-backend-agents.json` |
+| `factory-role-ai-agent` | `app-dev-kitv2/factory-role-ai-agent/` | role.yaml + 5 agents + 5 skills: AI-agent role — architect (agent-design.md), test author with a scripted model, LangGraph and RAG builders, eval author; eval run gates model-facing tasks. Uses `node-agent-dev-kit` | `evals/cases/factory-role-ai-agent.json`, `factory-role-ai-agent-agents.json` |
+| `factory-quality` | `app-dev-kitv2/factory-quality/` | Stages + 3 agents + 3 skills: acceptance tests before the build, machine checks then the seven-lens review (reviewer + role audit scripts), exploratory QA; failures become fix tasks | `evals/cases/factory-quality.json`, `factory-quality-agents.json` |
+| `factory-delivery` | `app-dev-kitv2/factory-delivery/` | Stages + 2 agents + 4 skills + PR template: feature docs, commit plan, PR body, PR-comment triage. The engine commits and ships | `evals/cases/factory-delivery.json`, `factory-delivery-agents.json` |
+| `factory-adapter-github` | `app-dev-kitv2/factory-adapter-github/` | adapter.yaml only: `git push` + `gh pr create --draft` for the factory; dry-run by default | — |
 | `pptx-dev-kit` | `pptx-dev-kit/` | Skills + Agents: create a 16:9 `.pptx` via design schema → outline → `deck.json` → checked-in layout renderer; or edit an existing deck via OOXML unpack/replace/pack | `evals/cases/pptx-dev-kit.json`, `pptx-dev-kit-agents.json` |
 | `backend-dev-kit` | `app-dev-kit/backend-dev-kit/` | Rules + Skills + Agents + MCP: Node 22/TS Express 5 APIs with Drizzle, Zod, and Vitest; `/backend-dev` consumes a spec and optional prototype | `evals/cases/backend-dev-kit.json`, `backend-dev-kit-agents.json` |
 | `agent-dev-kit` | `app-dev-kit/agent-dev-kit/` | Rules + Skills + Agents + MCP: TypeScript/Node agents and RAG with the OpenAI SDK via OpenRouter (`@openai/agents` or LangGraph.js); `/agent-dev` consumes a spec and optional prototype | `evals/cases/agent-dev-kit.json`, `agent-dev-kit-agents.json` |

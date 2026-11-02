@@ -1,0 +1,31 @@
+{
+  "plugin": "factory-role-backend",
+  "source": "./app-dev-kitv2/factory-role-backend",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Write failing backend tests first for this API task, red phase",
+      "expect": "be-test-author"
+    },
+    {
+      "prompt": "Pin today's API behaviour with characterisation tests before a backend change",
+      "expect": "be-test-author"
+    },
+    {
+      "prompt": "Implement the backend endpoint until the red tests pass, green phase",
+      "expect": "be-builder"
+    },
+    {
+      "prompt": "Build the service and repository wiring so the Express task is green",
+      "expect": "be-builder"
+    },
+    {
+      "prompt": "Write the database migration and its rollback for this task",
+      "expect": "migration-author"
+    },
+    {
+      "prompt": "Schema change: new Drizzle table with forward SQL and down migration",
+      "expect": "migration-author"
+    }
+  ]
+}

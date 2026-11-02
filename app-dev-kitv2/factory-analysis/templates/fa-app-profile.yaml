@@ -1,0 +1,13 @@
+# Worked example. Validated by factory/schemas/app-profile.schema.json
+# Discovery writes origin: discovered (as here); Bootstrap writes origin: greenfield.
+name: acme-portal
+goal: Self-service portal for B2B customers to order and track spare parts
+scope: [catalogue, cart, checkout, order-tracking, account]
+out_of_scope: [payments-provider-admin, mobile-native]
+components:
+  frontend: { stack: frontend-dev-kit, path: "." }
+nfr:
+  web_vitals: { lcp_ms: 2500, inp_ms: 200 }
+  a11y: WCAG_2.2_AA
+conformance: conformant
+origin: discovered

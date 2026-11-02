@@ -1,0 +1,185 @@
+// Shared helpers for the factory engine: paths, file IO with atomic writes, hashing, globbing.
+import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { YAML, picomatch } from "../vendor/deps.bundle.mjs";
+
+export { YAML };
+export const ENGINE_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
+export const FACTORY_DIR = ".factory";
+
+/** Thrown for problems the user must fix (bad args, missing files). The CLI maps it to exit 2. */
+export class UsageError extends Error {}
+
+export function factoryPaths(projectDir) {
+  const root = join(projectDir, FACTORY_DIR);
+  return {
+    project: projectDir,
+    root,
+    config: join(root, "factory.config.yaml"),
+    state: join(root, "state.json"),
+    events: join(root, "events.jsonl"),
+    inbox: join(root, "inbox"),
+    context: join(root, "context"),
+    features: join(root, "features"),
+    registry: join(root, ".registry"),
+    active: join(root, ".active"),
+    logs: join(root, "logs"),
+  };
+}
+
+export function readText(path) {
+  return readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+}
+
+export function readJson(path, fallback) {
+  if (!existsSync(path)) {
+    if (fallback !== undefined) return fallback;
+    throw new UsageError(`missing file: ${path}`);
+  }
+  return JSON.parse(readText(path));
+}
+
+export function readYaml(path, fallback) {
+  if (!existsSync(path)) {
+    if (fallback !== undefined) return fallback;
+    throw new UsageError(`missing file: ${path}`);
+  }
+  return YAML.parse(readText(path)) ?? {};
+}
+
+/** Splits `---\nyaml\n---\nbody` into { data, body }; data is {} when there is no front matter. */
+export function readFrontMatter(path) {
+  const text = readText(path);
+  const match = /^---\n([\s\S]*?)\n---\n?([\s\S]*)$/.exec(text);
+  if (!match) return { data: {}, body: text };
+  return { data: YAML.parse(match[1]) ?? {}, body: match[2] };
+}
+
+/** Write via a temp file and rename, so a crash never leaves a half-written state file. */
+export function writeAtomic(path, content) {
+  mkdirSync(dirname(path), { recursive: true });
+  const tmp = `${path}.${process.pid}.tmp`;
+  writeFileSync(tmp, content);
+  renameSync(tmp, path);
+}
+
+export const writeJson = (path, value) => writeAtomic(path, `${JSON.stringify(value, null, 2)}\n`);
+export const writeYaml = (path, value) => writeAtomic(path, YAML.stringify(value, { lineWidth: 0 }));
+
+export function sha(text, algo = "sha256") {
+  return createHash(algo).update(text).digest("hex");
+}
+
+/** Hash of a file with line endings normalised, so CRLF checkouts hash the same. */
+export function fileHash(path) {
+  return existsSync(path) ? sha(readText(path)) : null;
+}
+
+/** Environment that changes what a stack command runs; part of every tree hash. */
+const RUN_ENV = /^(PATH|NODE_OPTIONS|NODE_ENV|NODE_PATH|CI|FACTORY_NODE_BIN|npm_config_.*|VITEST_.*)$/;
+
+/**
+ * The state of the project's working tree: HEAD plus every changed, untracked or ignored file (not
+ * .factory/) with its content hash, and the environment that changes what commands run. Ignored
+ * directories (node_modules, dist) count by name only. Null outside git, or when a nested repository
+ * or submodule hides its changes — then nothing proves the code is the same.
+ */
+export function treeHash(projectDir) {
+  const git = (args) => spawnSync("git", args, { cwd: projectDir, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const head = git(["rev-parse", "--verify", "--quiet", "HEAD"]);
+  const status = git(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored=matching", "--ignore-submodules=none", "--", ".", ":(exclude).factory"]);
+  const root = git(["rev-parse", "--show-toplevel"]).stdout.trim();
+  if (status.status !== 0 || !root) return null;
+  const entries = [];
+  for (const e of status.stdout.split("\0").filter(Boolean)) {
+    const code = e.slice(0, 2);
+    const file = e.slice(3);
+    const full = join(root, file);
+    const isDir = file.endsWith("/") || (existsSync(full) && statSync(full).isDirectory());
+    if (isDir && code !== "!!") return null; // a nested repository or submodule: its changes are invisible here
+    entries.push(`${code} ${file} ${isDir || !existsSync(full) ? "-" : fileHash(full)}`);
+  }
+  const env = Object.keys(process.env).filter((k) => RUN_ENV.test(k)).sort().map((k) => `${k}=${process.env[k]}`);
+  return sha(`${head.stdout.trim()}\n${entries.sort().join("\n")}\n${env.join("\n")}`);
+}
+
+/**
+ * The working tree outside .factory/ as { HEAD, files: { path: hash | "-" } }: every changed, added or
+ * untracked file (git status), not ignored ones (build output). null outside git.
+ */
+export function fileStates(projectDir) {
+  const git = (args) => spawnSync("git", args, { cwd: projectDir, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const status = git(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", ".", ":(exclude).factory"]);
+  const root = git(["rev-parse", "--show-toplevel"]).stdout.trim();
+  if (status.status !== 0 || !root) return null;
+  const files = {};
+  const parts = status.stdout.split("\0").filter(Boolean);
+  for (let i = 0; i < parts.length; i++) {
+    const code = parts[i].slice(0, 2);
+    const file = parts[i].slice(3);
+    if (code[0] === "R" || code[0] === "C") i++; // the rename's source path follows
+    const full = join(root, file);
+    files[toPosix(file)] = existsSync(full) && !statSync(full).isDirectory() ? fileHash(full) : "-";
+  }
+  return { head: git(["rev-parse", "--verify", "--quiet", "HEAD"]).stdout.trim(), files };
+}
+
+/** Files that differ between two fileStates snapshots (a new commit counts as every file it touched). */
+export function changedSince(before, after) {
+  if (!before || !after) return [];
+  const keys = new Set([...Object.keys(before.files), ...Object.keys(after.files)]);
+  const changed = [...keys].filter((k) => before.files[k] !== after.files[k]).sort();
+  return before.head !== after.head && !changed.length ? ["(HEAD moved: a commit was made outside the factory)"] : changed;
+}
+
+export const toPosix = (p) => p.split(sep).join("/");
+
+export function matchesAny(path, globs = []) {
+  if (!globs.length) return false;
+  return picomatch(globs, { dot: true })(toPosix(path));
+}
+
+/** Recursively lists files under dir as posix paths relative to base (skips node_modules and .git). */
+export function listFiles(dir, base = dir) {
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const name of readdirSync(dir)) {
+    if (name === "node_modules" || name === ".git") continue;
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) out.push(...listFiles(full, base));
+    else out.push(toPosix(relative(base, full)));
+  }
+  return out.sort();
+}
+
+export const now = () => new Date().toISOString();
+
+/** Deep merge where objects merge key by key and everything else (arrays included) replaces. */
+export function deepMerge(base, over) {
+  if (over === undefined) return base;
+  if (!isPlainObject(base) || !isPlainObject(over)) return structuredClone(over);
+  const out = { ...base };
+  for (const [key, value] of Object.entries(over)) out[key] = deepMerge(base[key], value);
+  return out;
+}
+
+export const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
+
+export function getPath(obj, dotted) {
+  return dotted.split(".").reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+}
+
+/** Minimal caret-range check for `requires: { factory: "^0.1" }` style constraints. */
+export function satisfiesRange(version, range) {
+  if (!range || range === "*") return true;
+  const parse = (v) => v.replace(/^[\^~>=v ]+/, "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+  const [ma, mi, pa] = parse(version);
+  const [rma, rmi = 0, rpa = 0] = parse(range);
+  const gte = ma > rma || (ma === rma && (mi > rmi || (mi === rmi && pa >= rpa)));
+  if (range.startsWith("^")) return gte && (rma === 0 ? ma === 0 && mi === rmi : ma === rma);
+  if (range.startsWith(">=")) return gte;
+  return ma === rma && mi === rmi && pa === rpa;
+}

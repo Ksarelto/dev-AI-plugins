@@ -1,0 +1,70 @@
+# How the factory (app-dev-kitv2) drives this stack; read by factory-role-frontend's gates.
+# Commands name package scripts or binaries; the engine adds the project's package manager.
+# Placeholders: {files} = the task's test files, {report} = a JSON report path.
+name: frontend-dev-kit
+reference_architecture: "Feature-Sliced Design: app → pages → widgets → features → entities → shared; one public index.ts per slice; no same-layer imports"
+package_manager: pnpm
+node_version: ">=22.12"
+commands:
+  typecheck: { script: typecheck }
+  lint: { script: lint }
+  architecture_check: { exec: depcruise, args: [src] }
+  test: { script: "test:run", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  build: { script: build }
+test_report: vitest-json
+test_scoped_args: [--changed]   # task gates run only the tests the uncommitted changes touch; verification runs all
+test_globs: ["src/**/*.test.ts", "src/**/*.test.tsx"]
+# Task type → the skill(s) its dispatch loads; `test` is added for red and characterisation phases.
+skills:
+  test: frontend-dev-kit:testing
+  entity-model: [frontend-dev-kit:api-client, frontend-dev-kit:react-query-hook]
+  api-client: frontend-dev-kit:api-client
+  query-hook: frontend-dev-kit:react-query-hook
+  feature-ui: [frontend-dev-kit:react-feature, frontend-dev-kit:react-component, frontend-dev-kit:error-handling]
+  component: [frontend-dev-kit:react-component, frontend-dev-kit:shadcn-usage, frontend-dev-kit:accessibility]
+  form: [frontend-dev-kit:rhf-form, frontend-dev-kit:shadcn-usage]
+  page: [frontend-dev-kit:routing, frontend-dev-kit:error-handling]
+  route: frontend-dev-kit:routing
+  store: frontend-dev-kit:zustand
+  i18n: frontend-dev-kit:i18n
+  styling-token: frontend-dev-kit:tailwind-styles
+  refactor: frontend-dev-kit:architecture-audit
+# Task type → exemplar file(s) the builder matches.
+golden_files:
+  entity-model: skills/api-client/examples.md
+  api-client: skills/api-client/examples.md
+  component: skills/react-component/examples.md
+  feature-ui: skills/react-feature/examples.md
+  query-hook: skills/react-query-hook/examples.md
+  form: skills/rhf-form/examples.md
+  page: skills/routing/examples.md
+  route: skills/routing/examples.md
+  store: skills/zustand/examples.md
+  i18n: skills/i18n/examples.md
+  styling-token: skills/tailwind-styles/examples.md
+# Rule files a task reads: "*" plus its own type. Stage agents named in stage_skills see all of them.
+rules:
+  "*": [rules/general-coding-principles.mdc, rules/typescript.mdc, rules/testing.mdc, rules/honesty.mdc]
+  entity-model: [rules/api-contract.mdc]
+  api-client: [rules/api-contract.mdc]
+  query-hook: [rules/api-contract.mdc, rules/react.mdc]
+  feature-ui: [rules/react.mdc, rules/component-structure.mdc, rules/styling.mdc, rules/i18n.mdc, rules/shadcn.mdc]
+  component: [rules/react.mdc, rules/component-structure.mdc, rules/styling.mdc, rules/i18n.mdc, rules/shadcn.mdc]
+  form: [rules/react.mdc, rules/component-structure.mdc, rules/styling.mdc, rules/i18n.mdc, rules/shadcn.mdc]
+  page: [rules/react.mdc, rules/component-structure.mdc, rules/styling.mdc, rules/i18n.mdc]
+  route: [rules/react.mdc]
+  store: [rules/react.mdc]
+  i18n: [rules/i18n.mdc]
+  styling-token: [rules/styling.mdc, rules/shadcn.mdc]
+  fix: [rules/react.mdc, rules/component-structure.mdc, rules/styling.mdc, rules/i18n.mdc, rules/api-contract.mdc]
+  refactor: [rules/react.mdc, rules/component-structure.mdc, rules/styling.mdc, rules/i18n.mdc, rules/api-contract.mdc]
+# Stage agent → skills it loads as reference (it keeps its own procedure).
+stage_skills:
+  solution-architect: frontend-dev-kit:architecture-audit
+  planner: frontend-dev-kit:architecture-audit
+  test-strategist: frontend-dev-kit:testing
+  acceptance-test-author: frontend-dev-kit:testing
+  reviewer: [frontend-dev-kit:code-review, frontend-dev-kit:accessibility]
+  qa-engineer: [frontend-dev-kit:accessibility, frontend-dev-kit:browser-debug]
+index_adapter: fsd
+boilerplate: null   # per project: roles.frontend.boilerplate in factory.config.yaml

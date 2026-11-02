@@ -1,0 +1,161 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/tasks",
+  "title": "tasks.yaml \u2014 the task DAG, written only by the planner",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "feature",
+    "tasks"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "role",
+          "type",
+          "title",
+          "depends_on",
+          "satisfies",
+          "files_expected",
+          "reuse",
+          "definition_of_done"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^TASK-\\d{3}$"
+          },
+          "role": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^TASK-\\d{3}$"
+            }
+          },
+          "satisfies": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^AC-\\d{4}$"
+            }
+          },
+          "files_expected": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "tdd": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "mode"
+            ],
+            "properties": {
+              "mode": {
+                "enum": [
+                  "required",
+                  "exempt"
+                ]
+              },
+              "reason": {
+                "type": "string"
+              },
+              "red_tests": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "stubs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "reuse": {
+            "type": "object",
+            "required": [
+              "considered",
+              "reuse_rejected"
+            ],
+            "properties": {
+              "considered": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "reuse_rejected": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "definition_of_done": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "size": {
+            "type": "object",
+            "properties": {
+              "files": {
+                "type": "integer"
+              },
+              "est_loc": {
+                "type": "integer"
+              }
+            }
+          },
+          "contract_ops": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "characterisation": {
+            "type": "boolean"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "removes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^REQ-\\d{4}$"
+            },
+            "description": "REQs from delta-spec.removed whose behaviour this task takes out"
+          }
+        }
+      }
+    }
+  }
+}

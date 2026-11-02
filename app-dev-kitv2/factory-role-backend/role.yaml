@@ -1,0 +1,24 @@
+# The role contract (Suggestions/05) for layered Node backends. Migrations get their own builder.
+# scripts/check-migrations.mjs runs in gate-impl for every backend task: any changed migration needs a
+# journal entry, a paired rollback and human-approved destructive statements, and a migration task
+# must change one.
+name: backend
+default_stack: node-backend-dev-kit
+task_types: [characterisation, fix, refactor, endpoint, validation, service, repository, migration, auth, error-mapping, resilience, openapi, config]
+agents:
+  test_author: be-test-author
+  builder: be-builder
+  builders: { migration: migration-author }
+gates:
+  red: red
+  impl: impl
+  checks:
+    - { name: migrations, node: scripts/check-migrations.mjs }
+  # At verification the engine compares the OpenAPI document with the agreed contract (when there is one)
+  # and re-checks every migration the feature changed, planned or not.
+  audits:
+    - { name: openapi, node: scripts/openapi-conformance.mjs, args: [--contract, "{api-contract}", --document, src/openapi/document.ts] }
+    - { name: migrations, node: scripts/check-migrations.mjs, files: "drizzle/[^/]+\\.sql$", args: [--project, ".", --findings, --files, "{files}"] }
+# A layered endpoint touches route, controller, container and its test; a migration is five files.
+budgets: { task_limits: { endpoint: { files_max: 5 }, service: { files_max: 4 }, migration: { files_max: 6 } } }
+requires: { factory: "^0.1" }

@@ -1,0 +1,11 @@
+id: planning
+title: S4 Planning (fixture)
+kind: agents
+agents: [planner-fx]
+inputs: ["prd|delta-spec", stories, human-notes?]
+outputs: [tasks, test-plan]
+gate: plan
+human_gate: GATE-B
+on_fail: retry
+tracked_ids: [AC, HD]
+requires: { factory: "^0.1" }

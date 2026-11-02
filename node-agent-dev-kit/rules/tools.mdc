@@ -1,0 +1,20 @@
+---
+description: LangChain tools for LangGraph agents — tool() with a bounded Zod schema, a stable snake_case name and a model-facing description, injected dependencies, timeouts, failures returned as text, artifacts for data the service needs, read-only by default, and interrupt() approval for writes.
+globs: ["**/src/agents/**/tools/**/*.ts"]
+alwaysApply: false
+---
+
+# Tools
+
+- One tool per file: `agents/<name>/tools/<kebab-name>.ts` exports `create<Name>Tool(deps)` returning `tool(fn, { name, description, schema })`. Register it in `tools/index.ts`; the same array goes to `bindTools` and `new ToolNode(...)`.
+- `name` is `snake_case` and stable. `description` says when to use the tool and what the input is. It is a prompt: a change ships with an eval run.
+- `schema` is `z.object({...})` with bounds on every field (`min`, `max`) and `.describe()` where the meaning is not obvious. Never `z.any()` or an unbounded string.
+- Dependencies (retriever, clock, HTTP client) are factory arguments. No imports of repositories, `db`, `services/` or `Env`.
+- Every awaited dependency has a timeout (`withTimeout(promise, ms, label)`). An outage returns a short message the model can relay and sets `degraded: true` in the artifact; it does not throw.
+- Data the service needs but the model must not see (citations, ids, the degraded flag) goes in the artifact: `responseFormat: 'content_and_artifact'`, return `[content, artifact]`, export the artifact interface.
+- Text from outside (documents, web pages, API payloads) is wrapped with `asUntrustedDocument(...)` before it is returned.
+- Tools are read-only and idempotent by default. A tool that writes, sends or pays calls `interrupt()` for human approval before acting, and never inside a `try/catch` that would swallow the interrupt.
+- Caller identity never comes from model arguments. A tool that needs the user reads `config.configurable.user_id`, set by the service.
+- Keep output small: cap result counts (`RETRIEVAL_TOP_K`) and trim long text. Tool output is re-sent on every later model call of the turn.
+
+Procedure: `agent-tools` skill.

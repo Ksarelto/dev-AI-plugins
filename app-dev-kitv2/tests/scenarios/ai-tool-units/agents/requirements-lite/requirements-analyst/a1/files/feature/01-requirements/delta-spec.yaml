@@ -1,0 +1,17 @@
+feature: FEAT-001
+mode: change-request
+summary: A unit conversion tool for distances
+added:
+  - id: REQ-0001
+    text: The assistant converts distances between kilometres and miles with a tool
+    sources: [SRC-002, SRC-003]
+    priority: must
+    acs:
+      - { id: AC-0001, text: 'The convert_units tool turns 10 km into "6.21 mi" and 5 mi into "8.05 km"' }
+      - { id: AC-0002, text: 'Asked to convert "furlongs", the tool answers "Supported units: km, mi" and the assistant relays it' }
+modified: []
+removed: []
+unchanged_guarantees: ["The existing tools and the system prompt are unchanged"]
+sources_not_used:
+  - { id: SRC-001, reason: "context: the assistant cannot convert units today" }
+open_questions: []

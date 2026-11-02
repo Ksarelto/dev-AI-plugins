@@ -1,0 +1,20 @@
+---
+description: Testing LLM agents — offline unit tests with scripted models, synthetic embeddings and MemorySaver; integration tests with the real PostgresSaver and pgvector; real-model golden evals in a separate Vitest project that is skipped without OPENROUTER_API_KEY and fails below an 80% pass rate.
+globs: ["**/tests/**/agents/**/*.ts", "**/tests/helpers/scripted-model.ts", "**/tests/unit/guardrails/**/*.ts", "**/tests/unit/rag/**/*.ts", "**/evals/**/*.ts"]
+alwaysApply: false
+---
+
+# Agent testing
+
+- HTTP, Testcontainers and supertest conventions are the `testing` rule of `node-backend-dev-kit`. This rule covers graphs and models.
+- `npm test` (projects `unit` + `integration`) never calls a real model and never needs `OPENROUTER_API_KEY`. Models are `scriptedModel([...turns])` from `tests/helpers/scripted-model.ts`; embeddings are `SyntheticEmbeddings({ vectorSize })`.
+- Never `vi.mock` a `@langchain/*` module and never stub `graph.invoke`. Build the real graph with `build<Name>Graph` and `createMemoryCheckpointer()` and drive it through the service.
+- Script turns with `callTool(name, args, id)`, `answer(text)`, `answerCitingFirstResult(text)` and `failing(message)`. Assert on `model.calls` to prove what the model saw: wrapped documents, history, no call when blocked.
+- Every graph has unit tests for: tool loop with a cited answer, memory across turns of one `thread_id`, retrieval failure → `degraded: true`, guard block with zero model calls, the step-limit message, provider failure → 503 `LLM_UNAVAILABLE`, another user's thread → 404, and a stream ending in a `done` event.
+- Every tool has a success test and a failure or timeout test. Every guardrail pattern has a blocking case and a benign look-alike that passes.
+- Integration tests run the real `PostgresSaver` and the real hybrid SQL on `pgvector/pgvector:pg17`, with `setupCheckpointer` in global setup. Only the model and embeddings are replaced, through `ContainerOptions`; `null` tests the not-configured path.
+- Real-model evals live in `evals/*.eval.ts`, run only in the `eval` Vitest project (`npm run eval`), and are wrapped in `describe.skipIf(!hasKey)`. They never run in `npm test` or on pull requests from forks.
+- Evals load `evals/golden/*.json`, check required citations and phrases in code, use an LLM judge (`withStructuredOutput`) only for faithfulness, and fail below `PASS_RATE_THRESHOLD` (0.8). Never lower the threshold to make a change pass.
+- Run `npm run eval` before and after changing a prompt, a tool description, chunking, retrieval or a model, and report both pass rates.
+
+Procedure: `agent-evals` skill.

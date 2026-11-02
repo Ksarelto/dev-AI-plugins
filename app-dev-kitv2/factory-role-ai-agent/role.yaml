@@ -1,0 +1,21 @@
+# The role contract (Suggestions/05) for LangGraph.js agent services. The architect joins S3
+# (role:architect) with the graph design; RAG and eval tasks have their own builders; every task
+# that changes model-facing behaviour must also pass the eval run (stack command `eval`, only the evals
+# the change touches; the whole suite runs once at verification), whose
+# thresholds live in the eval suite itself.
+name: ai-agent
+default_stack: node-agent-dev-kit
+task_types: [characterisation, fix, refactor, graph, state, node, tool, prompt, model, memory, rag, streaming, guardrail, eval]
+agents:
+  test_author: ai-test-author
+  builder: ai-builder
+  builders: { rag: ai-rag-builder, eval: eval-author }
+  architect: ai-architect
+gates:
+  red: red
+  impl: impl
+  checks:
+    - { name: eval, command: eval, report: true, per_ac: true, at_verify: true, task_types: [graph, node, tool, prompt, model, rag, guardrail, eval] }
+# A tool is its factory, the registry and a test; a graph change also touches state and a node.
+budgets: { task_limits: { tool: { files_max: 4 }, graph: { files_max: 5 }, rag: { files_max: 4 } } }
+requires: { factory: "^0.1" }

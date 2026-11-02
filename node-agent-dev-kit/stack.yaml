@@ -1,0 +1,66 @@
+# How the factory (app-dev-kitv2) drives this stack. Read by factory-role-ai-agent's gates.
+# Commands name package scripts or binaries; the engine adds the project's package manager.
+# Placeholders: {files} = the task's test files, {report} = a JSON report path.
+name: node-agent-dev-kit
+reference_architecture: "Express layering plus services → agents/<name> (LangGraph state, graph, nodes, tools) with injected models and retrievers; hybrid RAG; Postgres checkpointer"
+package_manager: npm
+node_version: ">=22.12"
+commands:
+  typecheck: { script: typecheck }
+  lint: { script: lint }
+  architecture_check: { exec: depcruise, args: [src, --config, .dependency-cruiser.cjs] }
+  test: { script: "test:unit", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  test_integration: { script: "test:integration" }
+  eval: { script: eval, args: [--reporter=json, "--outputFile={report}"] }   # real models; thresholds live in the suite
+  build: { script: build }
+test_report: vitest-json
+test_scoped_args: [--changed]   # task gates run only the tests the uncommitted changes touch; verification runs all
+test_globs: ["tests/**/*.test.ts"]
+# Task type → the skill(s) its dispatch loads; `test` is added for red and characterisation phases.
+skills:
+  test: node-agent-dev-kit:agent-evals
+  graph: [node-agent-dev-kit:langgraph-agent, node-agent-dev-kit:graph-state-design]
+  state: node-agent-dev-kit:graph-state-design
+  node: node-agent-dev-kit:langgraph-agent
+  tool: [node-agent-dev-kit:agent-tools, node-agent-dev-kit:human-in-the-loop]
+  prompt: [node-agent-dev-kit:guardrails-safety, node-agent-dev-kit:llm-models]
+  model: node-agent-dev-kit:llm-models
+  memory: node-agent-dev-kit:checkpointing-memory
+  rag: node-agent-dev-kit:rag-pipeline
+  streaming: [node-agent-dev-kit:streaming-api, node-agent-dev-kit:agent-observability]
+  guardrail: node-agent-dev-kit:guardrails-safety
+  eval: node-agent-dev-kit:agent-evals
+# Task type → exemplar file(s) the builder matches.
+golden_files:
+  graph: skills/langgraph-agent/examples.md
+  node: skills/langgraph-agent/examples.md
+  state: skills/graph-state-design/examples.md
+  tool: skills/agent-tools/examples.md
+  model: skills/llm-models/examples.md
+  memory: skills/checkpointing-memory/examples.md
+  rag: skills/rag-pipeline/examples.md
+  streaming: skills/streaming-api/examples.md
+  guardrail: skills/guardrails-safety/examples.md
+  eval: skills/agent-evals/examples.md
+# Rule files a task reads: "*" plus its own type. Stage agents named in stage_skills see all of them.
+rules:
+  "*": [rules/stack.mdc, rules/agent-architecture.mdc, rules/agent-testing.mdc, rules/llm-calls.mdc]
+  graph: [rules/langgraph-state.mdc, rules/prompt-security.mdc]
+  state: [rules/langgraph-state.mdc]
+  node: [rules/langgraph-state.mdc, rules/prompt-security.mdc]
+  tool: [rules/tools.mdc]
+  prompt: [rules/prompt-security.mdc]
+  memory: [rules/langgraph-state.mdc]
+  rag: [rules/rag.mdc]
+  streaming: [rules/agent-observability.mdc]
+  guardrail: [rules/prompt-security.mdc]
+  fix: [rules/langgraph-state.mdc, rules/tools.mdc]
+  refactor: [rules/langgraph-state.mdc, rules/tools.mdc]
+# Stage agent → skills it loads as reference (it keeps its own procedure).
+stage_skills:
+  ai-architect: [node-agent-dev-kit:langgraph-agent, node-agent-dev-kit:graph-state-design, node-agent-dev-kit:agent-tools, node-agent-dev-kit:rag-pipeline, node-agent-dev-kit:llm-models, node-agent-dev-kit:human-in-the-loop, node-agent-dev-kit:multi-agent]
+  planner: node-agent-dev-kit:langgraph-agent
+  test-strategist: node-agent-dev-kit:agent-evals
+  reviewer: [node-agent-dev-kit:guardrails-safety, node-agent-dev-kit:agent-evals]
+index_adapter: langgraph
+boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }

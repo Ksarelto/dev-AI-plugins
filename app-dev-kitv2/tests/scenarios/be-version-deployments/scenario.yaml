@@ -1,0 +1,38 @@
+id: be-version-deployments
+title: "Backend role on backend-boilerplate (patch tier): an endpoint task red → green and a migration task whose first attempt lacks a rollback, to a dry-run PR"
+repos: [{ from: backend-boilerplate, to: "." }]
+stack_kits: [node-backend-dev-kit]
+intake: { title: Service version and deployment log }
+config:
+  roles:
+    frontend: { enabled: false }
+    backend: { enabled: true, pack: factory-role-backend, stack: node-backend-dev-kit, path: ".", owns_paths: ["src/**", "tests/**", "drizzle/**"] }
+  quality: { integration_tests: skip }   # mocked runs: no Docker
+  pipeline:
+    profile: be
+    profiles: { be: [intake, requirements-lite, implementation, verification-lite, delivery, feedback] }
+expect:
+  final_action: done
+  final_status: done
+  dispatches_max: 12
+  gates: [GATE-C]
+  verdicts:
+    - { stage: intake, verdict: advance }
+    - { stage: requirements-lite, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: retry }
+    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: verification-lite, verdict: advance }
+    - { stage: delivery, verdict: advance }
+  models:
+    be-test-author: sonnet
+    be-builder: sonnet
+    migration-author: sonnet
+    reviewer: opus
+    release-manager: sonnet
+  ship: { commits: 3, dry_run: true, trailers: ["Factory-Task: TASK-001", "Factory-Task: TASK-002"] }
+  ledger: delivered
+  files_contain:
+    src/controllers/health.controller.ts: "version"
+    drizzle/rollback/0001_deployments.down.sql: 'DROP TABLE "deployments"'

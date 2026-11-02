@@ -1,0 +1,67 @@
+id: gt04-coupons
+title: "GT-04 coupons at checkout — a change request from intake to a shipped branch and dry-run PR (S0–S9) on the real stack"
+repo_from: fsd-app
+stack_kits: [frontend-dev-kit]
+intake: { title: Coupons at checkout }
+config:
+  # The fixture app predates frontend-dev-kit's conventions (no i18n, tests beside components), so the
+  # convention check is off for it; the duplicate check, the layer rules and the rest still run.
+  roles: { frontend: { enabled: true, owns_paths: ["src/**"], checks_off: [conventions], stack_overrides: { package_manager: pnpm } } }
+  pipeline:
+    profile: analysis
+    profiles: { analysis: [intake, discovery, requirements, stories, prototype, architecture, planning, acceptance, implementation, verification, qa, docs, delivery, feedback] }
+expect:
+  final_action: done
+  final_status: done
+  dispatches_max: 35   # the prototype is a designer plus one prototyper per screen
+  gates: [CLARIFY, GATE-D, GATE-A, GATE-P, GATE-B, GATE-C]
+  verdicts:
+    - { stage: intake, verdict: ask_human }
+    - { stage: intake, verdict: advance }
+    - { stage: discovery, verdict: retry }
+    - { stage: discovery, verdict: advance }
+    - { stage: requirements, verdict: retry }
+    - { stage: requirements, verdict: advance }
+    - { stage: stories, verdict: advance }
+    - { stage: prototype, verdict: advance }
+    - { stage: architecture, verdict: advance }
+    - { stage: planning, verdict: advance }
+    - { stage: acceptance, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: retry }
+    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: implementation, task: TASK-003, verdict: advance }
+    - { stage: implementation, task: TASK-003, verdict: advance }
+    - { stage: implementation, verdict: fixplan }   # the precheck finds the failing acceptance tests: no review round
+    - { stage: implementation, task: TASK-004, verdict: advance }
+    - { stage: implementation, task: TASK-004, verdict: advance }
+    - { stage: verification, verdict: advance }
+    - { stage: qa, verdict: advance }
+    - { stage: docs, verdict: advance }
+    - { stage: delivery, verdict: advance }
+  models:
+    intake-normaliser: haiku
+    codebase-analyst: sonnet
+    requirements-analyst: opus
+    story-writer: sonnet
+    solution-architect: opus
+    contract-steward: sonnet
+    planner: { default: opus, fixplan: sonnet }   # a fix plan for a known failure list is execution-tier work
+    test-strategist: sonnet
+    fe-test-author: sonnet
+    fe-builder: sonnet
+    prototype-designer: sonnet
+    prototyper: sonnet
+    acceptance-test-author: sonnet
+    reviewer: opus
+    qa-engineer: sonnet
+    tech-writer: haiku
+    release-manager: sonnet
+  denied_writes:
+    - { agent: requirements-analyst, file: src/features/apply-coupon/hack.ts }
+    - { agent: fe-builder, file: src/entities/order/model/total.test.ts }
+  notes: { HD-1: mapped, HD-2: mapped }
+  trace: true
+  ship: { commits: 6, dry_run: true, trailers: ["Factory-Task: TASK-002", "Factory-Task: TASK-004"] }
+  ledger: changed

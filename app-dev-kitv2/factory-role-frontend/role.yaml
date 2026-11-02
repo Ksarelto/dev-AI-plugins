@@ -1,0 +1,31 @@
+# The role contract (Suggestions/05): who writes tests, who builds, which gates decide, and the task
+# types the planner may route here (gate-plan rejects others). Which types may skip TDD is decided
+# once, in quality.tdd.exempt_types; procedure skills per type come from the stack's stack.yaml.
+name: frontend
+default_stack: frontend-dev-kit
+task_types: [characterisation, fix, refactor, entity-model, api-client, query-hook, component, feature-ui, form, page, route, store, i18n, styling-token]
+agents:
+  test_author: fe-test-author
+  builder: fe-builder
+  prototype_designer: prototype-designer   # shared design, shell and screens.yaml of the living prototype
+  prototyper: prototyper                   # one dispatch per screen the designer marks added or changed
+gates:
+  red: red
+  impl: impl
+  # Run in gate-impl on the task's files (ported from feature-dev-kit): FSD/React conventions of the
+  # frontend-dev-kit rules that a script can check, and bodies duplicated across slices.
+  checks:
+    - { name: conventions, node: scripts/fe-conventions.mjs }
+    - { name: duplicates, node: scripts/fe-duplicates.mjs }
+  # Run by the engine at verification on the change set; their findings join the review.
+  audits:
+    - { name: raw-colours, node: scripts/audit-raw-colours.mjs, files: "\\.(tsx?|css)$" }
+    - { name: i18n, node: scripts/audit-i18n.mjs, files: "\\.tsx$" }
+    - { name: conventions, node: scripts/fe-conventions.mjs, files: "\\.(tsx?|css)$", args: [--findings, "{files}"] }
+    - { name: duplicates, node: scripts/fe-duplicates.mjs, files: "\\.tsx?$", args: [--findings, "{files}"] }
+    - { name: bundle, node: scripts/audit-bundle.mjs, files: "\\.(tsx?|css)$", args: [--dist, dist, --max-kb, "{config.quality.bundle_kb_max}"] }
+    - { name: axe, node: scripts/audit-axe.mjs, files: "\\.(tsx?|css)$", args: [--dist, dist, --routes, "{config.quality.axe_routes}", --critical-max, "{config.quality.axe_critical_max}"] }
+# A component is its folder (<name>.tsx, styles.ts, index.ts, tests/<name>.test.tsx — frontend-dev-kit
+# component-structure) plus the slice's public index.ts; a page adds its route registration.
+budgets: { task_limits: { component: { files_max: 5 }, feature-ui: { files_max: 5 }, form: { files_max: 5 }, page: { files_max: 4 } } }
+requires: { factory: "^0.1" }

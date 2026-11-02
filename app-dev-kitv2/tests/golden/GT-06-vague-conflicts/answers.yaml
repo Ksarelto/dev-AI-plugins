@@ -1,0 +1,3 @@
+- { gate: CLARIFY, approve: "Use your proposed defaults." }
+- { gate: CLARIFY, approve: "Use your proposed defaults." }
+- { gate: GATE-D, approve: true }

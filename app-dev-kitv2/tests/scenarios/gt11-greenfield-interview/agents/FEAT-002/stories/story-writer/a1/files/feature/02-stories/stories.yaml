@@ -1,0 +1,13 @@
+feature: FEAT-002
+stories:
+  - id: STORY-0002
+    traces: [REQ-0002]
+    as_a: B2B buyer
+    i_want: to apply my negotiated coupon
+    so_that: I pay the agreed price
+    acs:
+      - id: AC-0002
+        gherkin: |
+          Given a cart of 100.00 EUR
+          When I apply "B2B10"
+          Then the discount line shows -10.00 EUR

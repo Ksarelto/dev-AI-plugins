@@ -1,0 +1,39 @@
+{
+  "plugin": "factory-role-frontend",
+  "source": "./app-dev-kitv2/factory-role-frontend",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Write failing frontend tests first for this task, red phase",
+      "expect": "fe-test-author"
+    },
+    {
+      "prompt": "Author characterisation tests before the change request",
+      "expect": "fe-test-author"
+    },
+    {
+      "prompt": "Implement the React FSD task until the red tests pass, green phase",
+      "expect": "fe-builder"
+    },
+    {
+      "prompt": "Build the frontend feature UI so typecheck, lint and tests are green",
+      "expect": "fe-builder"
+    },
+    {
+      "prompt": "Build a clickable static page for the checkout screen showing every state",
+      "expect": "prototyper"
+    },
+    {
+      "prompt": "Show every state of this screen on a static page and report the spec gaps",
+      "expect": "prototyper"
+    },
+    {
+      "prompt": "Keep the living prototype's shared design, brand inputs and screens.yaml up to date",
+      "expect": "prototype-designer"
+    },
+    {
+      "prompt": "Update the prototype navigation shell and shared CSS before the screen pages are built",
+      "expect": "prototype-designer"
+    }
+  ]
+}

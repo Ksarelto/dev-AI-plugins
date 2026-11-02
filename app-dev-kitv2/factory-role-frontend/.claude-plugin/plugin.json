@@ -1,0 +1,24 @@
+{
+  "name": "factory-role-frontend",
+  "displayName": "Factory role: frontend (app-dev-kitv2)",
+  "description": "Frontend role pack of the app-dev-kitv2 AI factory: a test author that writes failing tests first, a builder that makes them pass inside the React Feature-Sliced Design stack (convention, duplicate, bundle and axe checks), and the living HTML app prototype (designer plus per-screen prototypers). Uses frontend-dev-kit for stack knowledge and the shadcn and context7 MCP servers; needs the factory engine.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "factory",
+    "frontend",
+    "tdd",
+    "react",
+    "fsd",
+    "prototype",
+    "app-dev-kitv2"
+  ],
+  "category": "productivity",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "agents": "./agents/*.md",
+  "mcpServers": "./.mcp.json"
+}

@@ -1,0 +1,9 @@
+summary: Coverage complete for a small operational change.
+topics:
+  users: { status: covered, sources: [SRC-002] }
+  goals: { status: covered, sources: [SRC-002, SRC-003] }
+  scope: { status: covered, sources: [SRC-001, SRC-002, SRC-003] }
+  data: { status: covered, sources: [SRC-003] }
+  rules: { status: covered, sources: [SRC-002] }
+  nfr: { status: gap, note: "no performance target given" }
+  acceptance: { status: covered, sources: [SRC-002, SRC-003] }

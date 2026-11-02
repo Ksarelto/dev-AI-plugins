@@ -1,0 +1,10 @@
+openapi: 3.1.0
+info: { title: Checkout API, version: 1.0.0 }
+paths:
+  /carts/{cartId}/coupon:
+    put:
+      operationId: applyCoupon
+      x-factory: { feature: FEAT-001, acs: [AC-0001, AC-0002, AC-0004], owner_role: backend }
+      responses:
+        "200": { description: Applied }
+        "422": { description: Expired, or combined with the loyalty discount (HD-1) }

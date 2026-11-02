@@ -1,0 +1,24 @@
+{
+  "name": "factory-analysis",
+  "displayName": "Factory Analysis (app-dev-kitv2 stages S0\u2013S4)",
+  "description": "Analysis stages of the app-dev-kitv2 AI factory: intake, bootstrap or discovery, requirements (PRD or delta-spec), stories, architecture with API contract, and planning with test-first tasks. Eight agents with model tiers from haiku to opus; needs the factory engine.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "factory",
+    "requirements",
+    "prd",
+    "delta-spec",
+    "user-stories",
+    "architecture",
+    "planning",
+    "app-dev-kitv2"
+  ],
+  "category": "productivity",
+  "skills": "./skills/",
+  "hooks": "./hooks/cursor-hooks.json",
+  "agents": "./cursor-agents/"
+}

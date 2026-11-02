@@ -1,0 +1,23 @@
+{
+  "name": "factory-role-ai-agent",
+  "displayName": "Factory role: AI agent (app-dev-kitv2)",
+  "description": "AI-agent role pack of the app-dev-kitv2 AI factory: an architect for graph topology, state and tools, a test author that writes failing tests against a scripted model, builders for LangGraph.js graphs, tools and RAG, and an eval author; AI tasks pass only with a real eval run. Uses node-agent-dev-kit; needs the factory engine.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "factory",
+    "ai-agent",
+    "langgraph",
+    "rag",
+    "evals",
+    "tdd",
+    "app-dev-kitv2"
+  ],
+  "category": "productivity",
+  "skills": "./skills/",
+  "hooks": "./hooks/cursor-hooks.json",
+  "agents": "./cursor-agents/"
+}

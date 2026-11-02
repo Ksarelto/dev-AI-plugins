@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/coverage",
+  "title": "context/coverage.yaml \u2014 intake coverage checklist",
+  "type": "object",
+  "required": [
+    "topics"
+  ],
+  "properties": {
+    "topics": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "covered",
+              "gap",
+              "blocker_gap",
+              "not_applicable"
+            ]
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
+            }
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

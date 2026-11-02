@@ -1,0 +1,24 @@
+# Worked example (GT-04: coupons at checkout). Validated by factory/schemas/delta-spec.schema.json
+feature: FEAT-001
+mode: change-request
+summary: Support coupon codes at checkout
+added:
+  - id: REQ-0001
+    text: A customer can apply one coupon code per order at checkout
+    sources: [SRC-001]
+    priority: must
+    acs:
+      - { id: AC-0001, kind: happy, text: 'Applying "B2B10" to a 100.00 EUR cart shows a -10.00 EUR discount line' }
+      - { id: AC-0002, kind: error, text: 'Applying an expired coupon shows "This coupon has expired" and leaves the total unchanged' }
+modified:
+  - id: REQ-0002
+    before: Order total = sum(lines) + shipping
+    after: Order total = sum(lines) - discount + shipping, discount >= 0
+    sources: [SRC-002]
+    affected: [src/entities/order/model/total.ts]
+    acs:
+      - { id: AC-0003, kind: happy, text: "Total is sum(lines) - discount + shipping, rounded half-even to 2 decimals" }
+removed: []
+unchanged_guarantees: ["Totals are rounded half-even to 2 decimals"]
+open_questions:
+  - { id: OQ-1, severity: major, text: Is the coupon stackable with the loyalty discount?, default: "no", status: defaulted }

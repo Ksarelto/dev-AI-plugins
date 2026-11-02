@@ -1,0 +1,55 @@
+# Dev:        npm run db:up   → only Postgres, the API runs on the host with `npm run dev`
+# Full stack: npm run docker:up → Postgres + one-shot migrations + API container
+name: backend-boilerplate
+
+x-api-env: &api-env
+  NODE_ENV: production
+  PORT: '3000'
+  LOG_LEVEL: info
+  DATABASE_URL: postgres://app:app@db:5432/app
+  JWT_SECRET: ${JWT_SECRET:-compose-only-secret-change-me-0123456789}
+  CORS_ORIGINS: http://localhost:5173
+  API_DOCS_ENABLED: 'true'
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    profiles: ['app']
+    build: .
+    command: ['node', 'dist/db/migrate.js']
+    environment: *api-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  api:
+    profiles: ['app']
+    build: .
+    environment: *api-env
+    ports:
+      - '${API_PORT:-3000}:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 15s
+    restart: unless-stopped
+
+volumes:
+  db-data:

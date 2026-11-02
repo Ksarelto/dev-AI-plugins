@@ -1,0 +1,61 @@
+# Dev:        npm run db:up     → Postgres + pgvector only (port 5433, so it can run next to backend-boilerplate)
+# Full stack: npm run docker:up → Postgres + migrations (incl. checkpointer tables) + agent service
+name: agent-boilerplate
+
+x-agent-env: &agent-env
+  NODE_ENV: production
+  PORT: '3100'
+  LOG_LEVEL: info
+  DATABASE_URL: postgres://app:app@db:5432/agent
+  # Must equal the backend's secret/issuer/audience: this service verifies the backend's access tokens.
+  JWT_SECRET: ${JWT_SECRET:-compose-only-secret-change-me-0123456789}
+  JWT_ISSUER: backend-boilerplate
+  JWT_AUDIENCE: backend-boilerplate-api
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  MODEL_CHAT: ${MODEL_CHAT:-openai/gpt-4.1-mini}
+  MODEL_CHAT_FALLBACK: ${MODEL_CHAT_FALLBACK:-}
+  LANGSMITH_TRACING: ${LANGSMITH_TRACING:-false}
+  LANGSMITH_API_KEY: ${LANGSMITH_API_KEY:-}
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: agent
+    ports:
+      - '${DB_PORT:-5433}:5432'
+    volumes:
+      - agent-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d agent']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    profiles: ['app']
+    build: .
+    command: ['node', 'dist/db/migrate.js']
+    environment: *agent-env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  agent:
+    profiles: ['app']
+    build: .
+    environment: *agent-env
+    ports:
+      - '${API_PORT:-3100}:3100'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    stop_grace_period: 35s
+    restart: unless-stopped
+
+volumes:
+  agent-db-data:

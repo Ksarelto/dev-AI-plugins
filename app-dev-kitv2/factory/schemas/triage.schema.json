@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/triage",
+  "title": "08-delivery/triage.yaml \u2014 PR comments classified by the release manager",
+  "type": "object",
+  "required": [
+    "feature",
+    "comments"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string"
+    },
+    "comments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "class"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "class": {
+            "enum": [
+              "change",
+              "question",
+              "nit",
+              "praise",
+              "out_of_scope"
+            ]
+          },
+          "file": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

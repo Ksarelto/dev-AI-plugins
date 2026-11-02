@@ -1,0 +1,21 @@
+---
+description: LangGraph state and graph invariants — Annotation.Root with MessagesAnnotation.spec, explicit reducers and defaults, per-turn counters reset by the service, node factories that return partial updates, END listed in conditional edges, a checkpointer on every compiled graph, and a step cap plus recursionLimit on every run.
+globs: ["**/src/agents/**/state.ts", "**/src/agents/**/graph.ts", "**/src/agents/**/nodes/**/*.ts"]
+alwaysApply: false
+---
+
+# LangGraph state and graphs
+
+- State is `Annotation.Root({ ...MessagesAnnotation.spec, ...fields })` in `agents/<name>/state.ts`, exported with `<Name>StateType = typeof <Name>State.State` and `<Name>StateUpdate = typeof <Name>State.Update`.
+- Every non-message field declares both `reducer` and `default`. Overwrite with `(_current, update) => update`; accumulate only with an explicit concat reducer.
+- `messages` keeps the LangGraph reducer. Return only new messages, never the whole list. Delete with `RemoveMessage`, never by filtering.
+- Per-turn fields (`iterations`, `blocked`) are reset in the turn input built by the service. A field that must survive turns says so in its `state.ts` comment.
+- State holds serializable data only. A model, logger, retriever, client or closure is a dependency of the node factory, never a state field.
+- Caller identity (`user_id`) and `thread_id` travel in `config.configurable`, never in state the model can see or a tool can overwrite.
+- Nodes are factories: `create<Name>Node(deps)` returns `(state, config) => update`. A node returns a partial update, never mutates `state`, and forwards `config` to every `invoke`.
+- Routers are named pure functions of state (`routeAfterAgent`). `addConditionalEdges` lists every destination, including `END`.
+- Every loop has a cap in state (`iterations` vs `AGENT_MAX_ITERATIONS`) that ends with a user-facing message, and the run config sets `recursionLimit` as a backstop. Never rely on `recursionLimit` alone: `GraphRecursionError` reaches the user as a 503.
+- `.compile({ checkpointer })` takes the checkpointer from deps. Every run passes `configurable: { thread_id }` from the threads table; never a constant or user-supplied thread id that skipped `findOwned`.
+- Node names (`guard`, `agent`, `tools`) and tool names are contracts: the service filters stream chunks by `langgraph_node` and tool messages by `name`. Rename them together with the service.
+
+Procedure: `graph-state-design` skill.

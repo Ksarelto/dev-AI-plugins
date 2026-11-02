@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/app-state",
+  "title": ".factory/state.json \u2014 app-level state",
+  "type": "object",
+  "required": [
+    "version",
+    "mode",
+    "next_ids",
+    "features"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "mode": {
+      "enum": [
+        "greenfield",
+        "brownfield-extend",
+        "change-request",
+        "unknown"
+      ]
+    },
+    "next_ids": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1
+      }
+    },
+    "features": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^FEAT-\\d{3}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "slug",
+          "status",
+          "dir"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "string"
+          },
+          "dir": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "active_feature": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "initialized_at": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "name": "factory",
+  "displayName": "Factory (app-dev-kitv2 engine)",
+  "description": "Engine of the app-dev-kitv2 AI factory: /factory:* commands, the Conductor step protocol, file-based state in .factory/, deterministic gates, Loop Warden escalation, context packs, human notes and enforcement hooks. Stage, role and stack packs plug in through manifests.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "factory",
+    "sdlc",
+    "pipeline",
+    "orchestration",
+    "hub-and-spoke",
+    "tdd",
+    "app-dev-kitv2"
+  ],
+  "category": "productivity",
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "agents": "./agents/*.md"
+}

@@ -5,16 +5,23 @@
   "description": "Plugin marketplace with reusable skills, rules, commands, and agents for Claude Code and Cursor",
   "type": "module",
   "scripts": {
-    "validate": "node scripts/validate-marketplace.mjs && node scripts/build-cursor-agents.mjs --check",
+    "validate": "node scripts/validate-marketplace.mjs && node scripts/build-cursor-agents.mjs --check && node scripts/build-factory.mjs --check",
     "build:cursor-agents": "node scripts/build-cursor-agents.mjs",
     "eval": "node evals/runner.mjs",
     "mock-flow:feature-dev": "node app-dev-kit/feature-dev-kit/skills/feature-dev/scripts/mock-flow.mjs",
     "install:cursor-local": "node scripts/install-cursor-local.mjs",
-    "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall"
+    "uninstall:cursor-local": "node scripts/install-cursor-local.mjs --uninstall",
+    "build:factory": "node scripts/build-factory.mjs",
+    "check:factory": "node scripts/check-factory-consistency.mjs",
+    "test:factory": "node --test app-dev-kitv2/tests/unit/*.test.mjs",
+    "test:factory:e2e": "node --test app-dev-kitv2/tests/e2e/*.test.mjs",
+    "setup:factory-fixtures": "cd app-dev-kitv2/tests/fixtures/fsd-app && pnpm install --frozen-lockfile --ignore-scripts && cd ../../../../backend-boilerplate && npm ci --ignore-scripts && cd ../agent-boilerplate && npm ci --ignore-scripts"
   },
   "devDependencies": {
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
+    "esbuild": "0.28.2",
+    "picomatch": "4.0.7",
     "typescript": "^6.0.3",
     "yaml": "^2.6.1"
   }

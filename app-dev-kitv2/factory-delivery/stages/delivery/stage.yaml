@@ -1,0 +1,12 @@
+id: delivery
+title: S8 Delivery (commit plan, PR body; the engine ships)
+kind: agents
+agents: [release-manager]
+context_role: mechanical_roles
+inputs: ["prd|delta-spec", tasks, test-plan, change-set, review?, defects?, docs-report?, human-notes?]
+outputs: [commit-plan, pr-body]
+gate: ready
+human_gate: GATE-C
+after_pass: ship
+on_reject: fix:implementation
+requires: { factory: "^0.1" }

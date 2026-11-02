@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/gate-result",
+  "title": "Normalised gate result",
+  "type": "object",
+  "required": [
+    "gate",
+    "pass",
+    "progress_signal",
+    "fingerprint",
+    "failures"
+  ],
+  "properties": {
+    "gate": {
+      "type": "string"
+    },
+    "pass": {
+      "type": "boolean"
+    },
+    "progress_signal": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cached": {
+      "type": "boolean"
+    },
+    "input_hash": {
+      "type": "string"
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "check",
+          "message"
+        ],
+        "properties": {
+          "check": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "file": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "fix": {
+            "type": "boolean",
+            "description": "a code problem: on_fail fix: sends it to the planner; other failures retry the stage"
+          },
+          "warn": {
+            "type": "boolean",
+            "description": "reported, never blocking"
+          }
+        }
+      }
+    }
+  }
+}

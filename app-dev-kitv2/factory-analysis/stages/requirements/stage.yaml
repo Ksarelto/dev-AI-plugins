@@ -1,0 +1,11 @@
+id: requirements
+title: S1 Requirements
+kind: agents
+agents: [requirements-analyst]
+context_role: analysis_roles
+inputs: [normalised-sources, source-index, coverage, app-profile?, capability-index?, feature-ledger?, human-notes?]
+outputs: ["prd|delta-spec", completeness]
+gate: spec
+human_gate: GATE-A
+tracked_ids: [HD]
+requires: { factory: "^0.1" }

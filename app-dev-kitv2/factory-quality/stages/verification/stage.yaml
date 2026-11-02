@@ -1,0 +1,13 @@
+id: verification
+title: S6 Verification (acceptance tests, seven-lens review, role audits)
+kind: agents
+agents: [reviewer]
+audits: roles       # role.yaml gates.audits run on the change set; findings join the review
+context_role: review_roles
+inputs: ["prd|delta-spec", stories, component-map?, adr?, api-contract?, test-plan, change-set, change-diff?, acceptance-tests?]
+outputs: [review]
+precheck: checks    # the whole suite, typecheck, lint and build run before the reviewers
+gate: verify
+exit_check: false   # reviewers are read-only and the engine writes review.md after them
+on_fail: fix:implementation
+requires: { factory: "^0.1" }

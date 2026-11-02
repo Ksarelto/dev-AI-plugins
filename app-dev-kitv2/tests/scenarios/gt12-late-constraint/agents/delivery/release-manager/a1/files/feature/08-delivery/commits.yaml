@@ -1,0 +1,18 @@
+feature: FEAT-001
+commits:
+  - task: TASK-001
+    message: |
+      feat(api): format money with the ISO code, JPY without decimals
+
+      Factory-Task: TASK-001
+      Factory-ACs: AC-0001, AC-0003
+    files: [api/src/lib/money.ts, api/tests/unit/lib/money.test.ts]
+  - task: TASK-002
+    message: |
+      feat(web): show prices with the currency symbol, JPY without decimals
+
+      Factory-Task: TASK-002
+      Factory-ACs: AC-0002, AC-0003
+    files: [web/src/entities/order/model/format-price.ts, web/src/entities/order/model/format-price.test.ts]
+  - message: "docs: prices in the order currency (FEAT-001)"
+    files: [docs/features/FEAT-001-prices-in-the-order-currency.md, CHANGELOG.md]

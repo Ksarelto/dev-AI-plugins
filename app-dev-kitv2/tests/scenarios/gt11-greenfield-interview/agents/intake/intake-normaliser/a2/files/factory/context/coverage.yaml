@@ -1,0 +1,8 @@
+topics:
+  users: { status: covered, sources: [HD-1] }
+  goals: { status: covered, sources: [HD-1] }
+  scope: { status: covered, sources: [HD-1] }
+  data: { status: gap, note: "no data model described yet; the analyst proposes one" }
+  rules: { status: gap, note: "no business rules beyond booking a slot" }
+  nfr: { status: gap, note: "no performance or availability target given" }
+  acceptance: { status: gap, note: "no acceptance examples; the analyst derives them" }

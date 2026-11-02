@@ -1,0 +1,71 @@
+{
+  "plugin": "factory-analysis",
+  "source": "./app-dev-kitv2/factory-analysis",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Normalise the customer inbox into source-tagged context and check coverage",
+      "expect": "intake-normaliser"
+    },
+    {
+      "prompt": "Describe the uploaded screenshots and documents for intake",
+      "expect": "intake-normaliser"
+    },
+    {
+      "prompt": "Analyse the existing codebase once and produce the capability map",
+      "expect": "codebase-analyst"
+    },
+    {
+      "prompt": "Map what the current app already does before we extend it",
+      "expect": "codebase-analyst"
+    },
+    {
+      "prompt": "Write the requirements specification with measurable acceptance criteria",
+      "expect": "requirements-analyst"
+    },
+    {
+      "prompt": "Turn the normalised customer input into a delta-spec for the change",
+      "expect": "requirements-analyst"
+    },
+    {
+      "prompt": "Write user stories with Gherkin acceptance criteria from the approved spec",
+      "expect": "story-writer"
+    },
+    {
+      "prompt": "Split the requirements into INVEST stories and UX notes",
+      "expect": "story-writer"
+    },
+    {
+      "prompt": "Design the solution architecture and component map for the feature",
+      "expect": "solution-architect"
+    },
+    {
+      "prompt": "Decide reuse and write ADRs, and the app profile for the new app",
+      "expect": "solution-architect"
+    },
+    {
+      "prompt": "Own the API contract between frontend and backend for this feature",
+      "expect": "contract-steward"
+    },
+    {
+      "prompt": "Write the OpenAPI operations the component map needs",
+      "expect": "contract-steward"
+    },
+    {
+      "prompt": "Plan the feature as a task DAG routed by role, test-first",
+      "expect": "planner"
+    },
+    {
+      "prompt": "Create tasks.yaml with small tasks and red tests declared",
+      "expect": "planner"
+    },
+    {
+      "prompt": "Plan the tests per acceptance criterion before implementation",
+      "expect": "test-strategist"
+    },
+    {
+      "prompt": "Write the test plan with levels for every AC",
+      "expect": "test-strategist"
+    }
+  ]
+}

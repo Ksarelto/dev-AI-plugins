@@ -1,0 +1,26 @@
+---
+description: Layering for Express services — routes → controllers → services → repositories → db, with schemas, middleware, lib and config at the side. Dependencies point one way and dependency-cruiser enforces it.
+globs: ["**/src/routes/**/*.ts", "**/src/controllers/**/*.ts", "**/src/services/**/*.ts", "**/src/repositories/**/*.ts", "**/src/container.ts", "**/.dependency-cruiser.cjs"]
+alwaysApply: false
+---
+
+# Layered architecture
+
+| Layer | Owns | Must not |
+|---|---|---|
+| `routes/` | path → `validate()` → guards → controller | call services, repositories or `db` |
+| `controllers/` | read `validated(res, …)`, call **one** service method, map to a DTO + status | import repositories, `db`, routes; catch errors to set statuses |
+| `services/` | business rules, transaction boundaries, `AppError` subclasses | import `express`, routes, controllers, middleware; touch `req`/`res` |
+| `repositories/` | Drizzle queries for one aggregate, `executor: DbExecutor = db` | commit, throw HTTP errors, call services |
+| `db/` | pool, schema, migrations, `TransactionRunner` | import any layer above |
+| `schemas/` | Zod request/response schemas, DTO mappers | logic beyond mapping |
+| `middleware/` | validation, auth, timeout, rate limit, errors | business rules |
+| `lib/`, `config/` | framework-free building blocks | import any layer |
+
+- No cycles. `npm run lint` runs `depcruise src --config .dependency-cruiser.cjs`; a layer violation fails it. Never relax a forbidden rule to make a change pass.
+- Routers, controllers, services and repositories export a `create<Name>(deps)` factory plus `export type <Name> = ReturnType<typeof create<Name>>`. Dependencies arrive as arguments; no module-level singletons for db, logger or config.
+- Only `src/container.ts` calls factories with concrete dependencies. Every versioned router is mounted in `routes/index.ts`, and only there.
+- One resource = one file per layer: `<resource>.routes.ts`, `.controller.ts`, `.service.ts`, `.repository.ts`, `.schema.ts`, `db/schema/<resource>.ts`.
+- Services return domain objects (`User`), never Drizzle rows with secrets; the password hash never leaves the service layer.
+
+Procedure: `express-resource` skill. Audit: `architecture-audit` skill.

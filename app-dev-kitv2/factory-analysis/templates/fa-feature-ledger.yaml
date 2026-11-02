@@ -1,0 +1,4 @@
+# Worked example. Validated by factory/schemas/feature-ledger.schema.json
+features:
+  - { name: checkout, status: discovered, version: 1, paths: ["src/pages/checkout/**", "src/entities/order/**"] }
+  - { name: catalogue, status: discovered, version: 1, paths: ["src/pages/catalogue/**"] }

@@ -179,4 +179,4 @@ A `className` passed to `@/shared/ui/<name>` is layout only — margin, width/he
 - [ ] `className` on a `shared/ui` primitive is layout only — no color, radius, shadow, padding, or typography override
 - [ ] No ternary in a `className` prop — conditional classes are `styles.ts` functions or `cva` variants
 
-See [examples.md](examples.md) for few-shot templates.
+See [examples.md](examples.md) for few-shot templates. When you need a full component and `styles.ts` pair that meets `rules/styling.mdc`, or the reason motion stays in the bases, read [references/styles-ts-contract.md](references/styles-ts-contract.md).

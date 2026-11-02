@@ -1,0 +1,23 @@
+{
+  "name": "factory-quality",
+  "displayName": "Factory Quality (app-dev-kitv2 stages S5a–S7)",
+  "description": "Quality stages of the app-dev-kitv2 AI factory: acceptance tests written from the spec before implementation, a seven-lens review plus scripted role audits, and black-box QA by charters. Failures become fix items the planner turns into tasks; needs the factory engine.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": [
+    "factory",
+    "review",
+    "code-review",
+    "acceptance-tests",
+    "qa",
+    "app-dev-kitv2"
+  ],
+  "category": "productivity",
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "agents": "./agents/*.md",
+  "mcpServers": "./.mcp.json"
+}

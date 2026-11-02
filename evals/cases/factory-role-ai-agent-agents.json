@@ -1,0 +1,47 @@
+{
+  "plugin": "factory-role-ai-agent",
+  "source": "./app-dev-kitv2/factory-role-ai-agent",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Design the agent graph, state schema and tools at the architecture stage",
+      "expect": "ai-architect"
+    },
+    {
+      "prompt": "Decide model tiers per node and the eval plan for the AI feature",
+      "expect": "ai-architect"
+    },
+    {
+      "prompt": "Write failing agent tests against a scripted model, red phase",
+      "expect": "ai-test-author"
+    },
+    {
+      "prompt": "Pin current assistant behaviour with characterisation tests",
+      "expect": "ai-test-author"
+    },
+    {
+      "prompt": "Implement the LangGraph node and tool until tests and evals pass",
+      "expect": "ai-builder"
+    },
+    {
+      "prompt": "Build the agent prompt and guardrail task, green phase",
+      "expect": "ai-builder"
+    },
+    {
+      "prompt": "Implement document ingestion and hybrid retrieval for the agent",
+      "expect": "ai-rag-builder"
+    },
+    {
+      "prompt": "Build the retriever with vector plus keyword fusion",
+      "expect": "ai-rag-builder"
+    },
+    {
+      "prompt": "Write golden datasets and eval scorers for the feature",
+      "expect": "eval-author"
+    },
+    {
+      "prompt": "Add eval cases with thresholds for the refund answers",
+      "expect": "eval-author"
+    }
+  ]
+}

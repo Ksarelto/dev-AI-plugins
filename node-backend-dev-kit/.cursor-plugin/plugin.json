@@ -1,0 +1,15 @@
+{
+  "name": "node-backend-dev-kit",
+  "displayName": "Node Backend Dev Kit",
+  "description": "Rules, skills, and MCP servers for layered Node.js 22 + Express 5 + TypeScript APIs: Zod 4 validation, Drizzle ORM on PostgreSQL, JWT + RBAC, RFC 9457 errors, pino logging, resilience, OpenAPI, Docker, and Vitest + Testcontainers. Mirrors backend-boilerplate.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["node", "express", "typescript", "backend", "api", "zod", "drizzle", "postgres", "jwt", "rbac", "pino", "openapi", "docker", "vitest", "testcontainers", "mcp", "context7"],
+  "category": "productivity",
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

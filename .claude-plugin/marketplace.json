@@ -12,72 +12,307 @@
     {
       "name": "base-dev-kit",
       "source": "./base-dev-kit",
-      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation — applicable to any language or stack.",
+      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation \u2014 applicable to any language or stack.",
       "category": "productivity",
-      "tags": ["clean-code", "security", "git", "testing", "honesty", "universal"]
+      "tags": [
+        "clean-code",
+        "security",
+        "git",
+        "testing",
+        "honesty",
+        "universal"
+      ]
     },
     {
       "name": "frontend-dev-kit",
       "source": "./frontend-dev-kit",
       "description": "Rules, skills, and MCP servers for React 19 Feature-Sliced Design apps: TypeScript, shadcn/ui, Tailwind, react-query, react-hook-form + zod, react-i18next, and Vitest.",
       "category": "productivity",
-      "tags": ["react", "typescript", "fsd", "shadcn", "tailwind", "react-query", "i18n", "vitest", "mcp"]
+      "tags": [
+        "react",
+        "typescript",
+        "fsd",
+        "shadcn",
+        "tailwind",
+        "react-query",
+        "i18n",
+        "vitest",
+        "mcp"
+      ]
+    },
+    {
+      "name": "node-backend-dev-kit",
+      "source": "./node-backend-dev-kit",
+      "description": "Rules, skills, and MCP servers for layered Node.js 22 + Express 5 + TypeScript APIs (routes \u2192 controllers \u2192 services \u2192 repositories): Zod 4, Drizzle on PostgreSQL, JWT + RBAC, RFC 9457 errors, pino, resilience, OpenAPI, Docker, and Vitest + Testcontainers. Reference implementation: backend-boilerplate.",
+      "category": "productivity",
+      "tags": [
+        "nodejs",
+        "typescript",
+        "express",
+        "layered-architecture",
+        "drizzle",
+        "postgres",
+        "zod",
+        "jwt",
+        "rbac",
+        "docker",
+        "vitest",
+        "mcp"
+      ]
+    },
+    {
+      "name": "node-agent-dev-kit",
+      "source": "./node-agent-dev-kit",
+      "description": "Rules, skills, and MCP servers for TypeScript AI agent services on Express 5 with LangGraph.js + LangChain.js: state graphs, tools, OpenRouter models with fallbacks, Postgres checkpoints, human-in-the-loop, multi-agent, pgvector hybrid RAG, guardrails, SSE streaming, and evals. Requires node-backend-dev-kit. Reference implementation: agent-boilerplate.",
+      "category": "productivity",
+      "tags": [
+        "ai-agents",
+        "langgraph-js",
+        "langchain-js",
+        "typescript",
+        "nodejs",
+        "express",
+        "openrouter",
+        "rag",
+        "pgvector",
+        "evals",
+        "mcp"
+      ]
     },
     {
       "name": "pptx-dev-kit",
       "source": "./pptx-dev-kit",
-      "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML — design schema, outline, deck.json render, and structural validation.",
+      "description": "Create a 16:9 PowerPoint from a brief via a checked-in layout engine, or edit an existing .pptx in place via OOXML \u2014 design schema, outline, deck.json render, and structural validation.",
       "category": "productivity",
-      "tags": ["pptx", "powerpoint", "presentation", "slides", "python-pptx", "design-system", "orchestration"]
+      "tags": [
+        "pptx",
+        "powerpoint",
+        "presentation",
+        "slides",
+        "python-pptx",
+        "design-system",
+        "orchestration"
+      ]
     },
     {
       "name": "agent-dev-kit",
       "source": "./app-dev-kit/agent-dev-kit",
       "description": "Rules, skills, and agents for building production TypeScript/Node AI agents with the OpenAI SDK via OpenRouter, @openai/agents or LangGraph.js, and RAG pipelines with hybrid search and reranking.",
       "category": "productivity",
-      "tags": ["ai-agents", "typescript", "nodejs", "openrouter", "openai-sdk", "langgraph-js", "rag", "qdrant"]
+      "tags": [
+        "ai-agents",
+        "typescript",
+        "nodejs",
+        "openrouter",
+        "openai-sdk",
+        "langgraph-js",
+        "rag",
+        "qdrant"
+      ]
     },
     {
       "name": "backend-dev-kit",
       "source": "./app-dev-kit/backend-dev-kit",
       "description": "Rules, skills, and agents for building production Node.js backends with Express 5, TypeScript, Drizzle ORM, Zod, and Vitest.",
       "category": "productivity",
-      "tags": ["nodejs", "typescript", "express", "drizzle", "zod", "vitest", "rest-api", "mcp", "auth", "observability"]
+      "tags": [
+        "nodejs",
+        "typescript",
+        "express",
+        "drizzle",
+        "zod",
+        "vitest",
+        "rest-api",
+        "mcp",
+        "auth",
+        "observability"
+      ]
     },
     {
       "name": "spec-dev-kit",
       "source": "./app-dev-kit/spec-dev-kit",
-      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec — requirements register with coverage, roles, permissions, rules, state machines, and a step-by-step delivery plan with per-slice build briefs — read by html-generator-kit, feature-dev-kit, backend-dev-kit, agent-dev-kit, and both orchestrators.",
+      "description": "Multi-agent pipeline that turns raw requirements in .spec/context/ into a validated, human-approved hybrid YAML+Markdown spec \u2014 requirements register with coverage, roles, permissions, rules, state machines, and a step-by-step delivery plan with per-slice build briefs \u2014 read by html-generator-kit, feature-dev-kit, backend-dev-kit, agent-dev-kit, and both orchestrators.",
       "category": "productivity",
-      "tags": ["spec", "requirements", "yaml", "orchestration", "app-dev-kit"]
+      "tags": [
+        "spec",
+        "requirements",
+        "yaml",
+        "orchestration",
+        "app-dev-kit"
+      ]
     },
     {
       "name": "html-generator-kit",
       "source": "./app-dev-kit/html-generator-kit",
       "description": "Turns a validated spec-dev-kit spec into a clickable Alpine.js multi-page HTML prototype (CDN-free for styling; Alpine and Google Fonts load from a CDN). A provided theme, brand, style guide, mockup, or layout is binding; ui-ux-pro-max supplies the design direction only when none is provided. Headless-browser verified before the skill-owned review gate.",
       "category": "productivity",
-      "tags": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "ui-ux-pro-max", "app-dev-kit"]
+      "tags": [
+        "prototype",
+        "html",
+        "alpinejs",
+        "design-system",
+        "ui-ux",
+        "ui-ux-pro-max",
+        "app-dev-kit"
+      ]
     },
     {
       "name": "feature-dev-kit",
       "source": "./app-dev-kit/feature-dev-kit",
       "description": "Hub-and-spoke factory that builds one React Feature-Sliced Design feature per run (nested screen-tasks share the branch and commit) from a spec-dev-kit spec and optional html prototype, through architecture-audit, quality gates, and a skill-owned human review. Never opens a pull request.",
       "category": "productivity",
-      "tags": ["react", "fsd", "feature-sliced-design", "orchestration", "shadcn", "mcp", "app-dev-kit"]
+      "tags": [
+        "react",
+        "fsd",
+        "feature-sliced-design",
+        "orchestration",
+        "shadcn",
+        "mcp",
+        "app-dev-kit"
+      ]
     },
     {
       "name": "frontend-orchestrator-kit",
       "source": "./app-dev-kit/frontend-orchestrator-kit",
       "description": "Frontend-only sequencer: spec-dev-kit to author a spec, html-generator-kit to prototype it, then feature-dev-kit once per feature (nested screen-tasks share that call) against a persisted, resumable checklist. Use app-orchestrator-kit /orchestrate-app for the full-stack dispatcher.",
       "category": "productivity",
-      "tags": ["orchestration", "pipeline", "spec", "prototype", "feature-dev", "checklist", "frontend", "app-dev-kit"]
+      "tags": [
+        "orchestration",
+        "pipeline",
+        "spec",
+        "prototype",
+        "feature-dev",
+        "checklist",
+        "frontend",
+        "app-dev-kit"
+      ]
     },
     {
       "name": "app-orchestrator-kit",
       "source": "./app-dev-kit/app-orchestrator-kit",
       "description": "Full-stack app dispatcher: analyzes an approved spec-dev-kit spec and optional html-generator-kit prototype, then runs backend-dev-kit, agent-dev-kit, and frontend-orchestrator-kit only when needed, against a persisted work-plan.",
       "category": "productivity",
-      "tags": ["orchestration", "pipeline", "spec", "prototype", "backend", "agent", "frontend", "work-plan", "app-dev-kit"]
+      "tags": [
+        "orchestration",
+        "pipeline",
+        "spec",
+        "prototype",
+        "backend",
+        "agent",
+        "frontend",
+        "work-plan",
+        "app-dev-kit"
+      ]
+    },
+    {
+      "name": "factory",
+      "source": "./app-dev-kitv2/factory",
+      "description": "app-dev-kitv2 engine: /factory:* commands, a deterministic Conductor step protocol, file-based state in .factory/, gates, Loop Warden escalation, context packs, human notes and enforcement hooks. Stage, role and stack packs plug in through manifests.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "pipeline",
+        "sdlc",
+        "orchestration",
+        "tdd",
+        "hooks",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-analysis",
+      "source": "./app-dev-kitv2/factory-analysis",
+      "description": "app-dev-kitv2 analysis stages S0\u2013S4: intake, bootstrap or discovery, requirements (PRD or delta-spec), stories, architecture with API contract, and test-first planning. Eight agents from haiku to opus; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "requirements",
+        "stories",
+        "architecture",
+        "planning",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-role-frontend",
+      "source": "./app-dev-kitv2/factory-role-frontend",
+      "description": "app-dev-kitv2 frontend role: test author (red), builder (green) and sandboxed prototyper for React Feature-Sliced Design, gated by real test, typecheck, lint and build runs. Uses frontend-dev-kit; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "frontend",
+        "tdd",
+        "react",
+        "fsd",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-role-backend",
+      "source": "./app-dev-kitv2/factory-role-backend",
+      "description": "app-dev-kitv2 backend role: test author (red), builder (green) and migration author for layered Express 5 + Zod + Drizzle services, with OpenAPI-conformance and migration-rollback checks. Uses node-backend-dev-kit; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "backend",
+        "tdd",
+        "express",
+        "drizzle",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-role-ai-agent",
+      "source": "./app-dev-kitv2/factory-role-ai-agent",
+      "description": "app-dev-kitv2 AI-agent role: architect, test author against a scripted model, LangGraph.js and RAG builders, and an eval author; model-facing tasks pass only with a real eval run. Uses node-agent-dev-kit; needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "ai-agent",
+        "langgraph",
+        "rag",
+        "evals",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-quality",
+      "source": "./app-dev-kitv2/factory-quality",
+      "description": "app-dev-kitv2 quality stages: acceptance tests from the spec before implementation, a seven-lens review plus scripted role audits, and black-box QA by charters; failures become planner-made fix tasks. Needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "review",
+        "qa",
+        "acceptance-tests",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-delivery",
+      "source": "./app-dev-kitv2/factory-delivery",
+      "description": "app-dev-kitv2 delivery stages: living feature docs, a commit plan with task trailers and a PR body with a spec trace (shipped by the engine), and PR comment triage. Needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "docs",
+        "pull-request",
+        "changelog",
+        "app-dev-kitv2"
+      ]
+    },
+    {
+      "name": "factory-adapter-github",
+      "source": "./app-dev-kitv2/factory-adapter-github",
+      "description": "app-dev-kitv2 GitHub adapter: push, draft PR and review comments via the gh CLI; dry-run by default. Needs the factory engine.",
+      "category": "productivity",
+      "tags": [
+        "factory",
+        "github",
+        "gh",
+        "adapter",
+        "app-dev-kitv2"
+      ]
     }
   ]
 }

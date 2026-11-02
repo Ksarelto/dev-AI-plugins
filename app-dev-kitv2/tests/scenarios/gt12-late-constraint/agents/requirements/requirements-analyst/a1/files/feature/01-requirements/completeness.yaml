@@ -1,0 +1,12 @@
+feature: FEAT-001
+categories:
+  error_states: { credit: n/a, reason: pure formatting of stored amounts; amounts and currency codes are validated where orders are created }
+  permissions_roles: { credit: n/a, reason: who may read an order is unchanged; only the display format changes }
+  edge_cases: { credit: full, evidence: [AC-0001, AC-0002] }
+  non_functional: { credit: n/a, reason: the existing API and web app NFRs stay as they are }
+  backward_compatibility: { credit: full, evidence: [REQ-0001] }
+  undo_rollback: { credit: n/a, reason: a read-only display format; nothing to undo }
+  notifications: { credit: n/a, reason: no message is sent }
+  data_lifecycle: { credit: n/a, reason: storage in minor units does not change (unchanged guarantee) }
+  observability: { credit: n/a, reason: formatting adds no operation worth logging }
+  localization_accessibility: { credit: full, evidence: [AC-0002] }

@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/source-index",
+  "title": "context/index.yaml \u2014 normalised source registry",
+  "type": "object",
+  "required": [
+    "sources"
+  ],
+  "properties": {
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "normalised",
+          "sha256",
+          "ids"
+        ],
+        "properties": {
+          "file": {
+            "type": "string"
+          },
+          "normalised": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "text",
+              "image",
+              "pdf",
+              "other"
+            ]
+          },
+          "ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^SRC-\\d{3,}$"
+            }
+          },
+          "author": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "feature": {
+            "type": "string",
+            "pattern": "^FEAT-\\d{3}$",
+            "description": "the feature this source was added for"
+          },
+          "normalised_sha": {
+            "type": "string",
+            "description": "sha of the engine-tagged normalised text; gate-intake detects edits"
+          },
+          "unassigned": {
+            "type": "boolean",
+            "description": "added while the open feature was past requirements; the next intake --new takes it"
+          },
+          "superseded": {
+            "type": "boolean",
+            "description": "an earlier revision of an edited inbox file; specs account for the latest one"
+          }
+        }
+      }
+    }
+  }
+}

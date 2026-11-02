@@ -1,0 +1,13 @@
+id: planning
+title: S4 Planning
+kind: agents
+agents: [planner, test-strategist]
+owners: { tasks: planner, test-plan: test-strategist }
+context_role: analysis_roles
+inputs: ["prd|delta-spec", stories, prototype-report?, component-map?, api-contract?, agent-design?, capability-index?, human-notes?]
+outputs: [tasks, test-plan]
+gate: plan
+human_gate: GATE-B
+review: [component-map?, adr?, api-contract?, agent-design?, prototype-report?]   # the design the plan builds on; S3 has no gate of its own
+tracked_ids: [AC, HD]
+requires: { factory: "^0.1" }

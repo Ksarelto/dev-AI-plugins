@@ -1,0 +1,24 @@
+feature: FEAT-001
+tasks:
+  - id: TASK-001
+    role: ai-agent
+    type: tool
+    title: convert_units tool registered with the assistant
+    depends_on: []
+    satisfies: [AC-0001, AC-0002]
+    files_expected: [src/agents/assistant/tools/convert-units.ts, src/agents/assistant/tools/index.ts, tests/unit/agents/convert-units.test.ts]
+    tdd: { mode: required, red_tests: [tests/unit/agents/convert-units.test.ts], stubs: ["createConvertUnitsTool(): StructuredTool — invoke throws not implemented"] }
+    reuse: { considered: [src/agents/assistant/tools/current-time.ts], reuse_rejected: "a new tool; current-time is the pattern" }
+    definition_of_done: ["km↔mi to two decimals", "unsupported units answer with the supported list", "registered in createAssistantTools"]
+    size: { files: 3, est_loc: 60 }
+  - id: TASK-002
+    role: ai-agent
+    type: eval
+    title: Golden cases for unit conversion
+    depends_on: [TASK-001]
+    satisfies: [AC-0001, AC-0002]
+    files_expected: [evals/golden/assistant.json]
+    tdd: { mode: exempt, reason: "an eval task is itself the test" }
+    reuse: { considered: [evals/assistant.eval.ts], reuse_rejected: null }
+    definition_of_done: ["one golden case per AC with mustMention expectations"]
+    size: { files: 1, est_loc: 15 }

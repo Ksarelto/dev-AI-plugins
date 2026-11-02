@@ -1,0 +1,11 @@
+id: requirements
+title: S1 Requirements (fixture)
+kind: agents
+agents: [spec-writer]
+context_role: analysis_roles
+inputs: [source-index?, human-notes?]
+outputs: ["prd|delta-spec"]
+gate: spec
+human_gate: GATE-A
+tracked_ids: [HD]
+requires: { factory: "^0.1" }

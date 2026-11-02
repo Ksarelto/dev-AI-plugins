@@ -1,0 +1,20 @@
+---
+description: Authentication, authorization and HTTP hardening — jose HS256 access tokens, rotating hashed refresh tokens, argon2id passwords, authenticate + requireRole guards, ownership checks in services, helmet, CORS allowlist, rate limits.
+globs: ["**/src/middleware/**/*.ts", "**/src/lib/jwt.ts", "**/src/lib/password.ts", "**/src/lib/tokens.ts", "**/src/services/auth*.ts", "**/src/routes/**/*.ts", "**/src/app.ts"]
+alwaysApply: false
+---
+
+# Auth and security
+
+- Protected routers mount `authenticate` (from the container) before any handler; role-restricted routes add `requireRole('admin')` after it. A controller reads the caller only with `requirePrincipal(res)`; never decode the token or read `req.headers.authorization` elsewhere.
+- Ownership is a service rule: the service receives the caller (`Principal` or `userId`) and returns `NotFoundError` for a row the caller does not own. Never filter ownership in the controller, never trust an owner id from the body.
+- Access tokens: `jose` `SignJWT`/`jwtVerify` with an explicit `algorithms: ['HS256']`, `issuer`, `audience`, `exp` and `jti`. Claims are re-validated with Zod after verification. No `jsonwebtoken`, no `alg: none`, no unverified `decodeJwt` for auth decisions.
+- Refresh tokens are opaque (`generateOpaqueToken()`), stored only as `hashToken()` SHA-256, rotated on every use; reuse of a rotated token revokes the whole family.
+- Passwords are hashed with argon2id (`hashPassword`), length-bounded (12–128), compared only with `verifyPassword`. Unknown emails still run `verifyAgainstDummy` so timing does not reveal accounts.
+- Roles are the `ROLES` tuple in `lib/jwt.ts`, mirrored by the `role` pg enum. Adding a role means both plus a migration.
+- Secrets come from `Env` only (`JWT_SECRET` ≥ 32 chars, from a secret manager in production). No secret, token or password in source, logs, error details or test fixtures beyond test-only constants.
+- `app.ts` keeps: `x-powered-by` disabled, `trust proxy` from `TRUST_PROXY`, `helmet()`, `cors({ origin: env.CORS_ORIGINS, credentials: true })` with an explicit allowlist (never `*` with credentials), `express.json({ limit: '100kb' })`.
+- Rate limits: global limiter on `/api`, a stricter `authLimiter` on `/auth`. Limiter rejections go through `next(new TooManyRequestsError())`. More than one replica needs a shared store.
+- Never pass user input to `eval`, `new Function`, `child_process`, a filesystem path or a redirect URL without an allowlist.
+
+Procedure: `auth-rbac` skill. Edge hardening: `security-middleware` skill.

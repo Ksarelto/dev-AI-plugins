@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/test-plan",
+  "title": "test-plan.yaml \u2014 AC \u2192 planned test cases",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "feature",
+    "cases"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "level",
+          "title"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^TEST-\\d{4}$"
+          },
+          "ac": {
+            "type": "string",
+            "pattern": "^AC-\\d{4}$",
+            "description": "the AC the case proves; a case for a task with no AC (a fix for a review finding) names only the task"
+          },
+          "level": {
+            "enum": [
+              "unit",
+              "component",
+              "integration",
+              "acceptance",
+              "e2e",
+              "eval"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string",
+            "pattern": "^TASK-\\d{3}$"
+          },
+          "data": {
+            "type": "string"
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "ac"
+            ]
+          },
+          {
+            "required": [
+              "task"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

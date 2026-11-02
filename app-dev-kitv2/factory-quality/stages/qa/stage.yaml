@@ -1,0 +1,11 @@
+id: qa
+title: S7 QA (black-box charters)
+kind: agents
+agents: [qa-engineer]
+context_role: review_roles
+read_deny: ["src/**/!(*.acceptance.test.*)"]
+inputs: [stories, ux-notes?, "prd|delta-spec", change-set?, prototype-screens?, human-notes?]   # the app prototype is the expected-flow reference
+outputs: [defects, qa-report]
+gate: qa
+on_fail: fix:implementation
+requires: { factory: "^0.1" }

@@ -19,8 +19,8 @@ Be specific: explain why something is a problem and what the impact is. Provide 
 - One folder per component under `ui/`. Folder and implementation file are kebab-case of the export: `Button` → `button/button.tsx`, `CustomButton` → `custom-button/custom-button.tsx`.
 - One component per file. A nested component is `{name}/ui/{child}/`. The only exception is a re-homed shadcn/Radix file that configures the library's compound parts (`Dialog`, `DialogTrigger`, `DialogContent`, …).
 - The props `interface` is declared in the component file. Other types go in `types.ts` in the component folder, or in the slice model folder (`models/types.ts`, `model/types.ts`). Do not add `types.ts` only to hold the props interface.
-- Helpers used only by this component live in `{name}/utils.ts`. DTO mappers stay in the slice `api/`. Slice-wide helpers stay in the slice `lib/`.
-- Tests live in `{name}/tests/{name}.test.tsx`. Every component folder ships that test in the same change.
+- Helpers used only by this component live in `{name}/lib/`. DTO mappers stay in the slice `api/`. Slice-wide helpers stay in the slice `lib/`.
+- `{name}.stories.tsx` sits beside `{name}.tsx`. Every test for the folder lives in `{name}/tests/` — the component test and each `lib/` helper test. Every component folder ships that folder in the same change.
 - `styles.ts`, `index.ts`, `types.ts`, and `constants.ts` keep those exact names.
 - The named export is PascalCase (`export const CustomButton`). Import the folder through `index.ts`, never the `.tsx` file.
 - A component folder's `index.ts` exports the component. It exports the props type or a constant only when a file outside the folder imports it. Nothing else is exported "for later".
@@ -141,7 +141,7 @@ Every component folder has a `styles.ts`. The component file owns structure and 
 
 ## Tests
 
-- Every executable file — component, hook, fetcher, model or lib function — has a behavior test in the same change. Component tests live in `{component}/tests/`. Everything else uses the segment `tests/` folder.
+- Every executable file — component, hook, fetcher, model or lib function — has a behavior test in the same change. A component folder's `tests/` holds the component test and each `lib/` helper test. Everything else uses the segment `tests/` folder.
 - A test asserts behavior (what the user sees, what was called, what was returned). "Renders without crashing" is not a test.
 - Mock only what the test cannot run in jsdom: the HTTP layer, navigation, browser APIs jsdom lacks, and time.
 - Never mock `@/shared/ui/*` primitives, `react-hook-form`, `zod`, i18n, `cn`, or the component's own children.

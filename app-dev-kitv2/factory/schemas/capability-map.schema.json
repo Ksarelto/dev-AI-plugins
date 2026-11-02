@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/capability-map",
+  "title": "_index/capability-map.yaml",
+  "type": "object",
+  "required": [
+    "features"
+  ],
+  "properties": {
+    "generated_by": {
+      "type": "string"
+    },
+    "index_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "paths"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "summary": {
+            "type": "string"
+          },
+          "conformance": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

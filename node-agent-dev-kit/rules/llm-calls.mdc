@@ -1,0 +1,20 @@
+---
+description: Every model call goes through the llm/ factories — OpenRouter base URL, timeout and maxRetries from env, tools bound once with an optional withFallbacks, a circuit breaker around invoke, config forwarded, structured output with Zod, and provider failures mapped to 503 LLM_UNAVAILABLE.
+globs: ["**/src/llm/**/*.ts", "**/src/agents/**/nodes/**/*.ts"]
+alwaysApply: false
+---
+
+# LLM calls
+
+- Chat models come from `createChatModel(env, role)` and embeddings from `createEmbeddings(env)` in `src/llm/`. No `new ChatOpenAI` or `new OpenAIEmbeddings` anywhere else, and no `fetch` to a model API.
+- Every client sets `apiKey`, `timeout: env.LLM_TIMEOUT_MS`, `maxRetries: env.LLM_MAX_RETRIES` and `configuration.baseURL: env.OPENROUTER_BASE_URL`. Slugs, temperature and dimensions come from `Env`, never literals.
+- A factory returns `undefined` when the key or slug is missing, and the caller handles it. Never throw at import time, never fall back to a hard-coded key.
+- A new model purpose is a new `ModelRole` plus a `MODEL_<ROLE>` env var, not a second factory.
+- Tools are bound once, in the container: `primary.bindTools(tools)`, then `.withFallbacks([fallback.bindTools(tools)])` when `MODEL_CHAT_FALLBACK` is set. The fallback is on a different provider.
+- In a node, the call is `deps.breaker.execute(() => deps.model.invoke(messages, config))`. Always pass the node's `config` (callbacks, abort signal, tracing).
+- The system prompt is prepended per call from `prompts.ts` (`new SystemMessage(SYSTEM_PROMPT)`). It is never stored in state or the checkpoint.
+- Structured output uses `withStructuredOutput(zodSchema, { name })`. Never regex or `JSON.parse` free text from a model.
+- Nodes do not catch provider errors. The service maps them with `toServiceError` to 503 `LLM_UNAVAILABLE` with `Retry-After`; an open breaker passes through as 503 `DEPENDENCY_UNAVAILABLE`. Never return a fabricated answer on failure, and never retry around `maxRetries` + fallback.
+- Embedding `dimensions` equals `EMBEDDING_DIMENSIONS` in `db/schema/knowledge.ts`. Changing the model or size needs a migration and a re-ingest.
+
+Procedure: `llm-models` skill.

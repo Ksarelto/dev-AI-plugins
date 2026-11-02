@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -d \"$CLAUDE_PROJECT_DIR/.factory\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/register.mjs\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

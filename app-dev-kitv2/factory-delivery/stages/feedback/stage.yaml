@@ -1,0 +1,11 @@
+id: feedback
+title: S9 Feedback (PR comments → fixes)
+kind: agents
+agents: [release-manager]
+when: pr.comments
+context_role: mechanical_roles
+inputs: [pr-comments, pr-body, tasks]
+outputs: [triage]
+gate: triage
+after_pass: triage_fixes
+requires: { factory: "^0.1" }

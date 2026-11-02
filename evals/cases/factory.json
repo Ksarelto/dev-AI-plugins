@@ -1,0 +1,155 @@
+{
+  "plugin": "factory",
+  "source": "./app-dev-kitv2/factory",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Set up the AI factory in this repository for the first time",
+      "expect": "init"
+    },
+    {
+      "prompt": "Create the .factory folder and config before the first intake",
+      "expect": "init"
+    },
+    {
+      "prompt": "Check whether the installed factory packs and config fit together",
+      "expect": "doctor"
+    },
+    {
+      "prompt": "The pipeline says a stage is not provided, which pack or manifest is broken?",
+      "expect": "doctor"
+    },
+    {
+      "prompt": "Advance the factory pipeline by exactly one step",
+      "expect": "next"
+    },
+    {
+      "prompt": "Do just the next step of the pipeline and record what the agents return",
+      "expect": "next"
+    },
+    {
+      "prompt": "Run the pipeline continuously until it needs my approval",
+      "expect": "run"
+    },
+    {
+      "prompt": "Keep going until the spec approval gate, I'll check back later",
+      "expect": "run"
+    },
+    {
+      "prompt": "Where does every feature stand right now, any blocked items?",
+      "expect": "status"
+    },
+    {
+      "prompt": "Show me the stage, budgets and open human notes after the compaction",
+      "expect": "status"
+    },
+    {
+      "prompt": "Approve the plan gate for this feature",
+      "expect": "gate"
+    },
+    {
+      "prompt": "Reject the spec at the human gate, the discount rules are wrong",
+      "expect": "gate"
+    },
+    {
+      "prompt": "Store this instruction so it is not lost: hide the coupon field for guests",
+      "expect": "note"
+    },
+    {
+      "prompt": "Decline human note HD-3, we are not doing that anymore",
+      "expect": "note"
+    },
+    {
+      "prompt": "Skip the prototype stage for this feature",
+      "expect": "proto"
+    },
+    {
+      "prompt": "Force a prototype even though the trigger did not fire",
+      "expect": "proto"
+    },
+    {
+      "prompt": "Re-run the stories stage with my feedback, the acceptance criteria miss guest checkout",
+      "expect": "replay"
+    },
+    {
+      "prompt": "Send the approved requirements back for rework with this feedback",
+      "expect": "replay"
+    },
+    {
+      "prompt": "The architecture stage keeps failing, get a root-cause diagnosis before the next attempt",
+      "expect": "diagnose"
+    },
+    {
+      "prompt": "Send the stuck stage straight to the diagnostician",
+      "expect": "diagnose"
+    },
+    {
+      "prompt": "Stop this feature for good and write a post-mortem",
+      "expect": "abort"
+    },
+    {
+      "prompt": "We are cancelling FEAT-004, abort it",
+      "expect": "abort"
+    },
+    {
+      "prompt": "Compact the feature artifacts into a short digest keeping every open ID",
+      "expect": "curate-digest"
+    },
+    {
+      "prompt": "Write the curator digest after planning without dropping acceptance criteria",
+      "expect": "curate-digest"
+    },
+    {
+      "prompt": "Work out from the failure logs, envelopes and diff why the attempts keep failing",
+      "expect": "failure-analysis"
+    },
+    {
+      "prompt": "Write a diagnosis file with root cause, evidence and the recommended fix",
+      "expect": "failure-analysis"
+    },
+    {
+      "prompt": "Start the factory on the new requirements I dropped in the inbox",
+      "expect": "intake"
+    },
+    {
+      "prompt": "Here is a one-line request, take it in and open a feature",
+      "expect": "intake"
+    },
+    {
+      "prompt": "This task is too big and keeps failing, split it into smaller tasks",
+      "expect": "split"
+    },
+    {
+      "prompt": "Replace TASK-007 with two or three smaller tasks",
+      "expect": "split"
+    },
+    {
+      "prompt": "Rebuild the component inventory after the merge",
+      "expect": "index"
+    },
+    {
+      "prompt": "Index the app so planning sees which slices exist",
+      "expect": "index"
+    },
+    {
+      "prompt": "Commit the verified feature and open the pull request",
+      "expect": "ship"
+    },
+    {
+      "prompt": "Ship it: create the commits and the PR, dry run first",
+      "expect": "ship"
+    },
+    {
+      "prompt": "Bring the PR review comments back into the factory",
+      "expect": "pr-feedback"
+    },
+    {
+      "prompt": "Reviewers commented on the pull request, turn their change requests into fixes",
+      "expect": "pr-feedback"
+    },
+    {
+      "prompt": "Revert the app prototype to how it was before this feature changed it",
+      "expect": "proto"
+    }
+  ]
+}

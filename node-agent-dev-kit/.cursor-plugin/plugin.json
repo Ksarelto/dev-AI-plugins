@@ -1,0 +1,15 @@
+{
+  "name": "node-agent-dev-kit",
+  "displayName": "Node Agent Dev Kit",
+  "description": "Rules, skills, and MCP servers for AI agent services on Node.js 22 + Express 5 + TypeScript: LangGraph.js graphs, LangChain.js models, tools and embeddings via OpenRouter, Postgres checkpoints, pgvector hybrid RAG, guardrails, SSE streaming, token usage, and evals. Requires node-backend-dev-kit.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["node", "typescript", "express", "ai-agents", "langgraph", "langchain", "llm", "openrouter", "rag", "pgvector", "guardrails", "sse", "evals", "mcp", "context7"],
+  "category": "productivity",
+  "rules": "./rules/",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

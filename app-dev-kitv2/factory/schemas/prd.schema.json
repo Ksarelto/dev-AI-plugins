@@ -1,0 +1,235 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/prd",
+  "title": "prd.md front matter (greenfield requirements)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "feature",
+    "kind",
+    "summary",
+    "requirements",
+    "open_questions"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "kind": {
+      "const": "prd"
+    },
+    "summary": {
+      "type": "string"
+    },
+    "requirements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "sources",
+          "acs"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^REQ-\\d{4}$"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 5
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
+            }
+          },
+          "priority": {
+            "enum": [
+              "must",
+              "should",
+              "could"
+            ]
+          },
+          "acs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^AC-\\d{4}$"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 5
+                },
+                "kind": {
+                  "enum": [
+                    "happy",
+                    "error",
+                    "edge",
+                    "permission",
+                    "nfr"
+                  ],
+                  "description": "what the AC exercises; a must story needs one that is not happy (gate-stories)"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "severity",
+          "text"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^OQ-\\d+$"
+          },
+          "severity": {
+            "enum": [
+              "blocker",
+              "major",
+              "minor"
+            ]
+          },
+          "text": {
+            "type": "string"
+          },
+          "default": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "answered",
+              "defaulted"
+            ]
+          },
+          "answer": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "out_of_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "backlog": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "title",
+          "requirements"
+        ],
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "requirements": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^REQ-\\d{4}$"
+            }
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "sources_not_used": {
+      "type": "array",
+      "description": "source paragraphs of this feature that state no requirement (context, history) or are out of scope, each with the reason",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "reason"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^SRC-\\d{3,}$"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3
+          }
+        }
+      }
+    },
+    "non_functional": {
+      "type": "array",
+      "description": "measurable non-functional requirements; a PRD needs performance, accessibility and security (gate-spec)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "category",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^NFR-\\d+$"
+          },
+          "category": {
+            "enum": [
+              "performance",
+              "accessibility",
+              "security",
+              "reliability",
+              "privacy",
+              "observability",
+              "compatibility",
+              "localization"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 5
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
+            }
+          }
+        }
+      }
+    }
+  }
+}

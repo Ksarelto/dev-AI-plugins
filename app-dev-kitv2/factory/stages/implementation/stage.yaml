@@ -1,0 +1,10 @@
+# Shipped by the engine: the task loop is engine mechanics. Each task is routed by its role to the
+# role pack's test author and builder; the gates come from role.yaml (red, impl).
+id: implementation
+title: S5 Implementation (test-first task loop)
+kind: task_loop
+context_role: execution_roles
+inputs: ["prd|delta-spec", stories?, tasks, test-plan, component-map?, api-contract?, agent-design?, ux-notes?, prototype-report?]
+outputs: []
+gate: null
+requires: { factory: "^0.1" }

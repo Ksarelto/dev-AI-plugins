@@ -1,0 +1,10 @@
+id: stories
+title: S2 Stories and UX
+kind: agents
+agents: [story-writer]
+context_role: analysis_roles
+inputs: ["prd|delta-spec", app-profile?, capability-index?, component-inventory?, prototype-screens?, human-notes?]   # screen names: reuse the prototype's ids
+outputs: [stories, ux-notes]
+gate: stories
+tracked_ids: [REQ, AC, HD]
+requires: { factory: "^0.1" }

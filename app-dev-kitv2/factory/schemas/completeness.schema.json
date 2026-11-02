@@ -1,0 +1,455 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/completeness",
+  "title": "completeness.yaml \u2014 the requirements analyst's coverage credits; the engine scores them (gate-spec)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "feature",
+    "categories"
+  ],
+  "properties": {
+    "feature": {
+      "type": "string",
+      "pattern": "^FEAT-\\d{3}$"
+    },
+    "categories": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "error_states",
+        "permissions_roles",
+        "edge_cases",
+        "non_functional",
+        "backward_compatibility",
+        "undo_rollback",
+        "notifications",
+        "data_lifecycle",
+        "observability",
+        "localization_accessibility"
+      ],
+      "properties": {
+        "error_states": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "permissions_roles": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "edge_cases": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "non_functional": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "backward_compatibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "undo_rollback": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "notifications": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "data_lifecycle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "observability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        },
+        "localization_accessibility": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "credit"
+          ],
+          "properties": {
+            "credit": {
+              "enum": [
+                "full",
+                "partial",
+                "none",
+                "n/a"
+              ]
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(?:REQ-\\d{4}|AC-\\d{4}|OQ-\\d+|NFR-\\d+)$"
+              },
+              "description": "spec IDs that cover the category; full credit backed only by OQ (defaulted assumptions) counts as partial"
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 3,
+              "description": "required for n/a: why the category does not apply (owned elsewhere, greenfield, no such behaviour)"
+            },
+            "gap": {
+              "type": "string",
+              "description": "partial or none: what is missing"
+            },
+            "question": {
+              "type": "string",
+              "description": "partial or none: the one question that would close the gap"
+            },
+            "recommended": {
+              "type": "string",
+              "description": "partial or none: the answer you recommend (first option shown to the human)"
+            }
+          }
+        }
+      }
+    }
+  }
+}

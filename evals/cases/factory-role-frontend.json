@@ -1,0 +1,39 @@
+{
+  "plugin": "factory-role-frontend",
+  "source": "./app-dev-kitv2/factory-role-frontend",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Write the failing Vitest tests and stubs for the frontend task before implementation",
+      "expect": "fe-red-tests"
+    },
+    {
+      "prompt": "Characterisation tests that pin the current order total behaviour",
+      "expect": "fe-red-tests"
+    },
+    {
+      "prompt": "Implement the frontend task until its red tests pass in the FSD layers",
+      "expect": "fe-implement-task"
+    },
+    {
+      "prompt": "Implement the coupon field so the feature works and goes green",
+      "expect": "fe-implement-task"
+    },
+    {
+      "prompt": "Build the order list page of the app prototype with a block for every story state",
+      "expect": "fe-prototype"
+    },
+    {
+      "prompt": "Write the screen note with the ACs shown and spec gaps for GATE-P",
+      "expect": "fe-prototype"
+    },
+    {
+      "prompt": "Update the prototype design brief, tokens and navigation shell for this feature",
+      "expect": "fe-prototype-design"
+    },
+    {
+      "prompt": "Apply the brand colours to the prototype tokens and mark which screens are added or changed in screens.yaml",
+      "expect": "fe-prototype-design"
+    }
+  ]
+}

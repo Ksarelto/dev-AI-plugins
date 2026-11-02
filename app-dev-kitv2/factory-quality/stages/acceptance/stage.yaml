@@ -1,0 +1,12 @@
+id: acceptance
+title: S5a Acceptance tests (from the spec, before implementation)
+kind: agents
+agents: [acceptance-test-author]
+context_role: execution_roles
+read_deny: ["src/**/!(*.acceptance.test.*)"]
+inputs: ["prd|delta-spec", stories, ux-notes?, component-map, api-contract?, test-plan]
+outputs: [acceptance-tests]
+gate: acceptance
+after_pass: lock_acceptance   # the tests become a holdout: builders cannot read or change them
+tracked_ids: [AC]
+requires: { factory: "^0.1" }

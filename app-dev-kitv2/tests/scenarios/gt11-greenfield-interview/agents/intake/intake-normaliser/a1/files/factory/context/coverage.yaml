@@ -1,0 +1,8 @@
+topics:
+  users: { status: blocker_gap, note: no input yet }
+  goals: { status: blocker_gap, note: no input yet }
+  scope: { status: blocker_gap, note: no input yet }
+  data: { status: gap }
+  rules: { status: gap }
+  nfr: { status: gap }
+  acceptance: { status: gap }
