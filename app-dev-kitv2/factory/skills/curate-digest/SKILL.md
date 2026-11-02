@@ -6,6 +6,8 @@ user-invocable: false
 
 # Curate a feature digest
 
+Runs on: curator (haiku) — compacting one feature's artifacts into digest.md at a stage exit, keeping every open ID.
+
 The digest is navigation, never the source of truth: later stages read it first, then open the full
 artifacts by path. Its one hard rule: **every open tracked ID must appear in it.**
 

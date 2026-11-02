@@ -18,7 +18,7 @@ const LIMITS = { skill: 150, rule: 40, agent: 120 };
 const MODEL_POLICY = {
   opus: ["requirements-analyst", "solution-architect", "planner", "reviewer", "ai-architect", "diagnostician"],
   sonnet: ["codebase-analyst", "story-writer", "contract-steward", "test-strategist", "acceptance-test-author", "qa-engineer",
-    "fe-test-author", "fe-builder", "prototyper", "be-test-author", "be-builder", "migration-author",
+    "fe-test-author", "fe-builder", "prototype-designer", "prototyper", "be-test-author", "be-builder", "migration-author",
     "ai-builder", "ai-rag-builder", "eval-author", "ai-test-author", "release-manager"],
   haiku: ["intake-normaliser", "curator", "tech-writer"],
 };
@@ -93,12 +93,20 @@ for (const a of allAgents) {
   const tier = Object.keys(MODEL_POLICY).find((t) => MODEL_POLICY[t].includes(a.name));
   if (!tier) errors.push(`${rel(a.file)}: "${a.name}" is not in the model policy table — add it deliberately`);
   else if (a.data?.model !== tier) errors.push(`${rel(a.file)}: model ${a.data?.model}, policy says ${tier}`);
+  // Every agent documents its fixed model: a "## Model" section whose first bold word is that model.
+  const modelSection = /^## Model\s*\n+\*\*(\w+)\*\*/m.exec(readFileSync(a.file, "utf8"));
+  if (!modelSection) errors.push(`${rel(a.file)}: no "## Model" section starting with **${a.data?.model}** (why this tier, what it is sized for, escalation, Cursor id)`);
+  else if (modelSection[1] !== a.data?.model) errors.push(`${rel(a.file)}: "## Model" says ${modelSection[1]}, frontmatter says ${a.data?.model}`);
   const own = new Set(byName[a.plugin].skills.map((s) => s.name));
   for (const skill of a.data?.skills ?? []) if (!own.has(skill)) errors.push(`${rel(a.file)}: preloads skill "${skill}", which ${a.plugin} does not ship`);
   for (const skill of a.data?.skills ?? []) {
     const s = byName[a.plugin].skills.find((x) => x.name === skill);
     if (s?.data?.["disable-model-invocation"] === true) errors.push(`${rel(a.file)}: preloads "${skill}", but disable-model-invocation stops preloading`);
   }
+}
+// A procedure skill (preloaded by an agent) says which agent and model run it, right under its title.
+for (const s of allSkills.filter((x) => x.data?.["user-invocable"] === false)) {
+  if (!/^# .+\n+Runs on: \S/m.test(readFileSync(s.file, "utf8"))) errors.push(`${rel(s.file)}: no "Runs on: <agent> (<model>) — …" line under the title`);
 }
 for (const f of plugins.flatMap((p) => walk(join(p.dir, "rules"), (x) => x.endsWith(".mdc")))) {
   const lines = readFileSync(f, "utf8").split("\n").length;
@@ -218,12 +226,23 @@ for (const kit of STACK_KITS) {
     continue;
   }
   const stack = YAML.parse(readFileSync(file, "utf8"));
-  for (const [type, ref] of Object.entries(stack.skills ?? {})) {
-    const [k, s] = ref.split(":");
-    if (!existsSync(join(root, k, "skills", s, "SKILL.md"))) errors.push(`${kit}/stack.yaml: task type "${type}" → ${ref} does not exist`);
+  const skillExists = (ref) => {
+    const [k, s] = String(ref).split(":");
+    return existsSync(join(root, k, "skills", s ?? "", "SKILL.md"));
+  };
+  for (const [type, refs] of Object.entries(stack.skills ?? {})) {
+    for (const ref of [refs].flat()) if (!skillExists(ref)) errors.push(`${kit}/stack.yaml: task type "${type}" → ${ref} does not exist`);
   }
-  for (const [type, path] of Object.entries(stack.golden_files ?? {})) {
-    if (!existsSync(join(root, kit, path))) errors.push(`${kit}/stack.yaml: golden file for "${type}" (${path}) does not exist`);
+  for (const [type, paths] of Object.entries(stack.golden_files ?? {})) {
+    for (const path of [paths].flat()) if (!existsSync(join(root, kit, path))) errors.push(`${kit}/stack.yaml: golden file for "${type}" (${path}) does not exist`);
+  }
+  for (const [type, paths] of Object.entries(stack.rules ?? {})) {
+    for (const path of [paths].flat()) if (!existsSync(join(root, kit, path))) errors.push(`${kit}/stack.yaml: rule for "${type}" (${path}) does not exist`);
+  }
+  const agentNames = new Set(allAgents.map((a) => a.name));
+  for (const [agent, refs] of Object.entries(stack.stage_skills ?? {})) {
+    if (!agentNames.has(agent)) errors.push(`${kit}/stack.yaml: stage_skills names "${agent}", which no factory pack ships`);
+    for (const ref of [refs].flat()) if (!skillExists(ref)) errors.push(`${kit}/stack.yaml: stage_skills for "${agent}" → ${ref} does not exist`);
   }
 }
 

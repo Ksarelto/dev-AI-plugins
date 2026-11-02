@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
-import { ENGINE, conductor, envelope, makeFeature, makeProject, putArtifact, putIntake, readYamlFile } from "./helpers.mjs";
+import { ENGINE, YAML, conductor, envelope, makeFeature, makeProject, putArtifact, putIntake, readYamlFile } from "./helpers.mjs";
 
 const { gateContext, runGate } = await import(`${ENGINE}/scripts/lib/gatekeeper.mjs`);
 
@@ -66,6 +66,72 @@ test("happy path: requirements → digest → GATE-A → stories → planning �
   assert.equal(st.status, "done");
   assert.equal(st.budgets.tokens, 3000);
   assert.ok(st.budgets.dispatches >= 5);
+});
+
+test("automation.autopilot approves GATE-A and GATE-B itself: no ask_human, straight to done", async () => {
+  const env = setup("automation: { autopilot: true }");
+  let s = step(env.dir);
+  assert.equal(s.action, "dispatch");
+  let r = await agentDoes(env, s.dispatches[0], { "01-requirements/delta-spec.yaml": ["delta-spec.yaml"] });
+  assert.equal(r.verdict, "advance");
+
+  // The digest the requirements stage queues still runs; GATE-A is approved without ever asking.
+  s = step(env.dir);
+  assert.equal(s.dispatches[0].subagent_type, "factory:curator");
+  writeFileSync(join(env.featureDir, "digest.md"), "REQ-0001 REQ-0002 AC-0001 AC-0002 AC-0003\n");
+  await record(env.dir, { dispatchId: s.dispatches[0].id, envelopeText: envelope(s.dispatches[0].id) });
+
+  s = step(env.dir);
+  assert.equal(s.action, "dispatch");
+  assert.equal(s.dispatches[0].agent, "story-writer-fx");
+  r = await agentDoes(env, s.dispatches[0], { "02-stories/stories.yaml": ["stories.yaml"], "02-stories/ux-notes.md": ["ux-notes.md"] });
+  assert.equal(r.verdict, "advance");
+
+  s = step(env.dir);
+  assert.equal(s.dispatches[0].agent, "planner-fx");
+  r = await agentDoes(env, s.dispatches[0], { "04-plan/tasks.yaml": ["tasks.yaml"], "04-plan/test-plan.yaml": ["test-plan.yaml"] });
+  assert.equal(r.verdict, "advance");
+
+  s = step(env.dir);
+  assert.equal(s.dispatches[0].agent, "curator");
+  await record(env.dir, { dispatchId: s.dispatches[0].id, envelopeText: envelope(s.dispatches[0].id) });
+
+  // GATE-B is approved the same way: the feature finishes without ever stopping for a human.
+  assert.equal(step(env.dir).action, "done");
+
+  const st = featureState(env.featureDir);
+  assert.equal(st.status, "done");
+  assert.equal(st.gates["GATE-A"].by, "autopilot");
+  assert.equal(st.gates["GATE-B"].by, "autopilot");
+});
+
+test("automation.autopilot also approves a gate a feature was already waiting at", async () => {
+  const env = setup();
+  let s = step(env.dir);
+  await agentDoes(env, s.dispatches[0], { "01-requirements/delta-spec.yaml": ["delta-spec.yaml"] });
+  s = step(env.dir);
+  writeFileSync(join(env.featureDir, "digest.md"), "REQ-0001 REQ-0002 AC-0001 AC-0002 AC-0003\n");
+  await record(env.dir, { dispatchId: s.dispatches[0].id, envelopeText: envelope(s.dispatches[0].id) });
+  assert.equal(step(env.dir).action, "ask_human", "autopilot is still off: GATE-A really waits");
+
+  const config = readYamlFile(join(env.dir, ".factory", "factory.config.yaml"));
+  config.automation = { autopilot: true };
+  writeFileSync(join(env.dir, ".factory", "factory.config.yaml"), YAML.stringify(config));
+
+  s = step(env.dir);
+  assert.equal(s.action, "dispatch", "turning autopilot on resolves the pending GATE-A on its own");
+  assert.equal(s.dispatches[0].agent, "story-writer-fx");
+  assert.equal(featureState(env.featureDir).gates["GATE-A"].by, "autopilot");
+});
+
+test("automation.autopilot never answers a CLARIFY stop — there is no safe default to invent", async () => {
+  const env = setup("automation: { autopilot: true }");
+  const d = step(env.dir).dispatches[0];
+  await record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id, { status: "needs_clarification", open_questions: ["Stackable with loyalty?"] }) });
+  const ask = step(env.dir);
+  assert.equal(ask.action, "ask_human", "autopilot still stops for a genuine question");
+  assert.equal(ask.gate, "CLARIFY");
+  assert.deepEqual(ask.questions, ["Stackable with loyalty?"]);
 });
 
 test("an invalid envelope is sent back without touching state", async () => {

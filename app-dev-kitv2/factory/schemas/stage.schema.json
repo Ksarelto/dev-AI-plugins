@@ -204,6 +204,31 @@
         ]
       },
       "description": "agent → model for this stage only (the patch tier plans on sonnet)"
+    },
+    "fan_out": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "agent",
+        "over"
+      ],
+      "description": "after the stage's own agents: one parallel dispatch of agent per item of over",
+      "properties": {
+        "agent": {
+          "type": "string"
+        },
+        "over": {
+          "enum": [
+            "prototype-screens"
+          ]
+        }
+      }
+    },
+    "snapshot": {
+      "enum": [
+        "prototype"
+      ],
+      "description": "copy .factory/prototype/ aside when the stage starts (restored on abort or factory proto --revert)"
     }
   }
 }

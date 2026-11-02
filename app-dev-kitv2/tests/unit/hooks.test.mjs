@@ -223,14 +223,14 @@ test("claude: the read budget still applies when the same agent runs for two fea
   assert.equal(decision(hook(dir, "pre-read", { tool_name: "Read", agent_type: agent, tool_input: { file_path: file("README.md") } })), "deny");
 });
 
-test("cursor-hooks.json: camelCase events, plugin-root paths, and an answer outside factory projects", () => {
+test("cursor-hooks.json: camelCase events, the guard found from the plugin folder, an answer outside factory projects", () => {
   const engineHooks = JSON.parse(spawnSync("cat", [join(ENGINE, "hooks", "cursor-hooks.json")], { encoding: "utf8" }).stdout);
   assert.equal(engineHooks.version, 1);
   const outside = mkdtempSync(join(tmpdir(), "factory-none-"));
   for (const [event, entries] of Object.entries(engineHooks.hooks)) {
     assert.match(event, /^[a-z][A-Za-z]+$/, event);
     for (const h of entries) {
-      assert.match(h.command, /\$\{CURSOR_PLUGIN_ROOT\}\/hooks\/guard\.mjs" [a-z-]+ --cursor$/);
+      assert.match(h.command, /G=\.\/hooks\/guard\.mjs; .*node "\$G" [a-z-]+ --cursor$/);
       const r = spawnSync("sh", ["-c", h.command], { encoding: "utf8", env: { ...process.env, CURSOR_PROJECT_DIR: outside, CURSOR_PLUGIN_ROOT: ENGINE } });
       const answerJson = JSON.parse(r.stdout);
       if (["preToolUse", "beforeReadFile", "beforeShellExecution", "subagentStart"].includes(event)) assert.equal(answerJson.permission, "allow", event);
@@ -240,4 +240,49 @@ test("cursor-hooks.json: camelCase events, plugin-root paths, and an answer outs
   const [start] = pack.hooks.sessionStart;
   const r = spawnSync("sh", ["-c", start.command], { encoding: "utf8", env: { ...process.env, CURSOR_PROJECT_DIR: outside } });
   assert.deepEqual(JSON.parse(r.stdout), {});
+  // Inside a factory project, in the plugin folder, with CURSOR_PLUGIN_ROOT naming another plugin (seen
+  // in Cursor 2026.10): the pack still registers its own root.
+  const { dir } = active();
+  const analysis = join(ENGINE, "..", "factory-analysis");
+  const reg = spawnSync("sh", ["-c", start.command], { cwd: analysis, encoding: "utf8", env: { ...process.env, CURSOR_PROJECT_DIR: dir, CLAUDE_PROJECT_DIR: dir, CURSOR_PLUGIN_ROOT: tmpdir(), CLAUDE_PLUGIN_ROOT: tmpdir() } });
+  assert.equal(reg.status, 0, reg.stderr);
+  assert.equal(JSON.parse(spawnSync("cat", [join(dir, ".factory/.registry/factory-analysis.json")], { encoding: "utf8" }).stdout).root, analysis);
+});
+
+test("cursor: the Task call marks a subagent; its first call binds its conversation; the Task result ends it", () => {
+  const { dir, agent, file } = active();
+  cursor(dir, "session-start", { conversation_id: MAIN });
+  const task = { conversation_id: MAIN, tool_name: "Task", tool_use_id: "tu-1", tool_input: { subagent_type: agent, prompt: "x" } };
+  assert.equal(cursor(dir, "task-start", task).permission, "allow");
+  const write = (conv) => cursor(dir, "pre-write", { conversation_id: conv, tool_name: "Write", tool_input: { file_path: file("src/app.ts"), content: "x" } }).permission;
+  assert.equal(write(MAIN), "allow", "the Conductor's chat");
+  assert.equal(write("sub-conv"), "deny", "the first unknown conversation is the subagent");
+  assert.equal(write("sub-conv"), "deny");
+  cursor(dir, "task-end", { ...task, tool_output: JSON.stringify({ status: "success", agentId: "sub-conv" }) });
+  assert.equal(write("sub-conv"), "allow", "the subagent finished");
+  cursor(dir, "task-start", { ...task, tool_use_id: "tu-2" });
+  cursor(dir, "task-start", { ...task, tool_use_id: "tu-3" });
+  assert.equal(write("conv-a"), "deny", "two unbound subagents of the factory: the union applies");
+});
+
+test("browser MCP navigation by a dispatched agent stays on loopback", async () => {
+  const { decideNavigate } = await import(`${ENGINE}/hooks/guard.mjs`);
+  const actives = [{ agent: "qa-engineer", subagent_type: "factory-quality:qa-engineer" }];
+  const nav = (url, agent_type = "qa-engineer") => decideNavigate({ agent_type, tool_input: { url } }, actives);
+  assert.equal(nav("http://localhost:5173/checkout"), null);
+  assert.equal(nav("http://127.0.0.1:4173/"), null);
+  assert.equal(nav("file:///tmp/x/.factory/prototype/index.html"), null);
+  assert.match(nav("https://example.com/"), /outside this machine/);
+  assert.equal(nav("https://example.com/", null), null, "the main session is not restricted");
+});
+
+test("reads outside the project (plugin skills, references, stack rules) never use up the read budget", async () => {
+  const { decideRead } = await import(`${ENGINE}/hooks/guard.mjs`);
+  const dir = makeProject();
+  const actives = [{ id: "FEAT-001/x/fe-builder/a1", agent: "fe-builder", subagent_type: "factory-role-frontend:fe-builder", read_budget: 1 }];
+  const read = (file_path) => decideRead({ agent_type: "fe-builder", tool_name: "Read", tool_input: { file_path } }, dir, actives);
+  assert.equal(read(`${ENGINE}/../factory-role-frontend/skills/fe-implement-task/SKILL.md`), null);
+  assert.equal(read(`${ENGINE}/../factory-role-frontend/skills/fe-implement-task/SKILL.md`), null, "still free the second time");
+  assert.equal(read(join(dir, "src/entities/order/model/total.ts")), null);
+  assert.match(read(join(dir, "src/entities/order/model/total.ts")), /read budget used up/);
 });

@@ -66,6 +66,9 @@ export function doctor(projectDir, { register } = {}) {
           else if (!MODELS.includes(t.model)) report.push(`stage ${id}: ${t.subagent_type} declares model "${t.model}"; use ${MODELS.join(", ")}`);
         }
         if (!stage.agents?.length) report.push(`stage ${id}: kind "${stage.kind}" lists no agents`);
+        for (const t of stage.fan_out ? resolveAgents(c, { ...stage, agents: [stage.fan_out.agent] }) : []) {
+          if (!t.pack?.agents.includes(t.agent)) report.push(`stage ${id}: fan_out agent "${t.agent}" is missing in ${t.pack?.name ?? "its role pack"}`);
+        }
       }
       for (const ref of stage.inputs ?? []) {
         let parsed;
@@ -122,12 +125,22 @@ export function doctor(projectDir, { register } = {}) {
   const adapter = config.delivery?.adapter;
   if (adapter && !packs[adapter]?.adapter) warnings.push(`delivery adapter "${adapter}" is not installed (needed at the delivery stage)`);
 
+  // MCP servers a pack's agents use (its .mcp.json). Clients that do not hand plugin servers to
+  // subagents need them in the project's .mcp.json; say which are missing there.
+  const projectMcp = Object.keys(readJson(join(projectDir, ".mcp.json"), {})?.mcpServers ?? {});
+  const usedPacks = new Set([...enabledRoles(config).map((r) => r.pack), ...Object.values(packs).filter((p) => Object.keys(p.stages).length).map((p) => p.name)]);
+  for (const pack of Object.values(packs).filter((p) => usedPacks.has(p.name))) {
+    const declared = Object.keys(readJson(join(pack.root, ".mcp.json"), {})?.mcpServers ?? {});
+    const missing = declared.filter((n) => !projectMcp.includes(n));
+    if (missing.length) warnings.push(`${pack.name} agents use the MCP server(s) ${missing.join(", ")} (${pack.name}/.mcp.json); if your client does not give plugin MCP servers to subagents, add them to ${join(projectDir, ".mcp.json")}`);
+  }
+
   const relevant = Object.values(packs).filter((p) => p.name === ENGINE_PACK || Object.keys(p.stages).length || p.role || p.stack || p.adapter);
   const packList = Object.fromEntries(relevant.map((p) => [p.name, { version: p.version, source: sources[p.name], root: p.root }]));
   return { ok: errors.length === 0, errors, warnings, packs: packList };
 }
 
-const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", "features/*/snapshots/", "features/*/acceptance-lock/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
+const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", "features/*/snapshots/", "features/*/acceptance-lock/", "features/*/02b-prototype/before/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
 
 export function init(projectDir, { mode = "unknown", name, roles } = {}) {
   const paths = factoryPaths(projectDir);

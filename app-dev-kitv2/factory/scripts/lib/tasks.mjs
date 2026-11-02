@@ -11,6 +11,7 @@ import { gateContext, runGate } from "./gatekeeper.mjs";
 import { resolveStack } from "./stackexec.mjs";
 import { decide } from "./warden.mjs";
 import { applyMappings, openNotes } from "./notes.mjs";
+import { taskKnowledge } from "./knowledge.mjs";
 
 const CLOSED = ["done", "parked", "replaced"];
 const DEFAULT_INPUTS = ["prd|delta-spec", "stories?", "ux-notes?", "component-map?", "api-contract?", "agent-design?", "prototype-report?", "tasks", "test-plan"];
@@ -107,8 +108,6 @@ function missionFor(c, task, phase, role) {
   const planFile = join(c.feature.dir, "04-plan", "test-plan.yaml");
   const cases = existsSync(planFile) ? (readYaml(planFile).cases ?? []).filter((x) => x.task === task.id) : [];
   const stack = c.packs[role.stack]?.stack;
-  const procedure = [phase === "green" ? null : stack?.skills?.test, stack?.skills?.[task.type]].filter(Boolean);
-  const golden = stack?.golden_files?.[task.type] ? join(c.packs[role.stack].root, stack.golden_files[task.type]) : null;
   const doing = {
     red: () => `Write the failing tests in ${task.tdd.red_tests.join(", ")} and only the stubs the tests import (${(task.tdd.stubs ?? []).join("; ") || "signatures in files_expected"}). Every test must run and fail on an assertion or "not implemented" (no skip/todo). Do not implement.`,
     green: () => `Make ${task.tdd?.red_tests?.length ? `the red tests (${task.tdd.red_tests.join(", ")})` : "the task"} pass by implementing it. The red tests are read-only; if one is wrong, return "test_dispute" instead of editing it.`,
@@ -121,8 +120,6 @@ function missionFor(c, task, phase, role) {
     ...(cases.length ? [`Planned test cases: ${cases.map((x) => `${x.id} (${x.level}) ${x.title}`).join(" | ")}`] : []),
     `Definition of done: ${task.definition_of_done.join(" | ")}`,
     `Files: ${task.files_expected.join(", ")}`,
-    ...(procedure.length ? [`Procedure: ${procedure.join(" + ")}`] : []),
-    ...(golden ? [`Golden file (match its patterns): ${golden}`] : []),
   ].join("\n");
 }
 
@@ -277,6 +274,7 @@ function taskDispatch(c, stageId, stage, task, h) {
     extraWrites: writes, writeDeny: phase === "green" ? red : [],
     extraReads: (unit.rung ?? 0) >= 3 && existsSync(rootCause) ? [{ label: "Root cause", path: rel(rootCause) }] : [],
     mission: missionFor(c, task, phase, role),
+    knowledge: taskKnowledge(c.packs[role.stack], task.type, phase),
   });
 }
 

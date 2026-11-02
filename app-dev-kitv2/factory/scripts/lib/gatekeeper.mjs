@@ -7,7 +7,7 @@ import { TRACKED_KINDS, extractIds, kindOf } from "./ids.mjs";
 import { ARTIFACT_TYPES, artifactFiles, loadArtifact, parseArtifactRef, validate } from "./schemas.mjs";
 
 /** Everything a gate may look at. Gates read through these helpers, never by guessing paths. */
-export function gateContext({ projectDir, app, feature, config, stage, task, stack, packs }) {
+export function gateContext({ projectDir, app, feature, config, stage, task, stack, packs, screen }) {
   const paths = factoryPaths(projectDir);
   const dirs = { factoryRoot: paths.root, featureDir: feature?.dir, projectDir };
   const load = (type) => {
@@ -23,7 +23,7 @@ export function gateContext({ projectDir, app, feature, config, stage, task, sta
     if (delta) return { ...delta, kind: "delta-spec", reqs: [...(delta.data.added ?? []), ...(delta.data.modified ?? [])], removed: (delta.data.removed ?? []).map((r) => r.id) };
     return null;
   };
-  return { projectDir, paths, dirs, app, feature, state: feature?.state, config, stage, task, stack, packs, load, all, spec };
+  return { projectDir, paths, dirs, app, feature, state: feature?.state, config, stage, task, stack, packs, screen, load, all, spec };
 }
 
 const gateModules = new Map();
@@ -75,7 +75,7 @@ export async function runGate(name, ctx, { useCache = true } = {}) {
   const hash = inputHash(ctx, mod.inputs ?? [], mod.cacheable);
   const cacheFile = ctx.feature ? join(ctx.feature.dir, "gate-cache.json") : null;
   const cache = cacheFile ? readJson(cacheFile, {}) : {};
-  const key = ctx.task ? `${name}:${ctx.task.id}` : name;
+  const key = ctx.task ? `${name}:${ctx.task.id}` : ctx.screen ? `${name}:${ctx.screen}` : name;
   // A "tree" gate reuses only a pass: a failure is cheap to confirm and may have been flaky.
   // The tree after the run counts too: a gate's own output (a tsbuildinfo, a snapshot) is not a change.
   const reusable = mod.cacheable !== false && hash && (cache[key]?.input_hash === hash || cache[key]?.input_hash_after === hash) && (mod.cacheable !== "tree" || cache[key].pass);
@@ -100,13 +100,15 @@ export async function runGate(name, ctx, { useCache = true } = {}) {
   return result;
 }
 
+/** A failure marked warn: true is reported but never blocks: pass, progress and fingerprint ignore it. */
 export function normaliseResult(gate, failures, hash = "") {
-  const keys = failures.map((f) => `${f.check}|${f.rule ?? ""}|${f.file ?? ""}|${normalise(f.message)}`).sort();
+  const blocking = failures.filter((f) => !f.warn);
+  const keys = blocking.map((f) => `${f.check}|${f.rule ?? ""}|${f.file ?? ""}|${normalise(f.message)}`).sort();
   return {
     gate,
-    pass: failures.length === 0,
-    progress_signal: failures.reduce((n, f) => n + (f.count ?? 1), 0),
-    fingerprint: failures.length ? sha(keys.join("\n"), "sha1").slice(0, 12) : null,
+    pass: blocking.length === 0,
+    progress_signal: blocking.reduce((n, f) => n + (f.count ?? 1), 0),
+    fingerprint: blocking.length ? sha(keys.join("\n"), "sha1").slice(0, 12) : null,
     failures,
     cached: false,
     input_hash: hash,

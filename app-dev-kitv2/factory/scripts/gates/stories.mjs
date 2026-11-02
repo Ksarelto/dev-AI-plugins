@@ -1,6 +1,8 @@
 // gate-stories (S2): every story traces to a requirement in the spec, every spec AC lands in a story
 // that traces the AC's own requirement, stories invent no ACs, every AC is Given/When/Then with real
-// steps and the spec's exact values, and UI stories list their states (with ux-notes.md written).
+// steps and the spec's exact values, UI stories list their states (with ux-notes.md written), a story
+// for a must requirement has an error, edge or permission AC (or says why it cannot), and a story
+// that wants three things or more is flagged (warning) for splitting.
 import { acValues, plainText } from "../lib/ids.mjs";
 import { validate } from "../lib/schemas.mjs";
 
@@ -21,6 +23,8 @@ export function run(ctx) {
   const specAcs = new Set(spec.reqs.flatMap((r) => r.acs.map((a) => a.id)));
   const acReq = new Map(spec.reqs.flatMap((r) => r.acs.map((a) => [a.id, r.id])));
   const acText = new Map(spec.reqs.flatMap((r) => r.acs.map((a) => [a.id, a.text])));
+  const acKind = new Map(spec.reqs.flatMap((r) => r.acs.map((a) => [a.id, a.kind ?? "happy"])));
+  const must = new Set(spec.reqs.filter((r) => (r.priority ?? "must") === "must").map((r) => r.id));
   const storyIds = new Set();
   const covered = new Set();
 
@@ -44,6 +48,12 @@ export function run(ctx) {
       }
     }
     if (story.ux?.surfaces?.length && !story.ux.states?.length) fail("ux", "no-states", `${story.id} has a UX surface but lists no states`);
+    const unhappy = story.acs.some((ac) => ["error", "edge", "permission"].includes(acKind.get(ac.id)));
+    if (story.traces.some((r) => must.has(r)) && !unhappy && !story.no_unhappy_path) {
+      fail("unhappy", "unhappy-path-missing", `${story.id} serves a must requirement but none of its ACs is kind error, edge or permission — add one to the spec, or set no_unhappy_path with the reason`);
+    }
+    const wants = String(story.i_want ?? "").split(/,|;|\band\b|\bthen\b|\bor\b/i).filter((p) => p.trim().split(/\s+/).length >= 2);
+    if (wants.length >= 3) failures.push({ check: "size", rule: "story-too-big", file: stories.rel, warn: true, message: `${story.id} wants ${wants.length} things ("${story.i_want}") — consider splitting it` });
   }
   for (const ac of specAcs) if (!covered.has(ac)) fail("trace", "uncovered-ac", `${ac} is not in any story`);
   if (stories.data.stories.some((s) => s.ux?.surfaces?.length) && !ctx.load("ux-notes")) fail("ux", "no-ux-notes", "stories have UX surfaces but 02-stories/ux-notes.md is missing");

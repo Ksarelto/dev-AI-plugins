@@ -60,6 +60,10 @@
           "fix": {
             "type": "boolean",
             "description": "a code problem: on_fail fix: sends it to the planner; other failures retry the stage"
+          },
+          "warn": {
+            "type": "boolean",
+            "description": "reported, never blocking"
           }
         }
       }

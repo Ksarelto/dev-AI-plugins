@@ -20,12 +20,20 @@
       "expect": "fe-builder"
     },
     {
-      "prompt": "Prototype the new screens in a sandbox before architecture",
+      "prompt": "Build a clickable static page for the checkout screen showing every state",
       "expect": "prototyper"
     },
     {
-      "prompt": "Make a quick throwaway prototype for stakeholders",
+      "prompt": "Show every state of this screen on a static page and report the spec gaps",
       "expect": "prototyper"
+    },
+    {
+      "prompt": "Keep the living prototype's shared design, brand inputs and screens.yaml up to date",
+      "expect": "prototype-designer"
+    },
+    {
+      "prompt": "Update the prototype navigation shell and shared CSS before the screen pages are built",
+      "expect": "prototype-designer"
     }
   ]
 }

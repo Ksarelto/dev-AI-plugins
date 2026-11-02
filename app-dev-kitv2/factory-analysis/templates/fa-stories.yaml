@@ -24,6 +24,7 @@ stories:
     as_a: customer
     i_want: the total to include the discount
     so_that: I pay the right amount
+    no_unhappy_path: a pure calculation over valid lines; invalid coupons are STORY-0001's error AC
     acs:
       - id: AC-0003
         gherkin: |

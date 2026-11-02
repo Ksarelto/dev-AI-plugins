@@ -15,3 +15,11 @@ write (T0), the exit check, and the envelope you must end with.
 Follow the `curate-digest` skill. It defines the digest layout and the ID rules.
 
 Bash is only for the exit check in T0. End your reply with the JSON envelope from the pack.
+
+## Model
+
+**haiku** — compaction is mechanical: copy decisions and open IDs forward in fewer words, judge nothing.
+Sized for: one feature's artifacts at a stage exit, any priority (the digest gate checks every open ID
+survives). Escalation: none — a failed digest is re-dispatched once with the gate feedback, then the
+feature blocks. The engine writes the digest itself by default (`context.digest: engine`); this agent
+runs only with `context.digest: curator`. Cursor: `composer-2.5[fast=false]`.

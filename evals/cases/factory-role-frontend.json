@@ -20,12 +20,20 @@
       "expect": "fe-implement-task"
     },
     {
-      "prompt": "Prototype the new checkout screen in the sandbox with every state",
+      "prompt": "Build the order list page of the app prototype with a block for every story state",
       "expect": "fe-prototype"
     },
     {
-      "prompt": "Build a throwaway prototype and report spec gaps for GATE-P",
+      "prompt": "Write the screen note with the ACs shown and spec gaps for GATE-P",
       "expect": "fe-prototype"
+    },
+    {
+      "prompt": "Update the prototype design brief, tokens and navigation shell for this feature",
+      "expect": "fe-prototype-design"
+    },
+    {
+      "prompt": "Apply the brand colours to the prototype tokens and mark which screens are added or changed in screens.yaml",
+      "expect": "fe-prototype-design"
     }
   ]
 }

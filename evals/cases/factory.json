@@ -146,6 +146,10 @@
     {
       "prompt": "Reviewers commented on the pull request, turn their change requests into fixes",
       "expect": "pr-feedback"
+    },
+    {
+      "prompt": "Revert the app prototype to how it was before this feature changed it",
+      "expect": "proto"
     }
   ]
 }

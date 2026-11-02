@@ -9,6 +9,7 @@ export const ID_KINDS = {
   TASK: { pattern: "TASK-\\d{3}", width: 3, meaning: "task" },
   TEST: { pattern: "TEST-\\d{4}", width: 4, meaning: "planned test case" },
   OQ: { pattern: "OQ-\\d+", width: 1, meaning: "open question" },
+  NFR: { pattern: "NFR-\\d+", width: 1, meaning: "non-functional requirement" },
   ADR: { pattern: "ADR-\\d{3}", width: 3, meaning: "architecture decision" },
   HD: { pattern: "HD-\\d+", width: 1, meaning: "human note" },
   DEF: { pattern: "DEF-\\d{3}", width: 3, meaning: "QA defect" },

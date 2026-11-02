@@ -8,8 +8,8 @@ added:
     sources: [SRC-001]
     priority: must
     acs:
-      - { id: AC-0001, text: 'Applying "B2B10" to a 100.00 EUR cart shows a -10.00 EUR discount line' }
-      - { id: AC-0002, text: 'Applying an expired coupon shows "This coupon has expired" and leaves the total unchanged' }
+      - { id: AC-0001, kind: happy, text: 'Applying "B2B10" to a 100.00 EUR cart shows a -10.00 EUR discount line' }
+      - { id: AC-0002, kind: error, text: 'Applying an expired coupon shows "This coupon has expired" and leaves the total unchanged' }
 modified:
   - id: REQ-0002
     before: Order total = sum(lines) + shipping
@@ -17,7 +17,7 @@ modified:
     sources: [SRC-002]
     affected: [src/entities/order/model/total.ts]
     acs:
-      - { id: AC-0003, text: "Total is sum(lines) - discount + shipping, rounded half-even to 2 decimals" }
+      - { id: AC-0003, kind: happy, text: "Total is sum(lines) - discount + shipping, rounded half-even to 2 decimals" }
 removed: []
 unchanged_guarantees: ["Totals are rounded half-even to 2 decimals"]
 open_questions:

@@ -1,19 +1,25 @@
 // gate-spec (S1): the PRD or delta-spec is schema-valid, IDs are unique and traceable to a source,
-// every source paragraph of the feature is used or set aside with a reason, acceptance criteria are
-// measurable, every open question has a default (blocker and major ones are answered), and a
-// delta-spec accounts for removals and only touches files that exist.
+// every source paragraph of the feature is used or set aside with a reason, acceptance criteria and
+// non-functional requirements are measurable, a PRD states performance, accessibility and security
+// NFRs, no template placeholder is left, every open question has a default (blocker and major ones
+// are answered), a delta-spec accounts for removals and only touches files that exist, and — in the
+// requirements stage — completeness.yaml scores at least quality.completeness_min.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { readFrontMatter, readYaml } from "../lib/core.mjs";
+import { readFrontMatter, readText, readYaml } from "../lib/core.mjs";
+import { droppedNumbers, scoreCompleteness } from "../lib/completeness.mjs";
 import { plainText } from "../lib/ids.mjs";
 import { validate } from "../lib/schemas.mjs";
 
-export const inputs = ["prd", "delta-spec", "source-index", "human-notes"];
+export const inputs = ["prd", "delta-spec", "completeness", "source-index", "normalised-sources", "human-notes"];
+const REQUIRED_NFR = ["performance", "accessibility", "security"];
 // A measure: a quoted value, a comparison with a number, a currency amount, a percentage, or a number
 // with a unit. Currency codes are upper case on purpose ("17 and" is not "17 EUR").
 const MEASURE = [
   /"[^"]+"|(?<![A-Za-z])'[^']+'(?![A-Za-z])|[<>]=?\s*\d|[€$£¥]\s?\d|\d[\d.,]*\s?[€$£¥%]|\d[\d.,]*\s?[A-Z]{3}(?![A-Za-z])/,
   /\b(at (most|least)|within|no more than|less than|more than|under|over|up to|exactly)\s+[\d$€£¥]|\d[\d.,]*\s?(ms|s|sec|seconds?|min|minutes?|h|hours?|days?|px|em|rem|kb|mb|gb|items?|rows?|results?|requests?|users?|times|chars?|characters?|digits?|decimals?|lines?|steps?)(?![a-z])/i,
+  // A named, versioned standard is a measure too: WCAG 2.2 AA, OWASP ASVS L2, ISO 27001, RFC 9457.
+  /\b(WCAG\s*\d(\.\d)?\s*A{1,3}|OWASP\s+ASVS\s+L?\d|ISO\s*\d{3,5}|RFC\s*\d{3,5}|PCI[-\s]DSS)\b/i,
 ];
 const measured = (text) => MEASURE.some((re) => re.test(plainText(text)));
 
@@ -75,6 +81,19 @@ export function run(ctx) {
   for (const id of sources.filter((s) => s.feature === ctx.state.feature && !s.superseded).flatMap((s) => s.ids ?? [])) {
     if (!cited.has(id)) fail("trace", "source-dropped", `${id} is neither cited by a requirement nor listed in sources_not_used with a reason`);
   }
+  for (const n of spec.data.non_functional ?? []) {
+    unique(n.id);
+    for (const src of n.sources ?? []) if (!known.has(src)) fail("trace", "unknown-source", `${n.id} cites ${src}, which does not exist`);
+    const hit = vague.find((term) => norm(plainText(n.text).replace(/"[^"]*"|`[^`]*`/g, " ")).includes(term));
+    if (hit && !measured(n.text)) fail("measurable", "vague-nfr", `${n.id} uses "${hit.trim()}" with no measure (a number with a unit, a standard such as WCAG 2.2 AA, or a comparison)`);
+  }
+  if (spec.kind === "prd") {
+    const have = new Set((spec.data.non_functional ?? []).map((n) => n.category));
+    for (const cat of REQUIRED_NFR.filter((c) => !have.has(c))) fail("nfr", "nfr-missing", `the PRD states no ${cat} requirement (non_functional with category: ${cat})`);
+  }
+  // Template slots left in the contract (the YAML data, not the prose, which may quote i18n syntax).
+  const slot = /\{\{\s*[A-Za-z_][\w.-]*\s*\}\}|⟨[^⟩]*⟩/.exec(JSON.stringify(spec.data));
+  if (slot) fail("spec", "placeholder", `a template placeholder is left in ${spec.rel}: ${slot[0]}`);
   for (const q of spec.data.open_questions ?? []) {
     unique(q.id);
     const status = q.status ?? "open";
@@ -108,5 +127,52 @@ export function run(ctx) {
     }
     for (const r of spec.data.removed ?? []) unique(r.id);
   }
+  failures.push(...completeness(ctx, spec, sources));
   return failures;
 }
+
+/** Completeness is scored where the stage produces completeness.yaml (requirements; never the patch tier). */
+function completeness(ctx, spec, sources) {
+  const min = ctx.config.quality?.completeness_min ?? 85;
+  if (!min || !(ctx.stage?.outputs ?? []).includes("completeness")) return [];
+  const file = ctx.load("completeness");
+  const rel = file?.rel ?? "01-requirements/completeness.yaml";
+  if (!file) return [{ check: "completeness", rule: "missing", file: rel, message: "01-requirements/completeness.yaml is missing — credit each of the 10 categories with evidence IDs" }];
+  const invalid = validate("completeness", file.data);
+  if (invalid.length) return invalid.map((e) => ({ check: "schema", rule: "completeness", file: rel, message: e }));
+  const ids = new Set([
+    ...spec.reqs.flatMap((r) => [r.id, ...r.acs.map((a) => a.id)]),
+    ...(spec.data.open_questions ?? []).map((q) => q.id),
+    ...(spec.data.non_functional ?? []).map((n) => n.id),
+  ]);
+  const result = scoreCompleteness(file.data, ids, answeredQuestions(spec));
+  const out = result.unknown.map((u) => ({ check: "completeness", rule: "unknown-evidence", file: rel, message: `evidence ${u} is not an ID the spec defines` }));
+  if (result.score < min) {
+    const gaps = result.gaps.map((g) => `${g.category} (${g.credit})${g.gap ? `: ${g.gap}` : ""}`).join("; ");
+    out.push({ check: "completeness", rule: "below-threshold", file: rel, count: 1, message: `completeness ${result.score}/100 is below ${min} — ${gaps}` });
+  }
+  for (const g of result.gaps.filter((x) => !x.question)) out.push({ check: "completeness", rule: "no-question", file: rel, message: `${g.category} is ${g.credit} but names no question that would close the gap` });
+  // Fidelity: a number the feature's sources state should reach a requirement, AC or NFR.
+  const texts = [];
+  for (const src of sources.filter((x) => x.feature === ctx.state.feature && !x.superseded && x.normalised)) {
+    const path = join(ctx.paths.root, src.normalised);
+    if (!existsSync(path)) continue;
+    for (const m of readText(path).matchAll(/\[(SRC-\d{3,})\]\s*([^\n]+)/g)) texts.push([m[1], m[2]]);
+  }
+  const notUsed = new Set((spec.data.sources_not_used ?? []).map((x) => x.id));
+  for (const d of droppedNumbers(texts.filter(([id]) => !notUsed.has(id)), JSON.stringify(spec.data))) {
+    out.push({ check: "completeness", rule: "number-dropped", file: spec.rel, warn: true, message: `${d} is stated in the source but in no requirement, AC or NFR` });
+  }
+  return out;
+}
+
+/** The score and gaps for the human's GATE-A view and the clarification round (no failures). */
+export function completenessSummary(ctx) {
+  const spec = ctx.spec();
+  const file = ctx.load("completeness");
+  if (!spec || !file || validate("completeness", file.data).length) return null;
+  const ids = new Set([...spec.reqs.flatMap((r) => [r.id, ...r.acs.map((a) => a.id)]), ...(spec.data.open_questions ?? []).map((q) => q.id), ...(spec.data.non_functional ?? []).map((n) => n.id)]);
+  return scoreCompleteness(file.data, ids, answeredQuestions(spec));
+}
+
+const answeredQuestions = (spec) => new Set((spec.data.open_questions ?? []).filter((q) => q.status === "answered").map((q) => q.id));

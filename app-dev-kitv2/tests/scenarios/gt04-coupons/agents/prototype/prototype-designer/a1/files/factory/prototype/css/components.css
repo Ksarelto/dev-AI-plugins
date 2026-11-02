@@ -1,0 +1,12 @@
+.card { border: 1px solid #d0d7de; border-radius: var(--radius); padding: var(--space); }
+.field { display: flex; gap: 8px; align-items: end; }
+.input { border: 1px solid #8c959f; border-radius: var(--radius); padding: 8px; }
+.btn { border-radius: var(--radius); padding: 8px 16px; border: 1px solid transparent; cursor: pointer; }
+.btn-primary { background: var(--color-primary); color: #ffffff; }
+.btn-link { background: none; color: var(--color-primary); }
+.alert-error { color: var(--color-danger); }
+.skeleton { height: 16px; background: var(--color-surface); border-radius: var(--radius); }
+.muted { color: var(--color-muted); }
+.dev-panel { position: fixed; bottom: 8px; right: 8px; display: flex; gap: 4px; }
+[data-state][hidden] { display: none; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }

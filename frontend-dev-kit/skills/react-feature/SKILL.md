@@ -165,4 +165,4 @@ export type { PlaceOrderPayload } from './api/dto';
 
 Do not create route files unless explicitly requested. For a single standalone component, use the `react-component` skill.
 
-See [examples.md](examples.md) for few-shot templates.
+See [examples.md](examples.md) for few-shot templates. When the feature adds local state, an Effect, a context, a long list, or a Suspense or error boundary, read [references/react-state-and-effects.md](references/react-state-and-effects.md) for the corner cases and re-render bottlenecks behind the `react` rule.

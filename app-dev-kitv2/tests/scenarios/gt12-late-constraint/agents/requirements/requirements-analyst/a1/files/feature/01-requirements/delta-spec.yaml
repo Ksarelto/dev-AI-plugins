@@ -7,13 +7,13 @@ added:
     sources: [SRC-002, SRC-004]
     priority: must
     acs:
-      - { id: AC-0001, text: 'formatMoney(1234, "EUR") returns "12.34 EUR"' }
+      - { id: AC-0001, kind: happy, text: 'formatMoney(1234, "EUR") returns "12.34 EUR"' }
   - id: REQ-0002
     text: The web app shows prices with the currency symbol of the order
     sources: [SRC-003, SRC-004]
     priority: must
     acs:
-      - { id: AC-0002, text: 'formatPrice(12.34, "EUR") returns "€12.34"' }
+      - { id: AC-0002, kind: happy, text: 'formatPrice(12.34, "EUR") returns "€12.34"' }
 modified: []
 removed: []
 unchanged_guarantees: ["Amounts are stored in minor units (SRC-006)"]

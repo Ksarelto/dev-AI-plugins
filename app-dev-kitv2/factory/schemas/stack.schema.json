@@ -442,15 +442,38 @@
     "golden_files": {
       "type": "object",
       "additionalProperties": {
-        "type": "string"
-      }
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        ]
+      },
+      "description": "task type → exemplar file(s) in this kit the builder matches"
     },
     "skills": {
       "type": "object",
       "additionalProperties": {
-        "type": "string"
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        ]
       },
-      "description": "task type → stack skill (plugin:skill)"
+      "description": "task type → stack skill(s) (plugin:skill); `test` is the red-phase skill"
     },
     "index_adapter": {
       "enum": [
@@ -464,6 +487,34 @@
         "object",
         "null"
       ]
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "task type or \"*\" → rule files in this kit; a task reads \"*\" plus its type's rules, stage agents named in stage_skills see \"*\""
+    },
+    "stage_skills": {
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        ]
+      },
+      "description": "stage agent name (reviewer, solution-architect, qa-engineer, …) → stack skill(s) it loads"
     }
   }
 }

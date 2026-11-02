@@ -119,15 +119,6 @@ test("gate-arch: reuse claims are checked and contract operations declare succes
   for (const rule of ["missing-path", "nothing-considered", "no-reason", "no-success-response"]) assert.ok(r.includes(rule), `${rule} in ${r}`);
 });
 
-test("gate-proto: every UI story has a screen and every screen a story", async () => {
-  const env = setup();
-  mkdirSync(join(env.featureDir, "02b-prototype", "sandbox"), { recursive: true });
-  writeFileSync(join(env.featureDir, "02b-prototype", "sandbox", "s.html"), "<p>x</p>\n");
-  writeFileSync(join(env.featureDir, "02b-prototype", "prototype-report.yaml"), YAML.stringify({ feature: "FEAT-001", screens: [{ name: "s", file: "sandbox/s.html", stories: [] }], spec_delta: [] }));
-  const r = await rules("proto", env);
-  assert.ok(r.includes("screen-without-story") && r.includes("story-without-screen"), r.join());
-});
-
 test("gate-discovery: a capability spanning the whole app is too broad; 'conformant' must survive the architecture check", async () => {
   const dir = makeProject(`packs: { factory-role-frontend: "${V2("factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}" }\nroles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { architecture_check: [node, "${FAKE}", arch] } } } }`);
   makeFeature(dir);

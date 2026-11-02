@@ -5,7 +5,8 @@ stack_kits: [node-backend-dev-kit, frontend-dev-kit]
 intake: { title: Prices in the order currency }
 config:
   roles:
-    frontend: { enabled: true, path: web, owns_paths: ["web/**"], stack_overrides: { package_manager: pnpm } }
+    # The fixture web app predates frontend-dev-kit's conventions (tests beside the code): convention check off.
+    frontend: { enabled: true, path: web, owns_paths: ["web/**"], checks_off: [conventions], stack_overrides: { package_manager: pnpm } }
     backend: { enabled: true, pack: factory-role-backend, stack: node-backend-dev-kit, path: api, owns_paths: ["api/**"] }
   quality: { integration_tests: skip }   # mocked runs: no Docker
   pipeline:

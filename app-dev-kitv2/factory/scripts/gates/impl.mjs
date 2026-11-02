@@ -63,7 +63,10 @@ export async function run(ctx) {
 /** role.yaml gates.checks for this task type, as pool jobs that each resolve to their failures. */
 function roleCheckJobs(ctx) {
   const pack = ctx.packs?.[ctx.config.roles?.[ctx.task.role]?.pack];
-  return (pack?.role?.gates?.checks ?? []).filter((check) => !check.task_types || check.task_types.includes(ctx.task.type)).map((check) => () => roleCheck(ctx, pack, check));
+  // roles.<role>.checks_off: a project turns a role check off by name (e.g. an app that predates the
+  // stack's conventions); the same name turns off the audit of that name at verification.
+  const off = new Set(ctx.config.roles?.[ctx.task.role]?.checks_off ?? []);
+  return (pack?.role?.gates?.checks ?? []).filter((check) => !off.has(check.name) && (!check.task_types || check.task_types.includes(ctx.task.type))).map((check) => () => roleCheck(ctx, pack, check));
 }
 
 /** One role check: a stack command or a node script from the role pack. */

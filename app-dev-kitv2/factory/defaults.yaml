@@ -50,9 +50,9 @@ pipeline:
   digest_after: [requirements, planning, verification]
 
 prototype:
-  # The prototype stage runs when stories name at least this many user-facing surfaces that the
-  # capability map and component inventory do not know yet (never for the patch tier).
-  min_new_surfaces: 1
+  # The living app prototype (.factory/prototype/, static HTML) is updated by every feature whose
+  # stories add, change or remove a user-facing surface (never for the patch tier). false turns it off.
+  enabled: true
 
 flow:
   policy: kanban               # kanban | iterations
@@ -60,9 +60,25 @@ flow:
   kanban: { wip: { verify: 2 } }
   iterations: { length_days: 10, token_budget: 9000000 }
 
+automation:
+  # When true, the engine approves every stage's human_gate itself (GATE-D, GATE-A, GATE-P, GATE-B,
+  # GATE-C) the moment it is reached — same code path as a human `factory approve` (HD notes,
+  # splitBacklog, breakingDeltaBack all still run), recorded with `by: "autopilot"` so events and
+  # `factory metrics` show it. /factory:run then goes from intake straight through implementation,
+  # quality and delivery (a real PR opens there only if delivery.dry_run is also false) without
+  # stopping, on to the feedback stage. A CLARIFY stop — an agent that cannot proceed without an
+  # answer — is never auto-approved; there is no safe default to invent. A human-owned action
+  # (policy.human_owned) is never touched by autopilot either.
+  autopilot: false
+
 quality:
+  # gate-spec in the requirements stage: completeness.yaml must score at least this (0 turns it off).
+  # Below it the engine asks one batch of the analyst's gap questions, then shows the rest at GATE-A.
+  completeness_min: 85
   coverage_changed_lines_min: 90
-  axe_critical_max: 0
+  axe_critical_max: 0              # frontend axe audit: critical violations beyond this are P1 (blocking)
+  axe_routes: ["/"]                # routes of the built app the axe audit opens
+  bundle_kb_max: 250               # frontend bundle audit: gzip KB per JavaScript chunk (P2 above it)
   review_blocking: [P0, P1]
   integration_tests: run         # run: verification runs each stack's test_integration (Docker for Testcontainers); skip: never
   task_limits: { files_max: 3, loc_max: 200 }
@@ -84,7 +100,7 @@ quality:
 budgets:
   feature: { tokens: 2500000, wall_clock_min: 240, dispatches: 60 }
   stage: { attempts_max: 3, dispatches_max: 8 }
-  task: { attempts_max: 3, wall_clock_min: 25 }
+  task: { attempts_max: 3 }
   prototype: { revisions_max: 3, tokens: 180000 }
   backward_edges:
     prototype_to_requirements: 1
@@ -101,9 +117,9 @@ context:
     analysis_roles: 60000
     execution_roles: 45000
     review_roles: 35000
-    prototype_role: 30000
+    prototype_role: 45000
     mechanical_roles: 20000
-  read_allowlist_max: { analysis_roles: 30, execution_roles: 12, review_roles: 20, prototype_role: 8, mechanical_roles: 10 }
+  read_allowlist_max: { analysis_roles: 30, execution_roles: 12, review_roles: 20, prototype_role: 20, mechanical_roles: 10 }
   return_summary_max_words: 200
   digest: engine               # engine: written from the artifacts (no dispatch); curator: the curator agent writes it
   digest_max_words: 600
@@ -111,6 +127,9 @@ context:
 model_tiers: { reasoning: opus, execution: sonnet, mechanical: haiku }
 
 policy:
+  # halt: a step stops when files outside .factory/ changed since the engine's last action (a person
+  # or a stray tool edited the tree); keep them with `factory accept-changes`. off: no check.
+  unexpected_changes: halt
   protected_paths: [".github/**", "**/.env", "**/.env.*", "pnpm-lock.yaml", "package-lock.json", "infra/**"]
   commit_convention: conventional
   branch_pattern: "factory/{feature}-{slug}"

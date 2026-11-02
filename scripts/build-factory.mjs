@@ -87,7 +87,8 @@ function packHooks() {
       sessionStart: [
         {
           command:
-            '[ -d "${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory" ] || { echo \'{}\'; exit 0; }; node "${CURSOR_PLUGIN_ROOT}/hooks/register.mjs"; echo \'{}\'',
+            // Cursor runs plugin hooks in the plugin folder (CURSOR_PLUGIN_ROOT can name another plugin).
+            '[ -d "${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory" ] || { echo \'{}\'; exit 0; }; node ./hooks/register.mjs; echo \'{}\'',
           timeout: 10,
         },
       ],

@@ -59,6 +59,10 @@
         "architect": {
           "type": "string",
           "description": "joins the architecture stage (role:architect) for this role's design"
+        },
+        "prototype_designer": {
+          "type": "string",
+          "description": "writes the prototype's design, shared CSS/JS, shell and screens.yaml (role:prototype_designer)"
         }
       }
     },

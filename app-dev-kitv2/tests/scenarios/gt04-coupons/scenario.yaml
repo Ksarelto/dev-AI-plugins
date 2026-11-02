@@ -4,14 +4,16 @@ repo_from: fsd-app
 stack_kits: [frontend-dev-kit]
 intake: { title: Coupons at checkout }
 config:
-  roles: { frontend: { enabled: true, owns_paths: ["src/**"], stack_overrides: { package_manager: pnpm } } }
+  # The fixture app predates frontend-dev-kit's conventions (no i18n, tests beside components), so the
+  # convention check is off for it; the duplicate check, the layer rules and the rest still run.
+  roles: { frontend: { enabled: true, owns_paths: ["src/**"], checks_off: [conventions], stack_overrides: { package_manager: pnpm } } }
   pipeline:
     profile: analysis
     profiles: { analysis: [intake, discovery, requirements, stories, prototype, architecture, planning, acceptance, implementation, verification, qa, docs, delivery, feedback] }
 expect:
   final_action: done
   final_status: done
-  dispatches_max: 34
+  dispatches_max: 35   # the prototype is a designer plus one prototyper per screen
   gates: [CLARIFY, GATE-D, GATE-A, GATE-P, GATE-B, GATE-C]
   verdicts:
     - { stage: intake, verdict: ask_human }
@@ -49,6 +51,7 @@ expect:
     test-strategist: sonnet
     fe-test-author: sonnet
     fe-builder: sonnet
+    prototype-designer: sonnet
     prototyper: sonnet
     acceptance-test-author: sonnet
     reviewer: opus

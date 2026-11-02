@@ -7,9 +7,9 @@ added:
     sources: [SRC-002, SRC-004, HD-1]
     priority: must
     acs:
-      - { id: AC-0001, text: 'Applying "B2B10" to a 100.00 EUR cart shows a -10.00 EUR discount line' }
-      - { id: AC-0002, text: 'Applying an expired coupon shows "This coupon has expired" and leaves the total unchanged' }
-      - { id: AC-0004, text: 'Applying a coupon to a cart with a loyalty discount shows "Coupons cannot be combined with the loyalty discount"' }
+      - { id: AC-0001, kind: happy, text: 'Applying "B2B10" to a 100.00 EUR cart shows a -10.00 EUR discount line' }
+      - { id: AC-0002, kind: error, text: 'Applying an expired coupon shows "This coupon has expired" and leaves the total unchanged' }
+      - { id: AC-0004, kind: edge, text: 'Applying a coupon to a cart with a loyalty discount shows "Coupons cannot be combined with the loyalty discount"' }
 modified:
   - id: REQ-0002
     before: Order total = sum(lines) + shipping
@@ -17,7 +17,7 @@ modified:
     sources: [SRC-003]
     affected: [src/entities/order/model/total.ts]
     acs:
-      - { id: AC-0003, text: "Lines 60.00 + 40.00 EUR, discount 10.00, shipping 5.00 give a total of 95.00 EUR" }
+      - { id: AC-0003, kind: happy, text: "Lines 60.00 + 40.00 EUR, discount 10.00, shipping 5.00 give a total of 95.00 EUR" }
 removed: []
 unchanged_guarantees: ["Totals are rounded half-even to 2 decimals"]
 sources_not_used:

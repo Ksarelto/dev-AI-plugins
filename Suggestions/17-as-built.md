@@ -10,7 +10,7 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 | Layer | Plugin | Notes |
 |---|---|---|
 | Engine | `factory` | Named `factory` (commands `/factory:*`), not `factory-core`. Also ships `diagnostician` (rung 3 is loop control) and the `implementation` stage, because the task loop is engine mechanics routed by `role.yaml` |
-| Stage | `factory-analysis` | S0–S4, A0 Discovery, the prototype stage (dispatches `role:prototyper`) |
+| Stage | `factory-analysis` | S0–S4, A0 Discovery, the prototype stage (`role:prototype_designer`, then one `role:prototyper` per screen) |
 | Stage | `factory-quality` | adds an **acceptance** stage between planning and implementation |
 | Stage | `factory-delivery` | docs, delivery, feedback (S9) |
 | Role | `factory-role-frontend`, `factory-role-backend`, `factory-role-ai-agent` | |
@@ -28,8 +28,21 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
   writes the commit plan and the PR body.
 - S9 is a `feedback` stage that runs when PR comments were fetched (`factory comments --file`), using
   the release manager's triage skill rather than a separate feedback-triager agent.
-- The prototype trigger is one deterministic rule (new user-facing surfaces ≥
-  `prototype.min_new_surfaces`). The prototype is plain HTML in the feature's sandbox.
+- The prototype is **one living, clickable static-HTML prototype of the whole app** in
+  `.factory/prototype/`, updated in place by every feature whose stories add, change or remove a
+  user-facing surface (the trigger). A prototype-designer updates the design brief, shared CSS/JS, the
+  shell and `screens.yaml`; then one prototyper per added or changed screen runs in parallel (stage
+  `fan_out`). The engine snapshots the folder at stage entry (restored on abort or `factory proto
+  --revert`), checks which pages really changed, runs static QA in gate-proto, and commits the folder
+  with the feature. GATE-P rejects stop at `budgets.prototype.revisions_max`.
+- Spec completeness from spec-dev-kit: the analyst credits 10 weighted categories in
+  `completeness.yaml`; gate-spec scores it (≥ `quality.completeness_min`, 85). A low score gets one
+  batched question round, then GATE-A shows the remaining gaps. PRDs need performance, accessibility and
+  security NFRs; a must story needs an error, edge or permission AC (or `no_unhappy_path`).
+- Before every dispatch the step halts on files changed outside any dispatch since the engine's last
+  action ("no unexpected changes" — the clean-tree precondition adapted to one checkout that commits
+  at delivery); `factory accept-changes` keeps them. The task wall-clock budget is dropped: the
+  Conductor cannot interrupt a running subagent.
 
 - Greenfield A0 Bootstrap has an engine half, `factory scaffold` (the Conductor runs it when `step`
   says `scaffold`): it copies each role's boilerplate into its folder without overwriting anything,
@@ -53,12 +66,18 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
   until a role's last task, and reuse a passing result for an unchanged working tree. `record` returns
   the next step.
 
+- Stack knowledge reaches every dispatch from `stack.yaml`: a task gets its type's skills, the `*`
+  and type rules (mandatory reads) and golden files; stage agents get `stage_skills` and the stack's
+  rule set as reference. There is no 8 KB cap on that reference text (decided: detail over size).
+
 **Roles**
 - `ai-test-author` exists: the role contract requires a test author per role.
 - A role routes specialist builders by task type (`role.yaml agents.builders`: migration →
   migration-author, rag → ai-rag-builder, eval → eval-author). The red phase always belongs to the test author.
 - Role gate scripts are `role.yaml gates.checks`, run inside gate-impl (the AI role's eval run, the
-  backend's migration check), not separate gate-impl / gate-verify scripts per role.
+  backend's migration check, the frontend's convention and duplicate checks ported from
+  feature-dev-kit), not separate gate-impl / gate-verify scripts per role. The frontend also audits the
+  bundle budget and axe at verification. Builders carry the shadcn and context7 MCP tools, QA Playwright.
 - `ai-architect` joins the architecture stage through a `role:architect` slot and writes
   `03-architecture/agent-design.md`; gate-arch requires it when such a role is enabled.
 - `migration` and `eval` tasks are TDD-exempt: a migration is proven by its rollback check and the
@@ -92,8 +111,8 @@ built yet. `app-dev-kitv2/consistency-allowlist.yaml` keeps the same list in mac
 - Worktrees per role track, pipelined red phases (`quality.tdd.pipeline_red`) and multi-feature WIP
   limits (`flow.kanban.wip`).
 - A headless runner that gives each step a fresh context (`/factory:run` loops in the session).
-- Coverage-of-changed-lines and axe gates (`quality.coverage_changed_lines_min`,
-  `quality.axe_critical_max`) — they need stack commands that do not exist yet.
+- A coverage-of-changed-lines gate (`quality.coverage_changed_lines_min`) — it needs a stack coverage
+  command. The frontend axe audit runs only where the project has Playwright and axe-core.
 - Per-domain capability slices (Cartographer v2).
 - A live Cursor smoke test of the hook adapter and dispatch by plain name.
 - Real-model golden runs: the harness (`tests/golden/run-golden.mjs`) exists; scorecards come when a run

@@ -189,4 +189,4 @@ Pick the state with early returns before the main `return` — never a ternary c
 - [ ] A component created from an external library still uses that library's animation classes, unchanged, and does not add a second animation
 - [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`, slice `config/`, or `constants.ts`
 
-See [examples.md](examples.md) for full worked examples.
+See [examples.md](examples.md) for full worked examples. Before writing the component's JSX, read [references/jsx-conventions.md](references/jsx-conventions.md) for the Bad/Good pairs behind the `react` rule's prop layout, named handlers, conditionals, and closed-set props.

@@ -106,6 +106,35 @@ export function treeHash(projectDir) {
   return sha(`${head.stdout.trim()}\n${entries.sort().join("\n")}\n${env.join("\n")}`);
 }
 
+/**
+ * The working tree outside .factory/ as { HEAD, files: { path: hash | "-" } }: every changed, added or
+ * untracked file (git status), not ignored ones (build output). null outside git.
+ */
+export function fileStates(projectDir) {
+  const git = (args) => spawnSync("git", args, { cwd: projectDir, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const status = git(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--", ".", ":(exclude).factory"]);
+  const root = git(["rev-parse", "--show-toplevel"]).stdout.trim();
+  if (status.status !== 0 || !root) return null;
+  const files = {};
+  const parts = status.stdout.split("\0").filter(Boolean);
+  for (let i = 0; i < parts.length; i++) {
+    const code = parts[i].slice(0, 2);
+    const file = parts[i].slice(3);
+    if (code[0] === "R" || code[0] === "C") i++; // the rename's source path follows
+    const full = join(root, file);
+    files[toPosix(file)] = existsSync(full) && !statSync(full).isDirectory() ? fileHash(full) : "-";
+  }
+  return { head: git(["rev-parse", "--verify", "--quiet", "HEAD"]).stdout.trim(), files };
+}
+
+/** Files that differ between two fileStates snapshots (a new commit counts as every file it touched). */
+export function changedSince(before, after) {
+  if (!before || !after) return [];
+  const keys = new Set([...Object.keys(before.files), ...Object.keys(after.files)]);
+  const changed = [...keys].filter((k) => before.files[k] !== after.files[k]).sort();
+  return before.head !== after.head && !changed.length ? ["(HEAD moved: a commit was made outside the factory)"] : changed;
+}
+
 export const toPosix = (p) => p.split(sep).join("/");
 
 export function matchesAny(path, globs = []) {

@@ -1,0 +1,23 @@
+# Worked example (GT-04: coupons at checkout). Validated by factory/schemas/completeness.schema.json.
+# The requirements analyst credits each category; gate-spec scores it (weights in completeness.mjs).
+feature: FEAT-001
+categories:
+  error_states: { credit: full, evidence: [AC-0002] }
+  permissions_roles:
+    credit: partial
+    evidence: [OQ-1]
+    gap: Whether guests may apply coupons is only a default
+    question: Can a guest (not signed in) apply a coupon code?
+    recommended: "No — coupons need a signed-in B2B account"
+  edge_cases: { credit: full, evidence: [AC-0002, AC-0003] }
+  non_functional: { credit: n/a, reason: a change request inside the existing checkout; its NFRs stay as they are }
+  backward_compatibility: { credit: full, evidence: [REQ-0002, AC-0003] }
+  undo_rollback:
+    credit: none
+    gap: Nothing says how a customer removes an applied coupon
+    question: Can a customer remove an applied coupon before paying?
+    recommended: Yes — a "Remove" link next to the discount line restores the previous total
+  notifications: { credit: n/a, reason: no message leaves the checkout screen }
+  data_lifecycle: { credit: n/a, reason: coupons are owned and expired by the pricing service }
+  observability: { credit: n/a, reason: checkout logging is unchanged and owned by the platform team }
+  localization_accessibility: { credit: full, evidence: [AC-0002] }

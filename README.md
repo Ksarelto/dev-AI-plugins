@@ -21,6 +21,8 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 
 The last seven are separate marketplace plugins under [`app-dev-kit/`](app-dev-kit/). See that README for the pipeline map. Discoverability evals live in `evals/cases/<plugin-name>.json` (plus `<plugin-name>-agents.json` when the kit ships agents).
 
+**[app-dev-kitv2](app-dev-kitv2/)** is a second, independent pipeline family — nine marketplace plugins (`factory`, `factory-analysis`, `factory-role-frontend`, `factory-role-backend`, `factory-role-ai-agent`, `factory-quality`, `factory-delivery`, `factory-adapter-github`) implementing the hub-and-spoke "AI factory" design in [`Suggestions/`](Suggestions/README.md): a deterministic Conductor dispatches single-purpose agents against file-based state in `.factory/`, with scripts, not models, deciding pass/fail and retries. See [app-dev-kitv2/README.md](app-dev-kitv2/README.md) for install and usage.
+
 **Boilerplates** (not plugins): [`backend-boilerplate/`](backend-boilerplate/) and [`agent-boilerplate/`](agent-boilerplate/) are runnable, tested starters (Docker, Postgres, auth, logging, error handling, graceful degradation, Vitest + Testcontainers) that the two Node kits describe and their `scaffold-*` skills copy.
 
 `pptx-dev-kit` needs `python3`; it installs `python-pptx` on demand when rendering or editing.

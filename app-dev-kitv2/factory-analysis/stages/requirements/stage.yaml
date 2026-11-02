@@ -4,7 +4,7 @@ kind: agents
 agents: [requirements-analyst]
 context_role: analysis_roles
 inputs: [normalised-sources, source-index, coverage, app-profile?, capability-index?, feature-ledger?, human-notes?]
-outputs: ["prd|delta-spec"]
+outputs: ["prd|delta-spec", completeness]
 gate: spec
 human_gate: GATE-A
 tracked_ids: [HD]

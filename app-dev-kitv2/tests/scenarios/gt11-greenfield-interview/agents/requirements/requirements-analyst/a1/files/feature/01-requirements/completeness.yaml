@@ -1,0 +1,17 @@
+feature: FEAT-001
+categories:
+  error_states: { credit: full, evidence: [AC-0003] }
+  permissions_roles: { credit: full, evidence: [REQ-0001, NFR-3] }
+  edge_cases: { credit: full, evidence: [AC-0003] }
+  non_functional: { credit: full, evidence: [NFR-1, NFR-2, NFR-3] }
+  backward_compatibility: { credit: n/a, reason: a new app with no earlier version or data }
+  undo_rollback:
+    credit: partial
+    evidence: [REQ-0001]
+    gap: Nothing says whether a reorder can be undone
+    question: Can a customer undo a reorder before checkout?
+    recommended: Yes, by removing the added lines from the cart
+  notifications: { credit: n/a, reason: the interview names no message to customers or staff }
+  data_lifecycle: { credit: n/a, reason: orders and parts are owned by the ERP; the portal stores no data of its own }
+  observability: { credit: n/a, reason: no operational requirement was given for the first release }
+  localization_accessibility: { credit: full, evidence: [NFR-2] }

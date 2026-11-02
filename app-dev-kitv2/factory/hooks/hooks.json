@@ -41,6 +41,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "mcp__.*__(browser_navigate|navigate_page|new_page)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" pre-navigate",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [

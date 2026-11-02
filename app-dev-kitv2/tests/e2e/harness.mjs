@@ -12,7 +12,7 @@
 //                           tests/fixtures/ or a folder at the repo root (backend-boilerplate)
 //   inbox/                  customer input (copied into .factory/inbox/)
 //   answers.yaml            human answers, in order, for every ask_human
-//   agents/[<FEAT>/]<stage>/<agent>/a<n>/envelope.yaml + files/{feature,factory,project}/…
+//   agents/[<FEAT>/]<stage>[/<screen>]/<agent>/a<n>/envelope.yaml + files/{feature,factory,project}/…
 //                           what the scripted agent writes on attempt n, and its envelope
 //                           (a feature-specific folder wins over the shared one)
 // A curator with no scripted folder writes an automatic digest listing every open tracked ID.
@@ -151,7 +151,8 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
         run.batches.push(s.dispatches.map((d) => d.task ?? d.agent));
         for (const d of s.dispatches) {
           const attempt = Number(d.id.split("/a").pop());
-          const stageKey = d.phase === "digest" ? "digest" : d.task ? join(d.stage, `${d.task}.${d.phase}`) : d.stage;
+          // A fan-out dispatch (one prototyper per screen) is scripted per item: <stage>/<screen>/<agent>.
+          const stageKey = d.phase === "digest" ? "digest" : d.task ? join(d.stage, `${d.task}.${d.phase}`) : d.screen ? join(d.stage, d.screen) : d.stage;
           const specific = join(scenarioDir, "agents", s.feature, stageKey, d.agent, `a${attempt}`);
           const attemptDir = existsSync(specific) ? specific : join(scenarioDir, "agents", stageKey, d.agent, `a${attempt}`);
           run.dispatches.push({ id: d.id, agent: d.agent, model: d.model, phase: d.phase });

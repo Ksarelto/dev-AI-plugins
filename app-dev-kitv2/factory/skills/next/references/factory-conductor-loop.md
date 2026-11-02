@@ -18,7 +18,7 @@ engine, from files, every time you call `step` and `record`.
 | `scaffold` | Run `F scaffold` (greenfield: copies and installs each role's boilerplate; it can take minutes — use the longest timeout your shell tool allows or run it in the background; if it is cut off, run it again, it resumes), then go back to step 1. If it reports `halt`, stop as for `halt`. |
 | `precheck` | The engine is still running the stage's machine checks. Run `F step` again. |
 | `wait` | Stop. The feature depends on another one that has not finished (`reason`); work on that feature first (`--feature`). |
-| `halt` | Stop. Report `reason`. If the feature is blocked, point at `blockers.md` and offer `/factory:diagnose` or `/factory:abort`. |
+| `halt` | Stop. Report `reason`. If it lists `changed` files (edited outside any dispatch since the engine's last action), ask the human to keep them (`F accept-changes`) or revert them; never accept on their behalf. If the feature is blocked, point at `blockers.md` and offer `/factory:diagnose` or `/factory:abort`. |
 | `done` | Report that the feature finished and where its artifacts are. |
 
 3. For each agent result, record it. The stop hook already saved a valid envelope, so first try:
@@ -40,7 +40,7 @@ engine, from files, every time you call `step` and `record`.
    - `continue`: when it has `next`, that is the next step's output — act on it as in step 2
      without running `F step`; without `next`, more results of the batch are still to be recorded.
    - `ask_human`, `halt`, `done`: as in the table above — but **record every result of the batch
-     first**. Parallel dispatches (role tracks, review lenses) each finished real work; an unrecorded
+     first**. Parallel dispatches (role tracks, prototype screens) each finished real work; an unrecorded
      one is dispatched again or lost when the human acts. Act on the last non-`continue` result.
 
 ## Rules

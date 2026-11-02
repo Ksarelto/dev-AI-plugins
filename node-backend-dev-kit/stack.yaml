@@ -15,18 +15,53 @@ commands:
 test_report: vitest-json
 test_scoped_args: [--changed]   # task gates run only the tests the uncommitted changes touch; verification runs all
 test_globs: ["tests/**/*.test.ts", "src/**/*.test.ts"]
+# Task type → the skill(s) its dispatch loads; `test` is added for red and characterisation phases.
 skills:
   test: node-backend-dev-kit:api-testing
-  endpoint: node-backend-dev-kit:express-resource
+  endpoint: [node-backend-dev-kit:express-resource, node-backend-dev-kit:request-validation, node-backend-dev-kit:openapi-docs]
   validation: node-backend-dev-kit:request-validation
-  migration: node-backend-dev-kit:drizzle-database
+  service: [node-backend-dev-kit:express-resource, node-backend-dev-kit:error-handling]
   repository: node-backend-dev-kit:drizzle-database
-  auth: node-backend-dev-kit:auth-rbac
+  migration: node-backend-dev-kit:drizzle-database
+  auth: [node-backend-dev-kit:auth-rbac, node-backend-dev-kit:security-middleware]
   error-mapping: node-backend-dev-kit:error-handling
-  resilience: node-backend-dev-kit:resilience
+  resilience: [node-backend-dev-kit:resilience, node-backend-dev-kit:logging-observability]
   openapi: node-backend-dev-kit:openapi-docs
+  config: node-backend-dev-kit:request-validation
+  refactor: node-backend-dev-kit:architecture-audit
+# Task type → exemplar file(s) the builder matches.
 golden_files:
   endpoint: skills/express-resource/examples.md
-  error-mapping: skills/error-handling/SKILL.md
+  service: skills/express-resource/examples.md
+  validation: skills/request-validation/examples.md
+  repository: skills/drizzle-database/examples.md
+  migration: skills/drizzle-database/examples.md
+  auth: skills/auth-rbac/examples.md
+  error-mapping: skills/error-handling/examples.md
+  resilience: skills/resilience/examples.md
+  openapi: skills/openapi-docs/examples.md
+# Rule files a task reads: "*" plus its own type. Stage agents named in stage_skills see all of them.
+rules:
+  "*": [rules/stack.mdc, rules/layered-architecture.mdc, rules/typescript-node.mdc, rules/testing.mdc, rules/error-handling.mdc]
+  endpoint: [rules/api-design.mdc, rules/validation.mdc, rules/auth-security.mdc]
+  validation: [rules/validation.mdc, rules/api-design.mdc]
+  repository: [rules/database.mdc]
+  migration: [rules/database.mdc]
+  auth: [rules/auth-security.mdc]
+  error-mapping: [rules/api-design.mdc]
+  resilience: [rules/resilience.mdc, rules/observability.mdc]
+  openapi: [rules/api-design.mdc]
+  config: [rules/validation.mdc, rules/resilience.mdc]
+  fix: [rules/api-design.mdc, rules/validation.mdc, rules/database.mdc]
+  refactor: [rules/database.mdc, rules/observability.mdc]
+# Stage agent → skills it loads as reference (it keeps its own procedure).
+stage_skills:
+  solution-architect: node-backend-dev-kit:architecture-audit
+  planner: node-backend-dev-kit:architecture-audit
+  contract-steward: node-backend-dev-kit:openapi-docs
+  test-strategist: node-backend-dev-kit:api-testing
+  acceptance-test-author: node-backend-dev-kit:api-testing
+  reviewer: node-backend-dev-kit:code-review
+  tech-writer: node-backend-dev-kit:openapi-docs
 index_adapter: express-layered
 boilerplate: { repo: dev-AI-plugins, path: backend-boilerplate, ref: main }

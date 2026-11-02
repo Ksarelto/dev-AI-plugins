@@ -1,0 +1,17 @@
+feature: FEAT-001
+categories:
+  error_states: { credit: full, evidence: [AC-0002] }
+  permissions_roles: { credit: n/a, reason: checkout access is unchanged; every customer who reaches checkout may enter a code }
+  edge_cases: { credit: full, evidence: [AC-0004, AC-0003] }
+  non_functional: { credit: n/a, reason: a change inside the existing checkout; its performance and accessibility requirements stay as they are }
+  backward_compatibility: { credit: full, evidence: [REQ-0002, AC-0003] }
+  undo_rollback:
+    credit: partial
+    evidence: [REQ-0001]
+    gap: Removing an applied coupon is not specified
+    question: Can a customer remove an applied coupon before paying?
+    recommended: Yes, a Remove link restores the previous total
+  notifications: { credit: n/a, reason: nothing leaves the checkout screen }
+  data_lifecycle: { credit: n/a, reason: coupons are created and expired by the pricing service }
+  observability: { credit: n/a, reason: checkout logging is owned by the platform and unchanged }
+  localization_accessibility: { credit: full, evidence: [AC-0002, AC-0004] }

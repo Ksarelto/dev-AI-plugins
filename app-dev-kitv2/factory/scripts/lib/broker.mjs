@@ -2,7 +2,7 @@
 // never payloads; only T1 items marked [READ] are mandatory reads. Over-budget packs drop optional
 // sections first and are stamped context_degraded.
 import { existsSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { isAbsolute, join, relative } from "node:path";
 import { ENGINE_ROOT, YAML, readText, toPosix, writeAtomic } from "./core.mjs";
 import { ARTIFACT_TYPES, artifactFiles, artifactGlob, parseArtifactRef, validate } from "./schemas.mjs";
 
@@ -11,7 +11,8 @@ const fileTokens = (file) => (existsSync(file) ? tokensOf(statSync(file).size) :
 
 /**
  * @param d { id, feature, stageId, stage, agent, subagent_type, model, attempt, rung, role, task,
- *            phase, extraWrites[], extraReads[], feedback, instruction, mission }
+ *            phase, extraWrites[], extraReads[], feedback, instruction, mission,
+ *            knowledge: { skills[], rules[], golden[] } (task), stageKnowledge: [{ role, stack, skills[], rules[] }] }
  */
 export function buildPack(projectDir, featureObj, config, d) {
   const s = featureObj.state;
@@ -36,6 +37,9 @@ export function buildPack(projectDir, featureObj, config, d) {
   const notesFile = join(featureObj.dir, "human-notes.yaml");
   const notes = existsSync(notesFile) ? (YAML.parse(readText(notesFile)) ?? []).filter((n) => n.status !== "declined") : [];
   for (const extra of d.extraReads ?? []) mandatory.push(extra);
+  // A task's stack rules are mandatory reads: the gates check what they say.
+  for (const rule of d.knowledge?.rules ?? []) mandatory.push({ label: "Rule", path: rule });
+  const stageRules = (d.stageKnowledge ?? []).flatMap((k) => k.rules);
 
   const inputs = [];
   for (const ref of d.stage?.inputs ?? []) {
@@ -48,11 +52,12 @@ export function buildPack(projectDir, featureObj, config, d) {
     if (present.length) inputs.push(...present.map((f) => ({ ...f, missing: false })));
     else if (found.length && !optional) inputs.push({ type: found.map((f) => f.type).join("|"), paths: [], missing: true });
   }
-  const optionalSections = [{ name: "golden", lines: (d.golden ?? []).map((g) => `  - ${g}`) }];
+  const optionalSections = [{ name: "golden", lines: (d.knowledge?.golden ?? []).map((g) => `  - ${g}`) }];
+  const skillHow = "load each with the Skill tool before you start; in Cursor, open the skill by name";
 
   const engineCli = toPosix(join(ENGINE_ROOT, "scripts", "factory.mjs"));
   const gateCmd = d.gate && d.stage?.exit_check !== false
-    ? `node ${engineCli} gate ${[d.gate].flat().join(",")} --project ${toPosix(projectDir)} --feature ${s.feature}${d.gateTask ? ` --task ${d.gateTask.id}` : ""}`
+    ? `node ${engineCli} gate ${[d.gate].flat().join(",")} --project ${toPosix(projectDir)} --feature ${s.feature}${d.gateTask ? ` --task ${d.gateTask.id}` : ""}${d.gateScreen ? ` --screen ${d.gateScreen}` : ""}`
     : null;
   const outputs = (d.stage?.outputs ?? []).map((ref) =>
     parseArtifactRef(ref).names.every((t) => ARTIFACT_TYPES[t].engine_writes)
@@ -78,6 +83,11 @@ export function buildPack(projectDir, featureObj, config, d) {
     lines.push(`Return: end your reply with one \`\`\`json block — the envelope (schema ${toPosix(join(ENGINE_ROOT, "schemas", "envelope.schema.json"))}) with "pack_id": "${d.id}" and a summary of at most ${config.context?.return_summary_max_words ?? 200} words.`);
     lines.push("", "## T1 — Orientation (read these first)");
     if (d.stacks?.length) lines.push(...d.stacks.map((l) => `Stack · ${l}`));
+    if (d.knowledge?.skills?.length) lines.push(`Stack skills (${skillHow}): ${d.knowledge.skills.join(", ")}`);
+    for (const k of d.stageKnowledge ?? []) {
+      lines.push(`Stack knowledge for ${k.role} (${k.stack}) — skills (${skillHow}; use them as reference knowledge and keep to your own procedure: none of their fixes, sub-agents or questions): ${k.skills.join(", ")}`);
+      if (k.rules.length) lines.push("  Rules of that stack (read the ones the work in front of you touches):", ...k.rules.map((r) => `  - ${r}`));
+    }
     if (d.planRules?.length) lines.push("Plan rules (gate-plan checks every one):", ...d.planRules.map((l) => `  - ${l}`));
     if (notes.length) {
       lines.push(`Human notes (${rel(notesFile)}):`, ...notes.map((n) => `  - ${n.id} (${n.status}${n.mapped_to?.length ? ` → ${n.mapped_to.join(", ")}` : ""}): ${String(n.text).replace(/\s+/g, " ")}`));
@@ -102,8 +112,9 @@ export function buildPack(projectDir, featureObj, config, d) {
   let sections = optionalSections;
   let body = render(sections);
   // What the agent is likely to read: the pack, the mandatory reads and every listed input (an upper bound).
-  const inputTokens = inputs.flatMap((i) => i.paths).reduce((n, p) => n + fileTokens(join(projectDir, p)), 0);
-  const estimate = (text) => tokensOf(Buffer.byteLength(text)) + mandatory.reduce((n, m) => n + fileTokens(join(projectDir, m.path)), 0) + inputTokens;
+  const absOf = (p) => (isAbsolute(p) ? p : join(projectDir, p));
+  const inputTokens = inputs.flatMap((i) => i.paths).reduce((n, p) => n + fileTokens(absOf(p)), 0);
+  const estimate = (text) => tokensOf(Buffer.byteLength(text)) + mandatory.reduce((n, m) => n + fileTokens(absOf(m.path)), 0) + inputTokens;
   let degraded = false;
   while (estimate(body) > budget && sections.some((sec) => sec.lines.length)) {
     sections = sections.map((sec, i) => (i === sections.findIndex((x) => x.lines.length) ? { ...sec, lines: [] } : sec));
@@ -130,7 +141,8 @@ export function buildPack(projectDir, featureObj, config, d) {
     write_allow: writeAllow,
     read_deny: d.readDeny ?? [],
     write_deny: d.writeDeny ?? [],
-    listed_reads: mandatory.length + inputs.reduce((n, i) => n + i.paths.length, 0),
+    // Golden files and stage rules are listed too: reading them must not use up the T4 allowance.
+    listed_reads: mandatory.length + inputs.reduce((n, i) => n + i.paths.length, 0) + (d.knowledge?.golden?.length ?? 0) + stageRules.length,
     index_sha: s.index_sha ?? null,
     context_degraded: degraded,
   };

@@ -6,7 +6,7 @@
 // `--cursor` (hooks/cursor-hooks.json): Cursor's hook shapes are mapped onto the same rules. Its tool
 // calls carry no agent type, so subagent-start records which conversation is which subagent.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
-import { isAbsolute, join, relative, resolve } from "node:path";
+import { basename, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { ENGINE_ROOT, factoryPaths, matchesAny, toPosix } from "../scripts/lib/core.mjs";
 import { loadConfig } from "../scripts/lib/config.mjs";
@@ -84,7 +84,9 @@ export function decideRead(input, project, actives) {
   }
   if (target && readDenied(candidates, target)) return `${target} is not readable for ${d.agent} (black-box role)`;
   // With the Cursor union ("*") no single dispatch owns the read, so no budget is charged.
-  if (tool === "Read" && target && input.agent_type !== "*" && !matchesAny(target, FREE_READS)) {
+  // Files outside the project (the plugins' own skills, references and stack rules) are knowledge, not
+  // project context: they never use up the read budget.
+  if (tool === "Read" && target && !target.startsWith("..") && input.agent_type !== "*" && !matchesAny(target, FREE_READS)) {
     const counter = join(project, ".factory", ".active", `${activeName(d.id)}.reads`);
     const used = existsSync(counter) ? Number(readFileSync(counter, "utf8")) || 0 : 0;
     if (used >= (d.read_budget ?? Infinity)) {
@@ -97,7 +99,7 @@ export function decideRead(input, project, actives) {
 }
 
 /** Engine commands that move the pipeline: the Conductor and the human run them, never a dispatched agent. */
-const CONTROL = new Set(["approve", "reject", "note", "override", "replay", "diagnose", "split", "abort", "comments", "ship", "init", "record", "step", "feature", "intake", "scaffold"]);
+const CONTROL = new Set(["approve", "reject", "note", "override", "replay", "diagnose", "split", "abort", "comments", "ship", "init", "record", "step", "feature", "intake", "scaffold", "accept-changes", "proto"]);
 const READERS = new Set(["cat", "head", "tail", "less", "more", "nl", "od", "xxd", "strings", "sed", "awk", "grep", "rg", "egrep"]);
 const SCRIPTED = new Set(["sed", "awk", "grep", "rg", "egrep"]); // their first plain argument is a pattern, not a file
 const SCRATCH = /^(\/dev\/(null|stdout|stderr)|\/tmp\/|\/private\/tmp\/|\/var\/folders\/)/;
@@ -152,6 +154,21 @@ function tokenize(cmd) {
 
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 const VALUED = new Set(["-X", "--request", "-H", "--header", "-d", "--data", "--data-raw", "--data-binary", "--data-urlencode", "-F", "--form", "-o", "--output", "-O", "-u", "--user", "-A", "--user-agent", "-e", "--referer", "-w", "--write-out", "-T", "--upload-file", "-m", "--max-time", "--connect-timeout", "-b", "--cookie", "-c", "--cookie-jar", "--header", "-P", "--directory-prefix", "--post-data", "--method", "--body-data", "-t", "--tries", "-T", "--timeout"]);
+
+/** A browser MCP navigation (Playwright, Chrome DevTools) by a dispatched agent stays on this machine. */
+export function decideNavigate(input, actives) {
+  if (!dispatchesFor(input, actives).length) return null;
+  const raw = input.tool_input?.url;
+  if (!raw) return null;
+  let url;
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(raw) && !/^[^:/]+:\d/.test(raw) ? raw : `http://${raw}`);
+  } catch {
+    return `browser navigation to "${raw}" is not allowed from a dispatched agent: not a URL on localhost`;
+  }
+  if (url.protocol === "file:" || (LOOPBACK.has(url.hostname.toLowerCase()) && !url.username && !url.password)) return null;
+  return `browser navigation outside this machine is not allowed from a dispatched agent (${raw}); open the app you started on localhost`;
+}
 
 /** curl/wget targets that leave this machine (QA may drive the app it started on loopback only). */
 export function outsideUrls(cmd) {
@@ -305,7 +322,7 @@ function sessionStart(input, project, cursor) {
 }
 
 // ---- Cursor ------------------------------------------------------------------------------------
-const PERMISSION = new Set(["pre-write", "pre-read", "pre-grep", "pre-bash", "subagent-start"]);
+const PERMISSION = new Set(["pre-write", "pre-read", "pre-grep", "pre-bash", "subagent-start", "task-start"]);
 const RUNNING_TTL_MS = 6 * 3600_000; // a marker older than this is left over from a crash
 const runningDir = (project) => join(factoryPaths(project).active, "cursor");
 const safeName = (id) => String(id).replace(/[^\w.-]/g, "_");
@@ -350,10 +367,11 @@ function cursorSessions(input, project) {
 
 /**
  * Maps a Cursor hook payload onto the Claude Code fields the rules read, and works out which dispatch
- * the call belongs to: a subagent's own conversation id (recorded at subagent-start) names it exactly;
- * a chat that started a subagent or fired sessionStart is the Conductor or the human; any other call
- * while factory subagents run gets the union of their dispatches (a write is allowed if any allows
- * it, a read denied only if all deny it).
+ * the call belongs to. A subagent runs in its own conversation, which fires no sessionStart: the Task
+ * call that starts it records a marker (its type and the parent's conversation), and the first unknown
+ * conversation to act while exactly one marker is unbound is bound to it. A chat that fired sessionStart
+ * or started a subagent is the human's or the Conductor's. Any other call while factory subagents run
+ * gets the union of their dispatches (a write is allowed if any allows it, a read denied only if all do).
  */
 export function fromCursor(event, input, project, actives) {
   const ti = input.tool_input ?? {};
@@ -371,16 +389,46 @@ export function fromCursor(event, input, project, actives) {
   if (own) return { input: { ...x, agent_type: own.type }, actives };
   const conductor = markers.some((m) => (m.main && m.id === input.conversation_id) || (m.parent && m.parent === input.conversation_id));
   if (conductor || !running.length) return { input: { ...x, agent_type: undefined }, actives };
+  const unbound = running.filter((r) => !r.id);
+  if (unbound.length === 1 && input.conversation_id) {
+    putMarker(project, basename(unbound[0].file, ".json"), { ...strip(unbound[0]), id: input.conversation_id });
+    return { input: { ...x, agent_type: unbound[0].type }, actives };
+  }
   const types = new Set(running.map((r) => r.type));
   const mine = actives.filter((d) => types.has(d.agent) || types.has(d.subagent_type));
   return { input: { ...x, agent_type: mine.length ? "*" : undefined }, actives: mine };
 }
 
-/** subagent-start records a marker; stop clears the turn's markers (subagent-stop: see main). */
+const strip = ({ file, ...m }) => m;
+
+/** Output of a finished Task call: { status, agentId } (Cursor sends it as a JSON string). */
+function taskOutput(input) {
+  try {
+    return typeof input.tool_output === "string" ? JSON.parse(input.tool_output) : input.tool_output ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Subagent markers. task-start (preToolUse Task) and subagent-start (where Cursor fires it) record one;
+ * task-end (postToolUse Task) removes it by the agentId Cursor reports; stop clears the turn's markers.
+ */
 function cursorRunning(event, input, project) {
-  if (event === "subagent-start") {
-    const name = input.subagent_id ?? `${input.subagent_type}-${Date.now()}-${process.pid}`;
-    putMarker(project, name, { id: input.subagent_id ?? null, type: input.subagent_type, parent: input.parent_conversation_id ?? input.conversation_id ?? null, ts: new Date().toISOString() });
+  const now = new Date().toISOString();
+  if (event === "task-start") {
+    const type = input.tool_input?.subagent_type;
+    if (type) putMarker(project, `task-${input.tool_use_id ?? `${Date.now()}-${process.pid}`}`, { id: null, type, parent: input.conversation_id ?? null, tool_use_id: input.tool_use_id ?? null, ts: now });
+  } else if (event === "subagent-start") {
+    const parent = input.parent_conversation_id ?? input.conversation_id ?? null;
+    const open = cursorMarkers(project).find((m) => !m.main && !m.id && m.type === input.subagent_type && m.parent === parent);
+    if (open) putMarker(project, basename(open.file, ".json"), { ...strip(open), id: input.subagent_id ?? null });
+    else putMarker(project, input.subagent_id ?? `${input.subagent_type}-${Date.now()}-${process.pid}`, { id: input.subagent_id ?? null, type: input.subagent_type, parent, ts: now });
+  } else if (event === "task-end") {
+    const { agentId } = taskOutput(input);
+    const mine = cursorMarkers(project).filter((m) => !m.main);
+    const done = mine.find((m) => agentId && m.id === agentId) ?? mine.find((m) => m.tool_use_id && m.tool_use_id === input.tool_use_id);
+    if (done) rmSync(done.file, { force: true });
   } else if (event === "stop") {
     // The agent's turn is over: nothing it started is still running.
     for (const r of cursorMarkers(project)) if (!r.main && (!r.parent || r.parent === input.conversation_id)) rmSync(r.file, { force: true });
@@ -411,10 +459,16 @@ async function main() {
   const cursor = process.argv.includes("--cursor");
   const raw = JSON.parse(readFileSync(0, "utf8") || "{}");
   const project = (cursor && process.env.CURSOR_PROJECT_DIR) || process.env.CLAUDE_PROJECT_DIR || raw.workspace_roots?.[0] || raw.cwd || process.cwd();
+  // Opt-in diagnostics (touch .factory/hook-debug): what the harness really sends, field names only for big values.
+  if (existsSync(join(project, ".factory", "hook-debug"))) {
+    const brief = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, typeof v === "string" && v.length > 300 ? `${v.slice(0, 300)}…` : v]));
+    mkdirSync(join(project, ".factory", "logs"), { recursive: true });
+    appendFileSync(join(project, ".factory", "logs", "hook-payloads.jsonl"), `${JSON.stringify({ ts: new Date().toISOString(), event, cursor, payload: brief })}\n`);
+  }
   let actives = activeDispatches(project);
   let input = raw;
   if (cursor) {
-    if (["subagent-start", "stop"].includes(event)) cursorRunning(event, raw, project);
+    if (["subagent-start", "task-start", "task-end", "stop"].includes(event)) cursorRunning(event, raw, project);
     ({ input, actives } = fromCursor(event, raw, project, actives));
   }
   let reason = null;
@@ -433,6 +487,9 @@ async function main() {
       break;
     case "pre-bash":
       reason = decideBash(input, actives, project, loadConfig(project));
+      break;
+    case "pre-navigate":
+      reason = decideNavigate(input, actives);
       break;
     case "post-write":
       reason = postWrite(input, project);
@@ -455,6 +512,9 @@ async function main() {
         if (done) rmSync(done.file, { force: true });
       }
       break;
+  }
+  if (existsSync(join(project, ".factory", "hook-debug"))) {
+    appendFileSync(join(project, ".factory", "logs", "hook-payloads.jsonl"), `${JSON.stringify({ ts: new Date().toISOString(), event, decision: { agent_type: input.agent_type ?? null, dispatches: actives.map((d) => d.id), reason } })}\n`);
   }
   return answer(event, reason, cursor);
 }

@@ -3,11 +3,13 @@
 // engine can find the pack's manifests. Runs only in projects that use the factory (.factory/ exists).
 // Dependency-free on purpose: packs ship no node_modules.
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-// Claude Code and Cursor (hooks/cursor-hooks.json) name the folders differently.
+// The plugin root is where this file lives (<pack>/hooks/): Cursor can set CURSOR_PLUGIN_ROOT to
+// another plugin when several are loaded.
 const project = process.env.CLAUDE_PROJECT_DIR || process.env.CURSOR_PROJECT_DIR || process.cwd();
-const root = process.env.CLAUDE_PLUGIN_ROOT || process.env.CURSOR_PLUGIN_ROOT;
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const factory = join(project, ".factory");
 if (!root || !existsSync(factory)) process.exit(0);
 

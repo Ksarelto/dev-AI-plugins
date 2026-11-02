@@ -220,15 +220,15 @@ test("openapi-conformance compares the contract with the backend boilerplate's O
 
 test("gate-plan: a role widens the file limit for its task types; the project's limit by type wins", async () => {
   const mig = task("TASK-003", "backend", "migration", ["api/src/db/schema/d.ts", "api/src/db/schema/index.ts", "api/drizzle/0001_d.sql", "api/drizzle/meta/_journal.json", "api/drizzle/rollback/0001_d.down.sql"]);
-  const fe = task("TASK-001", "frontend", "feature-ui", ["web/src/a.tsx", "web/src/b.tsx", "web/src/c.tsx", "web/src/a.test.tsx"], { red: ["web/src/a.test.tsx"] });
+  const fe = task("TASK-001", "frontend", "feature-ui", ["web/src/a.tsx", "web/src/b.tsx", "web/src/c.tsx", "web/src/d.tsx", "web/src/e.tsx", "web/src/a.test.tsx"], { red: ["web/src/a.test.tsx"] });
   const plan = async (extra = "") => {
     const env = setup([mig, fe], { extra });
     const c = conductor.load(env.dir);
     const r = await runGate("plan", gateContext({ projectDir: env.dir, app: c.app, feature: c.feature, config: c.config, packs: c.packs }), { useCache: false });
     return r.failures.filter((f) => f.rule === "too-many-files").map((f) => f.message);
   };
-  assert.deepEqual(await plan(), ["TASK-001 touches 4 files (max 3 for feature-ui)"], "the backend role allows 6 files for a migration");
-  assert.deepEqual(await plan("quality: { task_limits_by_type: { migration: { files_max: 4 } } }"), ["TASK-003 touches 5 files (max 4 for migration)", "TASK-001 touches 4 files (max 3 for feature-ui)"]);
+  assert.deepEqual(await plan(), ["TASK-001 touches 6 files (max 5 for feature-ui)"], "the backend role allows 6 files for a migration, the frontend role 5 for feature-ui");
+  assert.deepEqual(await plan("quality: { task_limits_by_type: { migration: { files_max: 4 } } }"), ["TASK-003 touches 5 files (max 4 for migration)", "TASK-001 touches 6 files (max 5 for feature-ui)"]);
 });
 
 test("gate-stories: a story without UX surfaces needs no states", async () => {

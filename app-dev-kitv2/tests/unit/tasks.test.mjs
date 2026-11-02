@@ -145,11 +145,11 @@ test("tasks of a disabled role are parked; the stage ends when only parked tasks
   assert.deepEqual(Object.values(featureState(env.featureDir).tasks).map((u) => u.status), ["parked", "parked", "parked"]);
 });
 
-test("prototype: triggered by a new surface, skipped when no enabled role has a prototyper", () => {
+test("prototype: triggered by a UI surface, skipped when no enabled role has a prototyper", () => {
   const dir = makeProject(`packs: { factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}", factory-role-frontend: "${join(ROOT, "app-dev-kitv2", "factory-role-frontend")}" }\nroles: { frontend: { enabled: true, pack: factory-role-frontend } }\npipeline: { profiles: { test: [prototype, requirements] } }`);
   const featureDir = makeFeature(dir, { stages: ["prototype", "requirements"] });
   putArtifact(featureDir, "stories.yaml", "02-stories/stories.yaml");
-  assert.equal(conductor.step(dir).dispatches[0].agent, "prototyper", "CheckoutSummary is not in any index yet");
+  assert.equal(conductor.step(dir).dispatches[0].agent, "prototype-designer", "a story with a UX surface updates the prototype");
   const dir2 = makeProject(`packs: { factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}" }\nroles: { frontend: { enabled: false } }\npipeline: { profiles: { test: [prototype, requirements] } }`);
   const f2 = makeFeature(dir2, { stages: ["prototype", "requirements"] });
   putArtifact(f2, "stories.yaml", "02-stories/stories.yaml");

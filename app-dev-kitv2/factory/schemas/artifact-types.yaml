@@ -15,13 +15,18 @@ capability-index:   { scope: app, path: "_index/capability-map.yaml", format: ya
 component-inventory: { scope: app, path: "_index/component-inventory.yaml", format: yaml, schema: component-inventory, producer: engine }
 capability-slice:   { scope: app, path: "_index/slices/*.slice.md", format: markdown }
 feature-ledger:     { scope: app, path: ledger/feature-ledger.yaml, format: yaml, schema: feature-ledger }
-prd:                { scope: feature, path: 01-requirements/prd.md, format: frontmatter, schema: prd, ids: [REQ, AC, OQ, SRC, HD] }
-delta-spec:         { scope: feature, path: 01-requirements/delta-spec.yaml, format: yaml, schema: delta-spec, ids: [REQ, AC, OQ, SRC, HD] }
+prd:                { scope: feature, path: 01-requirements/prd.md, format: frontmatter, schema: prd, ids: [REQ, AC, OQ, NFR, SRC, HD] }
+delta-spec:         { scope: feature, path: 01-requirements/delta-spec.yaml, format: yaml, schema: delta-spec, ids: [REQ, AC, OQ, NFR, SRC, HD] }
+completeness:       { scope: feature, path: 01-requirements/completeness.yaml, format: yaml, schema: completeness, ids: [REQ, AC, OQ, NFR] }
 open-questions:     { scope: feature, path: 01-requirements/open-questions.md, format: markdown, ids: [OQ] }
 stories:            { scope: feature, path: 02-stories/stories.yaml, format: yaml, schema: stories, ids: [REQ, AC] }
 ux-notes:           { scope: feature, path: 02-stories/ux-notes.md, format: markdown }
 prototype-report:   { scope: feature, path: 02b-prototype/prototype-report.yaml, format: yaml, schema: prototype-report }
-prototype-sandbox:  { scope: feature, path: "02b-prototype/sandbox/**", format: any }
+prototype-screen-notes: { scope: feature, path: "02b-prototype/screens/*.yaml", format: yaml, schema: prototype-screen-note }
+app-prototype:      { scope: app, path: "prototype/**", format: any }
+prototype-design-brief: { scope: app, path: prototype/design-brief.md, format: markdown }
+design-inputs:      { scope: app, path: "design/**", format: any, external: true }   # .factory/design/: binding brand, style guide, mockups
+prototype-screens:  { scope: app, path: prototype/screens.yaml, format: yaml, schema: prototype-screens }
 component-map:      { scope: feature, path: 03-architecture/component-map.md, format: frontmatter, schema: component-map, ids: [ADR] }
 adr:                { scope: feature, path: "03-architecture/adr-*.md", format: frontmatter, schema: adr, ids: [ADR] }
 api-contract:       { scope: feature, path: 03-architecture/api-contract.yaml, format: yaml, ids: [AC] }

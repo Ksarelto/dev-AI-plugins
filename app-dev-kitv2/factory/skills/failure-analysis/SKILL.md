@@ -6,6 +6,8 @@ user-invocable: false
 
 # Root-cause diagnosis (escalation rung 3)
 
+Runs on: diagnostician (opus) — root-causing a stage or task that keeps failing its gate (rung 3), read-only.
+
 ## Evidence to read, in order
 
 1. T3 of your pack: the latest gate failures, progress signal and fingerprint.

@@ -11,3 +11,8 @@ stories:
           Given a past order with 3 lines
           When I press "Reorder"
           Then the cart holds the same 3 lines with the same quantities
+      - id: AC-0003
+        gherkin: |
+          Given a past order whose line "Seal kit" is discontinued
+          When I press "Reorder"
+          Then the cart holds the other lines and shows "1 item could not be added"

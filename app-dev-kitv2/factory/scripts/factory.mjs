@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { UsageError, readYaml, writeJson } from "./lib/core.mjs";
 import { explainConfig, loadConfig, profileFor, profileStages } from "./lib/config.mjs";
-import { abort, approve, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, scaffold, setOverride, split, stepAsync } from "./lib/conductor.mjs";
+import { abort, acceptChanges, approve, writeTreeSnapshot, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, revertPrototype, scaffold, setOverride, split, stepAsync } from "./lib/conductor.mjs";
 import { buildIndex } from "./lib/cartographer.mjs";
 import { ship } from "./lib/delivery.mjs";
 import { resolvePacks } from "./lib/registry.mjs";
@@ -30,7 +30,9 @@ const HELP = `factory <command> [options]
   status                                                  all features, one line each
   step                                                    next action: dispatch | ask_human | halt | done
   record --dispatch ID [--saved | --file F | stdin] [--tokens N]  persist an envelope, run gate + warden; returns the next step
-  gate <name> [--task ID]                                 run one gate now
+  gate <name> [--task ID | --screen ID]                   run one gate now
+  accept-changes                                          keep files edited outside the factory since the last step (the step halts on them)
+  proto revert                                            put .factory/prototype/ back as it was before this feature's prototype stage; the stage runs again
   idcov --stage S                                         tracked-ID coverage of a stage
   envelope check [--file F | stdin] [--pack-id ID]        validate an envelope
   approve [GATE] [--notes "..."] · reject [GATE] --reason "..."
@@ -127,11 +129,20 @@ async function main(argv) {
       const out = await record(project, { dispatchId: args.dispatch, envelopeText: args.saved ? null : readInput(args), tokens: args.tokens, feature });
       return { out, code: out.action === "redispatch" ? 1 : 0 };
     }
+    case "accept-changes":
+      return { out: acceptChanges(project, { feature }) };
+    case "proto": {
+      if (sub !== "revert") throw new UsageError("usage: factory proto revert [--feature FEAT-NNN]");
+      return { out: revertPrototype(project, { feature }) };
+    }
     case "gate": {
       if (!sub) throw new UsageError("usage: factory gate <name>");
       const c = load(project, feature);
       const task = args.task ? readTask(c, args.task) : undefined;
-      const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task, stack: task ? resolveStack(c, task.role) : undefined, packs: c.packs });
+      // The current stage, as at record: an agent's exit check sees the same rules the engine applies.
+      const stage = task ? undefined : resolveStage(c, c.feature.state.stage) ?? undefined;
+      const screen = typeof args.screen === "string" ? args.screen : undefined;
+      const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task, stack: task ? resolveStack(c, task.role) : undefined, packs: c.packs, stage, screen });
       const results = [];
       for (const name of sub.split(",")) results.push(await runGate(name, ctx, { useCache: !args["no-cache"] }));
       const out = results.length === 1 ? results[0] : { gate: sub, pass: results.every((r) => r.pass), results };
@@ -212,7 +223,9 @@ async function main(argv) {
       return {
         out: withLock(project, () => {
           const c = load(project, feature);
-          return ship(c);
+          const shipped = ship(c);
+          writeTreeSnapshot(project, c); // the commit is the factory's own: not an unexpected change
+          return shipped;
         }),
       };
     case "index": {

@@ -21,6 +21,7 @@ stories:
     as_a: customer
     i_want: prices with the currency symbol
     so_that: I know what I pay
+    no_unhappy_path: pure formatting of valid prices; the JPY edge case is STORY-0001's AC-0003
     acs:
       - id: AC-0002
         gherkin: |

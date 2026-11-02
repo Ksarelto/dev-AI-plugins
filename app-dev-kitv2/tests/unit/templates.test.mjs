@@ -9,7 +9,7 @@ import { ENGINE, TEMPLATES } from "./helpers.mjs";
 const { validate } = await import(`${ENGINE}/scripts/lib/schemas.mjs`);
 const { readFrontMatter, readYaml } = await import(`${ENGINE}/scripts/lib/core.mjs`);
 const SCHEMA = {
-  "fa-prd.md": "prd", "fa-delta-spec.yaml": "delta-spec", "fa-stories.yaml": "stories", "fa-tasks.yaml": "tasks",
+  "fa-prd.md": "prd", "fa-delta-spec.yaml": "delta-spec", "fa-completeness.yaml": "completeness", "fa-stories.yaml": "stories", "fa-tasks.yaml": "tasks",
   "fa-test-plan.yaml": "test-plan", "fa-coverage.yaml": "coverage", "fa-component-map.md": "component-map",
   "fa-adr-example.md": "adr", "fa-app-profile.yaml": "app-profile", "fa-capability-map.yaml": "capability-map",
   "fa-feature-ledger.yaml": "feature-ledger",

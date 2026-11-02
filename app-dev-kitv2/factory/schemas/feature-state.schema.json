@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "factory/feature-state",
-  "title": "features/<id>/state.json \u2014 the feature stage machine",
+  "title": "features/<id>/state.json — the feature stage machine",
   "type": "object",
   "required": [
     "feature",
@@ -166,7 +166,8 @@
               "stage",
               "digest",
               "diagnose",
-              "fixplan"
+              "fixplan",
+              "screen"
             ]
           },
           "parallel_group": {
@@ -174,6 +175,10 @@
           },
           "ts": {
             "type": "string"
+          },
+          "screen": {
+            "type": "string",
+            "description": "the fan-out item (prototype screen id) this dispatch builds"
           }
         }
       }

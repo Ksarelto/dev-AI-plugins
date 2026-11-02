@@ -1,5 +1,6 @@
 // Role audits at verification (role.yaml gates.audits): mechanical checks of the change set — raw
-// colours, untranslated text, OpenAPI drift — run by the engine instead of an auditor agent. Each is a
+// colours, untranslated text, OpenAPI drift — run by the engine instead of an auditor agent. Arguments
+// may name {files}, a feature artifact ({api-contract}) or a config value ({config.quality.x}). Each is a
 // node script from the role pack, run in the role's folder; it prints a JSON array of review findings
 // { file?, line?, rule, severity, claim, evidence? } that join the reviewer's in review.md.
 import { spawnSync } from "node:child_process";
@@ -25,11 +26,18 @@ export function runAudits(c, changed, artifact) {
     const dir = rolePath(c.config, role.name);
     const cwd = join(c.projectDir, dir);
     const mine = changed.filter((f) => (!dir || f.startsWith(`${dir}/`)) && !TESTS.test(f) && existsSync(join(c.projectDir, f)));
-    for (const audit of audits) {
+    const off = new Set(c.config.roles?.[role.name]?.checks_off ?? []);
+    for (const audit of audits.filter((a) => !off.has(a.name))) {
       const files = mine.filter((f) => !audit.files || new RegExp(audit.files).test(f)).map((f) => toPosix(relative(cwd, join(c.projectDir, f))));
       let missing = null;
       const args = (audit.args ?? ["{files}"]).flatMap((a) => {
         if (a === "{files}") return files;
+        // {config.quality.bundle_kb_max}: a value from the merged factory config (JSON for objects).
+        const conf = /^\{config\.([\w.-]+)\}$/.exec(a);
+        if (conf) {
+          const v = conf[1].split(".").reduce((o, k) => o?.[k], c.config);
+          return v == null ? [] : [typeof v === "object" ? JSON.stringify(v) : String(v)];
+        }
         const m = /^\{([\w-]+)\}$/.exec(a);
         if (!m) return [a];
         const path = artifact(m[1]);
@@ -37,7 +45,8 @@ export function runAudits(c, changed, artifact) {
         return [path ?? ""];
       });
       // Nothing to look at: no matching files, or an artifact the audit needs does not exist.
-      if (missing || ((audit.args ?? ["{files}"]).includes("{files}") && !files.length)) continue;
+      // An audit with a files pattern runs only when the change touches such a file (also bundle/axe).
+      if (missing || ((audit.files || (audit.args ?? ["{files}"]).includes("{files}")) && !files.length)) continue;
       const r = spawnSync(process.execPath, [join(pack.root, audit.node), ...args], { cwd, encoding: "utf8", timeout: 120_000 });
       let hits;
       try {

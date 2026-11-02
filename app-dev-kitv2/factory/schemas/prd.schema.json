@@ -75,6 +75,16 @@
                 "text": {
                   "type": "string",
                   "minLength": 5
+                },
+                "kind": {
+                  "enum": [
+                    "happy",
+                    "error",
+                    "edge",
+                    "permission",
+                    "nfr"
+                  ],
+                  "description": "what the AC exercises; a must story needs one that is not happy (gate-stories)"
                 }
               }
             }
@@ -175,6 +185,48 @@
           "reason": {
             "type": "string",
             "minLength": 3
+          }
+        }
+      }
+    },
+    "non_functional": {
+      "type": "array",
+      "description": "measurable non-functional requirements; a PRD needs performance, accessibility and security (gate-spec)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "category",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^NFR-\\d+$"
+          },
+          "category": {
+            "enum": [
+              "performance",
+              "accessibility",
+              "security",
+              "reliability",
+              "privacy",
+              "observability",
+              "compatibility",
+              "localization"
+            ]
+          },
+          "text": {
+            "type": "string",
+            "minLength": 5
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^(?:SRC-\\d{3,}|HD-\\d+)$"
+            }
           }
         }
       }
