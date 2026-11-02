@@ -61,7 +61,7 @@
 | Wrong | Correct |
 |-------|---------|
 | A new hook, fetcher, model function, store, or component with no test in the change | Every executable file ships its test (`rules/testing.mdc`) |
-| One page-level test standing in for every child component | Each component has `tests/{name}.test.tsx` inside its folder |
+| One page-level test standing in for every child component | Each component has `tests/{name}.test.tsx`, and each `lib/` helper has its test in that same folder |
 | A test that only asserts "renders" or "is defined" | Assert what the user sees, what was called, or what was returned |
 
 ## Test Organization

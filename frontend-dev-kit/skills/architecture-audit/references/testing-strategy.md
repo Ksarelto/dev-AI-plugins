@@ -8,7 +8,7 @@ Segment tests live in a `tests/` folder next to the code. A component's tests li
 
 - Test dirs: `features/{f}/{api,hooks,models,lib}/tests/`, `entities/{e}/model/tests/`, `entities/{e}/api/tests/`, `widgets/{w}/{hooks,model}/tests/`, `shared/lib/tests/` (**one** folder for every `shared/lib/*` unit — not `shared/lib/auth/tests/`), `shared/api/tests/`.
 - Folder name is exactly `tests/` — not `__tests__`, not `spec/`, not a slice-level `features/{f}/tests/`, not `src/tests/`.
-- Component tests: `{component}/tests/{name}.test.tsx` only. A sibling `{name}.test.tsx` is hard. Non-component tests live in the segment `tests/` folder, not beside the source file.
+- Component tests: `{component}/tests/`. That folder holds `{name}.test.tsx` and every `lib/` helper test. A test beside `{name}.tsx` is hard. Non-component tests live in the segment `tests/` folder, not beside the source file.
 - No `__fixtures__/` shared across features. Mocks live in the test file.
 - HTTP mock: inside the slice that owns the fetcher, `vi.mock('../api/fetchers')`; any other test, `vi.mock('@/shared/api/base')` (`httpClient`). Mocking another slice's `api/fetchers` path or its public `index.ts` is a finding. No MSW/interceptor in unit or RTL.
 - No test in feature A that asserts feature B's cache invalidation — that is e2e.

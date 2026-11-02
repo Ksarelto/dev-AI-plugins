@@ -11,7 +11,7 @@ React behavior is `rules/react.mdc`. FSD placement is the `architecture-audit` s
 ## Code
 - Write the minimum code that solves the task: no speculative features or "might need later" abstractions, no feature flags or backwards-compat shims when the code can just change. Keep functions small, one responsibility each. Before writing, search for an existing implementation and match the nearby pattern; reuse the slice that already owns a recurring problem (`architecture-audit`). Never a second HTTP client, auth store, or event bus.
 - Command–query separation: a function acts or returns a value, never both. A `getX` or `isX` never mutates state or triggers effects. Data transforms, formatters, and validators are pure and treat inputs as read-only; side effects (HTTP, storage, toasts) stay at the edges — `api/`, handlers, effects — never in `lib/` helpers.
-- A component file holds props, the hooks that wire the view, named handlers, and JSX. Predicates, mappers, and field lists live in `utils.ts` or `constants.ts`. No `let` and no IIFE in the component. A second visual region is `ui/{child}/`.
+- A component file holds props, the hooks that wire the view, named handlers, and JSX. Predicates, mappers, and field lists live in that component's `lib/` or in `constants.ts`. No `let` and no IIFE in the component. A second visual region is `ui/{child}/`.
 - Arrow functions over `function` declarations. `null` over `undefined` for an intentionally empty value; `undefined` only when unavoidable (an optional prop/param, a third-party API).
 - No nested conditions: flatten with early returns or a named function. No nested ternaries anywhere.
 

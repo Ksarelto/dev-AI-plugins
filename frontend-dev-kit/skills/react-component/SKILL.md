@@ -1,6 +1,6 @@
 ---
 name: react-component
-description: Scaffold a standalone React component folder with the mandatory files — kebab-case name.tsx (button.tsx, custom-button.tsx), styles.ts (required, no exceptions), index.ts, tests/ — and types.ts only for non-prop types. Nested components go in ui/. Follows FSD layer conventions. Use when adding a single component outside a full feature slice or wrapping a shadcn primitive.
+description: Scaffold a standalone React component folder with the mandatory files — kebab-case name.tsx (button.tsx, custom-button.tsx), styles.ts (required, no exceptions), index.ts, tests/ for every test in the folder, and {name}.stories.tsx — and types.ts only for non-prop types. Nested components go in ui/. Follows FSD layer conventions. Use when adding a single component outside a full feature slice or wrapping a shadcn primitive.
 ---
 
 # React Component
@@ -36,26 +36,26 @@ Every component lives in its own kebab-case folder. This is the required layout 
 ├── styles.ts                 — ALL Tailwind classes; never inline in JSX
 ├── types.ts                  — non-prop types only, and only when the component has them
 ├── constants.ts              — closed-set values and key maps (only when needed)
+├── {name}.stories.tsx        — Storybook states, beside the component
 ├── ui/{child}/               — every nested component, same shape
-├── utils.ts                  — pure helpers used only by this component
-└── tests/
-    └── {name}.test.tsx       — behavior test, written in the same change
+├── lib/                      — pure helpers used only by this component
+└── tests/                    — every test for this folder: {name}.test.tsx and each lib/ helper
 ```
 
 One component per file. A second component is `{name}/ui/{child}/` with the same files. The only exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
 
-DTO mappers stay in the slice `api/` (`dto.ts` or `mappers.ts`), tested in `api/tests/`. Slice-wide helpers stay in the slice `lib/`, tested in `lib/tests/`. Do not leave `mapX.ts` or `formatX.ts` next to `{name}.tsx`.
+DTO mappers stay in the slice `api/dto.ts`, tested in `api/tests/`. Slice-wide helpers stay in the slice `lib/`, tested in `lib/tests/`. Do not leave `mapX.ts` or `formatX.ts` next to `{name}.tsx`.
 
-Stories are not part of this folder. A `shared/ui` primitive also gets `{name}.stories.tsx` in that folder. A feature gets one story at `features/<slice>/<slice>.stories.tsx` for the public entry. Entity and widget folders do not get stories.
+`{name}.stories.tsx` sits beside `{name}.tsx`. `tests/` holds every test for the folder, including each `lib/` helper, in every component folder: feature parts, entities, and widgets.
 
 ## Instructions
 
 1. Determine the PascalCase export and kebab-case file stem (`CustomButton` / `custom-button`) and target path from the table above
 2. Read rules: `component-structure`, `react`, `styling`, `shadcn`, `i18n`, `testing`, `accessibility`. For FSD placement (`shared/ui` vs feature `ui/`), load `architecture-audit`.
-3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`) **and** `tests/{name}.test.tsx` in the same change. Add `types.ts` only for non-prop types. Domain types go in the slice model folder (`models/types.ts` or `model/types.ts`), not in the component folder. A nested component is `ui/{child}/`. A helper used only here is `utils.ts`.
+3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`), `{name}.stories.tsx`, **and** `tests/{name}.test.tsx` in the same change. A `lib/` helper's test goes in that same `tests/` folder. Add `types.ts` only for non-prop types. Domain types go in the slice model folder (`models/types.ts` or `model/types.ts`), not in the component folder. A nested component is `ui/{child}/`. A helper used only here is `lib/`.
 4. Every visible string is `t(key)` from the slice's `locales/` or `commonKeys` (`i18n` skill). Server data renders as-is.
 5. Handlers are named (`handleX`) and declared above the return; JSX only passes the reference.
-6. The component file holds props, the hooks that wire this view, named handlers, and JSX. A calculation that takes a few arguments and returns a value goes in `utils.ts`. A predicate, mapper, field list, or availability rule goes in `utils.ts` or `constants.ts`. No `let` in the component: a condition is a `const`, and JSX is `{cond && <Node />}`. No IIFE. A second visual region is `ui/{child}/`. Class strings stay in `styles.ts`. Do not store `t(...)` in a local. Destructure `isLoading`, `isFetching`, `isPending`, `isError`, and `error` from the query. Do not derive a second flag.
+6. The component file holds props, the hooks that wire this view, named handlers, and JSX. A calculation that takes a few arguments and returns a value goes in `lib/`. A predicate, mapper, field list, or availability rule goes in `lib/` or `constants.ts`. No `let` in the component: a condition is a `const`, and JSX is `{cond && <Node />}`. No IIFE. A second visual region is `ui/{child}/`. Class strings stay in `styles.ts`. Do not store `t(...)` in a local. Destructure `isLoading`, `isFetching`, `isPending`, `isError`, and `error` from the query. Do not derive a second flag.
 7. Branches are computed before the return or written as early returns — no ternary in JSX, never a nested one. A branch that chooses a translation key stores the key (`submitKey`) and JSX calls `t(submitKey)`.
 8. Closed-set props on primitives use their constants (`ButtonVariant.Outline`, `ButtonType.Submit`); omit a prop whose value is the default.
 9. Before finishing, scan the new file again for unexplained string and number literals (`rules/general-coding-principles.mdc`). A timeout, page size, status, z-index, or path that already has a name in `shared/api`, the slice `config/`, or this folder's `constants.ts` is a violation even once. A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
@@ -170,8 +170,8 @@ Pick the state with early returns before the main `return` — never a ternary c
 - [ ] Folder and files are kebab-case (`custom-button/custom-button.tsx`); the export is PascalCase (`CustomButton`)
 - [ ] `styles.ts` exists — zero class strings, `cn('…')`, or `style={{}}` in JSX
 - [ ] `index.ts` re-exports the component only, plus types/constants an outside file actually imports (not `export *`)
-- [ ] `tests/{name}.test.tsx` written in the same change, mocking only the boundary
-- [ ] Nested components are `ui/{child}/`; component-local helpers are `utils.ts`
+- [ ] `tests/` holds `{name}.test.tsx` and each `lib/` helper test, written in the same change, mocking only the boundary. `{name}.stories.tsx` sits beside the component
+- [ ] Nested components are `ui/{child}/`; component-local helpers are `lib/`
 - [ ] Lives under `shared/ui/` if generic, or the owning feature's `ui/` if business-specific
 - [ ] Root element merges caller `className` last via `styles.root(className)`
 - [ ] No `forwardRef` — `ref` destructured as a plain prop (React 19)

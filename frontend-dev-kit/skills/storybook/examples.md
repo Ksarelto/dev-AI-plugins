@@ -1,6 +1,6 @@
 # Storybook Examples
 
-One story per shared primitive, one story per feature public entry. No stories under `components/`, no `features/auth`, no per-part feature stories.
+One `{name}.stories.tsx` beside each component. No stories under `components/`.
 
 ```tsx
 // shared/ui/button/button.stories.tsx
@@ -19,15 +19,15 @@ export const Default: Story = { args: { children: 'Save' } };
 ```
 
 ```tsx
-// features/orders/orders.stories.tsx
+// features/orders/ui/order-list/order-list.stories.tsx
 import type { Meta, StoryObj } from '@storybook/react';
 import { http, HttpResponse } from 'msw';
-import { OrdersFeature } from './index';
+import { OrderList } from './index';
 
 const meta = {
-  title: 'Features/Orders',
-  component: OrdersFeature,
-} satisfies Meta<typeof OrdersFeature>;
+  title: 'Features/Orders/OrderList',
+  component: OrderList,
+} satisfies Meta<typeof OrderList>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

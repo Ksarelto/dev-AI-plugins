@@ -68,7 +68,7 @@ change code to get around it.
 | `magic-prop` | `variant`, `size`, `type`, `side`, `align`… use the primitive's constant; omit defaults. |
 | `motion-utility` | No `animate-*`, `transition*`, `duration-*`, `ease-*` outside `shared/ui`; the base animates. |
 | `dark-variant` | No `dark:` class anywhere, `shared/ui` included: one light palette. |
-| `missing-test` | Every executable file has a behaviour test in `<component>/tests/` or the segment `tests/`. |
+| `missing-test` | Every executable file has a behaviour test in `<component>/tests/` (the component and each `lib/` helper) or the segment `tests/`. |
 | `cross-slice-mock` | Mock `httpClient` from `@/shared/api/base`, or this slice's own `api/fetchers`. |
 | `inline-query-key` | Use the key factory in `shared/api/query-keys`, never a `queryKey` array literal. |
 | `env-access` | Read the parsed value from `shared/config`; no `import.meta.env` / `process.env` elsewhere. |

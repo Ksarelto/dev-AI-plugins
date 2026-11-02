@@ -67,13 +67,15 @@ another slice fails `duplicate-body`; import the original through its public `in
 
 ## 4. Component structure
 
-- One folder per component, kebab-case: `<name>/<name>.tsx`, `styles.ts`, `index.ts`, `tests/`, and
-  `utils.ts` / `constants.ts` / `types.ts` only when needed. A second visual region is `ui/<child>/`.
+- One folder per component, kebab-case: `<name>/<name>.tsx`, `styles.ts`, `index.ts`,
+  `<name>.stories.tsx`, and `tests/` for every test in the folder (the component and each `lib/`
+  helper). `lib/` / `constants.ts` / `types.ts` only when needed. A second visual region is
+  `ui/<child>/`.
 - Every class list lives in that folder's `styles.ts` (`cva` for variants). No class string, class
   ternary or `style` prop in JSX outside `shared/ui`.
 - Handlers are named `handleX` functions above `return`; no inline arrow in an `on*` prop.
 - No `let`, no IIFE, no nested ternary, no ternary in JSX. A condition is a named `const`; JSX uses
-  `{cond && <X />}`; a small calculation goes to `utils.ts`.
+  `{cond && <X />}`; a small calculation goes to `lib/`.
 - Early-return the states in this order: pending data → error → empty → success.
 - Closed-set props use the primitive's constants (`ButtonVariant.Outline`); omit a prop at its default.
 - No comments. A name that needs one is the wrong name; a deliberate simplification goes into the
@@ -99,8 +101,9 @@ states of each surface — a state they list is part of the task even when no re
 
 ## 7. Tests
 
-- Placement: a component's test is `<component>/tests/<name>.test.tsx`; hooks, `api/`, `model(s)/`,
-  `lib/`, route modules and guards use the segment's `tests/` folder.
+- Placement: a component folder's `tests/` holds `<name>.test.tsx` and a test for each `lib/`
+  helper. Hooks, `api/`, `model(s)/`, slice `lib/`, route modules and guards use the segment's
+  `tests/` folder.
 - Mock only the boundary the test cannot run: inside the slice that owns the fetcher, its
   `api/fetchers` (`importOriginal`, override one export); anywhere else, `httpClient` from
   `@/shared/api/base`; plus the router and browser APIs. Never mock another slice, `@/shared/ui/*`,

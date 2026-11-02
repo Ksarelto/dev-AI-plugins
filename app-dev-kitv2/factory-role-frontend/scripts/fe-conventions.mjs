@@ -43,7 +43,7 @@ const RULES = {
   'inline-query-key': 'no queryKey array literal outside shared/api/query-keys — use the key factory',
   'env-access': 'no import.meta.env / process.env outside shared/config (shared/api/config.ts reads the API origin)',
   'client-option': 'no timeout, retry, prefixUrl, or Authorization on a feature/entity httpClient call — shared/api/base.ts already sets them',
-  'missing-test': 'every executable file has a behavior test — {component}/tests/ for a component, the segment tests/ otherwise',
+  'missing-test': 'every executable file has a behavior test — {component}/tests/ for a component and its helpers, the segment tests/ otherwise',
   'unused-export': 'no export nothing else imports (index.ts: nothing outside the folder; registry bases: types only)',
   'motion-css': '@keyframes / custom animation in CSS (warn); tw-animate-css imported twice (error)',
   'lib-imports-api': 'feature/entity lib/ does not import api/ or @/shared/api — a fetcher may import the helper, or the helper takes the fetcher as an argument',
@@ -679,17 +679,25 @@ const isExecutable = (sf) => {
   return found
 }
 
-const isComponentImpl = (file) => {
-  if (!file.endsWith('.tsx') || isTest(file) || isStory(file)) return false
-  if (path.basename(path.dirname(file)) !== base(file)) return false
-  const r = rel(file)
-  return r.includes('/ui/') || r.startsWith('src/shared/ui/')
+const componentFolder = (file) => {
+  let dir = path.dirname(file)
+  while (dir.startsWith(SRC)) {
+    const name = path.basename(dir)
+    const impl = path.join(dir, `${name}.tsx`)
+    const r = rel(impl)
+    if ((r.includes('/ui/') || r.startsWith('src/shared/ui/')) && existsSync(impl)) return dir
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
 }
 
 const testCandidates = (file) => {
   const b = base(file)
   const names = [`${b}.test.ts`, `${b}.test.tsx`, `${b}.spec.ts`, `${b}.spec.tsx`]
-  if (isComponentImpl(file)) return names.map((n) => path.join(path.dirname(file), 'tests', n))
+  const folder = componentFolder(file)
+  if (folder) return names.map((n) => path.join(folder, 'tests', n))
   const dirs = []
   for (let d = path.dirname(file); d.startsWith(SRC); d = path.dirname(d)) dirs.push(path.join(d, 'tests'))
   return dirs.flatMap((d) => names.map((n) => path.join(d, n)))
@@ -699,8 +707,8 @@ const checkMissingTest = (file, sf) => {
   if (isTest(file) || isStory(file) || inLocales(file) || TEST_EXEMPT.test(base(file)) || /\.types$/.test(base(file))) return
   if (!isExecutable(sf)) return
   if (testCandidates(file).some((c) => existsSync(c))) return
-  const where = isComponentImpl(file)
-    ? `tests/${base(file)}.test.tsx inside the component folder`
+  const where = componentFolder(file)
+    ? `tests/${base(file)}.test.${file.endsWith('.tsx') ? 'tsx' : 'ts'} inside the component folder`
     : `${base(file)}.test.${file.endsWith('.tsx') ? 'tsx' : 'ts'} in a tests/ folder`
   report(file, sf, 0, 'error', 'missing-test', `no test — add ${where}`)
 }

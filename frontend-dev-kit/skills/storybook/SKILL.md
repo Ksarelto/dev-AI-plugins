@@ -1,15 +1,14 @@
 ---
 name: storybook
-description: Write Storybook stories using CSF3 format with TypeScript. One story file per shared/ui primitive, and one story for a feature's public entry — not for inner feature parts. Use when documenting a shared component or a whole feature, building in isolation, or adding visual regression baselines.
+description: Write Storybook stories using CSF3 format with TypeScript. Every component folder has {name}.stories.tsx beside the component, including feature parts, entities, and widgets. Use when documenting a component, building in isolation, or adding visual regression baselines.
 ---
 
 # Storybook
 
 ## When to use
 
-- Documenting a `shared/ui` primitive (one story file in that component folder)
-- Documenting a feature as a whole (one story at `features/<slice>/<slice>.stories.tsx` for the public entry)
-- Building that surface in isolation before wiring to the backend
+- Documenting any component folder (`{name}.stories.tsx` beside `{name}.tsx`)
+- Building that component in isolation before wiring to the backend
 - Writing interaction tests via `play` functions
 - Verifying component variants across states (loading, empty, error, populated)
 
@@ -19,10 +18,7 @@ CSF3 (Component Story Format 3) with TypeScript `satisfies Meta<typeof Component
 
 ## Instructions
 
-1. Place the story by scope:
-   - Shared primitive: `shared/ui/<name>/<name>.stories.tsx` (`shared/ui/button/button.stories.tsx`)
-   - Feature: `features/<slice>/<slice>.stories.tsx` for the public entry and its states. Do not add stories for inner feature parts
-   - Entity and widget component folders do not get stories. They still get behavior tests
+1. Place `{name}.stories.tsx` beside `{name}.tsx` (`shared/ui/button/button.stories.tsx`, `features/orders/ui/order-list/order-list.stories.tsx`). Feature parts, entities, and widgets get the same file.
 2. Define `meta` with `satisfies Meta<typeof Component>`
 3. Create a `Default` story; add named stories per significant variant
 4. Cover all **four required data states** for data-fetching components: `Loading`, `Error`, `Empty`, `Populated`
@@ -57,18 +53,18 @@ export const loaders = [mswLoader];
 ## Story template
 
 ```typescript
-// features/orders/orders.stories.tsx
+// features/orders/ui/order-list/order-list.stories.tsx
 import type { Meta, StoryObj } from '@storybook/react';
 import { http, HttpResponse } from 'msw';
-import { OrdersFeature } from './index';
+import { OrderList } from './index';
 
 const meta = {
-  title: 'Features/Orders',
-  component: OrdersFeature,
+  title: 'Features/Orders/OrderList',
+  component: OrderList,
   args: {
     orderId: 'ord-1',
   },
-} satisfies Meta<typeof OrdersFeature>;
+} satisfies Meta<typeof OrderList>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -130,7 +126,7 @@ export const SubmitForm: Story = {
 
 ## Checklist
 
-- [ ] Shared primitive: `shared/ui/<name>/<name>.stories.tsx`. Feature: one `features/<slice>/<slice>.stories.tsx`. No stories for inner parts, entities, or widgets
+- [ ] `{name}.stories.tsx` sits beside `{name}.tsx` in every component folder, including feature parts, entities, and widgets
 - [ ] `meta` uses `satisfies Meta<typeof Component>`
 - [ ] All four data states covered (Loading, Error, Empty, Default/Populated) for data-fetching components
 - [ ] MSW handlers use the actual API paths from `api/endpoints.ts` (not hardcoded strings)

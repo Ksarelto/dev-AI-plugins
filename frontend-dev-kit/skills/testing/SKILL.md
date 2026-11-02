@@ -21,7 +21,7 @@ Vitest, not Jest: `vi`, never `jest`.
 | `entities/{e}/api/`, `model/` | `…/tests/` |
 | `widgets/{w}/hooks/`, `model/` | `…/tests/` |
 | `app/router/{auth,error,root,guards}/` executable modules | `…/tests/` |
-| Component folders under `ui/` | `{name}/tests/{name}.test.tsx` — not beside `{name}.tsx` |
+| Component folders under `ui/` | `{name}/tests/` — the component test and every `lib/` helper test |
 | `shared/lib/*` | one `shared/lib/tests/` for every unit |
 | `shared/api/` | `shared/api/tests/` |
 

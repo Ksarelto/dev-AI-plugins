@@ -31,7 +31,7 @@ with the files a task of that type normally owns. The golden file in T2 is the s
 |---|---|---|---|
 | `entity-model` | `entities/<e>/model/*`, `api/schema.ts`, fetchers, `index.ts` | `api-client`, `react-query-hook` | `api-client/examples.md` |
 | `api-client` | `<entity or feature>/api/{endpoints,fetchers,schema}.ts`, `shared/api/query-keys/*` | `api-client` | `api-client/examples.md` |
-| `query-hook` | `api/use<Thing>.ts` in the owning slice, its `tests/` | `react-query-hook` | `react-query-hook/examples.md` |
+| `query-hook` | `api/hooks.ts` in the owning slice, its `tests/` | `react-query-hook` | `react-query-hook/examples.md` |
 | `component` | `<slice>/ui/<name>/{<name>.tsx,styles.ts,index.ts}` or a `shared/ui` base | `react-component`, `shadcn-usage`, `accessibility` | `react-component/examples.md` |
 | `feature-ui` | `features/<f>/ui/**`, `locales/`, `index.ts` with the boundary | `react-feature`, `react-component`, `error-handling` | `react-feature/examples.md` |
 | `form` | `features/<f>/ui/<form>/` with its `FormFieldConfig`, the mutation hook call | `rhf-form`, `shadcn-usage` | `rhf-form/examples.md` |
