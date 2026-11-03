@@ -68,8 +68,8 @@ obviously self-describing spot does not need extraction.
 
 The ban covers section labels (`// handlers`), restated code (`// fetch users`), and `// Arrange/Act/Assert`.
 Use descriptive naming, clear structure, and meaningful file organization instead. If a block needs a
-comment to be understood, extract it into a function whose name says it. The feature-dev conventions gate
-fails on any comment in a changed file other than the tool directive.
+comment to be understood, extract it into a function whose name says it. A comment in a changed file
+other than a tool directive is a finding.
 
 ## Copy and logging
 

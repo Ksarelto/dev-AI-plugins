@@ -26,8 +26,6 @@ npm run install:cursor-local
 
 Then **Developer: Reload Window** and enable the kit under **Customize → Plugins**.
 
-`feature-dev-kit` requires this plugin.
-
 ## Components
 
 ### Rules
@@ -37,7 +35,7 @@ The others attach only when a matching file is in context.
 
 | Rule | When it attaches | Topic |
 |------|------------------|-------|
-| `honesty` | Every session (`alwaysApply`), and `**/*.{ts,tsx,md}` | Verify library APIs before generating code; flag uncertainty; never fake a passing test |
+| `honesty` | Every session (`alwaysApply`), and `**/*.{ts,tsx,md}` | Verify library APIs and packages before generating code; flag uncertainty; never fake a passing test; raise problems proactively |
 | `general-coding-principles` | `**/*.{ts,tsx}` | Naming, function design, no comments, no magic values or copied constants, closed-set literals, quality bar |
 | `typescript` | `**/*.{ts,tsx}` | Interfaces vs types, strictness, narrowing, utility types, explicit public signatures |
 | `react` | `**/*.tsx` | Purity, hooks, no JSX ternaries, named handlers, effects, keys, memoization under the Compiler, refs, error boundaries |
@@ -77,8 +75,14 @@ Workflow guides. Skills that ship templates keep them in `examples.md` (`archite
 | `testing` | Writing or fixing tests for specified files, or recently changed files |
 | `storybook` | One story file per `shared/ui` primitive, plus one story for a feature's public entry |
 | `browser-debug` | UI verification and debugging via Chrome |
-| `code-review` | Reviewing a diff against the applicable rules and the originating spec |
+| `code-review` | Full review of a diff or paths: standards, architecture, design principles and smells, pattern usage, best practices, and optionally the originating spec |
 | `manage-feature` | Flagging a feature, turning a flag on or off, or removing a feature and its leftovers |
+
+### Commands
+
+| Command | Use when |
+|---------|----------|
+| `/frontend-dev-kit:review [base-ref \| path...] [--spec <file>] [--focus all\|architecture\|design\|standards]` | Reviewing a branch, uncommitted work, or named paths. Runs the `code-review` skill: mechanical scripts, a diff-scoped `architecture-audit`, design-principle and pattern checks, best practices, and an optional spec check. Read-only; ends with a verdict and severity-tagged findings |
 
 ### MCP Servers
 

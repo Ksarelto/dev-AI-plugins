@@ -1,7 +1,7 @@
 # Syntax and formatting — examples
 
-Examples and edge cases for the syntax statements in `rules/general-coding-principles.mdc`. The
-feature-dev conventions gate checks most of them (`arrow-body`, `max-len`, `block-gap`, `wrapped-expr`).
+Examples and edge cases for the syntax statements in `rules/general-coding-principles.mdc`.
+`scripts/scan-review-patterns.mjs` covers part of them; the rest is read by the reviewer.
 
 ## Arrow bodies and braces
 

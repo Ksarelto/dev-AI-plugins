@@ -1,9 +1,7 @@
 # JSX conventions — Bad/Good pairs
 
 Examples and rationale for the JSX statements in `rules/react.mdc`: prop layout, element content, named
-handlers, conditionals, and closed-set props. The rule holds the binding statements. The feature-dev
-conventions gate checks handlers (`inline-handler`), ternaries (`nested-ternary`, `jsx-ternary`), and
-closed-set props (`magic-prop`).
+handlers, conditionals, and closed-set props. The rule holds the binding statements.
 
 ## Callback props
 

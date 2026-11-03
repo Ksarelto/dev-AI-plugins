@@ -7,9 +7,10 @@
     "name": "Artsiom Murashko"
   },
   "license": "MIT",
-  "keywords": ["react", "typescript", "fsd", "shadcn", "tailwind", "react-query", "react-hook-form", "zod", "i18n", "vitest", "mcp", "context7", "browser"],
+  "keywords": ["react", "typescript", "fsd", "shadcn", "tailwind", "react-query", "react-hook-form", "zod", "i18n", "vitest", "mcp", "context7", "browser", "code-review"],
   "category": "productivity",
   "rules": "./rules/",
+  "commands": "./commands/",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json"
 }
