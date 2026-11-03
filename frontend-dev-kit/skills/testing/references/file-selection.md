@@ -48,7 +48,7 @@ Executable behavior (a component, hook, fetcher, model function, route module, o
 
 ## Step 4: Confirm nothing is missing
 
-Before reporting done, list every remaining file from Step 2 next to its test path. Any row without a test is unfinished. In a feature-dev-kit project the `conventions` gate (`check-conventions.mjs`) fails the run with `missing-test` for each one.
+Before reporting done, list every remaining file from Step 2 next to its test path. Any row without a test is unfinished.
 
 ## What to test per file type
 

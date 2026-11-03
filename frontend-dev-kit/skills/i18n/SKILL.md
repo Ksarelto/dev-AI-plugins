@@ -49,7 +49,7 @@ Everything a user can see or hear that did not come from the server:
 3. **Type the keys.** Each `locales/keys.ts` exports `as const satisfies NestedKeysOf<typeof en>` (`NestedKeysOf` is in `shared/lib/i18n/keys.ts`). `en` is the source of truth — a key only in another locale is a bug.
 4. **Call `t()` with the typed key at the render site**: `t(usersKeys.list.emptyState)` or `{t(documentTypesListKeys.loading)}` in JSX. Do not assign that call to a local and render the local. A local may hold the key when the key is chosen by a branch (`const submitKey = …`) and JSX calls `t(submitKey)`. No raw `'list.emptyState'` literal. Do not import another feature's `locales/keys.ts`; copy two features share moves to `common`. `models/` never imports keys and never calls `t()`.
 5. **Reuse before adding.** Search `common/en.json` for the string first (`Cancel`, `Save`, `Retry`). Do not add `features/orders/…/cancel`.
-6. **Prototype copy is verbatim.** When a prototype page is bound, its visible text becomes the `en.json` values unchanged — headings, labels, placeholders, empty/error messages, button text — unless the spec changes it.
+6. **Design-reference copy is verbatim.** When a prototype or mockup is provided, its visible text becomes the `en.json` values unchanged — headings, labels, placeholders, empty/error messages, button text — unless the requirements change it.
 7. **Interpolate, don't concatenate**: `t(key, { name })`. Plurals use `count` plus `_one`/`_other` in the JSON, never `count === 1 ? … : …`.
 8. **Copy with embedded markup or a link** is one key rendered with `<Trans i18nKey={usersKeys.termsNotice}>` — never split the sentence around JSX.
 9. **Validation messages are keys.** `z.string().min(1, usersKeys.form.errors.nameRequired)`. The re-homed `FormMessage` in `shared/ui/form/` passes the error through `translateMessage` (`shared/lib/i18n/translate-message.ts`), so a key becomes copy and a server field error (already human text, not a key) renders unchanged:
@@ -81,7 +81,7 @@ Everything a user can see or hear that did not come from the server:
 - [ ] Strings live in `shared/lib/i18n/locales/common/` or the owning slice's `locales/` — not `src/locales/`, not `shared/config`
 - [ ] UI calls `t(usersKeys....)` / `commonKeys`, not a raw key string
 - [ ] New key added to `en.json` and `keys.ts` in this change; existing `common` keys reused
-- [ ] Prototype copy matches `en.json` verbatim
+- [ ] Design-reference copy matches `en.json` verbatim
 - [ ] Plurals use `count` + `_one`/`_other`, not a manual branch
 - [ ] Embedded markup/links use `<Trans>`, not concatenated fragments
 - [ ] Dates/numbers/currency use `shared/lib/i18n/format.ts`

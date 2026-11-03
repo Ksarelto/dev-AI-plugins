@@ -84,6 +84,14 @@
       "expect": "code-review"
     },
     {
+      "prompt": "Do a code review of these changes for design principle violations, wrong pattern usage and best practices",
+      "expect": "code-review"
+    },
+    {
+      "prompt": "Review the uncommitted changes in features/orders for SOLID problems, coupling and smells",
+      "expect": "code-review"
+    },
+    {
       "prompt": "Is our current implementation consistent with the FSD architecture?",
       "expect": "architecture-audit"
     },

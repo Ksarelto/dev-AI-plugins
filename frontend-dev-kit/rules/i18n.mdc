@@ -16,7 +16,7 @@ alwaysApply: false
 - No string maps. `const LABELS = { save: 'Save' }`, a `TextContent` object, or `satisfies Record<Status, string>` holding English is a hardcoded string. Map the union to a **key** instead and call `t()` at render.
 - Keys are typed (`keys.ts` → `as const satisfies NestedKeysOf<typeof en>`). Call `t(usersKeys.list.title)`, never a raw `'list.title'` literal, and never another feature's keys.
 - Zod messages are keys (`z.string().min(1, formKeys.errors.nameRequired)`). `FormMessage` translates them.
-- Copy taken from the HTML prototype goes into `en.json` verbatim unless the spec changes it.
+- Copy taken from a design reference (prototype or mockup) goes into `en.json` verbatim unless the requirements change it.
 - `models/` never imports keys or calls `t()` — it returns a union; `ui/` maps it to a key.
 
 Procedure: `i18n` skill.

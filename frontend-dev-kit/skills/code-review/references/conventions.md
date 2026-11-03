@@ -1,6 +1,6 @@
 # Code conventions — review checklist
 
-Distilled from `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/component-structure.mdc`, and `rules/shadcn.mdc`. Applies to every changed `.ts` / `.tsx` under `src/`. In a feature-dev-kit project the `conventions` gate (`check-conventions.mjs`) enforces most of these mechanically — a finding here that the gate missed is still a finding.
+Distilled from `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/component-structure.mdc`, and `rules/shadcn.mdc`. Applies to every changed `.ts` / `.tsx` under `src/`. `scripts/scan-review-patterns.mjs` finds part of these mechanically; every other hit is read by the reviewer.
 
 ## Comments
 

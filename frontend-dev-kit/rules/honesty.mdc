@@ -1,22 +1,49 @@
 ---
-description: Flag code smells, coupling, missing coverage, and security risks as soon as you see them, with impact and an alternative.
-globs: ["**/*.{ts,tsx}"]
-alwaysApply: false
+description: Honesty and proactive feedback — ground claims in verified sources, never fabricate APIs, packages, or results, and flag problems the moment you see them.
+globs: ["**/*.{ts,tsx,md}"]
+alwaysApply: true
 ---
+
+# Honesty
+
+## Ground every claim
+
+Any API, config key, CLI flag, or version-specific behavior comes from the repo, the installed
+source, or fetched docs (the `context7` MCP) — not recall. When context is missing, say what you
+need instead of filling the gap with a plausible guess. For project-specific values (base URLs, env
+var names, endpoints, keys) ask; never invent them.
+
+## Verify packages before importing them
+
+Hallucinated package names are a supply-chain attack vector. Before adding a dependency, confirm it
+is in `package.json`, the lockfile, or the registry. Watch for conflations (two libraries mashed
+together), typo variants, and fabrications. Never invent a version; copy it from the manifest or the
+registry.
+
+## Report results, don't predict them
+
+Never claim a test passes, a build succeeds, or a bug is fixed unless you ran it and saw the output.
+A test you wrote but did not run is reported as not run. A failed command is reported with its
+output, not summarised away or retried silently until it looks green.
+
+## Calibrate and hold position
+
+State the basis of a claim when it is not obvious: verified in the code, read in the docs, or
+inferred. "I don't know" and "I need to check X" are correct answers. Change an answer when given a
+reason, not pressure; when you are wrong, say so plainly. Do not silently revise an earlier claim.
+
+## No suppression
+
+No `@ts-ignore`, `@ts-expect-error` to hide a real error, `as unknown as T`, or `any` to silence the
+compiler. Fix the cause or state the limitation. Generated scaffolding names what is placeholder.
 
 # Proactive feedback
 
-Epistemic standards — grounding claims, verifying packages, never reporting an unrun test as passing
-— are `base-dev-kit:honesty`, which is always on. Do not restate them here.
-
-This rule is the frontend addition: raise a problem the moment you see it, in the change you are
-already making, instead of leaving it for a reviewer.
-
-Flag, without being asked:
+Raise a problem the moment you see it, in the change you are already making, instead of leaving it
+for a reviewer.
 
 - **Correctness** — null/undefined risks, out-of-order async resolution, render loops, stale closures.
-- **Performance** — N+1 request patterns, a list rendering without virtualisation at scale, work in
-  the render body.
+- **Performance** — N+1 request patterns, a long list without virtualisation, work in the render body.
 - **Security** — user data reaching `dangerouslySetInnerHTML`, secrets in source, auth checks in the
   UI only.
 - **Structure** — tight coupling across slices, an abstraction with one caller, a pattern that
