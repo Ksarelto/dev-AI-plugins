@@ -7,10 +7,17 @@
     "name": "Artsiom Murashko"
   },
   "license": "MIT",
-  "keywords": ["react", "typescript", "fsd", "feature-sliced-design", "shadcn", "mcp", "app-dev-kit"],
+  "keywords": [
+    "react",
+    "typescript",
+    "fsd",
+    "feature-sliced-design",
+    "shadcn",
+    "mcp",
+    "app-dev-kit"
+  ],
   "category": "productivity",
   "rules": "./rules/",
   "skills": "./skills/",
-  "agents": "./agents/*.md",
   "mcpServers": "./mcp.json"
 }

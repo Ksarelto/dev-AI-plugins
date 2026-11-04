@@ -19,6 +19,5 @@
   "category": "productivity",
   "rules": "./rules/",
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
-  "agents": "./agents/*.md"
+  "hooks": "./hooks/hooks.json"
 }

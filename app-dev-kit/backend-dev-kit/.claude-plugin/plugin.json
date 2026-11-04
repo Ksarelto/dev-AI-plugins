@@ -7,10 +7,22 @@
     "name": "Artsiom Murashko"
   },
   "license": "MIT",
-  "keywords": ["nodejs", "typescript", "express", "drizzle", "zod", "vitest", "rest-api", "backend", "mcp", "context7", "auth", "observability"],
+  "keywords": [
+    "nodejs",
+    "typescript",
+    "express",
+    "drizzle",
+    "zod",
+    "vitest",
+    "rest-api",
+    "backend",
+    "mcp",
+    "context7",
+    "auth",
+    "observability"
+  ],
   "category": "productivity",
   "rules": "./rules/",
   "skills": "./skills/",
-  "agents": "./agents/*.md",
   "mcpServers": "./.mcp.json"
 }

@@ -7,8 +7,17 @@
     "name": "Artsiom Murashko"
   },
   "license": "MIT",
-  "keywords": ["pptx", "powerpoint", "presentation", "slides", "python-pptx", "design-system", "orchestration", "slide-deck", "ooxml"],
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "presentation",
+    "slides",
+    "python-pptx",
+    "design-system",
+    "orchestration",
+    "slide-deck",
+    "ooxml"
+  ],
   "category": "productivity",
-  "skills": "./skills/",
-  "agents": "./agents/*.md"
+  "skills": "./skills/"
 }

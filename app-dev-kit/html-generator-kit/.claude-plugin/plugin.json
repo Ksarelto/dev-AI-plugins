@@ -7,8 +7,15 @@
     "name": "Artsiom Murashko"
   },
   "license": "MIT",
-  "keywords": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "ui-ux-pro-max", "app-dev-kit"],
+  "keywords": [
+    "prototype",
+    "html",
+    "alpinejs",
+    "design-system",
+    "ui-ux",
+    "ui-ux-pro-max",
+    "app-dev-kit"
+  ],
   "category": "productivity",
-  "skills": "./skills/",
-  "agents": "./agents/*.md"
+  "skills": "./skills/"
 }
