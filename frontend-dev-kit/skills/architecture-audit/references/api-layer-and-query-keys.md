@@ -1,6 +1,6 @@
 # API layer and query keys
 
-One HTTP client, one key registry. An entity `api/` owns `schema.ts`, hooks, the rename mapper, and `endpoints.ts`. A feature `api/` owns `schema.ts` and fetchers only; its query hooks live in `hooks/`. Neither owns the gateway URL or key definitions.
+One HTTP client, one key registry. The owning slice — the entity, or the feature when no entity owns the call — keeps every `useQuery` and `useMutation` for that model in `api/hooks.ts`, next to `fetchers.ts`. Do not add `api/useThing.ts`. Feature `hooks/` calls that file and does not call `useQuery` or `useMutation`. `ui/` imports `hooks/`, never `api/`. Neither slice owns the gateway URL or key definitions.
 
 ## Evaluate
 
@@ -14,6 +14,7 @@ One HTTP client, one key registry. An entity `api/` owns `schema.ts`, hooks, the
 - `ky` client: `retry: 0` (Query owns retry); pass `signal` from the query into the request; no `.json()` on 204.
 - Versioned API: `httpClient.extend({ prefix: API_BASE.v2 })` — not a second `ky.create`.
 - Query keys: factories from `@/shared/api/query-keys/{domain}`. No inline `queryKey: [...]` outside `query-keys/`. One file per **business domain**. The filename is the owner — do not add an owner comment.
+- `useQuery` and `useMutation` for one model live only in that slice's `api/hooks.ts`. A per-hook file (`api/useOrderList.ts`) or a call in `features/*/hooks/`, `ui/`, or a page is hard.
 - Every feature/entity `api/` has `endpoints.ts` with a `base` property (the path relative to `API_BASE.v1`). Other keys reuse `base`. A repeated path string or an absolute URL in that file is hard. Hooks do not hand-type path strings. A feature map lists only paths **that feature** calls — no copy of another slice's map.
 - Cross-feature refresh: mutation imports the shared key factory only — not `@/features/other`.
 - Invalidate only keys the mutation's business action legitimately affects. No blanket `invalidateQueries()` with no key.
@@ -30,6 +31,8 @@ One HTTP client, one key registry. An entity `api/` owns `schema.ts`, hooks, the
 
 ```bash
 rg -n "from ['\"]ky['\"]|from ['\"]axios['\"]|\bfetch\(" src/{features,widgets,entities}
+rg -n "useQuery|useMutation" src --glob "!**/api/hooks.ts"
+find src -path '*/api/use*.ts'
 rg -n "queryKey:\s*\[" src --glob "!**/query-keys/**"
 rg -n "import.meta.env" src --glob "!**/shared/config/**" --glob "!**/shared/api/config.ts"
 rg -n "httpClient|from ['\"]@/shared/api/base['\"]" src/{features,entities}/*/api

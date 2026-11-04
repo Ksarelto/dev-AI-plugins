@@ -19,6 +19,5 @@
   "category": "productivity",
   "skills": "./skills/",
   "hooks": "./hooks/hooks.json",
-  "agents": "./agents/*.md",
   "mcpServers": "./.mcp.json"
 }

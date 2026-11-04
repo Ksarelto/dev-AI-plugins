@@ -72,7 +72,7 @@
     },
     "agents": {
       "$ref": "#/$defs/stringOrStringArray",
-      "description": "Agent files or a directory. Claude Code: ./agents/*.md (a directory is rejected). Cursor: ./agents/ (a glob is not expanded and loads nothing). spec-dev-kit, html-generator-kit, and feature-dev-kit use ./cursor-agents/."
+      "description": "Agent files or a directory. Claude Code: omit the field — ./agents/ is auto-discovered (a glob or a directory is rejected by `claude plugin validate`). Cursor: ./agents/ (a glob is not expanded and loads nothing). spec-dev-kit, html-generator-kit, and feature-dev-kit use ./cursor-agents/."
     },
     "skills": {
       "$ref": "#/$defs/stringOrStringArray",

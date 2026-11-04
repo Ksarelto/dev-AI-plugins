@@ -9,7 +9,7 @@ Do not require a named pattern the screen does not need (`design.md`).
 | Situation | Expected pattern | Deviation to flag |
 |---|---|---|
 | Stateful or effectful logic in a component | Custom hook in the slice `hooks/`, pure rules in `models/` | Logic inline in JSX/handlers; a hook that imports UI |
-| Server data | Query/mutation hook in `hooks/`, fetcher in `api/`, keys from `shared/api/query-keys/` | `useQuery` in `ui/`; inline `['orders', id]`; server data copied to `useState` or a store |
+| Server data | Every query and mutation hook in the owning slice's `api/hooks.ts`; fetcher in `api/fetchers.ts`; keys from `shared/api/query-keys/`. Feature `hooks/` calls `api/hooks.ts` | `api/useThing.ts`; `useQuery` in `hooks/` or `ui/`; inline `['orders', id]`; server data copied to `useState` or a store |
 | API boundary | zod schema in `api/schema.ts` + DTO mapper (anti-corruption layer) in `api/` | DTO shape leaking into `ui/`; callers re-checking entity fields |
 | Variants of a look | `cva` variant in `styles.ts` (strategy by lookup) | Call-site `className` override; boolean props that toggle classes |
 | Many cases of one thing | Lookup map / fields array / `field.render` | `switch` or `if` chains repeated per render; second `switch` on the same union |
