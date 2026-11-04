@@ -1,0 +1,9 @@
+id: docs
+title: S8a Docs (feature doc, promoted ADRs, CHANGELOG)
+kind: agents
+agents: [tech-writer]
+context_role: mechanical_roles
+inputs: ["prd|delta-spec", stories, component-map?, adr?, api-contract?, change-set?, review?]
+outputs: [feature-doc, adr-doc, changelog, docs-report]
+gate: docs
+requires: { factory: "^0.1" }
