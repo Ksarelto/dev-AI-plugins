@@ -30,12 +30,14 @@ so Cursor can load skills, rules, agents, commands, and MCP servers.
 Cursor only loads symlinks whose target stays inside ~/.cursor/plugins/local
 (see cursor.com/docs/plugins — Test plugins locally). This script keeps a
 mirror of the repo at ~/.cursor/plugins/local/.source-repo and links each
-plugin into that mirror.
+plugin into that mirror. The mirror refreshes when it is missing or a
+marketplace plugin is absent from it.
 
 Options:
   --dry-run       Print actions without changing the filesystem
   --uninstall     Remove plugin symlinks listed in the marketplace
-  --sync-source   Refresh .source-repo from this checkout (run after kit edits)
+  --sync-source   Refresh .source-repo from this checkout (run after kit edits;
+                  a missing marketplace plugin refreshes the mirror anyway)
   --help          Show this help
 `);
   process.exit(0);
@@ -84,9 +86,13 @@ function linkPath(name) {
   return join(localRoot, name);
 }
 
+function mirrorMissingPlugin() {
+  return plugins.some((entry) => !existsSync(pluginTarget(entry)));
+}
+
 function ensureSourceMirror() {
   const marker = join(sourceMirror, ".cursor-plugin", "marketplace.json");
-  const needsCopy = syncSource || !existsSync(marker);
+  const needsCopy = syncSource || !existsSync(marker) || mirrorMissingPlugin();
   if (!needsCopy) {
     console.log(`OK: source mirror present at ${sourceMirror}`);
     return true;

@@ -10,5 +10,5 @@
   "keywords": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "ui-ux-pro-max"],
   "category": "productivity",
   "skills": "./skills/",
-  "agents": "./agents/"
+  "agents": "./cursor-agents/"
 }

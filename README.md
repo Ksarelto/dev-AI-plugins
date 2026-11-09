@@ -11,6 +11,7 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 | [node-backend-dev-kit](node-backend-dev-kit/) | Rules + Skills + MCP | Layered Node.js 22 + Express 5 + TypeScript APIs (routes → controllers → services → repositories): Zod 4, Drizzle + PostgreSQL, JWT + RBAC, problem+json errors, pino, resilience, OpenAPI, Docker, Vitest + Testcontainers. No agents. Reference implementation: [`backend-boilerplate/`](backend-boilerplate/) |
 | [node-agent-dev-kit](node-agent-dev-kit/) | Rules + Skills + MCP | AI agent services on the same Express stack with LangGraph.js + LangChain.js: state graphs, tools, OpenRouter models, Postgres checkpoints, pgvector hybrid RAG, guardrails, SSE streaming, evals. No agents. Requires node-backend-dev-kit. Reference implementation: [`agent-boilerplate/`](agent-boilerplate/) |
 | [pptx-dev-kit](pptx-dev-kit/) | Skills + Agents | Create a 16:9 `.pptx` from a brief via a checked-in layout engine, or edit an existing deck via OOXML |
+| [prototype-kit](prototype-kit/) | Skills + Agents | Living Alpine.js HTML prototype at `prototype/` in the app. `/init-prototype` from a plain-text brief; `/update-prototype` from a change note. A provided theme or layout is binding |
 | [agent-dev-kit](app-dev-kit/agent-dev-kit/) | Rules + Skills + Agents + MCP | TypeScript/Node AI agents and RAG: OpenAI SDK via OpenRouter; `/agent-dev` factory from a spec |
 | [backend-dev-kit](app-dev-kit/backend-dev-kit/) | Rules + Skills + Agents + MCP | Node.js APIs: Express 5, TypeScript, Drizzle, Zod, Vitest; `/backend-dev` factory from a spec |
 | [spec-dev-kit](app-dev-kit/spec-dev-kit/) | Skills + Agents | Raw `.spec/context/` requirements → approved hybrid YAML+Markdown spec |
@@ -21,7 +22,7 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 
 The last seven are separate marketplace plugins under [`app-dev-kit/`](app-dev-kit/). See that README for the pipeline map. Discoverability evals live in `evals/cases/<plugin-name>.json` (plus `<plugin-name>-agents.json` when the kit ships agents).
 
-**[app-dev-kitv2](app-dev-kitv2/)** is a second, independent pipeline family — eight factory plugins (`factory`, `factory-analysis`, `factory-role-frontend`, `factory-role-backend`, `factory-role-ai-agent`, `factory-quality`, `factory-delivery`, `factory-adapter-github`). `prototype-kit` is a separate install when a clickable reference is wanted. The factory implements the hub-and-spoke "AI factory" design in [`Suggestions/`](Suggestions/README.md): a deterministic Conductor dispatches single-purpose agents against file-based state in `.factory/`, with scripts, not models, deciding pass/fail and retries. See [app-dev-kitv2/README.md](app-dev-kitv2/README.md) for install and usage.
+**[app-dev-kitv2](app-dev-kitv2/)** is a second, independent pipeline family — eight factory plugins (`factory`, `factory-analysis`, `factory-role-frontend`, `factory-role-backend`, `factory-role-ai-agent`, `factory-quality`, `factory-delivery`, `factory-adapter-github`). [`prototype-kit`](prototype-kit/) is a separate install when a clickable reference is wanted. The factory implements the hub-and-spoke "AI factory" design in [`Suggestions/`](Suggestions/README.md): a deterministic Conductor dispatches single-purpose agents against file-based state in `.factory/`, with scripts, not models, deciding pass/fail and retries. See [app-dev-kitv2/README.md](app-dev-kitv2/README.md) for install and usage.
 
 **Boilerplates** (not plugins): [`backend-boilerplate/`](backend-boilerplate/) and [`agent-boilerplate/`](agent-boilerplate/) are runnable, tested starters (Docker, Postgres, auth, logging, error handling, graceful degradation, Vitest + Testcontainers) that the two Node kits describe and their `scaffold-*` skills copy.
 
@@ -47,6 +48,7 @@ This makes all plugins available for install in any project.
 /plugin install node-backend-dev-kit@dev-AI-plugins
 /plugin install node-agent-dev-kit@dev-AI-plugins
 /plugin install pptx-dev-kit@dev-AI-plugins
+/plugin install prototype-kit@dev-AI-plugins
 /plugin install spec-dev-kit@dev-AI-plugins
 /plugin install html-generator-kit@dev-AI-plugins
 /plugin install feature-dev-kit@dev-AI-plugins
@@ -63,6 +65,7 @@ claude --plugin-dir ./frontend-dev-kit
 claude --plugin-dir ./node-backend-dev-kit
 claude --plugin-dir ./node-agent-dev-kit
 claude --plugin-dir ./pptx-dev-kit
+claude --plugin-dir ./prototype-kit
 claude --plugin-dir ./app-dev-kit/spec-dev-kit
 claude --plugin-dir ./app-dev-kit/html-generator-kit
 claude --plugin-dir ./app-dev-kit/feature-dev-kit
