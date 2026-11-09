@@ -6,7 +6,7 @@ user-invocable: false
 
 # Implement one backend task (green phase)
 
-Runs on: be-builder (sonnet) — one green-phase task of the layered Express stack (endpoint, service, validation, repository, auth, error-mapping, resilience, openapi, config, fix, refactor) within the task's file budget.
+Runs on: be-builder (sonnet) — the GREEN half of one vertical-slice task of the layered Express stack (in phase `build` first write and prove the red tests with `be-red-tests` and `gate red`) (endpoint, service, validation, repository, auth, error-mapping, resilience, openapi, config, fix, refactor) within the task's file budget.
 
 The red tests are the specification and they are read-only. Build order per task type:
 [be-file-order.md](references/be-file-order.md). Defects that always cost a retry:
@@ -17,7 +17,7 @@ The red tests are the specification and they are read-only. Build order per task
 1. T0: the task, its type, "Satisfies" (AC text), "Definition of done", the red tests, the files you
    may write, the exit check. T3 on a retry: fix only what it lists (rung 1), state a one-sentence
    root-cause hypothesis first (rung 2), or apply the diagnosis file in T1 (rung 3).
-2. T1: load every stack skill it lists with the Skill tool and read every `Rule: … [READ]` file. The
+2. T1: load every stack skill it lists with the Skill tool (first, per the pack's Skills preflight; report them as `skills_loaded` in the envelope) and read every `Rule: … [READ]` file. The
    golden file in T2 is the shape to match — open the section for your task type.
 3. Read the red tests fully. Write down, per test, the status, `code`, DTO fields and side effect it
    expects. That list is your scope.
@@ -25,7 +25,7 @@ The red tests are the specification and they are read-only. Build order per task
    layers you will touch (router, controller, service, repository type, container). Reuse an existing
    function before writing a new one.
 5. Map the build order of your task type onto T0's files. A needed file missing from "You may write
-   only" → stop with `needs_scope_change`; a file already finished by an earlier task → leave it.
+   only" → stop with `needs_scope_change` and list the file(s) in the envelope's `scope_files`; a file already finished by an earlier task → leave it.
 
 ## 2. Layer rules (dependency-cruiser fails `lint` otherwise)
 
@@ -66,7 +66,7 @@ the schema already has the unique index; the service wraps `projects.create(...)
      to theirs);
    - the tests the change touches pass (`test:unit --changed`; the whole suite when this is the
      role's last open task), and the task's own test files ran with none skipped;
-   - typecheck, lint (ESLint + dependency-cruiser), the architecture check and the build are clean;
+   - typecheck, lint (ESLint + dependency-cruiser) and the architecture check are clean (the production build runs at verification; `gate impl` builds only with `quality.impl_build: true`);
    - the role's migration check: any `drizzle/*.sql` in your files needs a journal entry, a real
      rollback and approved destructive statements (you should have none — migrations are
      migration-author's).
@@ -75,7 +75,7 @@ the schema already has the unique index; the service wraps `projects.create(...)
 
 ## 5. When the red test is wrong
 
-Dispute instead of editing: `"test_dispute": { "test": "<file>", "reason": "…" }` with status `done`.
+Dispute instead of editing: `"test_dispute": { "test": "<file>", "reason": "…" }` with status `done`; the reason names the contract line. Never bend production code, add a shim, adapter or test-only hook to fit a fixture.
 Dispute only when the test contradicts the AC text, the contract, or a stack rule — e.g. it expects
 403 for another user's row where `rules/auth-security.mdc` and the contract say 404, it asserts a
 log line, or it needs a file outside the task. The engine sends the task back to the test author

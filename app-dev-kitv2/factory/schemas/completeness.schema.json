@@ -450,6 +450,62 @@
           }
         }
       }
+    },
+    "conflicts": {
+      "type": "array",
+      "description": "contradictions between the feature's sources (a diff of every normalised source's claims); an `open` one makes gate-spec raise exactly one CLARIFY listing them all, with default_winner proposed",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "topic",
+          "claims",
+          "default_winner",
+          "status"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string",
+            "minLength": 3
+          },
+          "claims": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "source",
+                "claim"
+              ],
+              "properties": {
+                "source": {
+                  "type": "string",
+                  "description": "inbox file or SRC id the claim comes from"
+                },
+                "claim": {
+                  "type": "string",
+                  "minLength": 3
+                }
+              }
+            }
+          },
+          "default_winner": {
+            "type": "string",
+            "description": "the source whose claim wins unless the human decides otherwise: the user's own brief (the shortest or first-person source, or the one the inbox marks as base)"
+          },
+          "status": {
+            "enum": [
+              "open",
+              "resolved"
+            ]
+          },
+          "resolution": {
+            "type": "string",
+            "description": "required once resolved: which claim holds and why (the human's answer, HD-n, or the default)"
+          }
+        }
+      }
     }
   }
 }

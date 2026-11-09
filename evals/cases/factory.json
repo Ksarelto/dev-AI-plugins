@@ -60,14 +60,6 @@
       "expect": "note"
     },
     {
-      "prompt": "Skip the prototype stage for this feature",
-      "expect": "proto"
-    },
-    {
-      "prompt": "Force a prototype even though the trigger did not fire",
-      "expect": "proto"
-    },
-    {
       "prompt": "Re-run the stories stage with my feedback, the acceptance criteria miss guest checkout",
       "expect": "replay"
     },
@@ -116,7 +108,7 @@
       "expect": "intake"
     },
     {
-      "prompt": "This task is too big and keeps failing, split it into smaller tasks",
+      "prompt": "This task is really two unrelated behaviours, split it into smaller tasks",
       "expect": "split"
     },
     {
@@ -148,8 +140,16 @@
       "expect": "pr-feedback"
     },
     {
-      "prompt": "Revert the app prototype to how it was before this feature changed it",
-      "expect": "proto"
+      "prompt": "The builder needs one more file inside its slice folder, add it to the task scope without a planner run",
+      "expect": "scope"
+    },
+    {
+      "prompt": "The feature is blocked because a skill was unavailable and I installed the plugin; run the same phase again",
+      "expect": "resume"
+    },
+    {
+      "prompt": "Clear the halt on this blocked factory feature without wiping its tasks",
+      "expect": "resume"
     }
   ]
 }

@@ -112,6 +112,72 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "auto_tier": {
+          "type": "boolean",
+          "description": "size a feature at intake and re-check it after requirements (false keeps the entry mode's profile)"
+        },
+        "size_limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "small": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "words": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reqs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "acs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "stories": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "deprecated and ignored (stories are written after the size is decided)"
+                },
+                "screens": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            },
+            "patch": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "words": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reqs": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "acs": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              }
+            }
+          }
+        },
+        "skip_gates": {
+          "type": "object",
+          "description": "profile -> human gates it does not ask (GATE-C always asks)",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^GATE-[A-Z]$"
+            }
+          }
         }
       }
     },
@@ -142,7 +208,170 @@
       }
     },
     "quality": {
-      "type": "object"
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "completeness_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "coverage_changed_lines_min": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "axe_critical_max": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "axe_routes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bundle_kb_max": {
+          "type": "number",
+          "minimum": 0
+        },
+        "review_blocking": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "P0",
+              "P1",
+              "P2",
+              "P3"
+            ]
+          }
+        },
+        "task_audit_blocking": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "P0",
+              "P1",
+              "P2",
+              "P3"
+            ]
+          }
+        },
+        "impl_build": {
+          "type": "boolean"
+        },
+        "task_tests": {
+          "enum": [
+            "scoped",
+            "full"
+          ]
+        },
+        "task_lint": {
+          "enum": [
+            "scoped",
+            "full"
+          ]
+        },
+        "tsc_incremental": {
+          "type": "boolean"
+        },
+        "cache_failures": {
+          "type": "boolean"
+        },
+        "integration_tests": {
+          "enum": [
+            "run",
+            "skip"
+          ]
+        },
+        "allow_skipped_checks": {
+          "type": "boolean"
+        },
+        "early_review": {
+          "type": "boolean"
+        },
+        "gate_concurrency": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "tasks_max": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "gate-plan fails too-many-tasks when the plan has more tasks than this"
+        },
+        "task_limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "files_max": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "loc_max": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "task_limits_by_type": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "files_max": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "loc_max": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "tdd": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "required",
+                "off"
+              ]
+            },
+            "author": {
+              "enum": [
+                "builder_two_phase",
+                "separate"
+              ],
+              "description": "builder_two_phase: one builder dispatch writes red tests then the code; separate: test author, then builder"
+            },
+            "exempt_types": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "exempt_may_satisfy": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pipeline_red": {
+              "type": "boolean",
+              "description": "deprecated and ignored (pipelined red phases are not implemented); `factory doctor` warns about it"
+            }
+          }
+        },
+        "vague_terms": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "budgets": {
       "type": "object"
@@ -168,9 +397,6 @@
       "type": "object"
     },
     "delivery": {
-      "type": "object"
-    },
-    "prototype": {
       "type": "object"
     },
     "shared_paths": {

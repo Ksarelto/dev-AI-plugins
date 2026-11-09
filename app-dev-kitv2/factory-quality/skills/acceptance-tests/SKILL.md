@@ -28,14 +28,18 @@ For every enabled role's stack it runs the stack's `test` command (scoped to cha
 A file that fails to import (the feature's modules do not exist yet) is a valid red: the gate reads
 its `test("…")` / `it("…")` titles from the source text. After the gate passes the engine locks
 every acceptance file (hash + snapshot); a later change makes gate-checks fail with
-`acceptance-test-changed` for a human to decide.
+`acceptance-test-changed` for a human to decide. A test that is wrong (not the code) is settled by a
+human: `factory acceptance waive <test> --reason …` (the only way a failing acceptance test passes
+gate-checks; the review and digest list it) or `factory replay acceptance --relock <test>` (you rewrite
+that one test from the contract; the engine re-locks the file).
 
 ## Procedure
 
 1. **Read the pack.** T2: the spec (`prd.md` or `delta-spec.yaml`: every REQ and AC with `kind` and
    text, NFRs), `02-stories/stories.yaml` (Gherkin per AC, roles, `ux.surfaces`),
    `02-stories/ux-notes.md`, `03-architecture/component-map.md` (pages, slices, public entry
-   points, props), `03-architecture/api-contract.yaml`, `04-plan/test-plan.yaml`. T1: the stack's
+   points, props), `03-architecture/api-contract.yaml`, `04-plan/test-plan.yaml`, the normalised inbox
+   sources (the customer's API sections) and the entity types/schemas the pack lists (read-only). T1: the stack's
    testing skill to load (`frontend-dev-kit:testing`, `node-backend-dev-kit:api-testing`, or the
    one T1 names).
 2. **List every AC** of the spec with its story, its Gherkin and its `kind`. Add the test-plan
@@ -52,6 +56,10 @@ every acceptance file (hash + snapshot); a later change makes gate-checks fail w
      after it when the plan has one — `test("AC-0001 TEST-0004 applying B2B10 shows a -10.00 EUR discount line", …)`.
      A plain string literal in `test`/`it`, never only in `describe`, never via `test.each`.
    - Body: the Gherkin's Given/When/Then with its exact values, through the public surface only.
+   - Fixtures: build every response and prop from the contract's schema and the entity types, field by
+     field, with the contract's names and nesting. A builder cannot bend production code to a
+     fixture (it must raise a dispute), so an invented shape stalls the feature. Where the contract
+     and the inbox disagree, follow the contract and say so in `deviations`.
    - Fakes: only what lies outside the feature — the network via the contract's responses, time,
      the model (scripted). Never the behaviour under test: for "an expired coupon shows the message",
      the fake returns the contract's expired response and the test asserts what the page shows.

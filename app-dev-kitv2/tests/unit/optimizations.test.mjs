@@ -89,18 +89,19 @@ test("a passing task gate is reused while the working tree is unchanged — the 
   write(env.dir, "src/entities/order/model/total.ts", "export const total = 3;\n");
   const failed = await runGate("impl", taskCtx(env.dir, "TASK-002"));
   assert.equal(failed.pass, false);
-  assert.equal((await runGate("impl", taskCtx(env.dir, "TASK-002"))).cached, false, "a failure is never reused");
+  assert.equal((await runGate("impl", taskCtx(env.dir, "TASK-002"))).cached, true, "an identical failed check is reused, not re-run");
 });
 
-test("an architecture check the lint script already runs, and a tsc-only build, are left out of task gates", () => {
+test("an architecture check the lint script already runs, and the production build (impl_build defaults to false), are left out of task gates", () => {
   const dir = mkdtempSync(join(tmpdir(), "factory-covered-"));
   const stack = (scripts, extra = {}) => {
     writeFileSync(join(dir, "package.json"), JSON.stringify({ scripts }));
     return { cwd: dir, stack: { commands: { lint: { script: "lint" }, build: { script: "build" }, architecture_check: { exec: "depcruise", args: ["src"] }, ...extra } } };
   };
   assert.deepEqual([...coveredCommands(stack({ lint: "eslint . && depcruise src", build: "tsc -p tsconfig.build.json" }))].sort(), ["architecture_check", "build"]);
-  assert.deepEqual([...coveredCommands(stack({ lint: "eslint .", build: "vite build" }))], []);
-  assert.deepEqual([...coveredCommands(stack({ lint: "eslint .", build: "tsc && vite build" }))], [], "a build that does more than tsc stays");
+  assert.deepEqual([...coveredCommands(stack({ lint: "eslint .", build: "vite build" }))], ["build"], "a real build is left to verification by default");
+  assert.deepEqual([...coveredCommands(stack({ lint: "eslint .", build: "tsc && vite build" }))], ["build"]);
+  assert.match(readFileSync(join(V2("factory"), "defaults.yaml"), "utf8"), /^ {2}impl_build: false/m, "the shipped default");
   assert.deepEqual([...coveredCommands(stack({ lint: "eslint .", build: "tsc" }), { quality: { impl_build: true } })], [], "impl_build: true keeps it");
   assert.deepEqual([...coveredCommands(stack({ lint: "eslint .", build: "vite build" }), { quality: { impl_build: false } })], ["build"]);
 });

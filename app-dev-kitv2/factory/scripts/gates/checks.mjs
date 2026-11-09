@@ -8,8 +8,9 @@ import { fileHash } from "../lib/core.mjs";
 import { firstLine, freshReport, readVitestReport } from "../lib/vitest-report.mjs";
 import { enabledStacks, featureAcceptance, runTests } from "../lib/testrun.mjs";
 import { inPool, resolveStack, runStackCommandAsync } from "../lib/stackexec.mjs";
+import { isWaived, readWaivers } from "../lib/waivers.mjs";
 
-export const inputs = ["acceptance-tests", "change-set"];
+export const inputs = ["acceptance-tests", "acceptance-waiver", "change-set"];
 export const cacheable = "tree"; // a passing run is reused while the working tree is unchanged
 
 export async function run(ctx) {
@@ -24,7 +25,7 @@ export async function run(ctx) {
   if (!stacks.length) failures.push({ check: "test", rule: "no-stack", message: "no enabled role has an installed stack to run the tests with" });
   const label = (stack, what) => `${ctx.state.feature}-verify-${stack.role}${what ? `-${what}` : ""}`;
   const jobs = stacks.flatMap((stack) => [
-    async () => testFailures(ctx, stack, await runTests(ctx, stack, label(stack)), { acceptance, own }),
+    async () => testFailures(ctx, stack, await runTests(ctx, stack, label(stack)), { acceptance, own, waivers: ctx.feature?.dir ? readWaivers(ctx.feature.dir) : [] }),
     // Integration tests (real database, Testcontainers) run once here; no task gate runs them.
     async () => (stack.stack.commands?.test_integration && ctx.config.quality?.integration_tests !== "skip" ? integrationFailures(stack, await runStackCommandAsync(stack, "test_integration", { logName: label(stack, "integration"), timeoutMs: 20 * 60_000 })) : { failures: [] }),
     ...["typecheck", "lint", "build"].map((name) => async () => {
@@ -42,15 +43,24 @@ export async function run(ctx) {
   return failures;
 }
 
-function testFailures(ctx, stack, { run, report }, { acceptance, own }) {
+/**
+ * The ONLY way a failing acceptance test passes gate-checks: a human-approved entry in acceptance-waiver.yaml
+ * (`factory acceptance waive`). The waived failure stays in the result as a warning, so the review and the digest list it.
+ */
+function testFailures(ctx, stack, { run, report }, { acceptance, own, waivers = [] }) {
   // A test run that crashed (bad config, broken global setup) is a code problem; no output at all is not.
   if (!report) return { failures: [{ check: "test", rule: "no-report", fix: run.code !== 0 && Boolean(run.tail), message: `${stack.role}: the test command wrote no report (exit ${run.code}):\n${run.tail}` }] };
   const failures = [];
   for (const f of report.files) {
     const kind = acceptance.includes(f.file) ? "acceptance" : "test";
-    if (!f.collected) failures.push({ check: kind, rule: "does-not-load", fix: true, file: f.file, message: firstLine(f.error) });
+    const waived = (name) => kind === "acceptance" && isWaived(waivers, f.file, name);
+    if (!f.collected) {
+      if (waived()) failures.push({ check: kind, rule: "acceptance-waived", warn: true, file: f.file, message: `${f.file} does not load (waived by a human): ${firstLine(f.error)}` });
+      else failures.push({ check: kind, rule: "does-not-load", fix: true, file: f.file, message: firstLine(f.error) });
+    }
     for (const t of f.tests.filter((x) => x.status === "failed" || (x.status !== "passed" && own.has(f.file)))) {
-      failures.push({ check: kind, rule: kind === "acceptance" ? "acceptance-failing" : "failing", fix: true, file: f.file, message: `"${t.name}" is ${t.status}: ${firstLine(t.message)}` });
+      if (waived(t.name)) failures.push({ check: kind, rule: "acceptance-waived", warn: true, file: f.file, message: `"${t.name}" is ${t.status} (waived by a human): ${firstLine(t.message)}` });
+      else failures.push({ check: kind, rule: kind === "acceptance" ? "acceptance-failing" : "failing", fix: true, file: f.file, message: `"${t.name}" is ${t.status}: ${firstLine(t.message)}` });
     }
   }
   return { failures, ran: report.files.map((f) => f.file) };

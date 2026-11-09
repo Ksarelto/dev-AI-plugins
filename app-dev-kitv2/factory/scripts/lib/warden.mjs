@@ -1,7 +1,8 @@
 // Loop Warden: decides what happens after a gate result. Deterministic — the Conductor never decides
 // retries itself. Ladder (each rung used at most once):
 //   0 initial · 1 retry with validator feedback · 2 retry on the reasoning tier with a hypothesis ·
-//   3 diagnosis (diagnostician writes root-cause.md, then one more attempt) · 4 split (tasks only) · 5 human
+//   3 diagnosis (diagnostician writes root-cause.md, then one more attempt) · 4 amend (tasks only, once per task: the planner
+//   corrects the SAME task's scope or definition from the diagnosis; a split is the human's /factory:split) · 5 human
 export const RUNG_INSTRUCTIONS = {
   1: "Fix ONLY the failures listed above. Do not refactor or touch other files.",
   2: "Earlier attempts failed. Before editing, state your hypothesis for the root cause in one sentence, then fix it.",
@@ -62,12 +63,18 @@ export function decide(unit, result, { envelope, attemptsMax = 3, isTask = false
     rung = 3;
     reason = `attempts exhausted (${attemptsMax})`;
   }
-  if (rung === 4 && !isTask) rung = 5; // stages cannot be split
+  if (rung === 4 && !isTask) rung = 5; // stages cannot be amended
+  // A task is amended once. After that amendment a further ladder exhaustion is the human's: another amendment would restart the
+  // whole ladder (retry, diagnose, amend) on a plan that already failed twice, until the feature budget runs out.
+  if (rung === 4 && isTask && (unit.amend_count ?? 0) >= 1) {
+    rung = 5;
+    reason = `${reason}; the task was already amended once and still fails — it needs a human decision (diagnose it by hand, widen its scope, replan or split it)`;
+  }
   if (rung > 5) rung = 5;
   next.rung = rung;
 
   if (rung === 5) return out("block", `${reason}; escalation ladder exhausted`);
-  if (rung === 4) return out("split", `${reason}; replace the task with 2–3 smaller tasks`);
+  if (rung === 4) return out("amend", `${reason}; diagnose, then amend the scope or definition of the same task`);
   if (rung === 3) return out("diagnose", reason, { instruction: RUNG_INSTRUCTIONS[3] });
   if (rung === 2) return out("retry", reason, { instruction: RUNG_INSTRUCTIONS[2], model: tiers?.reasoning ?? "opus" });
   return out("retry", reason, { instruction: RUNG_INSTRUCTIONS[1] });

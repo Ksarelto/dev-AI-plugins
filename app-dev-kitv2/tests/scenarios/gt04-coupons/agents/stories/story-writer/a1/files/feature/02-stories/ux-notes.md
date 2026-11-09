@@ -3,7 +3,7 @@
 ## CheckoutSummary — coupon field (STORY-0001)
 | State | What the user sees |
 |---|---|
-| hidden | guests see no coupon field at all (HD-2) |
+| hidden | guests see no coupon field at all (HD-2: Hide the coupon field for guest users.) |
 | empty | "Coupon code" input, "Apply" disabled until text is entered |
 | loading | spinner on "Apply" |
 | applied | "-10.00 EUR" discount line (AC-0001) |

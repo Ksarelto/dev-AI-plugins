@@ -1,5 +1,5 @@
 // Batch 1 of the post-phase-5 audit fixes: greenfield scaffolding, the fix loop's scope, human notes
-// after planning, removed requirements, breaking prototype deltas, the Bash guard and role-scoped
+// after planning, removed requirements, the Bash guard and role-scoped
 // read_deny.
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
@@ -137,37 +137,6 @@ test("a removed requirement needs a task that removes it, a PR trace row and a d
   assert.ok(!(await plan()).includes("removal-without-task"));
 });
 
-function prototypeAtGate(breaking) {
-  const dir = makeProject(`${PACKS}\npipeline: { profiles: { test: [requirements, stories, prototype, architecture] } }`);
-  const featureDir = makeFeature(dir, { stages: ["requirements", "stories", "prototype", "architecture"] });
-  putIntake(dir);
-  putArtifact(featureDir, "delta-spec.yaml", "01-requirements/delta-spec.yaml");
-  putArtifact(featureDir, "stories.yaml", "02-stories/stories.yaml");
-  mkdirSync(join(featureDir, "02b-prototype"), { recursive: true });
-  writeFileSync(join(featureDir, "02b-prototype", "prototype-report.yaml"), YAML.stringify({ feature: "FEAT-001", screens: [{ name: "s", file: "sandbox/s.html", stories: ["STORY-0001"] }], spec_delta: [{ change: "The discount must show before shipping", breaking }] }));
-  const s = featureState(featureDir);
-  for (const id of ["requirements", "stories"]) s.stages[id].status = "passed";
-  Object.assign(s, { stage: "prototype", status: "awaiting_human", awaiting_human: { gate: "GATE-P", stage: "prototype", since: new Date().toISOString() } });
-  saveState(featureDir, s);
-  return { dir, featureDir };
-}
-
-test("approving GATE-P with breaking spec deltas sends the feature back to requirements, once", () => {
-  let env = prototypeAtGate(false);
-  conductor.approve(env.dir, {});
-  assert.equal(featureState(env.featureDir).stage, "architecture");
-  env = prototypeAtGate(true);
-  conductor.approve(env.dir, {});
-  let s = featureState(env.featureDir);
-  assert.equal(s.stage, "requirements");
-  assert.match(s.stages.requirements.feedback, /The discount must show before shipping/);
-  Object.assign(s, { stage: "prototype", status: "awaiting_human", awaiting_human: { gate: "GATE-P", stage: "prototype", since: new Date().toISOString() } });
-  saveState(env.featureDir, s);
-  conductor.approve(env.dir, {});
-  s = featureState(env.featureDir);
-  assert.deepEqual([s.stage, s.status], ["architecture", "active"], "the way back is used up: approving now accepts the deltas");
-});
-
 test("the Bash guard: no control commands, no shell writes around the allowlist, no shell reads around read_deny", () => {
   const actives = [{ id: "FEAT-001/x/fe-builder/a1", agent: "fe-builder", subagent_type: "factory-role-frontend:fe-builder", write_allow: ["src/features/**"], write_deny: ["src/features/a.test.ts"], read_deny: ["src/secret/**"] }];
   const bash = (command) => decideBash({ agent_type: "fe-builder", tool_input: { command } }, actives, "/p", {});
@@ -204,7 +173,7 @@ test("a black-box stage's read_deny also covers each role's folder", () => {
   conductor.step(dir);
   const active = readdirSync(join(dir, ".factory", ".active")).find((f) => f.endsWith(".json"));
   const deny = JSON.parse(readFileSync(join(dir, ".factory", ".active", active), "utf8")).read_deny;
-  for (const g of ["src/**/!(*.acceptance.test.*)", "web/src/**/!(*.acceptance.test.*)", "api/src/**/!(*.acceptance.test.*)"]) assert.ok(deny.includes(g), `${g} in ${deny}`);
+  for (const g of ["src/**/!(*.acceptance.test.*|types.ts|schema.ts|*.types.ts)", "web/src/**/!(*.acceptance.test.*|types.ts|schema.ts|*.types.ts)", "api/src/**/!(*.acceptance.test.*|types.ts|schema.ts|*.types.ts)"]) assert.ok(deny.includes(g), `${g} in ${deny}`);
 });
 
 test("the default pointer (repo: dev-AI-plugins) resolves to the boilerplate in the marketplace checkout", () => {
@@ -233,13 +202,4 @@ test("a late /factory:note is acted on even when the remaining stages would be s
   const r = conductor.step(env.dir);
   assert.equal(r.dispatches[0].phase, "fixplan");
   assert.equal(featureState(env.featureDir).status, "active");
-});
-
-test("once the way back to requirements is used, approving GATE-P accepts the breaking deltas", () => {
-  const env = prototypeAtGate(true);
-  const s = featureState(env.featureDir);
-  s.budgets.edges = { prototype_to_requirements: 1 };
-  saveState(env.featureDir, s);
-  conductor.approve(env.dir, {});
-  assert.deepEqual([featureState(env.featureDir).stage, featureState(env.featureDir).status], ["architecture", "active"]);
 });

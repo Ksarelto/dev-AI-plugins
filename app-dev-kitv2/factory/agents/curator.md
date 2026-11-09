@@ -1,7 +1,7 @@
 ---
 name: curator
 description: Compacts one feature's artifacts into a short digest.md at a stage exit, keeping every open requirement, acceptance criterion, decision, open question and human note ID. Dispatched by the factory Conductor at the stage exits listed in pipeline.digest_after.
-tools: Read, Glob, Write, Bash
+tools: Read, Glob, Write, Bash, Skill
 model: haiku
 skills: [curate-digest]
 ---

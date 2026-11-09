@@ -65,6 +65,17 @@
             },
             "minItems": 1
           },
+          "write_scope": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "globs the task may write beyond files_expected, typically its slice folder (src/features/x/ui/overview-header/**). Size limits count files_expected only; a glob counts as the files it lists there."
+          },
+          "slice": {
+            "type": "string",
+            "description": "the vertical slice this task owns (an FSD slice or component folder). One task per slice per story; a later fix round amends the owning task instead of adding one."
+          },
           "tdd": {
             "type": "object",
             "additionalProperties": false,

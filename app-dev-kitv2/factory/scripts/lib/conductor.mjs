@@ -1,30 +1,34 @@
 // The Conductor protocol. The model in the main session only calls `step`, dispatches what it
 // returns, and passes each envelope to `record`. Everything that decides — stage order, retries,
 // escalation, gates, budgets — happens here, deterministically, from files.
-import { copyFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative } from "node:path";
 import { UsageError, YAML, changedSince, deepMerge, factoryPaths, fileHash, fileStates, matchesAny, now, readFrontMatter, readJson, readText, toPosix, treeHash, writeAtomic, writeJson, writeYaml } from "./core.mjs";
-import { loadConfig, profileStages, enabledRoles } from "./config.mjs";
+import { loadConfig, profileFor, profileStages, enabledRoles } from "./config.mjs";
+import { sizeFromSpec } from "./sizing.mjs";
+import { raiseBudgetsFromPlan } from "./budgets.mjs";
 import { resolvePacks, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./schemas.mjs";
-import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, savedEnvelopeFile, setActive, withLock } from "./state.mjs";
+import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, savedEnvelopeFile, setActive, tokensCountedFile, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
-import { stageKnowledge } from "./knowledge.mjs";
+import { missingSkills, procedureKnowledge, stageKnowledge } from "./knowledge.mjs";
 import { completenessSummary } from "../gates/spec.mjs";
-import { prototypeDeltas } from "../gates/proto.mjs";
-import { readScreens, restorePrototype, screensToBuild, snapshotPrototype } from "./prototype.mjs";
-import { backToRed, finishTask, loadTasks, rolePath, taskGate, taskStep } from "./tasks.mjs";
+import { readReferences, refKey, resolveProposed, scanNormalised } from "./references.mjs";
+import { FRESH as TASK_FRESH, backToRed, finishEarlyReview, finishTask, loadTasks, markRedPassed as lockRed, rolePath, taskGate, taskStep } from "./tasks.mjs";
+import { isGlob } from "./planlint.mjs";
 import { featureChanges, recordInLedger, ship } from "./delivery.mjs";
+import { writeSpecView } from "./spec-view.mjs";
 import { scaffoldRoles } from "./scaffold.mjs";
 import { runAudits } from "./audits.mjs";
 import { engineDigest } from "./digest.mjs";
-import { featureAcceptance } from "./testrun.mjs";
+import { declaredTests, featureAcceptance } from "./testrun.mjs";
 import { buildIndex } from "./cartographer.mjs";
 import { nextId } from "./ids.mjs";
 import { gateContext, idCoverage, normaliseResult, runGate } from "./gatekeeper.mjs";
 import { RUNG_INSTRUCTIONS, decide, exhaustedBudgets } from "./warden.mjs";
 import { addNote, applyMappings, openNotes, readNotes } from "./notes.mjs";
 import { extractIds, formatId, observeId } from "./ids.mjs";
+import { addWaiver, gitUser, parseWaiverTarget, readWaivers } from "./waivers.mjs";
 
 export const ENGINE_PACK = "factory";
 /** Model aliases the Agent tool accepts per call; agents must declare one of these. */
@@ -79,29 +83,10 @@ export function resolveAgents(c, stage) {
 /** The done_agents key of a target: one per agent and role, and per screen for a fan-out. */
 const doneKey = (t) => `${t.agent}@${t.role ?? ""}${t.screen ? `#${t.screen}` : ""}`;
 
-/**
- * stage.fan_out: once the stage's own agents are done, one dispatch of `agent` per item of `over`
- * (today: the screens.yaml entries the designer marked added or changed).
- */
-function fanOutTargets(c, stage, st) {
-  if (!stage.fan_out) return [];
-  const own = resolveAgents(c, stage);
-  if (!own.every((t) => (st.done_agents ?? []).includes(doneKey(t)))) return [];
-  if (stage.fan_out.over !== "prototype-screens") return [];
-  const [target] = resolveAgents(c, { ...stage, agents: [stage.fan_out.agent] });
-  if (!target) return [];
-  return screensToBuild(readScreens(c.projectDir)).map((screen) => ({ ...target, screen: screen.id }));
-}
-
-/** Every file a fan-out batch may write; hooks match dispatches by agent type, so they share one scope. */
-function fanOutWrites(c, targets) {
-  const featureRel = toPosix(relative(c.projectDir, c.feature.dir));
-  return targets.flatMap((t) => [`.factory/prototype/pages/${t.screen}.html`, `${featureRel}/02b-prototype/screens/${t.screen}.yaml`]);
-}
-
+// The same words for every dispatch, the one variable part (the pack path and ID) at the end: a stable
+// prompt prefix is cached. The pack itself repeats the ID in its Return line.
 const promptFor = (d, projectDir) =>
-  `Read your context pack at ${toPosix(join(projectDir, d.pack))} and follow it exactly. ` +
-  `End your reply with the JSON envelope it asks for (pack_id "${d.id}").`;
+  `Follow your context pack exactly, then end your reply with the JSON envelope it asks for. Context pack: ${toPosix(join(projectDir, d.pack))} (pack_id "${d.id}")`;
 
 /** Conditions the engine can answer from files; a feature flag of the same name overrides them. */
 const BUILTIN_CONDITIONS = {
@@ -110,18 +95,12 @@ const BUILTIN_CONDITIONS = {
     const root = factoryPaths(c.projectDir).root;
     return !existsSync(join(root, "app-profile.yaml")) || !existsSync(join(root, "_index", "capability-map.yaml"));
   },
+  // S8a runs only when delivery.docs is on. Default off: the pipeline commits and stops.
+  "docs.enabled": (c) => c.config.delivery?.docs === true,
   // S9 runs only when PR comments were fetched (/factory:pr-feedback → factory comments).
   "pr.comments": (c) => {
     const file = join(c.feature.dir, "08-delivery", "comments.json");
     return existsSync(file) && (JSON.parse(readText(file)) ?? []).length > 0;
-  },
-  // The living app prototype is updated by every feature whose stories add, change or remove a
-  // user-facing surface (never for patches; prototype.enabled: false turns it off).
-  "prototype.trigger": (c) => {
-    if (c.feature.state.tier === "patch" || c.config.prototype?.enabled === false) return false;
-    const storiesFile = join(c.feature.dir, "02-stories", "stories.yaml");
-    if (!existsSync(storiesFile)) return false;
-    return (YAML.parse(readText(storiesFile))?.stories ?? []).some((s) => s.ux?.surfaces?.length);
   },
 };
 
@@ -187,13 +166,46 @@ function block(c, reason) {
   appendEvent(c.projectDir, { type: "halt", feature: s.feature, stage: s.stage, reason });
 }
 
-function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung, model, feedback, instruction, extraReads, extraWrites, writeDeny, mission, gate, task, gateTask = task, laterAgents = [], knowledge, gateScreen }) {
+
+/** Stages and task types that build or judge what the screens look like get a customer mockup as a binding input. */
+const MOCKUP_STAGES = new Set(["stories", "architecture", "qa", "verification", "requirements", "requirements-lite", "verification-lite"]);
+const MOCKUP_TASKS = new Set(["feature-ui", "page", "component", "form", "styling-token"]);
+const BINDING_RULE = "structure, states, copy, density, and colour intent are binding; the stack kit is the implementation; the brief wins on conflict";
+const NO_PROTOTYPE = "No prototype is registered. Decide layout, states, copy and styling from the spec and the stack kit (shadcn, Tailwind semantic colours). Do not call prototype-kit or a designer.";
+
+/** The mockup the brief points at, as labelled paths. The original reference, not a generated copy. */
+function mockupLines(c) {
+  const { projectDir } = c;
+  return readReferences(projectDir, { feature: c.feature.state.feature }).map((r) => {
+    const pages = (r.pages ?? []).map((id) => `${id} (pages/${id}.html)`).join(", ");
+    const detail = [
+      r.entry ? `entry ${r.entry}` : null,
+      r.run ? `documented run: ${r.run}` : null,
+      pages ? `pages: ${pages}` : null,
+      r.intent ? `intent: ${r.intent}` : null,
+      "read-only, Glob/Grep/Read work there",
+    ].filter(Boolean);
+    return {
+      label: `Customer mockup (${BINDING_RULE}; ${detail.join("; ")})`,
+      ...(r.path ? { path: isAbsolute(r.path) ? r.path : toPosix(join(projectDir, r.path)) } : { url: r.url }),
+    };
+  });
+}
+
+function referenceInputs(c, { stageId, task } = {}) {
+  if (!(MOCKUP_STAGES.has(stageId) || (task && MOCKUP_TASKS.has(task.type)))) return [];
+  const lines = mockupLines(c);
+  return lines.length ? lines : [{ label: NO_PROTOTYPE }];
+}
+
+function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung, model, feedback, instruction, extraReads, extraWrites, writeDeny, mission, gate, task, gateTask = task, laterAgents = [], knowledge, gateScreen, slim, noteScope, binding, inline }) {
   const s = c.feature.state;
   const id = `${s.feature}/${idStage ?? stageId}/${target.agent}/a${attempt}`;
   const owners = stage?.owners ?? {};
   const pack = buildPack(c.projectDir, c.feature, c.config, {
     id, stageId, stage, agent: target.agent, subagent_type: target.subagent_type, model, attempt, rung, role: target.role,
-    phase, feedback, instruction, extraReads, extraWrites, writeDeny, mission, task, gateTask, gateScreen, gate: gate === undefined ? stage?.gate : gate,
+    phase, feedback, instruction, extraReads, extraWrites, writeDeny, mission, task, gateTask, gateScreen, slim, noteScope, gate: gate === undefined ? stage?.gate : gate,
+    binding: binding ?? referenceInputs(c, { stageId, task }), inline,
     readDeny: roleScoped(c.config, stage?.read_deny ?? []),
     openNotes: phase === "stage" ? openNotes(c.feature.dir).map((n) => n.id) : [],
     // Outputs owned by another agent of the stage are not this agent's to write.
@@ -202,6 +214,8 @@ function makeDispatch(c, { stageId, idStage, stage, target, phase, attempt, rung
     stacks: stackLines(c),
     // A task carries its own type's knowledge; every other agent gets what the stacks name for it.
     knowledge,
+    // The agent's own procedure skills (frontmatter `skills:`), forced the same way as stack skills.
+    procedure: procedureKnowledge(target.pack, target.agent, { stageId, mode: s.mode }),
     stageKnowledge: knowledge ? [] : stageKnowledge(enabledRoles(c.config).map((r) => ({ role: r.name, pack: c.packs[r.stack] })), target.agent),
     planRules: (stage?.outputs ?? []).includes("tasks") ? planRules(c) : [],
     nextIds: nextFreeIds(c),
@@ -228,7 +242,8 @@ function issue(c, dispatches) {
   dispatches.forEach((d, i) => {
     d.parallel_group = i;
     s.pending.push(d);
-    if (d.phase === "stage") s.stages[d.stage].dispatches = (s.stages[d.stage].dispatches ?? 0) + 1;
+    // The stage's own agents and the task loop's dispatches count toward budgets.stage.dispatches_max(_by_stage); a fan-out batch of screens does not.
+    if (d.phase === "stage" || d.task || ["fixplan", "early_review"].includes(d.phase)) s.stages[d.stage].dispatches = (s.stages[d.stage].dispatches ?? 0) + 1;
   });
   s.budgets.dispatches += dispatches.length;
   persist(c); // state first: a failed save must not leave hooks enforcing a dispatch that does not exist
@@ -239,6 +254,8 @@ function issue(c, dispatches) {
       write_allow: front.write_allow,
       write_deny: front.write_deny,
       read_deny: front.read_deny,
+      ...(front.skills_required?.length ? { skills_required: front.skills_required } : {}),
+      ...(front.skill_files?.length ? { skill_files: front.skill_files } : {}),
       read_budget: front.read_allowlist_max + front.listed_reads,
     });
     appendEvent(c.projectDir, {
@@ -249,12 +266,24 @@ function issue(c, dispatches) {
   return { action: "dispatch", feature: s.feature, dispatches: dispatches.map((d) => ({ ...d, prompt: promptFor(d, c.projectDir) })) };
 }
 
+/** What a human sees at a gate: the reason, the questions (the spec's open ones at a stage gate), the files to review. */
+function askPayload(c) {
+  const s = c.feature.state;
+  const g = s.awaiting_human;
+  const { projectDir } = c;
+  // At a stage's own gate, the spec's unanswered questions and their defaults are part of the decision.
+  const specQuestions = g.gate === "CLARIFY" ? [] : (gateContext({ projectDir, app: c.app, feature: c.feature, config: c.config }).spec()?.data.open_questions ?? [])
+    .filter((q) => q.status !== "answered")
+    .map((q) => `${q.id} (${q.severity}, ${q.status ?? "open"}): ${q.text}${q.default ? ` — default: ${q.default}` : ""}`);
+  return { action: "ask_human", feature: s.feature, gate: g.gate, stage: g.stage, reason: g.reason ?? null, questions: g.questions?.length ? g.questions : specQuestions, review: reviewFiles(c, g.stage), open_notes: openNotes(c.feature.dir).map((n) => n.id) };
+}
+
 export function step(projectDir, { feature } = {}) {
   return withLock(projectDir, () => {
     const c = load(projectDir, feature);
     const s = c.feature.state;
     if (["done", "aborted"].includes(s.status)) return { action: "done", feature: s.feature, status: s.status };
-    if (s.status === "blocked") return { action: "halt", feature: s.feature, reason: s.halts.at(-1)?.reason ?? "blocked" };
+    if (s.status === "blocked") return { action: "halt", feature: s.feature, reason: `${s.halts.at(-1)?.reason ?? "blocked"} — once the cause is fixed: factory resume (/factory:resume) runs the same phase again` };
     const deps = (s.depends_on ?? []).map((id) => [id, c.app.features[id]?.status]);
     const aborted = deps.filter(([, status]) => status === "aborted").map(([id]) => id);
     if (aborted.length) return { action: "halt", feature: s.feature, reason: `depends on ${aborted.join(", ")}, which was aborted — abort this feature too, or replan it` };
@@ -302,21 +331,29 @@ export function step(projectDir, { feature } = {}) {
       pauseClock(s);
       persist(c);
     }
-    if (s.awaiting_human && s.awaiting_human.gate !== "CLARIFY" && c.config.automation?.autopilot) {
+    if (s.awaiting_human && autopilotMayApprove(c, s.awaiting_human)) {
       // A feature left waiting before autopilot was turned on: approve it now instead of asking.
       approveGate(c, { by: "autopilot" });
       if (s.status === "done") { persist(c); return { action: "done", feature: s.feature, status: "done" }; }
       if (s.status === "blocked") { persist(c); return { action: "halt", feature: s.feature, reason: s.halts.at(-1)?.reason ?? "blocked" }; }
     }
-    if (s.awaiting_human) {
-      const g = s.awaiting_human;
-      // At a stage's own gate, the spec's unanswered questions and their defaults are part of the decision.
-      const specQuestions = g.gate === "CLARIFY" ? [] : (gateContext({ projectDir, app: c.app, feature: c.feature, config: c.config }).spec()?.data.open_questions ?? [])
-        .filter((q) => q.status !== "answered")
-        .map((q) => `${q.id} (${q.severity}, ${q.status ?? "open"}): ${q.text}${q.default ? ` — default: ${q.default}` : ""}`);
-      return { action: "ask_human", feature: s.feature, gate: g.gate, stage: g.stage, reason: g.reason ?? null, questions: g.questions?.length ? g.questions : specQuestions, review: reviewFiles(c, g.stage), open_notes: openNotes(c.feature.dir).map((n) => n.id) };
-    }
+    if (s.awaiting_human) return askPayload(c);
 
+    if (s.relock) return relockDispatch(c);
+    // A mockup the brief seemed to point at is only proposed: one question before it becomes binding.
+    scanNormalised(projectDir);
+    const proposed = readReferences(projectDir, { status: "proposed", feature: s.feature });
+    if (proposed.length) {
+      s.status = "awaiting_human";
+      s.awaiting_human = {
+        gate: "CLARIFY", stage: s.stage, since: now(), references: proposed.map(refKey),
+        reason: `the brief seems to point at ${proposed.length === 1 ? "a mockup" : "mockups"}; once confirmed they are binding design inputs (imported, read-only for the agents)`,
+        questions: proposed.map((r) => `Is ${refKey(r)}${r.source ? ` (from ${r.source})` : ""} the customer's mockup to follow? Answer yes to make it binding, or "no" to ignore it.`),
+      };
+      pauseClock(s);
+      persist(c);
+      return askPayload(c);
+    }
     const profile = profileStages(c.config, s.profile);
     for (let guard = 0; guard <= profile.length; guard++) {
       const stageId = s.stage;
@@ -333,6 +370,8 @@ export function step(projectDir, { feature } = {}) {
       // Conditions are decided once, when the stage is first reached: a retry never skips a stage.
       const skip = !st.entered && ((stage.modes && !stage.modes.includes(s.mode)) || s.overrides?.[stageId] === "skip" || (s.overrides?.[stageId] !== "force" && !evalWhen(c, stage.when)));
       if (skip && st.status === "pending") {
+        // A later feature skips discovery because the baseline exists; the inventory is still rebuilt.
+        if (stageId === "discovery" && stage.when && !evalWhen(c, stage.when)) buildIndex(c.projectDir, c.config, c.packs);
         st.status = "skipped";
         nextStage(c);
         if (s.status === "done") {
@@ -365,7 +404,7 @@ export function step(projectDir, { feature } = {}) {
         });
         return issue(c, [d]);
       }
-      const maxDispatches = c.config.budgets?.stage?.dispatches_max;
+      const maxDispatches = c.config.budgets?.stage?.dispatches_max_by_stage?.[stageId] ?? c.config.budgets?.stage?.dispatches_max;
       if (maxDispatches && (st.dispatches ?? 0) >= maxDispatches) {
         block(c, `stage "${stageId}" used its ${maxDispatches} dispatches`);
         persist(c);
@@ -378,7 +417,7 @@ export function step(projectDir, { feature } = {}) {
         return { action: "halt", feature: s.feature, reason: `role ${missingRolePack.name} is enabled but its pack "${missingRolePack.pack}" is not installed — run: factory doctor` };
       }
       if (!targets.length && (stage.agents ?? []).every((a) => a.startsWith("role:"))) {
-        // A role-slot stage (e.g. prototype) with no enabled role providing the slot: nothing to do.
+        // A role-slot stage with no enabled role providing the slot: nothing to do.
         st.status = "skipped";
         st.reason = `no enabled role provides ${stage.agents.join(", ")}`;
         nextStage(c);
@@ -388,7 +427,6 @@ export function step(projectDir, { feature } = {}) {
         }
         continue;
       }
-      if (stage.snapshot === "prototype" && !st.snapshot) st.snapshot = snapshotPrototype(projectDir, c.feature.dir);
       st.status = "running";
       st.entered = true;
       const missing = targets.filter((t) => !t.pack || !t.model);
@@ -418,28 +456,16 @@ export function step(projectDir, { feature } = {}) {
       }
       if (!st.done_agents?.length) st.findings = [];
       const done = new Set(st.done_agents ?? []);
-      const todo = [...targets, ...fanOutTargets(c, stage, st)].filter((t) => !done.has(doneKey(t)));
-      // A fan-out batch (one dispatch per screen) runs in parallel once the stage's own agents are done.
-      const batch = todo[0]?.screen ? todo : stage.parallel ? todo : todo.slice(0, 1);
+      const todo = targets.filter((t) => !done.has(doneKey(t)));
+      const batch = stage.parallel ? todo : todo.slice(0, 1);
       const rootCause = join(c.feature.dir, "diagnosis", `${stageId}.md`);
-      const fanWrites = batch[0]?.screen ? fanOutWrites(c, batch) : [];
       const dispatches = batch.map((target) =>
-        target.screen
-          ? makeDispatch(c, {
-              // A screen writer's contract: the stories, the spec, screens.yaml, the design brief and the report.
-              stageId, idStage: `${stageId}.${target.screen}`, target, phase: "screen",
-              stage: { ...stage, outputs: [], writes: [], inputs: ["stories", "ux-notes?", "prd|delta-spec", "prototype-screens", "prototype-design-brief?", "prototype-report?", "app-profile?", "component-inventory?", "human-notes?"] },
-              attempt: attemptNo(st) + 1, rung: st.rung ?? 0, model: st.model ?? target.model, feedback: st.feedback, instruction: st.instruction,
-              extraWrites: fanWrites, gateScreen: target.screen,
-              mission: `Build screen "${target.screen}" of the living app prototype: write .factory/prototype/pages/${target.screen}.html and your note ${toPosix(relative(projectDir, c.feature.dir))}/02b-prototype/screens/${target.screen}.yaml. The screen's entry in .factory/prototype/screens.yaml (stories, states, page type, entity) and the designer's shared CSS/JS are your contract; other screens are built in parallel by other dispatches — never write their files.`,
-            })
-          : makeDispatch(c, {
-              stageId, stage, target, phase: "stage", attempt: attemptNo(st) + 1, rung: st.rung ?? 0,
-              laterAgents: stage.parallel ? [] : todo.slice(1).map((t) => t.agent),
-              model: st.model ?? target.model, feedback: st.feedback, instruction: st.instruction,
-              extraReads: (st.rung ?? 0) >= 3 && existsSync(rootCause) ? [{ label: "Root cause", path: toPosix(relative(projectDir, rootCause)) }] : [],
-              ...(stage.fan_out ? { mission: `You go first: the screens you mark added or changed in .factory/prototype/screens.yaml are then built in parallel by ${stage.fan_out.agent.replace("role:", "")} dispatches. Your exit check reports their missing pages and notes until they run — that is expected; everything else must pass.` } : {}),
-            }),
+        makeDispatch(c, {
+          stageId, stage, target, phase: "stage", attempt: attemptNo(st) + 1, rung: st.rung ?? 0,
+          laterAgents: stage.parallel ? [] : todo.slice(1).map((t) => t.agent),
+          model: st.model ?? target.model, feedback: st.feedback, instruction: st.instruction,
+          extraReads: (st.rung ?? 0) >= 3 && existsSync(rootCause) ? [{ label: "Root cause", path: toPosix(relative(projectDir, rootCause)) }] : [],
+        }),
       );
       return issue(c, dispatches);
     }
@@ -485,7 +511,7 @@ export function acceptChanges(projectDir, { feature } = {}) {
  * implementation without dispatching the reviewers. Then the ordinary step.
  */
 export async function stepAsync(projectDir, opts = {}) {
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 6; i++) {
     const r = step(projectDir, opts);
     if (r.action !== "precheck") return r;
     await precheck(projectDir, { ...opts, feature: r.feature });
@@ -548,6 +574,7 @@ const formatFeedback = (result) =>
 function restoreAcceptance(c) {
   const restored = [];
   for (const [f, hash] of Object.entries(c.feature.state.acceptance_lock ?? {})) {
+    if (c.feature.state.relock?.file === f) continue; // being rewritten by a human-requested relock
     const copy = join(c.feature.dir, "acceptance-lock", `${f}.snapshot`);
     if (fileHash(join(c.projectDir, f)) === hash || !existsSync(copy)) continue;
     mkdirSync(dirname(join(c.projectDir, f)), { recursive: true });
@@ -573,11 +600,19 @@ export async function record(projectDir, opts) {
   return result;
 }
 
-/** automation.autopilot never resolves a CLARIFY stop — there is no safe default answer to invent. */
+/**
+ * automation.autopilot never resolves a CLARIFY stop — there is no safe default answer to invent — and never a
+ * gate a human rejected earlier: the revision that comes back to it (the reopened GATE-A included) waits for the
+ * human who asked for it.
+ */
+function autopilotMayApprove(c, g) {
+  return Boolean(c.config.automation?.autopilot && g.gate !== "CLARIFY" && c.feature.state.gates?.[g.gate]?.result !== "rejected");
+}
+
 function autopilotApplies(projectDir, feature) {
   const c = load(projectDir, feature);
   const g = c.feature.state.awaiting_human;
-  return Boolean(g && g.gate !== "CLARIFY" && c.config.automation?.autopilot);
+  return Boolean(g && autopilotMayApprove(c, g));
 }
 
 async function recordOne(projectDir, { dispatchId, envelopeText, tokens = 0, feature }, batch = {}) {
@@ -602,6 +637,8 @@ async function recordOne(projectDir, { dispatchId, envelopeText, tokens = 0, fea
   if (errors.length) {
     return { action: "redispatch", reason: `invalid envelope: ${errors.join("; ")}`, dispatch: { ...pending, prompt: promptFor(pending, projectDir) } };
   }
+  const skillsVerdict = skillsCheck(projectDir, feature, pending, parsed);
+  if (skillsVerdict) return skillsVerdict;
   restoreAcceptance(c);
   // Task gates run real tests, typecheck and builds: run them before taking the state lock.
   const taskResult = pending.task ? await taskGate(c, pending, parsed) : null;
@@ -615,14 +652,70 @@ async function recordOne(projectDir, { dispatchId, envelopeText, tokens = 0, fea
   });
 }
 
+/** A pack's skills_required (stack skills for the task type); empty for packs that name none. */
+const requiredSkills = (projectDir, pending) => {
+  try {
+    return readFrontMatter(join(projectDir, pending.pack)).data.skills_required ?? [];
+  } catch {
+    return [];
+  }
+};
+const SKILL_RETRIES = 2;
+
+/**
+ * Stack skills are loaded by the agent, and it says so (envelope.skills_loaded). A `blocked` envelope
+ * that says skills are unavailable halts the feature naming them (retrying cannot help); a `done` one
+ * that skipped a required skill is sent back with the reason, twice, then the feature halts.
+ */
+function skillsCheck(projectDir, feature, pending, envelope) {
+  const required = requiredSkills(projectDir, pending);
+  const asked = (envelope.open_questions ?? []).find((q) => /skills unavailable/i.test(q));
+  let names = null;
+  let why = null;
+  if (envelope.status === "blocked" && asked) {
+    names = asked.replace(/^.*skills unavailable:?/i, "").split(/[,\s]+/).map((n) => n.trim().replace(/[.;]$/, "")).filter(Boolean);
+    if (!names.length) names = required;
+    why = `${pending.agent} cannot load its stack skills: ${names.join(", ")} (skills unavailable) — install the plugin or give the agent the Skill tool, then run: factory resume`;
+  } else if (envelope.status === "done" && required.length) {
+    const missing = missingSkills(required, envelope.skills_loaded ?? []);
+    if (!missing.length) return null;
+    const counter = tokensCountedFile(projectDir, pending.id).replace(/\.tokens$/, ".skillretry");
+    const used = existsSync(counter) ? Number(readFileSync(counter, "utf8")) || 0 : 0;
+    if (used < SKILL_RETRIES) {
+      writeFileSync(counter, String(used + 1));
+      return {
+        action: "redispatch",
+        reason: `required skills not loaded: ${missing.join(", ")} — call the Skill tool for each first, redo the work with them, and list them in the envelope's skills_loaded`,
+        dispatch: { ...pending, prompt: promptFor(pending, projectDir) },
+      };
+    }
+    names = missing;
+    why = `${pending.agent} returned done ${SKILL_RETRIES + 1} times without loading skills: ${missing.join(", ")}`;
+  }
+  if (!why) return null;
+  return withLock(projectDir, () => {
+    const cur = load(projectDir, feature);
+    cur.feature.state.pending = cur.feature.state.pending.filter((d) => d.id !== pending.id);
+    clearActive(projectDir, pending.id);
+    writeJson(join(cur.feature.dir, "envelopes", `${pending.id.split("/").slice(1).join(".")}.json`), envelope);
+    block(cur, `skills unavailable: ${names.join(", ")} — ${why}`);
+    persist(cur);
+    return { action: "halt", feature: cur.feature.state.feature, reason: cur.feature.state.halts.at(-1).reason, skills: names };
+  });
+}
+
 async function recordLocked(projectDir, feature, pending, parsed, tokens, batch, taskResult) {
   const cur = load(projectDir, feature);
   const st8 = cur.feature.state;
   st8.pending = st8.pending.filter((d) => d.id !== pending.id);
   batch.emptied = st8.pending.length === 0;
+  // Tokens the SubagentStop hook already counted from the real usage win over --tokens (never both).
+  const counted = tokensCountedFile(projectDir, pending.id);
+  const hookTokens = existsSync(counted) ? Number(readFileSync(counted, "utf8").split("|").at(-1)) || 0 : 0;
+  if (hookTokens) tokens = hookTokens;
+  else st8.budgets.tokens += Number(tokens) || 0;
   clearActive(projectDir, pending.id);
   writeJson(join(cur.feature.dir, "envelopes", `${pending.id.split("/").slice(1).join(".")}.json`), parsed);
-  st8.budgets.tokens += Number(tokens) || 0;
   const allow = readFrontMatter(join(projectDir, pending.pack)).data.write_allow ?? [];
   const outside = (parsed.artifacts_written ?? []).filter((p) => !matchesAny(toPosix(isAbsolute(p) ? relative(projectDir, p) : p), allow));
   appendEvent(projectDir, {
@@ -631,12 +724,15 @@ async function recordLocked(projectDir, feature, pending, parsed, tokens, batch,
   });
 
   if (pending.phase === "digest") return finishDigest(cur, parsed);
+  if (pending.phase === "relock") return finishRelock(cur, pending, parsed);
+  if (pending.phase === "early_review") return finishEarlyReview(cur, pending, parsed, helpers);
   if (pending.task || pending.phase === "fixplan") return finishTask(cur, pending, parsed, helpers, taskResult);
   if (pending.stage !== st8.stage) {
     persist(cur);
     return { action: "continue", feature: st8.feature, note: `ignored a late envelope from stage "${pending.stage}"; the feature is at "${st8.stage}"` };
   }
   if (pending.phase === "diagnose") {
+    keepFirstDiagnosis(cur.feature.dir, pending.stage);
     const st = st8.stages[pending.stage];
     st.diagnose_pending = false;
     st.status = "pending";
@@ -645,6 +741,20 @@ async function recordLocked(projectDir, feature, pending, parsed, tokens, batch,
     return { action: "continue", feature: st8.feature, note: "diagnosis recorded; the stage is re-dispatched with root-cause.md" };
   }
   return finishStageAgent(cur, pending, parsed);
+}
+
+/**
+ * The first root cause of a stage stays at the top of diagnosis/<stage>.md: a later diagnosis (often one
+ * that only reports a used-up budget) is appended under it, never written over it.
+ */
+export function keepFirstDiagnosis(featureDir, stageId) {
+  const file = join(featureDir, "diagnosis", `${stageId}.md`);
+  const first = join(featureDir, "diagnosis", `.${stageId}.first`);
+  if (!existsSync(file)) return;
+  const current = readText(file);
+  if (!existsSync(first)) return writeAtomic(first, current);
+  const kept = readText(first).trimEnd();
+  if (!current.startsWith(kept)) writeAtomic(file, `${kept}\n\n---\n## Later diagnosis (${now()})\n\n${current.trim()}\n`);
 }
 
 async function finishDigest(c, envelope) {
@@ -673,7 +783,10 @@ function planRules(c) {
       const wider = Object.entries(r?.budgets?.task_limits ?? {}).map(([t, v]) => `${t} up to ${v.files_max} files`).join(", ");
       return `role ${role.name}${role.path ? ` (folder ${role.path})` : ""}: files only in ${(role.owns_paths ?? []).join(", ")}; task types ${(r?.task_types ?? []).join(", ")}${wider ? `; ${wider}` : ""}`;
     }),
-    `every task: at most ${lim.files_max} files and ${lim.loc_max} estimated LOC (size.est_loc is required), unless its role allows more`,
+    `one task = one vertical slice (an FSD slice or one component folder, or one endpoint with its schema, service and repository) of one story, 3–8 ACs: at most ${lim.files_max} files_expected and ${lim.loc_max} estimated LOC (size.est_loc is required), unless the role sets a cap per type; the whole plan has at most ${c.config.quality?.tasks_max ?? 10} tasks (too-many-tasks); set \`slice\` and list the slice folder in \`write_scope\` (a glob such as src/features/x/ui/panel/**: it counts as the files you list in files_expected, not as one)`,
+    `plan lint: for a new unit the role's convention files (frontend component: styles.ts, index.ts, tests/<name>.test.tsx) are added to files_expected by the engine when you leave them out`,
+    `a fix round amends the task that owns the slice (extend its definition_of_done and files); a new task only when no task owns the work`,
+    `${tdd.author === "builder_two_phase" ? "one builder dispatch per test-first task writes the red tests, proves them with gate red, then implements" : "a test author writes the red tests, then the builder implements"}; a red test file may extend an existing test file of the task's own write_scope/slice`,
     `test-first for every type except ${(tdd.exempt_types ?? []).join(", ")}; an exempt task satisfies no AC unless it is ${(tdd.exempt_may_satisfy ?? ["migration", "eval"]).join(" or ")}`,
     "every test-first task has a unit, component or integration case naming it; a case's AC (when it has one) is one its task satisfies",
     "change requests: a task touching a file the delta-spec modifies depends on a characterisation task; a removed REQ needs a task with removes: [REQ-…]",
@@ -719,7 +832,7 @@ async function finishStageAgent(c, pending, envelope) {
   const stageId = pending.stage;
   const stage = resolveStage(c, stageId);
   const st = s.stages[stageId];
-  const key = doneKey({ agent: pending.agent, role: [...resolveAgents(c, stage), ...(stage.fan_out ? resolveAgents(c, { ...stage, agents: [stage.fan_out.agent] }) : [])].find((t) => t.agent === pending.agent)?.role, screen: pending.screen });
+  const key = doneKey({ agent: pending.agent, role: resolveAgents(c, stage).find((t) => t.agent === pending.agent)?.role, screen: pending.screen });
   st.done_agents = [...new Set([...(st.done_agents ?? []), key])];
 
   if (envelope.notes_mapped?.length) {
@@ -731,7 +844,7 @@ async function finishStageAgent(c, pending, envelope) {
   }
   let result = null;
   if (envelope.status === "done") {
-    const remaining = [...resolveAgents(c, stage), ...fanOutTargets(c, stage, st)].filter((t) => !st.done_agents.includes(doneKey(t)));
+    const remaining = resolveAgents(c, stage).filter((t) => !st.done_agents.includes(doneKey(t)));
     if (remaining.length || s.pending.some((d) => d.stage === stageId)) {
       persist(c);
       return { action: "continue", feature: s.feature, waiting_for: remaining.map((t) => t.subagent_type) };
@@ -754,6 +867,12 @@ async function finishStageAgent(c, pending, envelope) {
     appendEvent(c.projectDir, { type: "gate", feature: s.feature, stage: stageId, gate: result.gate, pass: result.pass, progress_signal: result.progress_signal, fingerprint: result.fingerprint, cached: result.cached });
   }
   if (result && !result.pass) {
+    const conflicts = conflictRound(c, stageId, st, result);
+    if (conflicts.ask) {
+      persist(c);
+      return { action: "ask_human", feature: s.feature, verdict: "ask_human", reason: conflicts.reason, gate: summary(result) };
+    }
+    result = conflicts.result;
     const round = completenessRound(c, stageId, st, result);
     if (round.ask) {
       persist(c);
@@ -772,31 +891,42 @@ async function finishStageAgent(c, pending, envelope) {
 }
 
 /**
- * A spec whose only blocking failure is a low completeness score gets one batched question round
- * (the analyst's gap questions, recommended answer first) without spending an attempt. After that
- * round the score no longer blocks: the gaps travel to GATE-A for the human to accept or reject.
+ * Source conflicts (completeness.yaml `conflicts`, checked by gate-spec): when the sources contradict each other
+ * the human is asked ONCE, with every contradiction in one question and the user's own brief proposed as the winner.
+ * The analyst then records each as resolved. A conflict still open after that round travels to GATE-A as a warning.
+ */
+function conflictRound(c, stageId, st, result) {
+  const open = result.failures.filter((f) => !f.warn && f.check === "conflicts" && f.rule === "unresolved-conflict");
+  if (!open.length) return { ask: false, result };
+  const s = c.feature.state;
+  if (!(st.conflict_rounds ?? 0)) {
+    st.conflict_rounds = 1;
+    st.prior_attempts = (st.prior_attempts ?? 0) + 1; // a new dispatch id; the round still costs no attempt
+    st.status = "pending";
+    st.done_agents = [];
+    st.feedback = `${open.length} source conflict(s) were put to the human. Record each in completeness.yaml conflicts as status resolved with the human's resolution (or the default winner when the answer is "approve"), and write the spec by it.`;
+    const question = `The sources contradict each other on ${open.length} point(s):\n${open.map((f, i) => `${i + 1}. ${f.message}`).join("\n")}\nApprove to take every proposed winner (the user's own brief), or answer with the winner for each point.`;
+    s.status = "awaiting_human";
+    s.awaiting_human = { gate: "CLARIFY", stage: stageId, since: now(), reason: `${open.length} contradiction(s) between the sources — one question before the requirements are approved`, questions: [question] };
+    pauseClock(s);
+    appendEvent(c.projectDir, { type: "verdict", feature: s.feature, stage: stageId, verdict: "ask_human", reason: "source conflicts", conflicts: open.length });
+    return { ask: true, reason: s.awaiting_human.reason };
+  }
+  st.conflict_note = `${open.length} source conflict(s) still open after the question round: ${open.map((f) => f.message).join(" | ")}`;
+  return { ask: false, result: normaliseResult(result.gate, result.failures.map((f) => (open.includes(f) ? { ...f, warn: true } : f)), result.input_hash) };
+}
+
+/**
+ * A low completeness score does not stop the pipeline. The gaps travel to GATE-A, on the readable
+ * spec, for the human to accept or reject. A score that shares the gate with another failure still blocks.
  */
 function completenessRound(c, stageId, st, result) {
   const low = result.failures.filter((f) => !f.warn && f.check === "completeness" && f.rule === "below-threshold");
   const other = result.failures.filter((f) => !f.warn && !low.includes(f));
   if (!low.length || other.length) return { ask: false, result };
-  const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config });
-  const summary = completenessSummary(ctx);
+  const summary = completenessSummary(gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config }));
   const gaps = (summary?.gaps ?? []).map((g) => `${g.category} (${g.credit}): ${g.question}${g.recommended ? ` — recommended: ${g.recommended}` : ""}`);
-  if (!(st.completeness_rounds ?? 0)) {
-    const s = c.feature.state;
-    st.completeness_rounds = 1;
-    st.prior_attempts = (st.prior_attempts ?? 0) + 1; // a new dispatch id; the round still costs no attempt
-    st.status = "pending";
-    st.done_agents = [];
-    st.feedback = `${low[0].message}\nRevise the spec and completeness.yaml with the human's answers.`;
-    s.status = "awaiting_human";
-    s.awaiting_human = { gate: "CLARIFY", stage: stageId, since: now(), reason: `completeness ${summary?.score ?? "?"}/100 — one question round before the spec is shown at the gate`, questions: gaps };
-    pauseClock(s);
-    appendEvent(c.projectDir, { type: "verdict", feature: s.feature, stage: stageId, verdict: "ask_human", reason: "completeness below threshold" });
-    return { ask: true, reason: s.awaiting_human.reason };
-  }
-  st.completeness_note = `completeness ${summary?.score ?? "?"}/100 (below ${c.config.quality?.completeness_min ?? 85}). Still open after the question round: ${gaps.join(" | ") || "see completeness.yaml"}`;
+  st.completeness_note = `completeness ${summary?.score ?? "?"}/100 (below ${c.config.quality?.completeness_min ?? 85}). ${gaps.join(" | ") || "see completeness.yaml"}`;
   return { ask: false, result: normaliseResult(result.gate, result.failures.map((f) => (low.includes(f) ? { ...f, warn: true } : f)), result.input_hash) };
 }
 
@@ -806,6 +936,7 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
   switch (verdict.verdict) {
     case "advance": {
       st.status = "passed";
+      if (stageId === "discovery") buildIndex(c.projectDir, c.config, c.packs);
       st.feedback = null;
       st.instruction = null;
       st.model = null;
@@ -813,11 +944,11 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
       if (stage.after_pass === "ship") {
         try {
           const shipped = ship(c);
-          if (c.config.delivery?.dry_run === false && !shipped.pr.opened) {
+          if (!shipped.pr.skipped && c.config.delivery?.dry_run === false && !shipped.pr.opened) {
             block(c, `${stageId}: committed on ${shipped.branch}, but the pull request was not opened — ${shipped.pr.failed ?? shipped.pr.reason ?? ""}\n${shipped.pr.output ?? ""}`.trim());
             return;
           }
-          appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: stageId, shipped: shipped.branch, commits: shipped.commits.length, pr: shipped.pr.dry_run ? "dry-run" : shipped.pr.opened });
+          appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: stageId, shipped: shipped.branch, commits: shipped.commits.length, pr: shipped.pr.skipped ? "skipped" : shipped.pr.dry_run ? "dry-run" : shipped.pr.opened });
         } catch (error) {
           block(c, `${stageId}: shipping failed — ${error.message.split("\n")[0]}`);
           return;
@@ -841,10 +972,22 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
           return requestFixes(c, stageId, target, changes.map((x) => ({ check: "pr-comment", rule: String(x.id), file: x.file, message: x.summary ?? "" })));
         }
       }
-      if (stage.human_gate) {
+      if (stageId === "requirements" || stageId === "requirements-lite") {
+        writeSpecView(c);
+        if (resizeAfterRequirements(c)) return;
+      }
+      if ((stage.outputs ?? []).includes("tasks")) raiseBudgetsFromPlan(c, loadTasks(c)?.tasks?.length ?? 0);
+      if (stage.human_gate && stage.human_gate !== "GATE-C" && (c.config.pipeline?.skip_gates?.[s.profile] ?? []).includes(stage.human_gate)) {
+        // The profile does not ask this gate. GATE-C always asks: the built feature is reviewed before the commit.
+        s.gates[stage.human_gate] = { result: "approved", by: `profile:${s.profile}`, auto: true, at: now() };
+        appendEvent(c.projectDir, { type: "human", feature: s.feature, stage: stageId, gate: stage.human_gate, result: "approved", by: `profile:${s.profile}`, auto: true });
+        nextStage(c);
+      } else if (stage.human_gate) {
         s.status = "awaiting_human";
-        s.awaiting_human = { gate: stage.human_gate, stage: stageId, since: now(), ...(st.completeness_note ? { reason: st.completeness_note } : {}) };
+        const note = [st.completeness_note, st.conflict_note].filter(Boolean).join(" — ");
+        s.awaiting_human = { gate: stage.human_gate, stage: stageId, since: now(), ...(note ? { reason: note } : {}) };
         delete st.completeness_note;
+        delete st.conflict_note;
         pauseClock(s);
         // automation.autopilot resolves this (see step() and record()) once any pending digest for
         // this same stage has run — not here, or the digest after this stage would be skipped.
@@ -853,8 +996,7 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
     }
     case "retry":
     case "diagnose": {
-      const previous = st.done_agents ?? [];
-      st.done_agents = stage.fan_out && result ? keepPassedScreens(previous, result) : [];
+      st.done_agents = [];
       st.feedback = result ? formatFeedback(result) : `Previous attempt returned status "${envelope.status}": ${envelope.summary}`;
       st.instruction = verdict.instruction ?? null;
       st.model = verdict.model ?? null;
@@ -891,26 +1033,15 @@ function applyVerdict(c, stageId, stage, verdict, result, envelope) {
   }
 }
 
-/**
- * A fan-out retry re-dispatches only the screens whose page or note failed; a failure anywhere else
- * (shared CSS/JS, screens.yaml, the report, a needs-classes request) re-runs the designer too.
- */
-function keepPassedScreens(done, result) {
-  const blocking = result.failures.filter((f) => !f.warn);
-  const screenOf = (f) => /(?:pages|02b-prototype\/screens)\/([a-z0-9-]+)\.(?:html|yaml)$/.exec(f.file ?? "")?.[1] ?? null;
-  const failed = new Set(blocking.map(screenOf).filter(Boolean));
-  // needs-classes names the screen's note: the designer adds the classes, then that screen is rebuilt.
-  const shared = blocking.some((f) => !screenOf(f) || f.rule === "needs-classes");
-  return done.filter((k) => (k.includes("#") ? !failed.has(k.split("#")[1]) : !shared));
-}
-
 /** Writes 06-verify/review.md from the reviewers' findings and the role audits'. */
 function writeReview(c, st) {
   const s = c.feature.state;
   const findings = st.findings ?? [];
   const front = { feature: s.feature, round: (st.attempts ?? 0) + 1, findings };
+  const waived = readWaivers(c.feature.dir);
+  const waivedSection = waived.length ? `\n## Waived acceptance tests (accepted as failing by a human)\n\n${waived.map((w) => `- \`${w.test}\` — ${w.reason} (${w.approved_by}, ${w.approved_at})`).join("\n")}\n` : "";
   const lines = findings.map((f) => `- **${f.id} ${f.severity}** (${f.lens ?? "audit"}, ${f.agent}) ${f.file ? `\`${f.file}${f.line ? `:${f.line}` : ""}\` ` : ""}— ${f.claim}`);
-  writeAtomic(join(c.feature.dir, "06-verify", "review.md"), `---\n${YAML.stringify(front, { lineWidth: 0 })}---\n\n# Review — ${s.feature} round ${front.round}\n\n${lines.join("\n") || "No findings."}\n`);
+  writeAtomic(join(c.feature.dir, "06-verify", "review.md"), `---\n${YAML.stringify(front, { lineWidth: 0 })}---\n\n# Review — ${s.feature} round ${front.round}\n\n${lines.join("\n") || "No findings."}\n${waivedSection}`);
 }
 
 /** Writes 06-verify/change-set.yaml: the files each finished task changed (input for reviewers). */
@@ -959,7 +1090,7 @@ function archiveComments(c) {
  * The stages in between start fresh — escalation, findings and conditions — so a fix round is judged on
  * its own; the edge budget is what stops a loop. Returns false when the feature blocked instead.
  */
-function regress(c, from, to, feedback) {
+function regress(c, from, to, feedback, { human = false } = {}) {
   const s = c.feature.state;
   const profile = profileStages(c.config, s.profile);
   if (!profile.includes(to)) {
@@ -968,12 +1099,17 @@ function regress(c, from, to, feedback) {
   }
   const edge = `${from}_to_${to}`;
   const limit = c.config.budgets?.backward_edges?.[edge];
-  s.budgets.edges = { ...(s.budgets.edges ?? {}), [edge]: (s.budgets.edges?.[edge] ?? 0) + 1 };
-  if (limit !== undefined && s.budgets.edges[edge] > limit) {
-    block(c, `backward edge ${edge} used more than ${limit} time(s)`);
-    return false;
+  if (human) {
+    // A human's rejection is the human driving the loop, not a gate failing: it is counted on its own and never spends the edge or regression budgets.
+    s.budgets.human_rejections = (s.budgets.human_rejections ?? 0) + 1;
+  } else {
+    s.budgets.edges = { ...(s.budgets.edges ?? {}), [edge]: (s.budgets.edges?.[edge] ?? 0) + 1 };
+    if (limit !== undefined && s.budgets.edges[edge] > limit) {
+      block(c, `backward edge ${edge} used more than ${limit} time(s)`);
+      return false;
+    }
+    s.budgets.regressions += 1;
   }
-  s.budgets.regressions += 1;
   for (const id of profile.slice(profile.indexOf(to), profile.indexOf(from) + 1)) s.stages[id] = freshStage(s.stages[id]);
   s.stages[to].feedback = `Sent back from ${from}:\n${feedback}`;
   s.stage = to;
@@ -1014,12 +1150,68 @@ export function scaffold(projectDir, { feature } = {}) {
   });
 }
 
-export function approve(projectDir, { gate, notes, feature, by }) {
-  return withLock(projectDir, () => approveGate(load(projectDir, feature), { gate, notes, by }));
+/**
+ * After requirements the real counts decide between the small and the standard profile (only a feature the engine
+ * sized itself at intake, never an explicit --tier, patch or greenfield). The stages of the new profile are added.
+ */
+function resizeAfterRequirements(c) {
+  // Returns true when the requirements stage must run again (a patch that grew: see below).
+  const s = c.feature.state;
+  if (!s.tier_auto || !["patch", "small", "standard"].includes(s.tier) || s.mode === "greenfield" || c.config.pipeline?.auto_tier === false) return;
+  const spec = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config }).spec();
+  if (!spec) return;
+  const size = sizeFromSpec({ reqs: spec.reqs.length, acs: spec.reqs.reduce((n, r) => n + (r.acs?.length ?? 0), 0) }, c.config.pipeline?.size_limits, { from: s.tier });
+  if (size.tier === s.tier) return;
+  const profile = profileFor(c.config, { mode: s.mode, tier: size.tier });
+  const stages = c.config.pipeline?.profiles?.[profile];
+  // The patch profile's requirements-lite wrote a delta-spec without the completeness score or GATE-A, and
+  // planned too. A patch that grew runs the REQUIREMENTS stage on that spec (the analysis a bigger feature gets:
+  // completeness scoring, the spec gate, GATE-A) before the stories stage, instead of counting the lite spec as passed.
+  const grew = s.tier === "patch" && s.stage === "requirements-lite" && stages?.includes("requirements");
+  if (!grew && !stages?.includes(s.stage)) return;
+  appendEvent(c.projectDir, { type: "resize", feature: s.feature, from: s.tier, to: size.tier, profile, reason: size.reason });
+  Object.assign(s, { tier: size.tier, profile, size: { ...(s.size ?? {}), tier: size.tier, reason: size.reason, metrics: size.metrics } });
+  for (const id of stages) s.stages[id] ??= { status: "pending", attempts: 0, rung: 0 };
+  if (grew) {
+    s.stages.requirements = { ...freshStage(s.stages.requirements), feedback: `The patch grew to "${size.tier}" (${size.reason}). The delta-spec is written; complete the analysis a ${size.tier} feature gets: write completeness.yaml (score and gaps) for it and revise the spec where it is incomplete. Keep every ID.` };
+    s.stage = "requirements";
+    return true;
+  }
+  return false;
+}
+
+export function approve(projectDir, { gate, notes, feature, by, kind }) {
+  return withLock(projectDir, () => approveGate(load(projectDir, feature), { gate, notes, by, kind }));
+}
+
+/**
+ * How an answer to the "is this the customer's mockup?" question reads, per proposed reference (in the order asked):
+ * true (confirm), false (decline) or null (unclear). Only an explicit affirmative confirms; a negation declines; a
+ * per-item answer ("1 yes, 2 no" or "1: no") sets each one; anything else is unclear.
+ */
+export function readReferenceAnswer(text, count) {
+  const t = String(text ?? "").toLowerCase().trim();
+  const YES = "yes|y|yep|yeah|confirm(?:ed)?|use it|use them|approve(?:d)?|follow it|follow them|correct";
+  const NO = "no|nope|nah|n|skip(?: it)?|ignore(?: it)?|decline(?:d)?|reject(?:ed)?|don'?t use it|do not use it";
+  const perItem = [...t.matchAll(new RegExp(`(?:^|[\\s,;])(\\d{1,2})\\s*[:.)=-]?\\s*(${YES}|${NO})(?=$|[\\s,;.!])`, "g"))];
+  if (perItem.length) {
+    const out = Array(count).fill(null);
+    for (const m of perItem) {
+      const i = Number(m[1]) - 1;
+      if (i >= 0 && i < count) out[i] = new RegExp(`^(?:${YES})$`).test(m[2]);
+    }
+    return out;
+  }
+  const negative = /\b(no|nope|nah|not|don'?t|do not|skip|ignore|reject|decline|outdated|never|without|wrong|stale)\b/.test(t);
+  const affirmative = new RegExp(`^(?:${YES}|sure|ok(?:ay)?|that is it|that's it)\\b`).test(t);
+  if (negative && affirmative) return Array(count).fill(null);
+  if (negative) return Array(count).fill(false);
+  if (affirmative) return Array(count).fill(true);
+  return Array(count).fill(null);
 }
 
 /** Shared by a human's `approve` and automation.autopilot: the caller already holds the state lock. */
-function approveGate(c, { gate, notes, by }) {
+function approveGate(c, { gate, notes, by, kind }) {
   const s = c.feature.state;
   if (!s.awaiting_human) throw new UsageError(`${s.feature} is not waiting for a human gate`);
   const g = s.awaiting_human;
@@ -1027,8 +1219,29 @@ function approveGate(c, { gate, notes, by }) {
   // An answer to a question about defects names them, so the QA gate can match the waiver.
   const defs = g.gate === "CLARIFY" ? [...new Set((g.questions ?? []).join(" ").match(/\bDEF-\d+\b/g) ?? [])] : [];
   const text = notes && defs.length && !defs.every((d) => notes.includes(d)) ? `${notes} (answers ${defs.join(", ")})` : notes;
-  const note = text ? addNote(c.app, c.feature.dir, { text, at: g.gate, by }) : null;
-  s.gates[g.gate] = { result: "approved", by: by ?? process.env.USER ?? "human", at: now(), notes: note ? [note.id] : [] };
+  // What a human says at a gate is about the product unless they say it only steers the run (--kind process): never guessed from the words.
+  const note = text ? addNote(c.app, c.feature.dir, { text, at: g.gate, by, kind: kind ?? "product" }) : null;
+  // CLARIFY about proposed mockups: only an explicit yes confirms; a no declines; anything unclear is asked once more.
+  let askedAgain = null;
+  let refAnswers = null;
+  if (g.gate === "CLARIFY" && g.references) {
+    refAnswers = readReferenceAnswer(notes, g.references.length);
+    if (refAnswers.includes(null)) {
+      if (!g.reasked) {
+        const options = g.references.map((r, i) => `${i + 1}. ${r} — reply "${i + 1} yes" to follow it as the customer's mockup, or "${i + 1} no" to ignore it`);
+        askedAgain = { ...g, since: now(), reasked: true, reason: `the answer was not a clear yes or no (${notes ? `"${String(notes).slice(0, 80)}"` : "no text"}); reply "yes" or "no" for all, or per item (for example "1 yes, 2 no")`, questions: options };
+      } else refAnswers = refAnswers.map((a) => a === true); // still unclear after a second ask: not binding
+    }
+  }
+  if (askedAgain) {
+    s.status = "awaiting_human";
+    s.awaiting_human = askedAgain;
+    appendEvent(c.projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "unclear", note: note?.id });
+    persist(c);
+    return { action: "ask_human", feature: s.feature, gate: g.gate, note: note?.id ?? null, ...(note ? { note_kind: note.kind } : {}), stage: s.stage, reasked: true };
+  }
+  const { history: earlier = [], ...prior } = s.gates[g.gate] ?? {};
+  s.gates[g.gate] = { result: "approved", by: by ?? process.env.USER ?? "human", at: now(), notes: note ? [note.id] : [], ...(prior.result ? { history: [...earlier, prior] } : {}) };
   s.awaiting_human = null;
   s.status = "active";
   resumeClock(s);
@@ -1036,44 +1249,22 @@ function approveGate(c, { gate, notes, by }) {
   if (g.gate === "CLARIFY" && g.task) {
     if (note) applyMappings(c.feature.dir, [{ id: note.id, to: [g.task] }], new Set([g.task]));
     s.tasks[g.task].feedback = `Human answer${note ? ` (${note.id})` : ""}: ${notes ?? "(no text) — proceed with the defaults you proposed"}`;
+  } else if (g.gate === "CLARIFY" && g.references) {
+    // The proposed mockups, one answer each: a "no" ignores them (a rescan will not propose them again).
+    resolveProposed(c.projectDir, s.feature, { accept: (r) => refAnswers[g.references.indexOf(refKey(r))] === true });
   } else if (g.gate === "CLARIFY") {
     st.status = "pending";
     const answer = `Human answer${note ? ` (${note.id})` : ""}: ${notes ?? "(no text) — proceed with the defaults you proposed"}`;
-    // A completeness round keeps its instruction (revise the spec and completeness.yaml) with the answer.
-    st.feedback = st.completeness_rounds && st.feedback?.includes("completeness") ? `${st.feedback}\n${answer}` : answer;
-  } else if (!breakingDeltaBack(c, g, note)) {
+    // A completeness or source-conflict round keeps its instruction (revise the spec and completeness.yaml) with the answer.
+    st.feedback = (st.completeness_rounds && st.feedback?.includes("completeness")) || (st.conflict_rounds && st.feedback?.includes("source conflict")) ? `${st.feedback}\n${answer}` : answer;
+  } else {
     st.status = "passed";
     nextStage(c);
   }
   const split = g.gate === "GATE-A" ? splitBacklog(c, g.stage) : [];
-  appendEvent(c.projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "approved", note: note?.id });
+  appendEvent(c.projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "approved", note: note?.id, by: s.gates[g.gate].by, ...(by === "autopilot" ? { auto: true, ...(g.gate === "GATE-B" ? { reason: "gate plan green" } : {}) } : {}) });
   persist(c);
-  return { action: "continue", feature: s.feature, gate: g.gate, note: note?.id ?? null, stage: s.stage, ...(split.length ? { backlog_features: split } : {}) };
-}
-
-/**
- * on_approve: spec_delta (the prototype stage). Approving GATE-P with breaking spec deltas in the
- * prototype report sends the feature back to requirements with them; the human rejects instead to
- * have the prototype revised. Returns true when it sent the feature back.
- */
-function breakingDeltaBack(c, g, note) {
-  const stage = resolveStage(c, g.stage);
-  if (stage?.on_approve !== "spec_delta") return false;
-  const breaking = prototypeDeltas(gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config })).filter((d) => d.breaking);
-  const profile = profileStages(c.config, c.feature.state.profile);
-  const target = ["requirements", "requirements-lite"].find((id) => profile.includes(id));
-  if (!breaking.length || !target) return false;
-  // Once the edge budget is spent, approving again accepts the deltas as they are and moves on.
-  const edge = `${g.stage}_to_${target}`;
-  const limit = c.config.budgets?.backward_edges?.[edge];
-  if (limit !== undefined && (c.feature.state.budgets.edges?.[edge] ?? 0) >= limit) {
-    appendEvent(c.projectDir, { type: "human", feature: c.feature.state.feature, stage: g.stage, gate: g.gate, result: "approved", accepted_spec_delta: breaking.length });
-    return false;
-  }
-  c.feature.state.stages[g.stage].status = "passed";
-  const lines = breaking.map((d) => `- ${d.change}${d.affects?.length ? ` (affects ${d.affects.join(", ")})` : ""}`).join("\n");
-  // A used-up prototype_to_requirements budget blocks the feature; either way it must not move on.
-  return regress(c, g.stage, target, `The approved prototype changes the spec (breaking):\n${lines}${note ? `\nHuman note ${note.id}: ${note.text}` : ""}\nUpdate the spec, then stories; the prototype is checked again.`) || c.feature.state.status === "blocked";
+  return { action: "continue", feature: s.feature, gate: g.gate, note: note?.id ?? null, ...(note ? { note_kind: note.kind } : {}), stage: s.stage, ...(split.length ? { backlog_features: split } : {}) };
 }
 
 /**
@@ -1144,7 +1335,7 @@ function splitBacklog(c, gatedStage) {
   return children.map(({ child }) => child.state.feature);
 }
 
-export function reject(projectDir, { gate, reason, feature, by }) {
+export function reject(projectDir, { gate, reason, feature, by, kind }) {
   if (!reason) throw new UsageError("reject needs a reason — it becomes an HD note the agents must address");
   return withLock(projectDir, () => {
     const c = load(projectDir, feature);
@@ -1152,7 +1343,8 @@ export function reject(projectDir, { gate, reason, feature, by }) {
     if (!s.awaiting_human) throw new UsageError(`${s.feature} is not waiting for a human gate`);
     const g = s.awaiting_human;
     if (gate && gate !== g.gate) throw new UsageError(`${s.feature} is waiting for ${g.gate}, not ${gate}`);
-    const note = addNote(c.app, c.feature.dir, { text: reason, at: g.gate, by });
+    // A note given at a gate is a product note (it is planned and mapped) unless the human says it only steers the run.
+    const note = addNote(c.app, c.feature.dir, { text: reason, at: g.gate, by, kind: kind ?? "product" });
     s.gates[g.gate] = { result: "rejected", by: by ?? process.env.USER ?? "human", at: now(), notes: [note.id] };
     s.awaiting_human = null;
     s.status = "active";
@@ -1161,29 +1353,33 @@ export function reject(projectDir, { gate, reason, feature, by }) {
     const task = g.task ? loadTasks(c)?.tasks.find((t) => t.id === g.task) : null;
     const gateStage = resolveStage(c, g.stage);
     const fixTarget = g.gate === gateStage?.human_gate ? /^fix:(.+)$/.exec(gateStage?.on_reject ?? "")?.[1] : null;
-    if (!task && fixTarget) requestFixes(c, g.stage, fixTarget, [{ check: "human-review", rule: g.gate, message: `${note.id}: ${reason}` }]);
+    if (g.gate === "CLARIFY" && g.references) {
+      // "Reject" the proposed mockups: they are declined for good (the index keeps them, so a rescan does not ask again).
+      resolveProposed(c.projectDir, s.feature, { accept: false });
+    } else if (!task && fixTarget) requestFixes(c, g.stage, fixTarget, [{ check: "human-review", rule: g.gate, message: `${note.id}: ${reason}` }]);
     else if (task) {
       applyMappings(c.feature.dir, [{ id: note.id, to: [task.id] }], new Set([task.id]));
-      backToRed(c, task, s.tasks[task.id], `A human sent ${task.id} back to its test author (${note.id}): ${reason}`);
-    }
-    else if (gateStage?.fan_out && (st.revisions ?? 0) >= (c.config.budgets?.prototype?.revisions_max ?? 3)) {
-      st.revisions = (st.revisions ?? 0) + 1;
-      block(c, `${g.stage}: rejected ${st.revisions} times (budgets.prototype.revisions_max ${c.config.budgets?.prototype?.revisions_max ?? 3}) — approve it, revert it (/factory:proto --revert) or abort`);
+      backToRed(c, task, s.tasks[task.id], `A human sent ${task.id} back to red (${note.id}): ${reason}`);
     } else {
-      if (gateStage?.fan_out) st.revisions = (st.revisions ?? 0) + 1;
-      Object.assign(st, { status: "pending", done_agents: [], feedback: `Rejected at ${g.gate} by a human (${note.id}): ${reason}\nRevise your outputs to address it and map ${note.id} in your artifacts.` });
+      // Same-stage reject: the human is driving the loop, so it is counted and does not spend an edge budget.
+      s.budgets.human_rejections = (s.budgets.human_rejections ?? 0) + 1;
+      Object.assign(st, {
+        status: "pending",
+        done_agents: [],
+        feedback: `Rejected at ${g.gate} by a human (${note.id}): ${reason}\nRevise your outputs to address it and map ${note.id} in your artifacts.`,
+      });
     }
     appendEvent(projectDir, { type: "human", feature: s.feature, stage: g.stage, gate: g.gate, result: "rejected", note: note.id });
     persist(c);
     snapshotTree(projectDir, s.feature); // a task sent back to red had its sources restored by the engine
-    return { action: "continue", feature: s.feature, gate: g.gate, note: note.id, stage: s.stage };
+    return { action: "continue", feature: s.feature, gate: g.gate, note: note.id, note_kind: note.kind, stage: s.stage };
   });
 }
 
-export function note(projectDir, { text, feature, by }) {
+export function note(projectDir, { text, feature, by, kind }) {
   return withLock(projectDir, () => {
     const c = load(projectDir, feature);
-    const n = addNote(c.app, c.feature.dir, { text, at: "note", by });
+    const n = addNote(c.app, c.feature.dir, { text, at: "note", by, kind });
     appendEvent(projectDir, { type: "note", feature: c.fid, note: n.id });
     saveAppState(projectDir, c.app);
     return { feature: c.fid, note: n };
@@ -1220,15 +1416,28 @@ const reasoningModel = (c) => (MODELS.includes(c.config.model_tiers?.reasoning) 
 const helpers = {
   makeDispatch, issue, block, persist, engineTarget, resolveAgents, resolveStage, agentModel, featureIds, summary, MODELS,
   formatFeedback: (r) => formatFeedback(r), reasoningModel, askHuman,
+  writeChangeSet,
+  raiseBudgets: (c) => raiseBudgetsFromPlan(c, loadTasks(c)?.tasks?.length ?? 0),
 };
 
 /** Files a human reviews at a stage's gate: the stage outputs that exist, plus its `review` list. */
 export function reviewFiles(c, stageId) {
   const stage = resolveStage(c, stageId);
   const dirs = { factoryRoot: factoryPaths(c.projectDir).root, featureDir: c.feature.dir, projectDir: c.projectDir };
-  return [...(stage?.outputs ?? []), ...(stage?.review ?? [])].flatMap((ref) =>
+  const files = [...(stage?.outputs ?? []), ...(stage?.review ?? [])].flatMap((ref) =>
     parseArtifactRef(ref).names.flatMap((t) => artifactFiles(t, dirs).map((f) => toPosix(relative(c.projectDir, f)))),
   );
+  // A gate merged into this one brings what it would have shown: the stages from there up to this one (requirements, stories).
+  const profile = profileStages(c.config, c.feature.state.profile);
+  const held = Object.values(c.feature.state.gates ?? {}).filter((g) => g.result === "merged" && g.into === stageId);
+  const more = held.flatMap((g) => profile.slice(profile.indexOf(g.stage), profile.indexOf(stageId)).flatMap((id) => reviewFiles(c, id)));
+  const listed = [...new Set([...more, ...files])];
+  const showsSpec = [...(stage?.outputs ?? [])].some((ref) => parseArtifactRef(ref).names.some((n) => n === "prd" || n === "delta-spec"));
+  const specRel = toPosix(relative(c.projectDir, join(c.feature.dir, "01-requirements", "spec.md")));
+  const withSpec = showsSpec && existsSync(join(c.projectDir, specRel)) ? [specRel, ...listed.filter((f) => f !== specRel)] : listed;
+  if (stage?.human_gate !== "GATE-C") return withSpec;
+  const diffRel = toPosix(relative(c.projectDir, join(c.feature.dir, "06-verify", "change.diff")));
+  return existsSync(join(c.projectDir, diffRel)) ? [diffRel, ...withSpec.filter((f) => f !== diffRel)] : withSpec;
 }
 
 /** Drops outstanding dispatches (and their hook scopes) before a human-driven jump. */
@@ -1261,7 +1470,7 @@ export function replay(projectDir, { feature, stage, feedback }) {
     if (profile.indexOf(stage) <= profile.indexOf("planning") || stage === "implementation") s.tasks = {};
     if (stage === "acceptance") s.acceptance_lock = null;
     s.stages[stage].entered = true; // a replayed stage runs even when its condition would skip it
-    Object.assign(s, { stage, status: "active", awaiting_human: null, queued_human: [], digest: null, fix_pending: null });
+    Object.assign(s, { stage, status: "active", awaiting_human: null, blocked_gate: null, queued_human: [], digest: null, fix_pending: null });
     resumeClock(s);
     appendEvent(projectDir, { type: "advance", feature: s.feature, stage, to: stage, by: "replay" });
     persist(c);
@@ -1293,7 +1502,7 @@ export function diagnose(projectDir, { feature, stage, task }) {
   });
 }
 
-/** Escalation rung 4 for one task: the planner replaces it with 2–3 smaller tasks. */
+/** `/factory:split`, a human command: the planner replaces a task that is two unrelated behaviours with smaller ones. */
 export function split(projectDir, { feature, task }) {
   return withLock(projectDir, () => {
     const c = load(projectDir, feature);
@@ -1309,59 +1518,205 @@ export function split(projectDir, { feature, task }) {
   });
 }
 
+/**
+ * `factory acceptance waive <test> --reason "..."`, a human command: accept one failing acceptance test (or
+ * a whole acceptance file) for this feature. The waiver is the only way a failing acceptance test passes
+ * gate-checks; it is listed in the verification review and the digest.
+ */
+export function waiveAcceptance(projectDir, { feature, test, reason, by }) {
+  by ??= gitUser(projectDir); // the human who ran the command: --by, else the git identity, else the OS user
+  return withLock(projectDir, () => {
+    const c = load(projectDir, feature);
+    if (!test || !reason) throw new UsageError('usage: factory acceptance waive <test file or file::test name> --reason "..."');
+    const files = featureAcceptance(gateContext({ projectDir, app: c.app, feature: c.feature, config: c.config })).files;
+    const entry = addWaiver(c.feature.dir, { test, reason, by, files });
+    appendEvent(projectDir, { type: "waiver", feature: c.fid, test: entry.test, reason: entry.reason, by: entry.approved_by });
+    return { feature: c.fid, waived: entry, total: readWaivers(c.feature.dir).length };
+  });
+}
+
+/**
+ * `factory replay acceptance --relock <test>`, a human command: the acceptance-test-author rewrites only the
+ * file of one disputed acceptance test (the next step dispatches it), then the engine re-locks that file.
+ * The other locked files stay as they are; the implementation continues from where it was.
+ */
+export function relockAcceptance(projectDir, { feature, test, reason }) {
+  return withLock(projectDir, () => {
+    const c = load(projectDir, feature);
+    const s = c.feature.state;
+    if (!test) throw new UsageError('usage: factory replay acceptance --relock <test file or file::test name> [--with "why it is wrong"]');
+    const target = parseWaiverTarget(test);
+    if (!s.acceptance_lock?.[target.file]) throw new UsageError(`${target.file} is not a locked acceptance file of ${s.feature} (locked: ${Object.keys(s.acceptance_lock ?? {}).join(", ") || "none — the acceptance stage has not locked yet"})`);
+    clearPending(c);
+    s.relock = { file: target.file, test: target.name, reason: reason ?? null, attempts: 0, titles: declaredTests(readText(join(projectDir, target.file))) };
+    if (s.status === "blocked" || s.status === "awaiting_human") Object.assign(s, { status: "active", awaiting_human: null });
+    resumeClock(s);
+    appendEvent(projectDir, { type: "advance", feature: s.feature, stage: s.stage, by: "relock", test: test });
+    persist(c);
+    return { feature: s.feature, relock: s.relock.file, status: "the acceptance-test-author rewrites it at the next step" };
+  });
+}
+
+/** The relock dispatch: one acceptance-test-author run limited to the disputed file. */
+function relockDispatch(c) {
+  const s = c.feature.state;
+  const r = s.relock;
+  const stage = resolveStage(c, "acceptance");
+  const [target] = stage ? resolveAgents(c, stage) : [];
+  if (!target?.pack) return { action: "halt", feature: s.feature, reason: "relock needs the acceptance stage's acceptance-test-author, which is not installed" };
+  const d = makeDispatch(c, {
+    stageId: "acceptance", idStage: `acceptance.relock${(r.round ?? 0) + 1}`, stage: { ...stage, outputs: [], gate: null }, target, phase: "relock",
+    attempt: (r.attempts ?? 0) + 1, rung: 0, model: target.model, gate: null, extraWrites: [r.file], feedback: r.feedback ?? null,
+    mission: `RELOCK: a human disputes ${r.test ? `the test "${r.test}" in ` : ""}${r.file}${r.reason ? ` — ${r.reason}` : ""}. Rewrite ONLY that ${r.test ? "test" : "file"} so it matches the API contract (03-architecture/api-contract.yaml), the entity types and the spec; every other test and file stays byte for byte. Keep the AC id first in each title and keep every existing title. The implementation exists now, but you still must not read it: the contract and the types decide. The exit check does not apply (the feature is partly built); run nothing but your test command if you need to see the file parse. The engine re-locks the file when you return.`,
+  });
+  return issue(c, [d]);
+}
+
+/** Records the relock result: the file must still declare every title it had; then it is hashed and snapshotted again. */
+function finishRelock(c, pending, envelope) {
+  const s = c.feature.state;
+  const r = s.relock;
+  const file = join(c.projectDir, r.file);
+  const titles = existsSync(file) ? declaredTests(readText(file)) : [];
+  const lost = (r.titles ?? []).filter((t) => !titles.includes(t) && !(r.test && t === r.test));
+  const problem = envelope.status !== "done" ? `the author returned "${envelope.status}"` : !titles.length ? `${r.file} declares no tests` : lost.length ? `${r.file} lost the test(s) ${lost.join(", ")}` : null;
+  if (problem) {
+    r.attempts = (r.attempts ?? 0) + 1;
+    r.feedback = `Previous attempt failed: ${problem}. Rewrite only the disputed test; keep every other title.`;
+    if (r.attempts >= 2) {
+      block(c, `relock of ${r.file} failed twice (${problem}) — waive it with the CLI (factory acceptance waive <test> --reason "..."; human only), or run /factory:replay acceptance`);
+      s.relock = null;
+    }
+    persist(c);
+    return { action: s.status === "blocked" ? "halt" : "continue", feature: s.feature, relock: "failed", reason: problem };
+  }
+  s.acceptance_lock[r.file] = fileHash(file);
+  const copy = join(c.feature.dir, "acceptance-lock", `${r.file}.snapshot`);
+  mkdirSync(dirname(copy), { recursive: true });
+  copyFileSync(file, copy);
+  appendEvent(c.projectDir, { type: "advance", feature: s.feature, stage: s.stage, relocked: r.file });
+  s.relock = null;
+  persist(c);
+  return { action: "continue", feature: s.feature, relocked: r.file };
+}
+
+/**
+ * `factory scope add TASK <file|glob>...`: the mechanical scope fix. A builder that needs a file the plan
+ * left out (and the file lies in the task's slice) gets it added to files_expected (a path) or write_scope
+ * (a glob) without a planner run; gate-plan re-checks the plan, then the same task continues. Human-run:
+ * a dispatched agent cannot call it (hooks/guard.mjs).
+ */
+export async function scopeAdd(projectDir, { feature, task, entries = [] }) {
+  return withLock(projectDir, async () => {
+    const c = load(projectDir, feature);
+    const s = c.feature.state;
+    const unit = s.tasks?.[task];
+    if (!unit) throw new UsageError(`unknown task "${task}" for ${s.feature}`);
+    const wanted = (entries.length ? entries : unit.scope_suggestion ?? []).map((e) => toPosix(String(e)).replace(/^\.\//, ""));
+    if (!wanted.length) throw new UsageError("usage: factory scope add TASK-NNN <file or glob> [...] (without paths: the files the builder named in its needs_scope_change)");
+    const file = join(c.feature.dir, "04-plan", "tasks.yaml");
+    const before = readText(file);
+    const doc = YAML.parseDocument(before);
+    const index = (doc.get("tasks")?.items ?? []).findIndex((t) => t.get("id") === task);
+    if (index < 0) throw new UsageError(`${task} is not in tasks.yaml`);
+    const added = [];
+    for (const entry of wanted) {
+      const key = isGlob(entry) ? "write_scope" : "files_expected";
+      let seq = doc.getIn(["tasks", index, key], true);
+      if (!seq) {
+        doc.setIn(["tasks", index, key], doc.createNode([]));
+        seq = doc.getIn(["tasks", index, key], true);
+      }
+      if (seq.items.some((i) => (i.value ?? i) === entry)) continue;
+      seq.add(entry);
+      added.push({ key, entry });
+    }
+    writeAtomic(file, doc.toString());
+    const planResult = await runGate("plan", gateContext({ projectDir, app: c.app, feature: c.feature, config: c.config, packs: c.packs }), { useCache: false });
+    if (!planResult.pass) {
+      writeAtomic(file, before);
+      throw new UsageError(`scope add refused, gate-plan fails with it (tasks.yaml unchanged):\n${planResult.failures.filter((f) => !f.warn).map((f) => `- [${f.rule ?? f.check}] ${f.message}`).join("\n")}`);
+    }
+    for (const d of s.pending.filter((x) => x.task === task)) clearActive(projectDir, d.id);
+    s.pending = s.pending.filter((d) => d.task !== task);
+    if (unit.status !== "done") {
+      Object.assign(unit, TASK_FRESH, { status: "pending", scope_suggestion: null, feedback: `Scope widened by a human: ${wanted.join(", ")} may now be written. Continue the task.` });
+    }
+    // The task that blocked the feature is the one just fixed: the feature runs again (any other halt stays).
+    const blockedByTask = s.status === "blocked" && (s.halts.at(-1)?.reason ?? "").startsWith(`${task}:`);
+    if (s.awaiting_human?.task === task || s.status === "active" || blockedByTask) Object.assign(s, { status: "active", awaiting_human: null });
+    if (s.status === "active") resumeClock(s);
+    appendEvent(projectDir, { type: "advance", feature: s.feature, stage: s.stage, task, by: "scope-add", added: wanted });
+    persist(c);
+    return { feature: s.feature, task, added, plan_lint: planResult.failures.filter((f) => f.check === "plan-lint").map((f) => f.message), status: "scope widened" };
+  });
+}
+
+/**
+ * `factory resume [--task TASK]`, a human command: clears a halt and runs the same phase again at the same
+ * rung. Nothing is wiped (tasks, attempts, findings, locks stay); a blocked task becomes pending again. Use it
+ * after fixing the cause the halt names (a plugin installed, a budget raised); `diagnose`, `scope add` and
+ * `replay` are for halts that need a different plan.
+ */
+export function resume(projectDir, { feature, task } = {}) {
+  return withLock(projectDir, () => {
+    const c = load(projectDir, feature);
+    const s = c.feature.state;
+    if (s.status !== "blocked") throw new UsageError(`${s.feature} is not blocked (status ${s.status}); resume clears a halt`);
+    if (task && !s.tasks?.[task]) throw new UsageError(`unknown task "${task}" for ${s.feature}`);
+    const reason = s.halts.at(-1)?.reason ?? "blocked";
+    clearPending(c);
+    const active = factoryPaths(projectDir).active;
+    if (existsSync(active)) {
+      // A skills-unavailable halt used up the redispatch counter of its dispatch: the resumed run starts it afresh.
+      for (const f of readdirSync(active).filter((x) => x.startsWith(`${s.feature}.`) && x.endsWith(".skillretry"))) unlinkSync(join(active, f));
+    }
+    const units = (task ? [task] : Object.keys(s.tasks ?? {})).filter((id) => s.tasks[id]?.status === "blocked");
+    for (const id of units) {
+      Object.assign(s.tasks[id], { status: "pending" });
+      delete s.tasks[id].reason;
+    }
+    // A halt of the STAGE (an agent returned blocked, the ladder ran out, a budget): the stage runs its agents again.
+    // Its attempts, rung and findings stay, so the warden still knows how far it had escalated; what is cleared is the
+    // list of agents that had "finished" (the blocked one included), which is what left the step with nothing to dispatch.
+    const st = s.stages?.[s.stage];
+    let reopened = null;
+    if (!task && st?.status === "blocked" && resolveStage(c, s.stage)?.kind !== "task_loop") {
+      Object.assign(st, { status: "pending", done_agents: [], diagnose_pending: false });
+      reopened = `stage ${s.stage} runs again`;
+    }
+    if (s.status === "blocked") Object.assign(s, { status: "active", awaiting_human: null });
+    if (s.status === "active") resumeClock(s);
+    appendEvent(projectDir, { type: "advance", feature: s.feature, stage: s.stage, by: "resume", ...(units.length ? { tasks: units } : {}), halt: reason });
+    persist(c);
+    return { feature: s.feature, status: s.status, stage: s.stage, resumed_tasks: units, cleared_halt: reason, ...(reopened ? { reopened } : {}), next: "/factory:next" };
+  });
+}
+
+/** `factory gate red` just passed for a task of a builder_two_phase build: the engine locks the red tests. */
+export function markRedPassed(projectDir, { feature, task }) {
+  return withLock(projectDir, () => {
+    const c = load(projectDir, feature);
+    const t = loadTasks(c)?.tasks.find((x) => x.id === task);
+    if (!t || !lockRed(c, t)) return false;
+    persist(c);
+    // The tests are the builder's own until red passes, read-only for the rest of this dispatch (the write guard reads this).
+    for (const d of activeDispatches(projectDir).filter((x) => x.task === task)) setActive(projectDir, { ...d, write_deny: [...new Set([...(d.write_deny ?? []), ...(t.tdd?.red_tests ?? [])])] });
+    return true;
+  });
+}
+
 export function abort(projectDir, { feature, reason }) {
   if (!reason) throw new UsageError('usage: factory abort --reason "..."');
   return withLock(projectDir, () => {
     const c = load(projectDir, feature);
     const s = c.feature.state;
     clearPending(c);
-    const restored = revertPrototypeIfLatest(c);
     s.status = "aborted";
     writeAtomic(join(c.feature.dir, "post-mortem.md"), `# ${s.feature} aborted at ${s.stage}\n\n${now()}\n\nReason: ${reason}\n`);
     appendEvent(projectDir, { type: "halt", feature: s.feature, stage: s.stage, reason: `aborted: ${reason}` });
     persist(c);
-    return { feature: s.feature, status: s.status, stage: s.stage, ...(restored ? { prototype: restored } : {}) };
-  });
-}
-
-/**
- * Restores the app prototype to this feature's snapshot, unless a later feature has prototyped on top
- * of it since (then its work would be lost: the human reverts by hand from git instead).
- */
-function revertPrototypeIfLatest(c) {
-  const mine = Object.values(c.feature.state.stages ?? {}).find((st) => st.snapshot)?.snapshot;
-  if (!mine) return null;
-  const later = Object.entries(c.app.features ?? {}).filter(([id]) => id !== c.feature.state.feature).some(([, f]) => {
-    const file = join(factoryPaths(c.projectDir).root, f.dir, "state.json");
-    const other = existsSync(file) ? JSON.parse(readText(file)) : null;
-    return Object.values(other?.stages ?? {}).some((st) => st.snapshot?.at > mine.at);
-  });
-  if (later) return { restored: false, reason: "a later feature changed the prototype since; revert it from git if needed" };
-  return restorePrototype(c.projectDir, c.feature.dir);
-}
-
-/** `factory proto --revert`: the prototype goes back to the snapshot and the stage runs again. */
-export function revertPrototype(projectDir, { feature } = {}) {
-  return withLock(projectDir, () => {
-    const c = load(projectDir, feature);
-    const s = c.feature.state;
-    const [stageId, st] = Object.entries(s.stages ?? {}).find(([, x]) => x.snapshot) ?? [];
-    if (!st) throw new UsageError(`${s.feature} has no prototype snapshot: its prototype stage never started`);
-    // Allowed while the feature is still at the prototype stage: running, waiting at GATE-P, or blocked
-    // by the revision cap. Once later stages ran on it, revert from git instead.
-    if (s.stage !== stageId) throw new UsageError(`${s.feature} has moved past the prototype stage (now at ${s.stage}); revert the prototype from git instead`);
-    const restored = restorePrototype(projectDir, c.feature.dir);
-    clearPending(c);
-    Object.assign(st, { status: "pending", done_agents: [], feedback: null, snapshot: null, revisions: 0, entered: false });
-    if (s.awaiting_human?.stage === stageId) s.awaiting_human = null;
-    if (["awaiting_human", "blocked"].includes(s.status)) {
-      s.status = "active";
-      resumeClock(s);
-    }
-    appendEvent(projectDir, { type: "human", feature: s.feature, stage: stageId, gate: "prototype-revert", result: "reverted" });
-    persist(c);
-    snapshotTree(projectDir, s.feature);
-    return { feature: s.feature, stage: stageId, ...restored };
+    return { feature: s.feature, status: s.status, stage: s.stage };
   });
 }
 

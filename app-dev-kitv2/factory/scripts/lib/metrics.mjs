@@ -32,7 +32,7 @@ export function metrics(projectDir, { feature } = {}) {
   const gates = {};
   for (const h of human) {
     const g = (gates[h.gate] ??= { approved: 0, rejected: 0 });
-    g[h.result] += 1;
+    g[h.result] = (g[h.result] ?? 0) + 1; // approved | rejected | merged (a gate asked together with a later one)
   }
   const byModel = {};
   for (const d of dispatches) byModel[d.model ?? "none"] = (byModel[d.model ?? "none"] ?? 0) + 1;
@@ -78,6 +78,6 @@ export function metricsMarkdown(m) {
   return [
     "| Metric | Value | Target |", "|---|---|---|", ...rows.map((r) => `| ${r.join(" | ")} |`), "",
     "| Task agent / stage | First-pass gate rate | Units |", "|---|---|---|", ...agents.map(([a, v]) => `| ${a} | ${pct(v.rate)} | ${v.units} |`), "",
-    `Human gates: ${Object.entries(m.human_gates).map(([g, v]) => `${g} ${v.approved}✓ ${v.rejected}✗`).join(", ") || "none"} · dispatches by model: ${Object.entries(m.dispatches_by_model).map(([k, v]) => `${k} ${v}`).join(", ")} · tokens: ${m.tokens}`,
+    `Human gates: ${Object.entries(m.human_gates).map(([g, v]) => `${g} ${v.approved ?? 0}✓ ${v.rejected ?? 0}✗`).join(", ") || "none"} · dispatches by model: ${Object.entries(m.dispatches_by_model).map(([k, v]) => `${k} ${v}`).join(", ")} · tokens: ${m.tokens}`,
   ].join("\n");
 }

@@ -8,5 +8,6 @@ context_role: analysis_roles
 inputs: [normalised-sources, source-index, capability-index?, human-notes?]
 outputs: [delta-spec, tasks, test-plan]
 gate: [spec, plan]
+human_gate: GATE-A
 tracked_ids: [HD]
 requires: { factory: "^0.1" }

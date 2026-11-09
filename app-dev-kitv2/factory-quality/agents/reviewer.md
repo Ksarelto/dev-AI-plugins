@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Seven-lens review of a feature's change set against its spec, contract and decisions — behaviour preservation, hidden assumptions, spec and ADR drift, independent tests, edge cases, security, over-engineering — returning severity-tagged findings with evidence. Never sees the builders' summaries; never fixes code.
-tools: Read, Grep, Glob
+tools: Read, Grep, Glob, Skill
 model: opus
 skills: [seven-lens-review]
 ---

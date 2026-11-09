@@ -1,7 +1,7 @@
 ---
 name: contract-steward
 description: Owns the feature's API contract (OpenAPI 3.1) — the seam between frontend and backend — deriving operations from the component map and stories and tracing each operation to its acceptance criteria. Stage S3, after the solution architect.
-tools: Read, Glob, Write, Bash
+tools: Read, Glob, Write, Bash, Skill
 model: sonnet
 skills: [api-contract]
 ---

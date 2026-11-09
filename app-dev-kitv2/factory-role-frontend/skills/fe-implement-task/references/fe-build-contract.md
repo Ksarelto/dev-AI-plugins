@@ -7,7 +7,7 @@ read those, then use the sections below as the checklist.
 
 | Topic | Source of truth in frontend-dev-kit |
 |---|---|
-| Layers, slices, public API | `rules/general-coding-principles.mdc`, skill `architecture-audit` |
+| Layers, slices, public API | `rules/general-coding-principles.mdc`, skill `react-feature` |
 | Component folders, `styles.ts`, nested `ui/` | `rules/component-structure.mdc`, `rules/styling.mdc`, skills `react-component`, `tailwind-styles` |
 | React behaviour, effects, boundaries | `rules/react.mdc`, skills `react-feature`, `error-handling` |
 | Copy and locale keys | `rules/i18n.mdc`, skill `i18n` |
@@ -20,8 +20,8 @@ read those, then use the sections below as the checklist.
 
 Stop at the first rung that holds, and say which one in the envelope summary when it is not rung 1:
 
-1. **Reuse.** The component map (`03-architecture/component-map.md`) says what to reuse or extend;
-   the prototype report lists components with `existing: true`. Search with a scoped Grep or Glob
+1. **Reuse.** The component map (`03-architecture/component-map.md`) says what to reuse or extend.
+   Search with a scoped Grep or Glob
    (a path from T0, `src/shared`, or the slice you are in — unscoped searches are blocked).
 2. **Platform.** A language, DOM or React feature that already does it (`Intl.NumberFormat`,
    `<dialog>` semantics through the shadcn base, `useId`).
@@ -62,8 +62,8 @@ another slice fails `duplicate-body`; import the original through its public `in
 - Call `t(key)` where the string renders; a local may hold a key, never a translated string.
 - A closed set shown to users is a constant plus a value → key map in the slice's `config/`; `ui/`
   calls `t(map[value])`. An object of English strings fails `string-map`.
-- The exact copy comes from the AC text, the story Gherkin, the UX notes or the prototype page, in
-  that order. A spec sentence that describes behaviour ("keep the previous list") is not copy.
+- The exact copy comes from the AC text, the story Gherkin or the UX notes, in that order. A spec
+  sentence that describes behaviour ("keep the previous list") is not copy.
 
 ## 4. Component structure
 

@@ -7,7 +7,9 @@ import { UsageError, factoryPaths, listFiles, now, readYaml, sha, writeAtomic, w
 import { loadConfig, profileFor, profileStages } from "./config.mjs";
 import { nextId } from "./ids.mjs";
 import { validate } from "./schemas.mjs";
-import { appendEvent, createFeature, loadAppState, saveAppState, withLock } from "./state.mjs";
+import { detectReferences, featureTitle, mergeReferences, readPrototypeMap, withPageMap } from "./references.mjs";
+import { appendEvent, createFeature, loadAppState, saveAppState, saveFeature, withLock } from "./state.mjs";
+import { estimateSize } from "./sizing.mjs";
 
 const TEXT = new Set([".md", ".markdown", ".txt", ".eml", ".csv", ".yaml", ".yml", ".json", ".feature"]);
 const IMAGE = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"]);
@@ -71,12 +73,23 @@ export function paragraphs(text) {
   return out;
 }
 
+/**
+ * A template hint, not a customer fact: a blockquote, or an `authority:` line under Design.
+ * Kept in the normalised file and given no SRC id.
+ */
+export function isUntaggedHint(paragraph) {
+  const body = String(paragraph ?? "").trim();
+  if (!body) return false;
+  if (/^authority:\s*\S.*$/i.test(body)) return true;
+  return body.split("\n").every((line) => /^>\s?/.test(line.trim()));
+}
+
 /** Writes the tagged copy of one text source; returns the IDs it assigned. */
 export function normaliseText(text, counters, title) {
   const ids = [];
   const lines = [`# ${title}`, ""];
   for (const p of paragraphs(text)) {
-    if (/^#{1,6}\s/.test(p)) {
+    if (/^#{1,6}\s/.test(p) || isUntaggedHint(p)) {
       lines.push(p, "");
       continue;
     }
@@ -114,6 +127,7 @@ export function intake(projectDir, { text, title, mode, tier, newFeature = false
     const paths = factoryPaths(projectDir);
     const app = loadAppState(projectDir);
     if (text) writeAtomic(join(paths.inbox, `request-${now().replace(/[:.]/g, "-")}.md`), `${text.trim()}\n`);
+    const detectedRefs = []; // { ref, source }: bound to a feature below, once the owner is known
 
     const indexFile = join(paths.context, "index.yaml");
     const index = readYaml(indexFile, { sources: [] });
@@ -139,6 +153,8 @@ export function intake(projectDir, { text, title, mode, tier, newFeature = false
         const result = normaliseText(raw.toString("utf8"), app.next_ids, rel);
         ids = result.ids;
         requestText += `\n${raw.toString("utf8")}`;
+        // A mockup the brief points at is a binding design input: recorded now, read from this path.
+        for (const ref of detectReferences(raw.toString("utf8"), projectDir)) detectedRefs.push({ ref, source: `inbox/${rel}` });
         writeAtomic(join(paths.root, normalised), result.text);
         normalisedSha = sha(result.text); // the engine's tagging; gate-intake detects later edits
       } else {
@@ -151,21 +167,49 @@ export function intake(projectDir, { text, title, mode, tier, newFeature = false
       known.add(hash);
       added.push({ file: rel, kind, ids: ids.length });
     }
+    // An empty inbox (an interview) never opens a file, so the kit folder would not be proposed.
+    if (!detectedRefs.some((d) => d.ref.path === "prototype" || String(d.ref.path ?? "").endsWith("/prototype"))) {
+      for (const ref of detectReferences("", projectDir)) {
+        if (ref.path === "prototype" || String(ref.path ?? "").endsWith("/prototype")) detectedRefs.push({ ref, source: "prototype/prototype.json" });
+      }
+    }
     const open = Object.entries(app.features).filter(([, f]) => !["done", "aborted"].includes(f.status));
     if (!added.length && !interview && !newFeature && !open.length) {
       throw new UsageError("the inbox has no new files — add requirements to .factory/inbox/, pass --text, or use --interview");
     }
+    // An interview with an empty inbox has no normalised file, so later packs list the input as missing.
+    // kind `other` (no normalised_sha) lets the intake-normaliser replace the placeholder from the HD answers.
+    if (interview && added.length === 0 && !(index.sources ?? []).some((s) => s.file === "interview")) {
+      const normalised = "context/normalised/interview.md";
+      const body = "# Interview\n\n<!-- interview: the intake-normaliser describes the human's answers and tags each paragraph with a new SRC id -->\n";
+      writeAtomic(join(paths.root, normalised), body);
+      index.sources.push({ file: "interview", normalised, sha256: sha(body), kind: "other", ids: [] });
+      added.push({ file: "interview", kind: "other", ids: 0 });
+    }
     let feature = null;
+    let createdTitle = null;
     let detected = null;
     if (!open.length || newFeature) {
       const config = loadConfig(projectDir);
       detected = mode ? { mode, reason: "set by --mode" } : detectMode(projectDir, requestText);
-      const profile = profileFor(config, { mode: detected.mode, tier });
+      // No --tier: size the feature from its sources (config pipeline.auto_tier); requirements re-checks it from the real spec.
+      // Only a project on the shipped default profile is sized: a profile the project chose itself is kept.
+      const size = !tier && config.pipeline?.auto_tier !== false && profileFor(config, { mode: detected.mode }) === "standard"
+        ? estimateSize(requestText, { references: detectedRefs.length, sources: added.filter((a) => a.kind === "text").length || 1, limits: config.pipeline?.size_limits, mode: detected.mode })
+        : null;
+      const chosen = tier ?? size?.tier;
+      const profile = profileFor(config, { mode: detected.mode, tier: chosen });
       const name = title ?? /^#\s+(.+)$/m.exec(requestText)?.[1] ?? requestText.trim().split(/\s+/).slice(0, 6).join(" ") ?? "New feature";
+      createdTitle = name || "New feature";
       if (app.mode === "unknown") app.mode = detected.mode;
-      const f = createFeature(projectDir, app, { title: name || "New feature", mode: detected.mode, profile, tier: tier ?? "standard", stages: profileStages(config, profile) });
+      const f = createFeature(projectDir, app, { title: name || "New feature", mode: detected.mode, profile, tier: chosen ?? "standard", stages: profileStages(config, profile) });
+      if (size) {
+        f.state.tier_auto = true; // requirements may move it between small and standard
+        f.state.size = { tier: size.tier, reason: size.reason, metrics: size.metrics };
+        saveFeature(projectDir, app, f);
+      }
       feature = f.state.feature;
-      appendEvent(projectDir, { type: "feature", feature, mode: detected.mode, profile });
+      appendEvent(projectDir, { type: "feature", feature, mode: detected.mode, profile, ...(size ? { tier: size.tier, sizing: size.reason } : {}) });
     }
     // New sources belong to the feature they were added for: its spec must account for each of them.
     // Added while a feature is open, they go to it only while it has not passed requirements; otherwise
@@ -183,7 +227,25 @@ export function intake(projectDir, { text, title, mode, tier, newFeature = false
           delete s.unassigned;
         }
       }
+      // A mockup that waited for the next feature (found while every open one was past requirements) is this one's.
+      for (const r of index.references ?? []) {
+        if (r.unassigned || (r.feature && app.features[r.feature]?.status === "aborted")) {
+          r.feature = feature;
+          delete r.unassigned;
+        }
+      }
     }
+    // A mockup the brief points at belongs to the feature the brief is for (only proposed until confirmed). With no
+    // feature to take it, it waits (unassigned) for the next one: it binds no open feature.
+    // Several features.yaml entries need the feature title; a single entry was already copied in detectReferences.
+    const map = readPrototypeMap(projectDir);
+    // A feature created in this call is not on disk yet, so use the title just chosen.
+    const mapTitle = createdTitle ?? featureTitle(projectDir, feature ?? owner);
+    if (map.entries) {
+      for (const item of detectedRefs) Object.assign(item.ref, withPageMap(item.ref, map.entries, mapTitle));
+    }
+    const references = [];
+    for (const { ref, source } of detectedRefs) references.push(...mergeReferences(index, [owner ? { ...ref, feature: owner } : { ...ref, unassigned: true }], source));
     const errors = validate("source-index", index);
     if (errors.length) throw new Error(`source index would be invalid: ${errors.join("; ")}`);
     writeYaml(indexFile, index);
@@ -191,10 +253,12 @@ export function intake(projectDir, { text, title, mode, tier, newFeature = false
     appendEvent(projectDir, { type: "intake", feature: feature ?? undefined, sources: added.length });
     return {
       added,
+      ...(references.length ? { references } : {}),
       feature: feature ?? open[0]?.[0] ?? null,
       created: Boolean(feature),
       mode: detected?.mode ?? null,
       mode_reason: detected?.reason ?? null,
+      ...(map.warning ? { warnings: [map.warning] } : {}),
       note: feature ? null : `new sources were added to the app context; ${open.map(([id]) => id).join(", ")} is still open — pass --new to start another feature`,
       next: "/factory:run",
     };

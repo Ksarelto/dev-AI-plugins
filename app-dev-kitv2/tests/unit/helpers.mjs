@@ -21,8 +21,27 @@ const fixturePath = (name) => (existsSync(join(ARTIFACTS, name)) ? join(ARTIFACT
 
 const lib = (name) => import(join(ENGINE, "scripts", "lib", `${name}.mjs`));
 export const { init } = await lib("doctor");
-export const conductor = await lib("conductor");
 export const state = await lib("state");
+const { readFrontMatter } = await lib("core");
+export const rawConductor = await lib("conductor");
+/**
+ * The conductor, with `record` filling in `skills_loaded` for envelopes that leave it out: scripted agents
+ * stand in for ones that loaded the pack's skills. Tests of the skills check itself use `rawConductor`.
+ */
+export const conductor = {
+  ...rawConductor,
+  record(projectDir, opts) {
+    try {
+      const envelopeObj = JSON.parse(opts.envelopeText);
+      const pending = rawConductor.load(projectDir, opts.feature).feature.state.pending.find((d) => d.id === (opts.dispatchId ?? envelopeObj.pack_id));
+      const required = pending ? readFrontMatter(join(projectDir, pending.pack)).data.skills_required : null;
+      if (required?.length && !("skills_loaded" in envelopeObj)) return rawConductor.record(projectDir, { ...opts, envelopeText: JSON.stringify({ ...envelopeObj, skills_loaded: required }) });
+    } catch {
+      // Not a bare JSON envelope or no such dispatch: record decides.
+    }
+    return rawConductor.record(projectDir, opts);
+  },
+};
 export const { YAML, deepMerge } = await lib("core");
 
 const projects = [];
@@ -30,8 +49,18 @@ process.on("exit", () => {
   for (const p of projects) rmSync(p, { recursive: true, force: true });
 });
 
-/** A temp project with .factory/ initialised and the fixture pack configured. */
-export function makeProject(extraConfig = "") {
+/** Puts a project under git with one commit (.fake/ and .factory/ ignored), so the tree-hash cache and the task base ref run for real. */
+export function gitInit(dir) {
+  const git = (...args) => spawnSync("git", ["-c", "user.email=t@example.invalid", "-c", "user.name=T", ...args], { cwd: dir, encoding: "utf8" });
+  writeFileSync(join(dir, ".gitignore"), ".fake/\n.factory/\n");
+  git("init", "-q");
+  git("add", "-A");
+  git("commit", "-qm", "init");
+  return git;
+}
+
+/** A temp project with .factory/ initialised and the fixture pack configured. `git: true` also puts it under git. */
+export function makeProject(extraConfig = "", { git = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "factory-test-"));
   projects.push(dir);
   init(dir, { mode: "change-request" });
@@ -43,11 +72,15 @@ export function makeProject(extraConfig = "") {
     pipeline: { profile: "test", profiles: { test: ["requirements", "stories", "planning"] } },
     // The flow tests script the curator's dispatch; the engine digest has its own tests.
     context: { digest: "curator" },
+    // The mechanics tests drive the red phase and the green phase as two dispatches; the one-dispatch
+    // default (builder_two_phase) has its own tests (two-phase.test.mjs).
+    quality: { tdd: { author: "separate" } },
   };
   const config = deepMerge(base, YAML.parse(extraConfig) ?? {});
   writeFileSync(join(dir, ".factory", "factory.config.yaml"), YAML.stringify(config));
   mkdirSync(join(dir, "src", "entities", "order", "model"), { recursive: true });
   writeFileSync(join(dir, "src", "entities", "order", "model", "total.ts"), "export const total = 0;\n");
+  if (git) gitInit(dir);
   return dir;
 }
 
@@ -119,7 +152,7 @@ export const report = (files) => ({
 });
 
 /** A project at the implementation stage with the template plan, the frontend role and a fake stack. */
-export function loopSetup(extra = "") {
+export function loopSetup(extra = "", { git = false } = {}) {
   const dir = makeProject(
     [
       `packs: { factory-role-frontend: "${join(ROOT, "app-dev-kitv2", "factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}", factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}" }`,
@@ -135,6 +168,7 @@ export function loopSetup(extra = "") {
   putArtifact(featureDir, "test-plan.yaml", "04-plan/test-plan.yaml");
   mkdirSync(join(dir, ".fake"), { recursive: true });
   const fake = (command, body) => writeFileSync(join(dir, ".fake", `${command}.json`), JSON.stringify(body));
+  if (git) gitInit(dir);
   return { dir, featureDir, fake };
 }
 

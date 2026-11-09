@@ -68,6 +68,86 @@
           }
         }
       }
+    },
+    "references": {
+      "type": "array",
+      "description": "mockups the brief points at (binding design inputs)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "mockup"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "description": "a folder on this machine, or the .html file itself (absolute, or relative to the project); a file reference write-protects only that file"
+          },
+          "url": {
+            "type": "string"
+          },
+          "entry": {
+            "type": "string",
+            "description": "the page to open first, relative to path (index.html when it exists)"
+          },
+          "run": {
+            "type": "string",
+            "description": "the serve command the mockup documents; recorded, never run by the engine"
+          },
+          "source": {
+            "type": "string",
+            "description": "where the reference was found (an inbox file, or factory reference add)"
+          },
+          "status": {
+            "enum": [
+              "proposed",
+              "confirmed",
+              "rejected"
+            ],
+            "description": "proposed = found in the brief, not binding until the human confirms; absent = confirmed"
+          },
+          "feature": {
+            "type": "string",
+            "pattern": "^FEAT-\\d{3}$",
+            "description": "the feature this reference belongs to"
+          },
+          "unassigned": {
+            "type": "boolean",
+            "description": "found while every open feature was past requirements; the next feature takes it, no open feature is bound by it"
+          },
+          "pages": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "assembly page ids from prototype/features.yaml; the binding label names pages/<id>.html"
+          },
+          "states": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "states of those pages, from prototype/features.yaml"
+          },
+          "intent": {
+            "type": "string",
+            "description": "one line from prototype/features.yaml: what this feature's screens are for"
+          }
+        },
+        "anyOf": [
+          {
+            "required": [
+              "path"
+            ]
+          },
+          {
+            "required": [
+              "url"
+            ]
+          }
+        ]
+      }
     }
   }
 }

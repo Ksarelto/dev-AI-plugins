@@ -1,0 +1,15 @@
+{
+  "plugin": "prototype-kit",
+  "source": "./prototype-kit",
+  "component": "skills",
+  "cases": [
+    {
+      "prompt": "Init a living HTML prototype at prototype/ from this product brief: a freelance invoicing app with a sidebar shell",
+      "expect": "init-prototype"
+    },
+    {
+      "prompt": "Update the existing prototype: add a settings page and restyle the header",
+      "expect": "update-prototype"
+    }
+  ]
+}

@@ -15,14 +15,18 @@
 //   agents/[<FEAT>/]<stage>[/<screen>]/<agent>/a<n>/envelope.yaml + files/{feature,factory,project}/…
 //                           what the scripted agent writes on attempt n, and its envelope
 //                           (a feature-specific folder wins over the shared one)
+//   A build dispatch (quality.tdd.author builder_two_phase, the default: <stage>/TASK-n.build/<builder>/a<n>)
+//   may carry red/files/…: written FIRST, then the harness runs `factory gate red --task` the way the agent
+//   would (the CLI locks the red tests), then files/… is written — red tests, red gate, implementation.
 // A curator with no scripted folder writes an automatic digest listing every open tracked ID.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 process.env.FACTORY_NO_SCAN = "1"; // only the packs this harness configures
+process.env.FACTORY_NO_BROWSER ??= "1"; // mocked runs render nothing: screenshots are "unavailable" (a scenario may set PLAYWRIGHT_MODULE to a stub)
 // Mocked runs never call a model: the real stack's eval suites skip without these keys.
 for (const key of ["OPENROUTER_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"]) delete process.env[key];
 // `npm run -s` would silence the nested stack scripts, whose echoed command lines the checks read.
@@ -31,7 +35,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const FAMILY = join(HERE, "..", "..");
 const ENGINE = join(FAMILY, "factory");
 const lib = (name) => import(join(ENGINE, "scripts", "lib", `${name}.mjs`));
-const { YAML, deepMerge, readText, toPosix } = await lib("core");
+const { YAML, deepMerge, readFrontMatter, readText, toPosix } = await lib("core");
 const conductor = await lib("conductor");
 const { init } = await lib("doctor");
 const { intake } = await lib("intake");
@@ -56,8 +60,14 @@ function listTree(dir, base = dir) {
 }
 
 /** Writes one scripted agent's files through the real write and post-write hooks. */
-function playAgent(project, featureDir, dispatch, attemptDir, schemaErrors) {
+const requiredSkills = (project, dispatch) => readFrontMatter(join(project, dispatch.pack)).data.skills_required ?? [];
+
+function playAgent(project, featureDir, dispatch, attemptDir, schemaErrors, { redPhase = false } = {}) {
   const denied = [];
+  // The scripted agent does what a real one does first: loads the skills its pack requires (PostToolUse Skill).
+  for (const skill of requiredSkills(project, dispatch)) {
+    guard.logSkill({ agent_type: dispatch.agent, tool_input: { skill } }, project, state.activeDispatches(project));
+  }
   const roots = { feature: featureDir, factory: join(project, ".factory"), project };
   for (const [kind, root] of Object.entries(roots)) {
     for (const rel of listTree(join(attemptDir, "files", kind))) {
@@ -113,7 +123,7 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
   const scenario = YAML.parse(readText(join(scenarioDir, "scenario.yaml")));
   const answers = YAML.parse(readText(join(scenarioDir, "answers.yaml"))) ?? [];
   const project = mkdtempSync(join(tmpdir(), `factory-e2e-${scenario.id}-`));
-  const run = { scenario: scenario.id, dispatches: [], batches: [], verdicts: [], denied: [], gates: [], halts: [], schemaErrors: [] };
+  const run = { scenario: scenario.id, dispatches: [], batches: [], verdicts: [], denied: [], gates: [], halts: [], schemaErrors: [], agentGates: [] };
   try {
     const repos = scenario.repos ?? (scenario.repo_from ? [{ from: scenario.repo_from, to: "." }] : []);
     for (const { from, to } of repos) {
@@ -140,6 +150,8 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
     const intook = intake(project, scenario.intake ?? {});
     log(`intake: ${intook.added.length} source(s), ${intook.feature} (${intook.mode}: ${intook.mode_reason})`);
     run.mode = intook.mode;
+    // A mockup inside the project is never auto-detected from the brief: the human confirms it (`factory reference add`).
+    for (const target of scenario.reference_add ?? []) (await lib("references")).addReference(project, target);
 
     let next = null; // record hands back the following step once a batch is fully recorded
     for (let i = 0; i < (scenario.max_steps ?? 60); i++) {
@@ -151,21 +163,32 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
         run.batches.push(s.dispatches.map((d) => d.task ?? d.agent));
         for (const d of s.dispatches) {
           const attempt = Number(d.id.split("/a").pop());
-          // A fan-out dispatch (one prototyper per screen) is scripted per item: <stage>/<screen>/<agent>.
+          // A dispatch that names a screen is scripted per item: <stage>/<screen>/<agent>.
           const stageKey = d.phase === "digest" ? "digest" : d.task ? join(d.stage, `${d.task}.${d.phase}`) : d.screen ? join(d.stage, d.screen) : d.stage;
           const specific = join(scenarioDir, "agents", s.feature, stageKey, d.agent, `a${attempt}`);
           const attemptDir = existsSync(specific) ? specific : join(scenarioDir, "agents", stageKey, d.agent, `a${attempt}`);
           run.dispatches.push({ id: d.id, agent: d.agent, model: d.model, phase: d.phase });
           let extra = {};
           if (existsSync(attemptDir)) {
-            run.denied.push(...playAgent(project, featureDir, d, attemptDir, run.schemaErrors));
+            // One-dispatch TDD: the red files, then `gate red` (as the agent runs it), then the implementation.
+            if (existsSync(join(attemptDir, "red"))) {
+              const deniedRed = playAgent(project, featureDir, d, join(attemptDir, "red"), run.schemaErrors);
+              run.denied.push(...deniedRed);
+              for (const x of deniedRed) log(`    denied: ${x.file} (${x.reason})`);
+              const red = spawnSync(process.execPath, [join(ENGINE, "scripts", "factory.mjs"), "gate", "red", "--task", d.task, "--project", project, "--feature", s.feature], { encoding: "utf8" });
+              run.agentGates.push({ id: d.id, gate: "red", status: red.status });
+              log(`${d.id} gate red (the agent's own) → exit ${red.status}`);
+            }
+            const denied = playAgent(project, featureDir, d, attemptDir, run.schemaErrors);
+            run.denied.push(...denied);
+            for (const x of denied) log(`    denied: ${x.file} (${x.reason})`);
             if (existsSync(join(attemptDir, "envelope.yaml"))) extra = YAML.parse(readText(join(attemptDir, "envelope.yaml"))) ?? {};
           } else if (d.agent === "curator") {
             autoDigest(project, featureDir);
           } else {
             throw new Error(`scenario has no script for ${d.id} (expected ${relative(scenarioDir, attemptDir)})`);
           }
-          const envelope = { pack_id: d.id, status: "done", artifacts_written: [], summary: `scripted ${d.agent}`, ...extra };
+          const envelope = { pack_id: d.id, status: "done", artifacts_written: [], summary: `scripted ${d.agent}`, ...(requiredSkills(project, d).length ? { skills_loaded: requiredSkills(project, d) } : {}), ...extra };
           const r = await conductor.record(project, { dispatchId: d.id, envelopeText: JSON.stringify(envelope), tokens: extra.tokens ?? 1000 });
           if (r.next) {
             run.next_steps = (run.next_steps ?? 0) + 1;
@@ -210,6 +233,7 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
       Object.entries(app.features).slice(1).map(([id, f]) => [id, JSON.parse(readFileSync(join(project, ".factory", f.dir, "state.json"), "utf8"))]),
     );
     run.unanswered = answers.length;
+    run.references = (await lib("references")).readReferences(project);
     const shipFile = join(featureDir, "08-delivery", "ship.json");
     run.ship = existsSync(shipFile) ? JSON.parse(readFileSync(shipFile, "utf8")) : null;
     run.gitLog = run.ship ? execFileSync("git", ["log", "--format=%s%n%b---", run.ship.branch], { cwd: project, encoding: "utf8" }) : "";
@@ -234,6 +258,19 @@ function check(run, expect) {
   const add = (name, pass, detail) => out.push({ check: name, pass: Boolean(pass), detail });
   if (expect.final_action) add("final action", run.final?.action === expect.final_action, `${run.final?.action}: ${run.final?.reason ?? ""}`);
   if (expect.final_status) add("feature status", run.feature.status === expect.final_status, run.feature.status);
+  // quality.tdd.author builder_two_phase (the default): a test-first task costs ONE build dispatch (a retry is another),
+  // never a test-author red dispatch followed by a builder green one.
+  if (expect.build_dispatches !== undefined) {
+    const builds = run.dispatches.filter((x) => x.phase === "build").length;
+    const reds = run.dispatches.filter((x) => x.phase === "red").length;
+    add("one build dispatch per test-first task", reds === 0 && builds === expect.build_dispatches, `${builds} build (want ${expect.build_dispatches}), ${reds} red-phase dispatches`);
+  }
+  // Agents that must never be dispatched.
+  for (const agent of expect.no_dispatch ?? []) add(`no ${agent} dispatch`, !run.dispatches.some((d) => d.agent === agent), run.dispatches.filter((d) => d.agent === agent).map((d) => d.id).join(", ") || "none");
+  if (expect.references) {
+    const found = (run.references ?? []).map((r) => r.path ?? r.url);
+    add("references recorded", JSON.stringify(found) === JSON.stringify(expect.references), found.join(", ") || "none");
+  }
   if (expect.dispatches_max) add("dispatch budget", run.dispatches.length <= expect.dispatches_max, `${run.dispatches.length} dispatches`);
   if (expect.verdicts) {
     // Exact: an unexpected extra retry is a regression, not noise.

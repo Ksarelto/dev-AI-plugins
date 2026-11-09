@@ -1,7 +1,7 @@
 ---
 name: codebase-analyst
 description: Maps an existing application once (A0 Discovery) — app profile, capability map of features with their paths and routes, and a baseline feature ledger — so later stages extend the app instead of rewriting it. Read-only on source code.
-tools: Read, Grep, Glob, Write, Bash
+tools: Read, Grep, Glob, Write, Bash, Skill
 model: sonnet
 skills: [discovery-scan]
 ---
@@ -40,7 +40,7 @@ conformance verdict.
 ## Stack knowledge
 
 The stack packs (`frontend-dev-kit`, `node-backend-dev-kit`, `node-agent-dev-kit`) define the
-reference architectures; their `architecture-audit` skills hold the detailed rules, but you only
+reference architectures; their skills and rules hold the detailed rules, but you only
 need the T1 summary line to give a verdict. The gate itself runs each stack's
 `architecture_check` command from its `stack.yaml`. T1 is the source of truth for which stacks apply.
 

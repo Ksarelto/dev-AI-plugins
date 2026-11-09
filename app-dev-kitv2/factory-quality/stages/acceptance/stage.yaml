@@ -1,10 +1,18 @@
 id: acceptance
-title: S5a Acceptance tests (from the spec, before implementation)
+title: S5a Acceptance tests (from the spec and the API contract, before implementation)
 kind: agents
+# Timing (decided): the stage stays between planning and implementation. Moving it behind the first built slice
+# would need a stage that opens in the middle of a task loop (the loop is one engine-owned stage); instead the
+# author gets what made the first real run fail without it: the API contract, the inbox's own API sections
+# (normalised-sources) and the app's entity types and schemas (read-only; no implementation code). A fixture that
+# still disagrees with the contract is settled by `factory acceptance waive` (human, per test) or
+# `factory replay acceptance --relock <test>` (the author rewrites that one test; the engine re-locks).
+# The small profile has no acceptance stage: its builders' own tests carry the acceptance checks.
 agents: [acceptance-test-author]
 context_role: execution_roles
-read_deny: ["src/**/!(*.acceptance.test.*)"]
-inputs: ["prd|delta-spec", stories, ux-notes?, component-map, api-contract?, test-plan]
+# Implementation code is unreadable; the entity types and schemas (model/types.ts, model/schema.ts, *.types.ts) are the exception.
+read_deny: ["src/**/!(*.acceptance.test.*|types.ts|schema.ts|*.types.ts)"]
+inputs: ["prd|delta-spec", stories, ux-notes?, component-map, api-contract?, normalised-sources?, entity-types?, test-plan]
 outputs: [acceptance-tests]
 gate: acceptance
 after_pass: lock_acceptance   # the tests become a holdout: builders cannot read or change them

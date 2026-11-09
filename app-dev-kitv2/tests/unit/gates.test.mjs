@@ -77,14 +77,24 @@ test("gate-stories: invented AC, uncovered AC, missing Gherkin step, UX without 
   for (const rule of ["invented-ac", "uncovered-ac", "missing-step", "no-states"]) assert.ok(r.includes(rule), `${rule} in ${r}`);
 });
 
+test("gate-plan: more than tasks_max tasks is too-many-tasks", async () => {
+  const extra = Array.from({ length: 8 }, (_, i) => {
+    const n = String(i + 10).padStart(3, "0");
+    return `  - id: TASK-${n}\n    role: frontend\n    type: characterisation\n    title: extra ${i}\n    depends_on: []\n    satisfies: []\n    characterisation: true\n    files_expected: [src/extra-${n}.ts]\n    tdd: { mode: exempt, reason: "pins today's behaviour" }\n    reuse: { considered: [], reuse_rejected: null }\n    definition_of_done: ["pins"]\n    size: { files: 1, est_loc: 5 }\n`;
+  }).join("");
+  const env = setup({ tasks: (t) => `${t.trimEnd()}\n${extra}` });
+  const r = await gate("plan", env);
+  assert.ok(rules(r).includes("too-many-tasks"), JSON.stringify(r.failures));
+});
+
 test("gate-plan: cycle, unsatisfied and untested AC, owns_paths, TDD and size", async () => {
   const env = setup({
     tasks: (s) =>
       s
         .replace("depends_on: []", "depends_on: [TASK-003]")
         .replace("satisfies: [AC-0001, AC-0002]", "satisfies: [AC-0001]")
-        .replace("files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx]", "files_expected: [lib/coupon-field.tsx, a.ts, b.ts, c.ts]")
-        .replace("est_loc: 120", "est_loc: 900")
+        .replace("files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx]", "files_expected: [lib/coupon-field.tsx, a.ts, b.ts, c.ts, d.ts, e.ts, f.ts, g.ts, h.ts, i.ts, j.ts, k.ts, l.ts]")
+        .replace("est_loc: 120", "est_loc: 900") // over loc_max 600
         .replace('    tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string }): JSX.Element"] }\n', ""),
     testPlan: (s) => s.replace("  - { id: TEST-0003, ac: AC-0003, level: unit, title: total with discount and shipping, task: TASK-002 }\n", ""),
   });

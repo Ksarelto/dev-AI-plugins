@@ -43,7 +43,7 @@ export function ship(c) {
   recordInLedger(c, done, { branch });
   // The feature's .factory record, without the task snapshots (copies of source files at red).
   const featureRel = toPosix(relative(cwd, c.feature.dir));
-  const artifacts = [featureRel, ".factory/context", ".factory/app-profile.yaml", ".factory/_index", ".factory/ledger", ".factory/prototype"].filter((p) => existsSync(join(cwd, p)));
+  const artifacts = [featureRel, ".factory/context", ".factory/app-profile.yaml", ".factory/_index", ".factory/ledger"].filter((p) => existsSync(join(cwd, p)));
   // A glob exclude: git rejects an exclude that names an ignored folder (.factory/.gitignore lists snapshots).
   const paths = [...artifacts, ":(exclude,glob)**/*.snapshot"];
   git(cwd, ["add", "--all", "--", ...paths]);
@@ -53,7 +53,7 @@ export function ship(c) {
   }
   const shipFile = join(c.feature.dir, "08-delivery", "ship.json");
   const opened = existsSync(shipFile) && JSON.parse(readText(shipFile)).pr?.opened === true;
-  const pr = openPr(c, branch, opened);
+  const pr = c.config.delivery?.pr === true ? openPr(c, branch, opened) : { opened: false, skipped: true };
   const result = { branch, commits, pr, at: now() };
   s.branch = branch;
   writeJson(shipFile, result);

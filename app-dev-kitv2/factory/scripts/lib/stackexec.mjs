@@ -70,7 +70,8 @@ function prepare(resolved, name, { vars = {}, logName } = {}) {
   const logs = factoryPaths(resolved.projectDir ?? resolved.cwd).logs;
   mkdirSync(logs, { recursive: true }); // reports and logs land here; create it before the command runs
   const nodeBin = nodeBinFor(resolved.stack.node_version);
-  const env = { ...process.env, CI: "1", FORCE_COLOR: "0" };
+  // No colour: jest-dom and vitest wrap messages in ANSI codes that break the red gate's failure matching.
+  const env = { ...process.env, CI: "1", FORCE_COLOR: "0", NO_COLOR: "1" };
   if (nodeBin) env.PATH = `${nodeBin}${delimiter}${env.PATH}`;
   // With shell: true (Windows, for pnpm.cmd/npm.cmd) Node joins argv unquoted; quote what needs it.
   const winArgs = (list) => list.map((a) => (/[\s"]/.test(a) ? `"${a.replaceAll('"', '\\"')}"` : a));
@@ -191,15 +192,27 @@ export function scriptText(resolved, name) {
 
 /**
  * Commands a task gate can leave out because another one already covers them: an architecture check
- * that the lint script runs too (eslint && depcruise), and a build that is only `tsc` (the typecheck
- * covers it; verification still builds). quality.impl_build: true keeps the build, false drops it.
+ * that the lint script runs too (eslint && depcruise), and the production build (a task gate does not
+ * build; verification does). quality.impl_build: true keeps the build in task gates.
  */
 export function coveredCommands(resolved, config = {}) {
   const covered = new Set();
   const arch = resolved.stack.commands?.architecture_check;
   const archBin = arch?.exec ?? (Array.isArray(arch) ? arch[0] : null) ?? (arch?.script ? scriptText(resolved, "architecture_check").split(/\s/)[0] : null);
   if (archBin && new RegExp(`(^|[\\s;&|/])${archBin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`).test(scriptText(resolved, "lint"))) covered.add("architecture_check");
-  const build = config.quality?.impl_build;
-  if (build === false || (build !== true && /^\s*tsc(\s|$)/.test(scriptText(resolved, "build")) && !/&&|\|\||;/.test(scriptText(resolved, "build")))) covered.add("build");
+  if (config.quality?.impl_build !== true) covered.add("build");
   return covered;
+}
+
+/**
+ * Arguments that make a plain `tsc` typecheck incremental (its build info lives in .factory/cache, per
+ * role), or [] when the command is anything else — a script chain, `tsc -b`, one that already sets it.
+ */
+export function incrementalTscArgs(resolved) {
+  const cmd = resolved.stack.commands?.typecheck;
+  const text = cmd?.script ? scriptText(resolved, "typecheck") : Array.isArray(cmd) ? cmd.join(" ") : cmd?.exec ? `${cmd.exec} ${(cmd.args ?? []).join(" ")}` : "";
+  if (!/^\s*(npx\s+)?tsc(\s|$)/.test(text) || /&&|\|\||;|\s(-b|--build|--incremental|--tsBuildInfoFile|--composite)(\s|=|$)/.test(text)) return [];
+  const cache = join(factoryPaths(resolved.projectDir ?? resolved.cwd).root, "cache");
+  mkdirSync(cache, { recursive: true });
+  return ["--incremental", "--tsBuildInfoFile", join(cache, `tsbuildinfo-${resolved.role ?? "app"}`)];
 }

@@ -83,26 +83,24 @@ A story that traces a `must` requirement needs at least one AC of kind `error`, 
 
 ## Surfaces: stable screen identifiers
 
-A living app prototype draws one page per surface, so a surface name is a screen's identity across
-stories, features and the prototype.
+A surface name is a screen's identity across stories and features.
 
 - A **surface** is a screen a user navigates to, or a modal or drawer big enough to be designed on
   its own. A region inside a screen (the coupon field) is not a surface: describe it in the UX notes
   under its screen.
 - Name it in PascalCase as a noun phrase: `OrderHistory`, `CheckoutSummary`, `SupplierDetail`.
-  Its kebab-case form (`order-history`) is the prototype's screen id, so two different screens must
+  Its kebab-case form (`order-history`) is the screen id, so two different screens must
   never share a name, and one screen never gets two names.
-- **Reuse existing names exactly.** When T2 lists `.factory/prototype/screens.yaml`, take its
-  `surface` value; otherwise the capability map's feature name or the component inventory's name.
-  The engine counts a surface as new when its lower-cased name matches neither a capability nor an
-  inventory component, and new surfaces can start the prototype stage.
+- **Reuse existing names exactly.** Take the capability map's feature name or the component
+  inventory's name. The engine counts a surface as new when its lower-cased name matches neither a
+  capability nor an inventory component.
 - Every story touching the same screen uses the same name, in this feature and later ones.
 - A story with no user-facing change (a calculation, a background job) has no `ux` block.
 
 ### States
 
 - `states` are lower-case kebab-case words (`loading`, `empty`, `error`, `applied`, `no-results`):
-  the prototype turns each into a switchable state of the page.
+  each one is a distinct state of the page.
 - A screen that shows data lists at least `loading`, `empty`, `error` and its success state.
 - Add one state per `edge` or `error` AC that looks different (`expired`, `limit-reached`).
 - A surface without states fails `no-states`.

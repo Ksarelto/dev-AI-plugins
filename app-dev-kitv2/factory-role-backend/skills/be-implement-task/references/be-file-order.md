@@ -10,7 +10,7 @@ Two rules apply to every row:
 
 - You write only the files in T0 "You may write only". A step whose file is not listed is either
   already done by another task (check it compiles and move on) or missing from the plan: return
-  `needs_scope_change` naming the file. The role's budget keeps an endpoint task at five files, so a
+  `needs_scope_change` naming the file. The role's file budget (`role.yaml` `budgets.task_limits`) keeps an endpoint task small, so a
   full new resource normally arrives as several tasks (repository, service, endpoint, openapi).
 - The red tests are read-only. Make them pass; do not reshape the code around a different test.
 

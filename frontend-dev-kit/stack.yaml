@@ -8,8 +8,10 @@ node_version: ">=22.12"
 commands:
   typecheck: { script: typecheck }
   lint: { script: lint }
+  lint_files: { exec: eslint, args: [--no-warn-ignored, "{files}"] }   # task gates lint only the files the task changed; verification runs `lint`
   architecture_check: { exec: depcruise, args: [src] }
   test: { script: "test:run", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  test_related: { exec: vitest, args: [related, "{files}", --run, --reporter=json, "--outputFile={report}"] }   # a task gate runs only the tests related to the files the task changed since its base ref (--changed would still cover every uncommitted change); the engine adds the flags (--config, --project) of the `test` package script
   build: { script: build }
 test_report: vitest-json
 test_scoped_args: [--changed]   # task gates run only the tests the uncommitted changes touch; verification runs all
@@ -28,7 +30,7 @@ skills:
   store: frontend-dev-kit:zustand
   i18n: frontend-dev-kit:i18n
   styling-token: frontend-dev-kit:tailwind-styles
-  refactor: frontend-dev-kit:architecture-audit
+  refactor: [frontend-dev-kit:react-feature, frontend-dev-kit:react-component]   # not architecture-audit: it is context: fork (a separate agent that may edit anywhere)
 # Task type → exemplar file(s) the builder matches.
 golden_files:
   entity-model: skills/api-client/examples.md
@@ -60,8 +62,8 @@ rules:
   refactor: [rules/react.mdc, rules/component-structure.mdc, rules/styling.mdc, rules/i18n.mdc, rules/api-contract.mdc]
 # Stage agent → skills it loads as reference (it keeps its own procedure).
 stage_skills:
-  solution-architect: frontend-dev-kit:architecture-audit
-  planner: frontend-dev-kit:architecture-audit
+  solution-architect: frontend-dev-kit:react-feature   # FSD slice layout (architecture-audit is context: fork, so it is not loaded by a dispatch)
+  planner: frontend-dev-kit:react-feature
   test-strategist: frontend-dev-kit:testing
   acceptance-test-author: frontend-dev-kit:testing
   reviewer: [frontend-dev-kit:code-review, frontend-dev-kit:accessibility]

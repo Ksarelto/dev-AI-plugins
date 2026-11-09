@@ -1,4 +1,6 @@
 # Worked example (GT-04: coupons at checkout). Validated by factory/schemas/tasks.schema.json
+# One task per vertical slice (FSD slice or component folder) of a story, 3–8 ACs each; `slice` and
+# `write_scope` name the slice. Limits: files_expected <= 12, size.est_loc <= 600 (role caps per type).
 feature: FEAT-001
 tasks:
   - id: TASK-001
@@ -19,6 +21,7 @@ tasks:
     title: Discount in the order total calculation
     depends_on: [TASK-001]
     satisfies: [AC-0003]
+    slice: order-total
     files_expected: [src/entities/order/model/total.ts, src/entities/order/model/total.test.ts]
     tdd: { mode: required, red_tests: [src/entities/order/model/total.test.ts], stubs: ["calculateTotal(lines, shipping, discount?): number"] }
     reuse: { considered: [entities/order], reuse_rejected: null }
@@ -30,6 +33,8 @@ tasks:
     title: CouponField in CheckoutSummary
     depends_on: [TASK-002]
     satisfies: [AC-0001, AC-0002]
+    slice: apply-coupon
+    write_scope: ["src/features/apply-coupon/**"]   # the slice folder: a vertical slice is one task, a fix round amends it
     files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx]
     tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string }): JSX.Element"] }
     reuse: { considered: [shared/ui/input], reuse_rejected: "no coupon-specific field exists; it composes shared/ui/input" }

@@ -19,16 +19,24 @@ const args = new Set(process.argv.slice(2));
 const dryRun = args.has("--dry-run");
 const uninstall = args.has("--uninstall");
 
+const syncSource = args.has("--sync-source");
+
 if (args.has("--help") || args.has("-h")) {
-  console.log(`Usage: node scripts/install-cursor-local.mjs [--dry-run] [--uninstall]
+  console.log(`Usage: node scripts/install-cursor-local.mjs [--dry-run] [--uninstall] [--sync-source]
 
 Symlink each kit from this repo into ~/.cursor/plugins/local/<plugin-name>
 so Cursor can load skills, rules, agents, commands, and MCP servers.
 
+Cursor only loads symlinks whose target stays inside ~/.cursor/plugins/local
+(see cursor.com/docs/plugins — Test plugins locally). This script keeps a
+mirror of the repo at ~/.cursor/plugins/local/.source-repo and links each
+plugin into that mirror.
+
 Options:
-  --dry-run     Print actions without changing the filesystem
-  --uninstall   Remove symlinks created for kits listed in the marketplace
-  --help        Show this help
+  --dry-run       Print actions without changing the filesystem
+  --uninstall     Remove plugin symlinks listed in the marketplace
+  --sync-source   Refresh .source-repo from this checkout (run after kit edits)
+  --help          Show this help
 `);
   process.exit(0);
 }
@@ -42,7 +50,22 @@ if (!existsSync(marketplacePath)) {
 const marketplace = JSON.parse(readFileSync(marketplacePath, "utf8"));
 
 const localRoot = join(homedir(), ".cursor", "plugins", "local");
+/** Mirror of the marketplace repo; symlink targets must live under localRoot. */
+const sourceMirror = join(localRoot, ".source-repo");
 const plugins = marketplace.plugins ?? [];
+
+function pluginRelSource(entry) {
+  return entry.source.replace(/^\.\//, "");
+}
+
+function pluginTarget(entry) {
+  return resolve(sourceMirror, pluginRelSource(entry));
+}
+
+function isInsideLocal(absPath) {
+  const base = localRoot.endsWith("/") ? localRoot : `${localRoot}/`;
+  return absPath === localRoot || absPath.startsWith(base);
+}
 
 if (!plugins.length) {
   console.error("No plugins listed in .cursor-plugin/marketplace.json");
@@ -61,9 +84,57 @@ function linkPath(name) {
   return join(localRoot, name);
 }
 
+function ensureSourceMirror() {
+  const marker = join(sourceMirror, ".cursor-plugin", "marketplace.json");
+  const needsCopy = syncSource || !existsSync(marker);
+  if (!needsCopy) {
+    console.log(`OK: source mirror present at ${sourceMirror}`);
+    return true;
+  }
+
+  if (dryRun) {
+    console.log(`[dry-run] sync repo → ${sourceMirror}`);
+    return true;
+  }
+
+  mkdirSync(localRoot, { recursive: true });
+  const rsync = spawnSync(
+    "rsync",
+    [
+      "-a",
+      "--delete",
+      "--exclude",
+      "node_modules",
+      "--exclude",
+      ".git",
+      `${root}/`,
+      `${sourceMirror}/`,
+    ],
+    { stdio: "inherit" },
+  );
+  if (rsync.status === 0) {
+    console.log(`OK: synced source mirror → ${sourceMirror}`);
+    return true;
+  }
+
+  console.warn("WARN: rsync failed; falling back to cp -cR (macOS APFS clone when available)");
+  const cp = spawnSync("cp", ["-cR", root, sourceMirror], { stdio: "inherit" });
+  if (cp.status !== 0) {
+    console.error(`FAIL: could not populate ${sourceMirror}`);
+    return false;
+  }
+  console.log(`OK: copied source mirror → ${sourceMirror}`);
+  return true;
+}
+
 function installOne(entry) {
-  const target = resolve(root, entry.source);
+  const target = pluginTarget(entry);
   const link = linkPath(entry.name);
+
+  if (!isInsideLocal(target)) {
+    console.error(`FAIL: ${entry.name} target would be outside local plugins root`);
+    return false;
+  }
 
   if (!existsSync(target)) {
     console.error(`FAIL: source missing for ${entry.name}: ${entry.source}`);
@@ -130,7 +201,7 @@ function isSymlink(path) {
 }
 
 function installYaml(entry) {
-  const target = resolve(root, entry.source);
+  const target = pluginTarget(entry);
   const pkgPath = join(target, "package.json");
   if (!existsSync(pkgPath)) return true;
   const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
@@ -155,6 +226,15 @@ let ok = true;
 
 if (!uninstall) {
   ensureLocalRoot();
+  if (!ensureSourceMirror()) {
+    process.exit(1);
+  }
+  if (dryRun) {
+    console.log(`[dry-run] generate cursor-agents/ into ${sourceMirror}`);
+  } else {
+    const generated = spawnSync(process.execPath, [join(root, "scripts", "build-cursor-agents.mjs"), "--out", sourceMirror], { stdio: "inherit" });
+    if (generated.status !== 0) process.exit(generated.status ?? 1);
+  }
 }
 
 for (const entry of plugins) {
@@ -177,6 +257,8 @@ if (uninstall) {
   console.log("  1. In Cursor Settings, enable third-party Plugins / Skills if prompted.");
   console.log('  2. Run "Developer: Reload Window" (or restart Cursor).');
   console.log("  3. Confirm kits appear under Customize → Plugins.");
+  console.log("");
+  console.log("After editing kits in this repo, re-run with --sync-source, then reload Cursor.");
   console.log("");
   console.log("MCP secrets (set in your shell / environment as needed):");
   console.log("  CONTEXT7_API_KEY, GITLAB_PERSONAL_ACCESS_TOKEN, GITLAB_API_URL,");

@@ -1,7 +1,7 @@
 // `factory doctor`: proves the installed set fits together before anything runs.
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ENGINE_ROOT, factoryPaths, readJson, satisfiesRange, now, writeJson, writeYaml } from "./core.mjs";
+import { ENGINE_ROOT, factoryPaths, readFrontMatter, readJson, satisfiesRange, now, writeJson, writeYaml } from "./core.mjs";
 import { enabledRoles, loadConfig } from "./config.mjs";
 import { gateNames } from "./gatekeeper.mjs";
 import { pathsOverlap, rolePath } from "./tasks.mjs";
@@ -9,6 +9,60 @@ import { readPack, registerPack, resolvePacks, scanCandidates, stageIndex } from
 import { ARTIFACT_TYPES, parseArtifactRef, validate } from "./schemas.mjs";
 import { ENGINE_PACK, MODELS, resolveAgents, resolveStage } from "./conductor.mjs";
 import { appendEvent } from "./state.mjs";
+
+/** An agent body that tells the agent to load skills (Skill tool, "load every T1 skill", "load each skill"). */
+const LOADS_SKILLS = /\bSkill tool\b|\bload (?:every|each|all|the|its|your)\b[^\n.]{0,40}\bskills?\b|\bT1 skills?\b/i;
+const asList = (v) => (v == null ? [] : [v].flat()).filter(Boolean).map(String);
+
+/** A skill whose front matter says `context: fork` runs in a separate agent (outside the dispatch's write scope). */
+export function forkedSkill(pack, skill) {
+  if (!pack || !skill) return false;
+  try {
+    return readFrontMatter(join(pack.root, "skills", skill, "SKILL.md")).data.context === "fork";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Skills must be loadable: an agent that is told to load skills needs the Skill tool, and every skill
+ * a stack names per task type (or an agent preloads) must resolve to an installed SKILL.md.
+ * "plugin:skill" resolves in that plugin; a plugin that is not installed is a warning, a missing skill an error.
+ */
+export function skillChecks(packs, errors, warnings) {
+  const resolves = (ref, own) => {
+    const [plugin, skill] = ref.includes(":") ? ref.split(":") : [own.name, ref];
+    const pack = packs[plugin];
+    if (!pack) return { missingPlugin: plugin };
+    return { ok: existsSync(join(pack.root, "skills", skill ?? "", "SKILL.md")) };
+  };
+  for (const pack of Object.values(packs)) {
+    const dir = join(pack.root, "agents");
+    for (const file of existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".md")) : []) {
+      const { data, body } = readFrontMatter(join(dir, file));
+      const tools = String(data.tools ?? "").replace(/^\[|\]$/g, "").split(",").map((t) => t.trim()).filter(Boolean);
+      if (tools.length && !tools.includes("Skill") && LOADS_SKILLS.test(body)) {
+        errors.push(`${pack.name} agent ${file.slice(0, -3)}: its body says to load skills but tools: has no "Skill" (it could never load them)`);
+      }
+      for (const ref of asList(data.skills)) {
+        const r = resolves(ref, pack);
+        if (r.ok === false) errors.push(`${pack.name} agent ${file.slice(0, -3)}: preloads skill "${ref}", which does not resolve to a SKILL.md`);
+      }
+    }
+    for (const [group, map] of [["skills", pack.stack?.skills], ["stage_skills", pack.stack?.stage_skills]]) {
+      for (const [key, refs] of Object.entries(map ?? {})) {
+        for (const ref of asList(refs)) {
+          const r = resolves(ref, pack);
+          if (r.ok === false) errors.push(`${pack.name} stack.yaml ${group} "${key}": skill "${ref}" does not resolve to a SKILL.md`);
+          else if (r.ok && forkedSkill(packs[ref.includes(":") ? ref.split(":")[0] : pack.name], ref.includes(":") ? ref.split(":")[1] : ref)) {
+            errors.push(`${pack.name} stack.yaml ${group} "${key}": skill "${ref}" has context: fork — a forked skill runs as a separate agent the factory's write scope does not bind; name skills that load into the dispatched agent`);
+          }
+          else if (r.missingPlugin) warnings.push(`${pack.name} stack.yaml ${group} "${key}": skill "${ref}" names plugin "${r.missingPlugin}", which is not installed`);
+        }
+      }
+    }
+  }
+}
 
 export function doctor(projectDir, { register } = {}) {
   const errors = [];
@@ -36,6 +90,8 @@ export function doctor(projectDir, { register } = {}) {
     const id = dup.split(":")[0];
     if (!config.pipeline?.stages?.[id]?.pack) warnings.push(`stage ${dup} — set pipeline.stages.${id}.pack to choose`);
   }
+
+  skillChecks(packs, errors, warnings);
 
   const c = { config, packs };
   const gates = new Set(gateNames());
@@ -66,9 +122,6 @@ export function doctor(projectDir, { register } = {}) {
           else if (!MODELS.includes(t.model)) report.push(`stage ${id}: ${t.subagent_type} declares model "${t.model}"; use ${MODELS.join(", ")}`);
         }
         if (!stage.agents?.length) report.push(`stage ${id}: kind "${stage.kind}" lists no agents`);
-        for (const t of stage.fan_out ? resolveAgents(c, { ...stage, agents: [stage.fan_out.agent] }) : []) {
-          if (!t.pack?.agents.includes(t.agent)) report.push(`stage ${id}: fan_out agent "${t.agent}" is missing in ${t.pack?.name ?? "its role pack"}`);
-        }
       }
       for (const ref of stage.inputs ?? []) {
         let parsed;
@@ -122,6 +175,7 @@ export function doctor(projectDir, { register } = {}) {
       if (pathsOverlap(a, b)) warnings.push(`roles ${roles[i].name} and ${other.name} share the folder "${a || "."}"${a !== b ? ` / "${b || "."}"` : ""}: their tasks run one at a time (give each role its own roles.<role>.path to run tracks in parallel)`);
     }
   }
+  projectChecks(projectDir, config, warnings);
   const adapter = config.delivery?.adapter;
   if (adapter && !packs[adapter]?.adapter) warnings.push(`delivery adapter "${adapter}" is not installed (needed at the delivery stage)`);
 
@@ -140,7 +194,22 @@ export function doctor(projectDir, { register } = {}) {
   return { ok: errors.length === 0, errors, warnings, packs: packList };
 }
 
-const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", "features/*/snapshots/", "features/*/acceptance-lock/", "features/*/02b-prototype/before/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
+const ESLINT_FILES = ["eslint.config.js", "eslint.config.mjs", "eslint.config.cjs", "eslint.config.ts", ".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml", ".eslintignore"];
+
+/** Warnings about the project around the factory: `eslint .` must not lint .factory/. */
+export function projectChecks(projectDir, config, warnings) {
+  if (config.quality?.tdd?.pipeline_red !== undefined) warnings.push("quality.tdd.pipeline_red is deprecated and ignored (pipelined red phases are not implemented); remove it from the config");
+  if (config.pipeline?.size_limits?.small?.stories !== undefined) warnings.push("pipeline.size_limits.small.stories is deprecated and ignored; remove it from the config");
+  // A role at the project root runs `eslint .` over everything, including .factory/ (its packs and scratch).
+  const atRoot = enabledRoles(config).some((r) => rolePath(config, r.name) === "");
+  const eslintFiles = ESLINT_FILES.filter((f) => existsSync(join(projectDir, f)));
+  const pkg = readJson(join(projectDir, "package.json"), {}) ?? {};
+  if (!atRoot || !(eslintFiles.length || pkg.eslintConfig || /\beslint\b/.test(pkg.scripts?.lint ?? ""))) return;
+  const text = [...eslintFiles.map((f) => readFileSync(join(projectDir, f), "utf8")), JSON.stringify(pkg.eslintConfig ?? {}), JSON.stringify(pkg.eslintIgnore ?? []), existsSync(join(projectDir, ".gitignore")) ? readFileSync(join(projectDir, ".gitignore"), "utf8") : ""].join("\n");
+  if (!/\.factory/.test(text)) warnings.push("the project's `eslint .` would lint .factory/ (no ignore for it in the eslint config, .eslintignore or .gitignore): add `.factory/**` to the config's ignores, or the task gates and verification fail on factory files");
+}
+
+const GITIGNORE = ["packs/", "envelopes/", ".registry/", ".active/", "logs/", "features/*/snapshots/", "features/*/acceptance-lock/", "features/*/skills-loaded/", "scratch/", ".lock", "gate-cache.json", "*.tmp", ""].join("\n");
 
 export function init(projectDir, { mode = "unknown", name, roles } = {}) {
   const paths = factoryPaths(projectDir);
@@ -156,6 +225,8 @@ export function init(projectDir, { mode = "unknown", name, roles } = {}) {
     writeYaml(paths.config, project);
   }
   writeJson(paths.state, { version: 1, mode, next_ids: {}, features: {}, active_feature: null, initialized_at: now() });
+  const template = join(ENGINE_ROOT, "templates", "requirements.md");
+  if (existsSync(template)) copyFileSync(template, join(paths.root, "requirements.template.md"));
   appendEvent(projectDir, { type: "init", mode });
   const registered = [];
   for (const root of [ENGINE_ROOT, ...(process.env.FACTORY_NO_SCAN ? [] : scanCandidates())]) {
@@ -163,5 +234,11 @@ export function init(projectDir, { mode = "unknown", name, roles } = {}) {
     const isFactoryPack = pack && (pack.name === ENGINE_PACK || Object.keys(pack.stages).length || pack.role || pack.stack || pack.adapter);
     if (isFactoryPack) registered.push(registerPack(projectDir, root, "init").name);
   }
-  return { created: true, root: paths.root, registered, next: "Put requirements in .factory/inbox/ and run /factory:intake" };
+  const config = loadConfig(projectDir);
+  const frontend = config.roles?.frontend;
+  const notes = [];
+  if (frontend?.enabled !== false && !frontend?.boilerplate) {
+    notes.push("roles.frontend.boilerplate is not set: a frontend greenfield skips scaffold until it points at a starter. Set a git URL or a local folder before the first run, or implementation has nothing to typecheck.");
+  }
+  return { created: true, root: paths.root, registered, ...(notes.length ? { notes } : {}), next: "Fill .factory/requirements.template.md, move it to .factory/inbox/, and run /factory:intake" };
 }

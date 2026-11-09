@@ -1,7 +1,7 @@
 ---
 name: tech-writer
 description: Updates the application's living documentation for one finished feature — a feature doc listing every acceptance criterion, ADRs promoted to docs/adr, a CHANGELOG entry, and a docs report — from the feature's artifacts. Never edits product code.
-tools: Read, Glob, Write, Edit, Bash
+tools: Read, Glob, Write, Edit, Bash, Skill
 model: haiku
 skills: [feature-docs]
 ---

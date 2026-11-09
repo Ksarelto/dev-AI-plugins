@@ -9,6 +9,7 @@ config:
     frontend: { enabled: true, path: web, owns_paths: ["web/**"], checks_off: [conventions], stack_overrides: { package_manager: pnpm } }
     backend: { enabled: true, pack: factory-role-backend, stack: node-backend-dev-kit, path: api, owns_paths: ["api/**"] }
   quality: { integration_tests: skip }   # mocked runs: no Docker
+  delivery: { docs: true, pr: true }
   pipeline:
     profile: gt12
     profiles: { gt12: [intake, requirements, stories, planning, implementation, verification-lite, docs, delivery] }
@@ -18,6 +19,7 @@ expect:
   dispatches_max: 18
   gates: [GATE-A, GATE-A, GATE-B, GATE-C]
   parallel: [[TASK-001, TASK-002]]
+  build_dispatches: 2
   verdicts:
     - { stage: intake, verdict: advance }
     - { stage: requirements, verdict: advance }
@@ -26,16 +28,12 @@ expect:
     - { stage: planning, verdict: advance }
     - { stage: implementation, task: TASK-001, verdict: advance }
     - { stage: implementation, task: TASK-002, verdict: advance }
-    - { stage: implementation, task: TASK-001, verdict: advance }
-    - { stage: implementation, task: TASK-002, verdict: advance }
     - { stage: verification-lite, verdict: advance }
     - { stage: docs, verdict: advance }
     - { stage: delivery, verdict: advance }
   notes: { HD-1: mapped }
   models:
-    be-test-author: sonnet
     be-builder: sonnet
-    fe-test-author: sonnet
     fe-builder: sonnet
   ship: { commits: 4, dry_run: true, trailers: ["Factory-Task: TASK-001", "Factory-Task: TASK-002"] }
   files_contain:

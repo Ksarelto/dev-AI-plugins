@@ -1,7 +1,7 @@
-# Architecture rules: reuse, placement, ADRs, prototype evidence
+# Architecture rules: reuse, placement, ADRs
 
 Used by `architecture-design` (solution-architect, S3). Stack-specific layer rules live in each stack
-pack's `architecture-audit` skill and its rules (T1 lists them by name); this file says how to use
+pack's architecture skill (`react-feature`, `architecture-audit` of the backend) and its rules (T1 lists them by name); this file says how to use
 them for a component map, not what they say.
 
 ## Reuse ladder
@@ -20,8 +20,7 @@ Where to look, cheapest first:
 1. the component inventory (`_index/component-inventory.yaml`): `name`, `path`, `layer`, `exports`,
    `used_by` — a module with a high `used_by` is the shared one to extend;
 2. the capability map: which folders hold the area the story touches;
-3. the prototype's screen notes and report, when present (below);
-4. a scoped Grep inside one of those folders for a name or a signature.
+3. a scoped Grep inside one of those folders for a name or a signature.
 
 `reuse_rejected` is a real reason of four words or more, naming the candidate: "shared/ui/input has
 no inline error slot; the field composes it with shared/ui/inline-error". Never "n/a", "none" or
@@ -33,7 +32,7 @@ Forking is the failure this ladder prevents: a copy of an existing component wit
 ## Placement by stack
 
 The component's `layer` is the reference architecture's layer name. Decide it by what the code does,
-then confirm with the stack's `architecture-audit` skill and rules (T1):
+then confirm with the stack's architecture skill and rules (T1):
 
 | Stack | Ask | Layer examples |
 |---|---|---|
@@ -84,7 +83,7 @@ Write one when a later reader would ask "why like this?":
 - where state lives (server cache, URL, local store, graph state) when more than one place works;
 - a data-shape choice (a new field, an enum, a derived value) or a calculation's home;
 - any deviation from the reference architecture — without an ADR it fails review;
-- a choice between two reasonable approaches the prototype or a source made visible;
+- a choice between two reasonable approaches a source made visible;
 - a change to an agreed API contract after GATE-B.
 
 | Part | Content |
@@ -97,21 +96,6 @@ Write one when a later reader would ask "why like this?":
 | Consequences | what becomes easier, what harder, which tests or guarantees cover it |
 
 One decision per ADR. Never edit another feature's ADR: supersede it with a new one.
-
-## Prototype evidence
-
-When T2 lists `02b-prototype/prototype-report.yaml` (and screen notes under
-`02b-prototype/screens/`), the human approved the prototype at GATE-P. Use it as evidence:
-
-- **`screens`** — each screen with the stories it shows. A screen is a `pages`-level component (or
-  its stack's equivalent); the parts it shows repeatedly are candidates for shared components.
-- **`spec_delta`** — what building the prototype taught. Breaking entries went back to requirements
-  already; non-breaking ones (`validated`, `discovered`) shape the design: a discovered need that no
-  AC covers is a note for the human in the body, never a new component without a story.
-- **screen notes** — `acs_shown` tells you which ACs the screen lets a person try; `notes` and
-  `needs_classes` hint at missing shared parts.
-- The prototype is a sandbox: never cite its files as `existing` paths and never copy its markup
-  into the plan. It shows intent, not code to reuse.
 
 ## Bootstrap (A0, greenfield)
 

@@ -42,7 +42,10 @@ test("happy path: requirements → digest → GATE-A → stories → planning �
   s = step(env.dir);
   assert.equal(s.action, "ask_human");
   assert.equal(s.gate, "GATE-A");
-  assert.deepEqual(s.review, [".factory/features/FEAT-001-coupons-at-checkout/01-requirements/delta-spec.yaml"]);
+  assert.deepEqual(s.review, [
+    ".factory/features/FEAT-001-coupons-at-checkout/01-requirements/spec.md",
+    ".factory/features/FEAT-001-coupons-at-checkout/01-requirements/delta-spec.yaml",
+  ]);
   approve(env.dir, {});
 
   s = step(env.dir);
@@ -247,7 +250,7 @@ test("a feature over its dispatch budget halts as blocked", () => {
 });
 
 test("optional stages are skipped unless forced, and a missing stage halts with a doctor hint", () => {
-  const env = setup("pipeline: { stages: { requirements: { when: prototype.trigger } } }");
+  const env = setup("pipeline: { stages: { requirements: { when: never.true } } }");
   conductor.setOverride(env.dir, { stage: "requirements", value: undefined });
   const s = step(env.dir);
   assert.equal(s.dispatches[0].stage, "stories", "requirements skipped: its condition is false");

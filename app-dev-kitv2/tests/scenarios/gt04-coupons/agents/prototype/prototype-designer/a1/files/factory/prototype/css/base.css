@@ -1,4 +1,0 @@
-body { margin: 0; font-family: var(--font-sans), -apple-system, "Segoe UI", sans-serif; color: var(--color-text); background: var(--color-bg); }
-.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
-.sidebar { background: var(--color-surface); padding: var(--space); }
-.main { padding: var(--space); }

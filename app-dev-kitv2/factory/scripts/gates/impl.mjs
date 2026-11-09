@@ -1,14 +1,16 @@
 // gate-impl (S5, green and characterisation phases): the red tests are unchanged since gate-red, the
 // task's own tests ran and every one of them passed (none skipped), the tests touched by the change
-// pass (the whole suite for a role's last task), and typecheck, lint, the architecture check and the
-// build are clean, and the role's own checks (role.yaml gates.checks: an eval run, a migration check, …)
+// pass (the whole suite for a role's last task), and typecheck, lint, the architecture check are
+// clean (quality.impl_build: true adds the build; verification always builds), and the role's own checks (role.yaml gates.checks: an eval run, a migration check, …)
 // pass for this task type. The commands are independent and run side by side.
 import { join, relative } from "node:path";
 import { fileHash, toPosix } from "../lib/core.mjs";
 import { firstLine, freshReport, isAcceptanceTest, readVitestReport } from "../lib/vitest-report.mjs";
 import { coveredCommands, inPool, runStackCommandAsync } from "../lib/stackexec.mjs";
 import { taskTestFiles } from "../lib/tasks.mjs";
-import { lastOfRole, scopeArgs, typecheckForTask } from "../lib/testrun.mjs";
+import { taskAuditFailures } from "../lib/audits.mjs";
+import { baseRefValid, changedSinceBase } from "../lib/baseref.mjs";
+import { lastOfRole, lintScope, otherOpenRedTests, scopeArgs, testScope, typecheckForTask } from "../lib/testrun.mjs";
 
 export const inputs = ["tasks"];
 export const cacheable = "tree"; // a passing run is reused while the working tree is unchanged
@@ -28,18 +30,29 @@ export async function run(ctx) {
     if (fileHash(join(ctx.projectDir, file)) !== hash) failures.push({ check: "acceptance-lock", rule: "acceptance-test-changed", file, message: `${file} changed after gate-acceptance; acceptance tests are the holdout and stay as written` });
   }
   const reportFile = freshReport(join(ctx.paths.logs, `${task.id}-impl-report.json`));
-  const extra = scopeArgs(ctx, stack, { full: lastOfRole(ctx, task) });
+  const last = lastOfRole(ctx, task);
+  const scope = testScope(ctx, stack, { full: last });
+  // Lint only the files this task changed since its base ref (an eslint command naming files); the
+  // role's last task lints everything. A lint script that also runs the architecture check no longer
+  // covers it once lint is replaced by the files-only command.
+  const lintFiles = lintScope(ctx, stack, { full: last });
   const covered = coveredCommands(stack, ctx.config);
-  const steps = ["typecheck", "lint", "architecture_check", "build"].filter((n) => !covered.has(n));
+  if (lintFiles) covered.delete("architecture_check");
+  const steps = ["typecheck", "lint", "architecture_check", "build"].filter((n) => !covered.has(n) && !(n === "lint" && lintFiles && !lintFiles.length));
   const jobs = [
-    () => runStackCommandAsync(stack, "test", { vars: { report: reportFile, files: [], extra }, logName: `${task.id}-impl-test` }),
-    ...steps.map((name) => () => (name === "typecheck" ? typecheckForTask(stack, `${task.id}-impl-typecheck`) : runStackCommandAsync(stack, name, { logName: `${task.id}-impl-${name}` }))),
+    () => runStackCommandAsync(stack, scope.command, { vars: { report: reportFile, files: scope.files, extra: scope.extra }, logName: `${task.id}-impl-test` }),
+    ...steps.map((name) => () => {
+      if (name === "typecheck") return typecheckForTask(stack, `${task.id}-impl-typecheck`, { incremental: ctx.config.quality?.tsc_incremental !== false });
+      if (name === "lint" && lintFiles) return runStackCommandAsync(stack, "lint_files", { vars: { files: lintFiles }, logName: `${task.id}-impl-lint` });
+      return runStackCommandAsync(stack, name, { logName: `${task.id}-impl-${name}` });
+    }),
     ...roleCheckJobs(ctx),
   ];
   const [run, ...rest] = await inPool(jobs, ctx.config.quality?.gate_concurrency ?? 4);
   const report = readVitestReport(reportFile, ctx.projectDir);
   if (!report) failures.push({ check: "test", rule: "no-report", message: `the test command wrote no JSON report (exit ${run.code}):\n${run.tail}` });
-  for (const f of (report?.files ?? []).filter((x) => !isAcceptanceTest(x.file))) {
+  const others = otherOpenRedTests(ctx); // another open task's red tests fail by design until that task is built
+  for (const f of (report?.files ?? []).filter((x) => !isAcceptanceTest(x.file) && !others.has(x.file))) {
     if (!f.collected) failures.push({ check: "test", rule: "does-not-load", file: f.file, message: firstLine(f.error) });
     for (const t of f.tests.filter((x) => x.status === "failed")) failures.push({ check: "test", rule: "failing", file: f.file, message: `"${t.name}": ${firstLine(t.message)}` });
   }
@@ -57,6 +70,10 @@ export async function run(ctx) {
     if (!r.ok && !r.skipped) failures.push({ check: name, rule: `${name}-failed`, message: r.tail || `${name} exited with ${r.code}` });
   });
   for (const checkFailures of rest.slice(steps.length)) failures.push(...checkFailures);
+  // Early quality: the role's static audits marked per_task (raw colours, untranslated text) on this task's files.
+  const base = ctx.state?.tasks?.[task.id]?.base_ref;
+  const changed = base && baseRefValid(ctx.projectDir, base) ? changedSinceBase(ctx.projectDir, base) ?? [] : [];
+  failures.push(...taskAuditFailures(ctx, [...new Set([...task.files_expected, ...changed])]));
   return failures;
 }
 

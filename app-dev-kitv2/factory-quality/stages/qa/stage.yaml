@@ -4,7 +4,7 @@ kind: agents
 agents: [qa-engineer]
 context_role: review_roles
 read_deny: ["src/**/!(*.acceptance.test.*)"]
-inputs: [stories, ux-notes?, "prd|delta-spec", change-set?, prototype-screens?, human-notes?]   # the app prototype is the expected-flow reference
+inputs: [stories, ux-notes?, "prd|delta-spec", change-set?, human-notes?]
 outputs: [defects, qa-report]
 gate: qa
 on_fail: fix:implementation

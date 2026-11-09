@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "factory/acceptance-waiver",
+  "title": "acceptance-waiver.yaml \u2014 acceptance tests a human accepted as failing (written only by `factory acceptance waive`)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "entries"
+  ],
+  "properties": {
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "test",
+          "reason",
+          "approved_by",
+          "approved_at"
+        ],
+        "properties": {
+          "test": {
+            "type": "string",
+            "minLength": 3,
+            "description": "an acceptance test file (path) or one test (path::test name)"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 3
+          },
+          "approved_by": {
+            "type": "string"
+          },
+          "approved_at": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

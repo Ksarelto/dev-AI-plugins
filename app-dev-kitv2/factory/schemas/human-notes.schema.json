@@ -49,6 +49,12 @@
       },
       "reason": {
         "type": "string"
+      },
+      "kind": {
+        "enum": [
+          "product",
+          "process"
+        ]
       }
     }
   }

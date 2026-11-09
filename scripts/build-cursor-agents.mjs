@@ -1,15 +1,45 @@
 // Writes <kit>/cursor-agents/*.md from <kit>/agents/*.md with Cursor model ids from
-// scripts/model-tiers.json. Claude Code keeps reading agents/; Cursor manifests point at cursor-agents/.
-//   node scripts/build-cursor-agents.mjs          regenerate
-//   node scripts/build-cursor-agents.mjs --check  exit 1 when cursor-agents/ is out of date
+// scripts/model-tiers.json. Claude Code keeps reading agents/. Cursor manifests point at
+// cursor-agents/, which install-cursor-local.mjs writes into the local plugin mirror, not this repo.
+//   node scripts/build-cursor-agents.mjs --out <mirror>          regenerate there
+//   node scripts/build-cursor-agents.mjs --out <mirror> --check  exit 1 when that copy is stale
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const check = process.argv.includes("--check");
+const outFlag = process.argv.indexOf("--out");
+const outRoot = outFlag === -1 ? "" : process.argv[outFlag + 1];
+if (!outRoot) {
+  console.error("FAIL: pass --out <dir>. This script does not write cursor-agents/ into the repo.");
+  process.exit(1);
+}
 const { cursor, kits } = JSON.parse(readFileSync(join(root, "scripts", "model-tiers.json"), "utf8"));
-const READ_ONLY_TOOLS = new Set(["Read", "Grep", "Glob"]);
+const READ_ONLY_TOOLS = new Set(["Read", "Grep", "Glob", "Skill"]);
+
+/** Claude tool names the Cursor agent file must not list. agents/ stays on the Claude names. */
+function cursorTool(name) {
+  if (name === "Skill") return null;
+  if (name === "Edit" || name === "MultiEdit") return "StrReplace";
+  if (name === "Bash") return "Shell";
+  const parts = name.split("__");
+  if (parts[0] === "mcp" && parts.length >= 3) return parts.slice(2).join("__");
+  return name;
+}
+
+function cursorToolsLine(raw) {
+  const bracket = raw.startsWith("[");
+  const names = raw.replace(/^\[|\]$/g, "").split(",").map((t) => t.trim()).filter(Boolean);
+  const mapped = [...new Set(names.map(cursorTool).filter(Boolean))];
+  return bracket ? `[${mapped.join(", ")}]` : mapped.join(", ");
+}
+
+const CURSOR_TOOLS_NOTE = `
+## Cursor tools
+
+\`StrReplace\` edits a file and \`Shell\` runs a command. MCP calls use the bare tool name (\`search_items_in_registries\`, \`view_items_in_registries\`, \`get_item_examples_from_registries\`, \`get_add_command_for_items\`, \`resolve-library-id\`, \`query-docs\`). A \`mcp__…\` name in the procedure is the Claude name for that same call.
+`;
 
 function transform(source, file) {
   const lines = source.split("\n");
@@ -39,15 +69,21 @@ function transform(source, file) {
       if (readonly) out.push("readonly: true");
       continue;
     }
+    if (line.startsWith("tools:")) {
+      out.push(`tools: ${cursorToolsLine(line.slice("tools:".length).trim())}`);
+      continue;
+    }
     out.push(line);
   }
-  return [...out, ...lines.slice(end)].join("\n");
+  const body = lines.slice(end).join("\n");
+  const note = /\b(Edit|Bash|Skill|mcp__)/.test(source) ? CURSOR_TOOLS_NOTE : "";
+  return `${[...out, body].join("\n").replace(/\n+$/, "\n")}${note}`;
 }
 
 let stale = 0;
 for (const kit of kits) {
   const src = join(root, kit, "agents");
-  const dest = join(root, kit, "cursor-agents");
+  const dest = join(outRoot, kit, "cursor-agents");
   const files = readdirSync(src).filter((f) => f.endsWith(".md"));
   if (!check) mkdirSync(dest, { recursive: true });
 
@@ -77,7 +113,7 @@ for (const kit of kits) {
 }
 
 if (stale) {
-  console.error(`FAIL: ${stale} Cursor agent file(s) out of date. Run: npm run build:cursor-agents`);
+  console.error(`FAIL: ${stale} Cursor agent file(s) out of date under ${outRoot}.`);
   process.exit(1);
 }
 console.log(check ? "OK: cursor-agents/ up to date" : "Done.");

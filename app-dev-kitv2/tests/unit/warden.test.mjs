@@ -44,9 +44,9 @@ test("attempts exhausted forces diagnosis", () => {
   assert.equal(decide({ attempts: 3, rung: 1, progress_signal: [9], fingerprints: ["a"] }, fail(1, "b"), { attemptsMax: 3 }).rung, 3);
 });
 
-test("a task failing after diagnosis is split; a stage is blocked", () => {
+test("a task failing after diagnosis is amended in place (not split); a stage is blocked", () => {
   const unit = { attempts: 4, rung: 3, progress_signal: [3, 2, 1], fingerprints: ["a", "b", "c"] };
-  assert.equal(decide(unit, fail(1, "d"), { isTask: true }).verdict, "split");
+  assert.equal(decide(unit, fail(1, "d"), { isTask: true }).verdict, "amend");
   assert.equal(decide(unit, fail(1, "d"), { isTask: false }).verdict, "block");
 });
 

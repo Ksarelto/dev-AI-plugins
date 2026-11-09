@@ -19,6 +19,10 @@ Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 3. Report in a short table: files added (and how many source IDs each got), the feature, the detected
    mode and its reason. If the mode looks wrong: `/factory:abort` the new feature, then
    `/factory:intake --new --mode <mode>` (the normalised sources are kept).
+   A mockup the brief points at (a folder with an HTML entry or an .html file outside the project, or a URL)
+   is only *proposed*: the first `/factory:run` asks once whether it is binding. To name one yourself (confirmed
+   at once, for the active feature or `--feature FEAT-NNN`): `F reference add <folder|.html|URL>`; `F reference list`
+   shows every reference with its status.
 4. Next step: `/factory:run`. The intake stage runs first: it describes non-text files, checks that
    users, goals, scope, data, rules, NFRs and acceptance are covered, and asks the human about any
    blocker gap before requirements are written.

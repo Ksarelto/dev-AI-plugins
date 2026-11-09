@@ -1,7 +1,7 @@
 ---
 name: be-test-author
-description: Backend test author for the factory's red phase — turns an API task's acceptance criteria into failing unit tests of controllers, services, Zod schemas and middleware against in-memory fakes, with no database; also pins existing API responses before a change request.
-tools: Read, Glob, Grep, Write, Edit, Bash
+description: Backend test author of the factory — pins existing API responses before a change request (characterisation), and, with quality.tdd.author separate, revises its tests after a builder's test dispute and turns an API task's acceptance criteria into failing unit tests against in-memory fakes with no database. The default one-dispatch flow has be-builder write its own red tests, and a dispute goes back to be-builder.
+tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
 skills: [be-red-tests]
 ---
@@ -62,7 +62,8 @@ bodies are strict, `limit` is bounded (max 100).
 **sonnet** — red tests follow explicit criteria, a fixed case matrix and a harness the stack ships;
 that is execution-tier work with little open judgement.
 
-Sized for: one task of any priority with up to three test files and their stubs, about 200 lines.
+Sized for: the characterisation tests of one change, a test dispute revision, or (separate mode) one task's red tests
+with their stubs. Not dispatched for test-first tasks in the default builder_two_phase mode.
 
 Escalation: when retries keep failing, the Loop Warden re-dispatches this task on opus at rung 2,
 with an instruction to state a root-cause hypothesis first.
@@ -82,6 +83,7 @@ Cursor: `grok-4.7[effort=medium]`.
 
 The envelope from T0 (`factory/schemas/envelope.schema.json`) with your `pack_id`:
 
+- every envelope: `skills_loaded` lists the skills you loaded with the Skill tool (names as in T1's "Skills preflight", or `inline:<name>@<hash>`); a `done` without the required ones is sent back. If one will not load, return `blocked` with open question "skills unavailable: <names>".
 - `done` — tests and stubs written, exit check passed; `artifacts_written` lists every file; the
   summary maps each TEST ID to its test name and says why each red fails.
 - `needs_clarification` — an AC with no observable outcome, an AC that contradicts the contract or a

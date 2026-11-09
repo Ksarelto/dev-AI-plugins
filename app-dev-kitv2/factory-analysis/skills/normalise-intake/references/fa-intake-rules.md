@@ -59,6 +59,18 @@ under:
 | Open questions, TBD | open questions with defaults |
 | Background, Context, Problem | context, set aside with a reason |
 | Copy, Tone, Messages | exact wording for ACs |
+| Users | actors; an empty heading is a blocker gap |
+| Goals | why it is wanted; an empty heading is a blocker gap |
+| Scope, In | what is included |
+| Out | `out_of_scope`, never a requirement |
+| Data | business objects and fields |
+| Rules | limits, permissions, lifecycles; numbers and quoted messages stay verbatim |
+| Non-functional | the `nfr` topic |
+| Acceptance | examples and test cases |
+| Design | not a coverage topic. `authority: none` means no prototype; `authority: prototype` names one |
+| Open questions | open questions with defaults |
+
+A blockquote under a heading, and a line that is only `authority: …`, is a hint. It is not a requirement and has no SRC id. An empty Users or Goals heading (hints only) is a `blocker_gap`.
 
 When a screenshot or PDF has no headings, add none: do not invent structure.
 

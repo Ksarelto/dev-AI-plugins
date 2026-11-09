@@ -78,7 +78,7 @@ export function run(ctx) {
     }
   }
   for (const n of ctx.load("human-notes")?.data ?? []) {
-    if (n.status === "open") failures.push({ check: "notes", rule: "open-note", message: `${n.id} ("${n.text.slice(0, 50)}") is still open` });
+    if (n.status === "open" && n.kind !== "process") failures.push({ check: "notes", rule: "open-note", message: `${n.id} ("${n.text.slice(0, 50)}") is still open` });
   }
   return failures;
 }

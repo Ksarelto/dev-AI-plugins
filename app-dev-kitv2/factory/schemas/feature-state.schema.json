@@ -41,6 +41,7 @@
     "tier": {
       "enum": [
         "patch",
+        "small",
         "standard",
         "full"
       ]
@@ -162,11 +163,15 @@
               "red",
               "green",
               "char",
+              "build",
               "split",
+              "amend",
               "stage",
               "digest",
               "diagnose",
               "fixplan",
+              "relock",
+              "early_review",
               "screen"
             ]
           },
@@ -178,7 +183,7 @@
           },
           "screen": {
             "type": "string",
-            "description": "the fan-out item (prototype screen id) this dispatch builds"
+            "description": "optional dispatch item id"
           }
         }
       }
@@ -289,6 +294,13 @@
               "string",
               "null"
             ]
+          },
+          "base_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "commit object holding the working tree when the task's first dispatch began; task gates test and lint only what changed since"
           }
         }
       }
@@ -331,7 +343,7 @@
       "additionalProperties": {
         "type": "boolean"
       },
-      "description": "facts that `when:` conditions read, e.g. prototype.trigger"
+      "description": "facts that `when:` conditions read"
     },
     "overrides": {
       "type": "object",
@@ -341,7 +353,7 @@
           "skip"
         ]
       },
-      "description": "human stage overrides from /factory:proto"
+      "description": "human stage overrides (force or skip)"
     }
   }
 }

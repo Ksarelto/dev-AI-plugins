@@ -45,9 +45,17 @@ Weights sum to 100. The order is also the order the engine asks gap questions in
 - Every evidence ID must be a REQ, AC, NFR or OQ the spec defines; an unknown one fails the gate
   (`unknown-evidence`).
 - Every `partial` or `none` category needs a `question`; one without fails the gate (`no-question`).
-- Below `quality.completeness_min` (default 85) and with no other failure, the engine pauses once at
-  `CLARIFY` and shows `<category> (<credit>): <question> — recommended: <recommended>` for each gap.
-  After that round the score no longer blocks; the rest travels to GATE-A.
+- Below `quality.completeness_min` (default 85) the score does not insert a question round. The gaps
+  are shown on `spec.md` at GATE-A as `<category> (<credit>): <question>`. A low score alone does not
+  block the gate.
+
+## Source conflicts
+
+`completeness.yaml` may carry `conflicts: [{ topic, claims: [{ source, claim }, …], default_winner, status,
+resolution? }]` — the contradictions found by diffing every source of the feature (analysis step 7). An
+`open` one fails gate-spec (`unresolved-conflict`) and the engine asks the human exactly one question that
+lists all of them with the default winner (the user's own brief). Write them as `open`; after the answer set
+`resolved` with a `resolution`. A conflict still open after that one round goes to GATE-A as a warning.
 
 Worked example (the template): full 15 + partial 7 + full 12 + full 8 + none 0 + full 7 = 49 awarded of
 65 applicable (non_functional, notifications, data_lifecycle and observability are n/a) → **75**. Below

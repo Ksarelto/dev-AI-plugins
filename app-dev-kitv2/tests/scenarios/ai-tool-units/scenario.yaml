@@ -8,6 +8,7 @@ config:
     frontend: { enabled: false }
     ai-agent: { enabled: true, pack: factory-role-ai-agent, stack: node-agent-dev-kit, path: ".", owns_paths: ["src/**", "tests/**", "evals/**"] }
   quality: { allow_skipped_checks: true, integration_tests: skip }   # mocked runs: no model key, no Docker
+  delivery: { pr: true }
   pipeline:
     profile: ai
     profiles: { ai: [intake, requirements-lite, implementation, verification-lite, delivery, feedback] }
@@ -15,17 +16,16 @@ expect:
   final_action: done
   final_status: done
   dispatches_max: 10
-  gates: [GATE-C]
+  build_dispatches: 1
+  gates: [GATE-A, GATE-C]
   verdicts:
     - { stage: intake, verdict: advance }
     - { stage: requirements-lite, verdict: advance }
-    - { stage: implementation, task: TASK-001, verdict: advance }
-    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }   # one build dispatch: red tests, gate red, implementation
     - { stage: implementation, task: TASK-002, verdict: advance }
     - { stage: verification-lite, verdict: advance }
     - { stage: delivery, verdict: advance }
   models:
-    ai-test-author: sonnet
     ai-builder: sonnet
     eval-author: sonnet
     reviewer: opus

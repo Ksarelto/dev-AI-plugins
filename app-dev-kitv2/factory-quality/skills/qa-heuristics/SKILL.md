@@ -30,9 +30,8 @@ the human notes and the running build. You record — you never fix and never cr
    `02-stories/ux-notes.md`, the spec (ACs with `kind`, NFRs — especially accessibility and
    performance), `06-verify/change-set.yaml` (which routes, pages and endpoints changed, by file
    name), `human-notes.yaml`. T0: the next free `DEF-nnn` IDs and the exit check.
-2. **Read the expected flow.** If `.factory/prototype/screens.yaml` exists, open the screens for this
-   feature's stories — see [fq-browser-qa.md](references/fq-browser-qa.md#the-living-app-prototype--expected-flow-not-the-truth).
-   The spec wins over the prototype, always.
+2. **Read the expected flow** from the stories, the UX notes and, when T0 lists one, the customer
+   mockup. The spec wins over the mockup.
 3. **Plan charters per story.** For each story (must-priority stories first), write one charter:
    "Explore <surface> with <heuristic(s)> to discover <risk>". Pick heuristics that fit the story's
    shape from [fq-heuristics.md](references/fq-heuristics.md#choosing-heuristics-for-a-charter);

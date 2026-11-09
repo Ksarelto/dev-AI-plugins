@@ -6,7 +6,7 @@ user-invocable: false
 
 # Implement one AI-agent task (green phase)
 
-Runs on: ai-builder (sonnet) — one green-phase task of a LangGraph.js agent (graph, state, node, tool, prompt, model, memory, streaming, guardrail, fix, refactor) within the task's file budget.
+Runs on: ai-builder (sonnet) — the GREEN half of one task of a LangGraph.js agent (in phase `build` first write and prove the red tests with `ai-red-tests` and `gate red`) (graph, state, node, tool, prompt, model, memory, streaming, guardrail, fix, refactor) within the task's file budget.
 
 Order, done criteria, the eval check and the must-fix list:
 [ai-build-order.md](references/ai-build-order.md). The red tests are read-only.
@@ -16,13 +16,13 @@ Order, done criteria, the eval check and the must-fix list:
 1. T0: task, type, "Satisfies", "Definition of done", red tests, files you may write, exit check.
    T3 on a retry: rung 1 fixes only what it lists; rung 2 starts with a one-sentence root-cause
    hypothesis; rung 3 applies the diagnosis file listed in T1.
-2. T1: load every stack skill with the Skill tool, read every `[READ]` rule, open the golden file.
+2. T1: load every stack skill with the Skill tool (first, per the pack's Skills preflight; report them as `skills_loaded` in the envelope), read every `[READ]` rule, open the golden file.
 3. `03-architecture/agent-design.md`: the rows for your node, tool, state field, approval, model role
    and failure behaviour. The design is binding; a conflict with a red test is a dispute, a conflict
    with the code is a question.
 4. Read the red tests; list per test the reply, citations, flags, spies and `model.calls` it expects.
 5. Read the code you extend: `src/agents/<name>/`, the service, `src/container.ts`, `src/llm/`.
-6. Lay the build order of your task type over T0's files. A needed file missing → `needs_scope_change`.
+6. Lay the build order of your task type over T0's files. A needed file missing → `needs_scope_change`, with its path in the envelope's `scope_files`.
 
 ## 2. Build rules
 
@@ -60,7 +60,7 @@ graph has it; otherwise that is step 6 and must be in T0's files.
 2. Walk the done criteria and the must-fix list in the reference; search only your own files.
 3. Run the exit check (`gate impl`) once the tests are green. It checks: red tests unchanged since
    `gate red`; the touched tests pass (the whole suite on the role's last task) and the task's tests
-   ran unskipped; typecheck, lint (ESLint + dependency-cruiser), build; and for model-facing task types
+   ran unskipped; typecheck, lint (ESLint + dependency-cruiser) (no production build per task: verification builds); and for model-facing task types
    the eval run — **real models, real cost** — with a passing eval test per planned AC.
 4. Eval skipped for lack of `OPENROUTER_API_KEY` → the gate reports `eval-skipped` and blocks: return
    `blocked` naming the key (or `quality.allow_skipped_checks`) — a retry cannot fix it; never weaken a
@@ -70,7 +70,7 @@ graph has it; otherwise that is step 6 and must be in T0's files.
 
 - A red test that contradicts its AC, `agent-design.md` or a stack rule (it mocks `@langchain/*`,
   expects the model to decide authorization, needs a real key) → status `done` with
-  `"test_dispute": { "test": "<file>", "reason": "…" }`. Never edit it.
+  `"test_dispute": { "test": "<file>", "reason": "…" }` (name the contract line). Never edit it, and never bend production code, add a shim, adapter or test-only hook to fit a fixture.
 - A failing eval case you believe is wrong → `needs_clarification` naming the case and the reason.
 - A new dependency, model provider or vector store → `needs_clarification` (human-owned).
 
@@ -80,4 +80,4 @@ graph has it; otherwise that is step 6 and must be in T0's files.
 - [ ] Guard first, cap and `recursionLimit` set, writes behind `interrupt()`, identity from config
 - [ ] Untrusted text wrapped, prompts constant, citations through `selectCitations`
 - [ ] No client built outside `src/llm/`, no env read in `agents/`, no provider error swallowed
-- [ ] typecheck, lint, build clean; eval check passed or its skip reported; only T0's files changed
+- [ ] typecheck, lint clean; eval check passed or its skip reported; only T0's files changed

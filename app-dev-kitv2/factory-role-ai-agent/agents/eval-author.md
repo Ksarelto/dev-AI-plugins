@@ -1,7 +1,7 @@
 ---
 name: eval-author
 description: Builder for eval tasks in the AI-agent factory role — writes golden datasets and the eval suite (cases, scorers, pass-rate thresholds) that prove the feature's acceptance criteria against real models, so the role's eval gate can judge model-facing changes.
-tools: Read, Glob, Grep, Write, Edit, Bash
+tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
 skills: [eval-authoring]
 ---
@@ -78,6 +78,7 @@ Cursor: `grok-4.7[effort=medium]`.
 
 The envelope (`factory/schemas/envelope.schema.json`) with the `pack_id` from T0:
 
+- every envelope: `skills_loaded` lists the skills you loaded with the Skill tool (names as in T1's "Skills preflight", or `inline:<name>@<hash>`); a `done` without the required ones is sent back. If one will not load, return `blocked` with open question "skills unavailable: <names>".
 - `done` — cases and suite written, exit check passed; the summary gives the case count, per-AC case
   ids, the pass rate and each metric value.
 - `needs_clarification` — the agent fails cases that are correct (name the ids, the answers and why

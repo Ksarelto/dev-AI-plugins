@@ -8,7 +8,6 @@ import { ENGINE, TESTS, YAML, conductor, envelope, loopSetup, makeFeature, makeP
 
 const { buildArgv, nodeBinFor } = await import(`${ENGINE}/scripts/lib/stackexec.mjs`);
 const { goodRedFailure } = await import(`${ENGINE}/scripts/lib/vitest-report.mjs`);
-const ROOT = join(TESTS, "..", "..");
 const featureState = (dir) => JSON.parse(readFileSync(join(dir, "state.json"), "utf8"));
 
 test("buildArgv: npm needs -- before script args; pnpm and yarn do not; exec and placeholders", () => {
@@ -143,19 +142,6 @@ test("tasks of a disabled role are parked; the stage ends when only parked tasks
   const r = conductor.step(env.dir);
   assert.equal(r.action, "done");
   assert.deepEqual(Object.values(featureState(env.featureDir).tasks).map((u) => u.status), ["parked", "parked", "parked"]);
-});
-
-test("prototype: triggered by a UI surface, skipped when no enabled role has a prototyper", () => {
-  const dir = makeProject(`packs: { factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}", factory-role-frontend: "${join(ROOT, "app-dev-kitv2", "factory-role-frontend")}" }\nroles: { frontend: { enabled: true, pack: factory-role-frontend } }\npipeline: { profiles: { test: [prototype, requirements] } }`);
-  const featureDir = makeFeature(dir, { stages: ["prototype", "requirements"] });
-  putArtifact(featureDir, "stories.yaml", "02-stories/stories.yaml");
-  assert.equal(conductor.step(dir).dispatches[0].agent, "prototype-designer", "a story with a UX surface updates the prototype");
-  const dir2 = makeProject(`packs: { factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}" }\nroles: { frontend: { enabled: false } }\npipeline: { profiles: { test: [prototype, requirements] } }`);
-  const f2 = makeFeature(dir2, { stages: ["prototype", "requirements"] });
-  putArtifact(f2, "stories.yaml", "02-stories/stories.yaml");
-  conductor.setOverride(dir2, { stage: "prototype", value: "force" });
-  assert.equal(conductor.step(dir2).dispatches[0].stage, "requirements", "forced, but no role provides a prototyper");
-  assert.equal(featureState(f2).stages.prototype.status, "skipped");
 });
 
 test("Cartographer indexes FSD slices with exports and usage", async () => {

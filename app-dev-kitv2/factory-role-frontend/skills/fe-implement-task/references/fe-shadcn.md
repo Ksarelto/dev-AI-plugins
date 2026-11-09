@@ -17,6 +17,8 @@ second dialog, button or drawer. If it is missing:
 
 ## 2. The MCP sequence
 
+On Cursor the call is the bare tool name (`search_items_in_registries`, and the same for the three calls below). `mcp__shadcn__…` is the Claude name for that call.
+
 1. `mcp__shadcn__search_items_in_registries` — query the control by what it does
    (`"combobox"`, `"date picker"`). Pick the registry item, not a look-alike.
 2. `mcp__shadcn__view_items_in_registries` — read the item: its files, `dependencies` and

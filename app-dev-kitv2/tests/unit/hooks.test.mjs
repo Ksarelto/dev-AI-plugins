@@ -202,7 +202,7 @@ test("cursor: leftover markers and the human's other chats never restrict the hu
   assert.equal(write("conv-3"), "allow", "a half-written marker is skipped");
 });
 
-test("cursor: Grep honours read_deny on a known path, and lets a pathless search through", () => {
+test("cursor: Grep honours read_deny on a known path, and a pathless search from a dispatch is denied", () => {
   const { dir, agent, file } = active();
   const activeFile = join(dir, ".factory", ".active", "FEAT-001.requirements.spec-writer.a1.json");
   const act = JSON.parse(spawnSync("cat", [activeFile], { encoding: "utf8" }).stdout);
@@ -211,7 +211,37 @@ test("cursor: Grep honours read_deny on a known path, and lets a pathless search
   const grep = (input) => cursor(dir, "pre-grep", { conversation_id: SUB, tool_name: "Grep", tool_input: input }).permission;
   assert.equal(grep({ pattern: "x", path: file("src/a.acceptance.test.ts") }), "deny");
   assert.equal(grep({ pattern: "x", path: file("docs") }), "allow");
-  assert.equal(grep({ pattern: "x" }), "allow");
+  assert.equal(grep({ pattern: "x" }), "deny");
+});
+
+test("cursor: StrReplace is the write hook, a skill-file Read counts as loaded, and a scratch envelope is saved", () => {
+  const { dir, agent, d, file } = active();
+  const activeFile = join(dir, ".factory", ".active", "FEAT-001.requirements.spec-writer.a1.json");
+  const act = JSON.parse(spawnSync("cat", [activeFile], { encoding: "utf8" }).stdout);
+  const skill = join(dir, "skills", "testing", "SKILL.md");
+  mkdirSync(join(dir, "skills", "testing"), { recursive: true });
+  writeFileSync(skill, "# testing\n");
+  writeFileSync(activeFile, JSON.stringify({ ...act, skills_required: ["frontend-dev-kit:testing"], skill_files: [{ name: "frontend-dev-kit:testing", path: skill, hash: "abc" }] }));
+  cursor(dir, "subagent-start", { subagent_id: SUB, subagent_type: agent, parent_conversation_id: MAIN });
+  const write = (tool_input) => cursor(dir, "pre-write", { conversation_id: SUB, tool_input }).permission;
+  assert.equal(write({ path: file("src/app.ts") }), "deny", "StrReplace outside the allowlist");
+  assert.equal(write({ path: file(".factory/features/FEAT-001-coupons-at-checkout/01-requirements/delta-spec.yaml") }), "deny", "skills not read yet");
+  assert.equal(cursor(dir, "pre-read", { conversation_id: SUB, file_path: skill }).permission, "allow");
+  assert.equal(write({ path: file(".factory/features/FEAT-001-coupons-at-checkout/01-requirements/delta-spec.yaml") }), "allow", "the Read logged the skill");
+  const scratch = join(dir, ".factory", "scratch");
+  mkdirSync(scratch, { recursive: true });
+  writeFileSync(join(scratch, `${d.id.replaceAll("/", ".")}.json`), JSON.stringify({ pack_id: d.id, status: "done", artifacts_written: [], summary: "from scratch" }));
+  assert.deepEqual(cursor(dir, "subagent-stop", { subagent_type: agent, status: "completed", summary: "all done", conversation_id: SUB }), {});
+  const saved = JSON.parse(spawnSync("cat", [join(dir, ".factory", ".active", `${d.id.replaceAll("/", ".")}.envelope.json`)], { encoding: "utf8" }).stdout);
+  assert.equal(saved.summary, "from scratch");
+});
+
+test("cursor: a pathless Glob from a dispatch is denied", () => {
+  const { dir, agent } = active();
+  cursor(dir, "subagent-start", { subagent_id: SUB, subagent_type: agent, parent_conversation_id: MAIN });
+  const glob = cursor(dir, "pre-read", { conversation_id: SUB, tool_input: { glob_pattern: "**/*.ts" } });
+  assert.equal(glob.permission, "deny");
+  assert.match(glob.agent_message, /unscoped Glob/);
 });
 
 test("claude: the read budget still applies when the same agent runs for two features", () => {
@@ -271,7 +301,7 @@ test("browser MCP navigation by a dispatched agent stays on loopback", async () 
   const nav = (url, agent_type = "qa-engineer") => decideNavigate({ agent_type, tool_input: { url } }, actives);
   assert.equal(nav("http://localhost:5173/checkout"), null);
   assert.equal(nav("http://127.0.0.1:4173/"), null);
-  assert.equal(nav("file:///tmp/x/.factory/prototype/index.html"), null);
+  assert.equal(nav("file:///tmp/x/index.html"), null);
   assert.match(nav("https://example.com/"), /outside this machine/);
   assert.equal(nav("https://example.com/", null), null, "the main session is not restricted");
 });

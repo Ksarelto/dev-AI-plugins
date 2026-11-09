@@ -14,7 +14,7 @@ material by path — do not restate it in findings, cite it:
 | i18n | `frontend-dev-kit/skills/code-review/references/i18n.md`, `rules/i18n.mdc` |
 | Data fetching (react-query, schemas, fetchers) | `frontend-dev-kit/skills/code-review/references/data-fetching.md`, `rules/api-contract.mdc` |
 | Tests (mocking, assertions) | `frontend-dev-kit/skills/code-review/references/testing.md`, `rules/testing.mdc` |
-| FSD layers and public APIs | skill `frontend-dev-kit:architecture-audit` (its references, by topic) |
+| FSD layers and public APIs | skill `frontend-dev-kit:react-feature` (its references, by topic) |
 
 The stack skill `code-review` has its own procedure (buckets, sub-agents, a Markdown report). Use it
 as knowledge only: you have no Bash and no sub-agents, and your output is the envelope's `findings`.
@@ -44,10 +44,9 @@ Adapted from the v1 code reviewer's CRITICAL/IMPORTANT list and its Definition o
 `spec-adr-drift`
 - Every AC maps to code a user reaches from the route the stories name (the page renders the
   feature, the route is mounted, the nav entry exists when the story needs one). Unreachable → P1.
-- Prototype parity, when the feature had a prototype (`02b-prototype/` notes or
-  `.factory/prototype/pages/<surface>.html`): copy, controls, field labels, types, required rules
-  and every listed state exist in the React target. A missing state or control → P1; differing copy
-  without a spec reason → P2. The prototype is evidence of intent; the spec wins on conflicts.
+- Copy, controls, field labels, types, required rules and every state the stories and UX notes
+  name exist in the React target. A missing state or control → P1; differing copy without a spec
+  reason → P2. The spec wins on conflicts with a customer mockup.
 - Four data states for every feature or entity UI that fetches: loading (Skeleton/Spinner from
   `shared/ui`), empty, error (a translated message, never `error.message`), success. A missing error
   or empty state → P1 when an AC of kind error/edge covers it, else P2.

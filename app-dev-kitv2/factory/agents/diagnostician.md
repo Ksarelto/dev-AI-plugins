@@ -1,7 +1,7 @@
 ---
 name: diagnostician
 description: Read-only root-cause analysis for a factory stage or task that keeps failing its gate (escalation rung 3). Writes one diagnosis file with the root cause, evidence, the recommended fix and the approaches already tried; never fixes anything itself.
-tools: Read, Grep, Glob, Bash, Write
+tools: Read, Grep, Glob, Bash, Write, Skill
 model: opus
 skills: [failure-analysis]
 ---
@@ -24,4 +24,4 @@ End your reply with the JSON envelope from the pack; put the one-sentence root c
 **opus** — it runs only after repeated failures (Loop Warden rung 3), where the cheap explanations are
 used up and the cause hides in the interaction of spec, plan, code and gate. Sized for: one stage or one
 task of any priority that failed its gate with the same or oscillating fingerprints. Escalation: none —
-it is the top rung before a split (rung 4) or a human. Cursor: `grok-4.7[effort=high]`.
+it is the top rung before an amendment of the task (rung 4) or a human. Cursor: `grok-4.7[effort=high]`.

@@ -8,8 +8,10 @@ node_version: ">=22.12"
 commands:
   typecheck: { script: typecheck }
   lint: { script: lint }
+  lint_files: { exec: eslint, args: [--no-warn-ignored, "{files}"] }   # task gates lint only the files the task changed; verification runs `lint`
   architecture_check: { exec: depcruise, args: [src, --config, .dependency-cruiser.cjs] }
   test: { script: "test:unit", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  test_related: { exec: vitest, args: [related, "{files}", --run, --reporter=json, "--outputFile={report}"] }   # a task gate runs only the tests related to the files the task changed since its base ref (--changed would still cover every uncommitted change); the engine adds the flags (--config, --project) of the `test` package script
   test_integration: { script: "test:integration" }
   build: { script: build }
 test_report: vitest-json

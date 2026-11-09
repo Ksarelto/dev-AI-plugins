@@ -1,10 +1,12 @@
 // gate-intake (S0): every requirement-bearing paragraph has a source ID, the engine-tagged text is
 // unchanged, and the coverage checklist is honest: "covered" cites sources, a gap says why, and the
 // essentials (intake.essential_topics) cannot be waved through — no source there is a blocker gap,
-// which sends the run to the guided interview.
+// which sends the run to the guided interview. A ## Users or ## Goals heading with no paragraph
+// under it is a blocker gap, and a covered citation for that topic has to sit under the heading.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { YAML, readText, sha } from "../lib/core.mjs";
+import { isUntaggedHint } from "../lib/intake.mjs";
 import { isId } from "../lib/ids.mjs";
 import { validate } from "../lib/schemas.mjs";
 
@@ -26,6 +28,29 @@ function blocks(text) {
   return out.map((b) => b.trim()).filter(Boolean);
 }
 
+const TEMPLATE_HEADINGS = new Map([["users", "users"], ["goals", "goals"]]);
+
+/** SRC ids that sit under a ## Users or ## Goals heading. A heading that is absent is not in the map. */
+function headingSources(text) {
+  const found = new Map();
+  let active = null;
+  for (const block of blocks(text)) {
+    const lines = block.split("\n");
+    let start = 0;
+    const heading = /^(#{1,6})\s+(\S.*?)\s*$/.exec(lines[0] ?? "");
+    if (heading) {
+      active = TEMPLATE_HEADINGS.get(heading[2].trim().toLowerCase()) ?? null;
+      if (active && !found.has(active)) found.set(active, new Set());
+      start = 1;
+    }
+    if (!active) continue;
+    const body = lines.slice(start).join("\n").trim();
+    const match = /^\[(SRC-\d{3,})\]\s+\S/.exec(body);
+    if (match) found.get(active).add(match[1]);
+  }
+  return found;
+}
+
 export function run(ctx) {
   const failures = [];
   const index = ctx.load("source-index");
@@ -33,18 +58,25 @@ export function run(ctx) {
   for (const e of validate("source-index", index.data)) failures.push({ check: "source-index", rule: "schema", file: index.rel, message: e });
 
   const seen = new Map();
+  const headingIds = new Map();
   for (const source of index.data.sources ?? []) {
     const file = join(ctx.paths.root, source.normalised);
     if (!existsSync(file)) {
       failures.push({ check: "normalised", rule: "missing-file", file: source.normalised, message: `normalised file for ${source.file} is missing` });
       continue;
     }
+    const text = readText(file);
+    for (const [topic, ids] of headingSources(text)) {
+      const set = headingIds.get(topic) ?? new Set();
+      for (const id of ids) set.add(id);
+      headingIds.set(topic, set);
+    }
     // The engine tagged text sources itself; the normaliser describes only images, PDFs and the like.
-    if (source.normalised_sha && sha(readText(file)) !== source.normalised_sha) {
+    if (source.normalised_sha && sha(text) !== source.normalised_sha) {
       failures.push({ check: "normalised", rule: "edited-source", file: source.normalised, message: `${source.normalised} was changed after the engine tagged it — customer text must stay as received` });
     }
     const tagged = [];
-    for (let paragraph of blocks(readText(file))) {
+    for (let paragraph of blocks(text)) {
       if (paragraph.startsWith("#")) {
         paragraph = paragraph.split("\n").slice(1).join("\n").trim(); // text under a heading still needs an ID
         if (!paragraph) continue;
@@ -53,6 +85,8 @@ export function run(ctx) {
         failures.push({ check: "normalised", rule: "placeholder", file: source.normalised, message: `${source.file} (${source.kind}) is not described yet` });
         continue;
       }
+      // A blockquote or an authority: line is a template hint, not a source paragraph.
+      if (isUntaggedHint(paragraph)) continue;
       const match = /^\[(SRC-\d{3,})\]\s+\S/.exec(paragraph);
       if (!match) {
         failures.push({ check: "normalised", rule: "untagged-paragraph", file: source.normalised, message: `paragraph without a source ID: "${paragraph.slice(0, 60)}"` });
@@ -103,6 +137,16 @@ export function run(ctx) {
     }
     for (const id of value.sources ?? []) {
       if (!seen.has(id) && !notes.has(id)) failures.push({ check: "coverage", rule: "unknown-source", file: coverage.rel, message: `${topic} cites unknown ${id}` });
+    }
+  }
+  for (const [topic, ids] of headingIds) {
+    const value = topics[topic];
+    if (ids.size === 0 && value?.status !== "blocker_gap") {
+      failures.push({ check: "coverage", rule: "heading-empty", file: coverage.rel, message: `"${topic}" has a heading and no source paragraph under it — mark it blocker_gap` });
+    }
+    if (value?.status === "covered") {
+      const outside = (value.sources ?? []).filter((id) => !ids.has(id));
+      if (outside.length) failures.push({ check: "coverage", rule: "heading-source", file: coverage.rel, message: `"${topic}" is covered by ${outside.join(", ")}, which is not under its heading` });
     }
   }
   return failures;

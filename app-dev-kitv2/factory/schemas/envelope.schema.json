@@ -29,6 +29,13 @@
         "type": "string"
       }
     },
+    "skills_loaded": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "skills the agent loaded (names as in the pack's skills_required, or inline:<name>@<hash> for an inlined digest)"
+    },
     "gate_result": {
       "type": [
         "object",
@@ -62,6 +69,13 @@
       "items": {
         "type": "string"
       }
+    },
+    "scope_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "with status needs_scope_change: the files the task needs beyond its files_expected / write_scope; a file inside the task's slice folder is added by `factory scope add`"
     },
     "follow_up_suggested": {
       "type": "array",

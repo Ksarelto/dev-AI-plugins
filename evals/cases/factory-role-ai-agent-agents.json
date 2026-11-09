@@ -12,7 +12,7 @@
       "expect": "ai-architect"
     },
     {
-      "prompt": "Write failing agent tests against a scripted model, red phase",
+      "prompt": "Pin today's agent behaviour with scripted-model characterisation tests before the change",
       "expect": "ai-test-author"
     },
     {

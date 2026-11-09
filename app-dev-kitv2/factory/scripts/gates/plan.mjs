@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { matchesAny } from "../lib/core.mjs";
 import { validate } from "../lib/schemas.mjs";
+import { conventionFiles, lintPlan, isGlob, insideOwnsPaths } from "../lib/planlint.mjs";
 
 export const inputs = ["tasks", "test-plan", "prd", "delta-spec", "api-contract", "human-notes", "config"];
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$/;
@@ -19,6 +20,11 @@ export function run(ctx) {
   for (const e of validate("tasks", tasks.data)) fail("schema", "tasks", e);
   for (const e of validate("test-plan", plan.data)) fail("schema", "test-plan", e, plan.rel);
   if (failures.length) return failures;
+
+  // Plan lint: files a convention implies (role.yaml component_files) are added to files_expected here,
+  // once, and reported as a warning — a scope gap never costs a builder dispatch and a planner round.
+  const lint = lintPlan(ctx, tasks.file, tasks.data);
+  for (const { task, files } of lint) failures.push({ check: "plan-lint", rule: "convention-files-added", file: tasks.rel, warn: true, message: `${task}: added ${files.join(", ")} to files_expected (role convention: a new component brings its styles, index and test)` });
 
   const spec = ctx.spec();
   const specAcs = new Set(spec?.reqs.flatMap((r) => r.acs.map((a) => a.id)) ?? []);
@@ -46,6 +52,8 @@ export function run(ctx) {
   // Traceability: AC → task and AC → planned test.
   const satisfied = new Set();
   const limits = ctx.config.quality?.task_limits ?? {};
+  const tasksMax = ctx.config.quality?.tasks_max ?? 10;
+  if (tasksMax && byId.size > tasksMax) fail("size", "too-many-tasks", `the plan has ${byId.size} tasks (max ${tasksMax})`);
   const tdd = ctx.config.quality?.tdd ?? {};
   // A role may allow more files for task types that are several files by nature (a Drizzle migration:
   // schema, index, SQL, journal, rollback): role.yaml budgets.task_limits.<type>. The project's limit wins.
@@ -58,9 +66,15 @@ export function run(ctx) {
       if (!specAcs.has(ac)) fail("trace", "unknown-ac", `${t.id} satisfies ${ac}, which is not in the spec`);
       satisfied.add(ac);
     }
+    // Size counts files_expected. write_scope globs (a slice folder) cost nothing extra: they stand for
+    // the files already listed there, so the limit is on what the task names, not on the folder.
     const lim = limitsFor(t);
-    if (lim.files_max && t.files_expected.length > lim.files_max) {
-      fail("size", "too-many-files", `${t.id} touches ${t.files_expected.length} files (max ${lim.files_max} for ${t.type})`);
+    // The companions a role convention implies for a new component (styles, index, test) are the engine's to add:
+    // they do not count toward the planner's files_max.
+    const conventional = conventionFiles(ctx.packs?.[ctx.config.roles?.[t.role]?.pack]?.role?.component_files, t, ctx.projectDir, { all: true }).filter((f) => t.files_expected.includes(f)).length;
+    const named = t.files_expected.length - conventional;
+    if (lim.files_max && named > lim.files_max) {
+      fail("size", "too-many-files", `${t.id} touches ${named} files${conventional ? ` (+${conventional} convention companions the engine adds)` : ""} (max ${lim.files_max} for ${t.type})`);
     }
     if (!t.size?.est_loc) fail("size", "no-estimate", `${t.id} gives no size.est_loc — the size limits need an estimate`);
     if (lim.loc_max && (t.size?.est_loc ?? 0) > lim.loc_max) {
@@ -72,7 +86,9 @@ export function run(ctx) {
     if (!role) fail("roles", "unknown-role", `${t.id} has role "${t.role}", which is not configured`);
     else if (role.enabled) {
       for (const f of t.files_expected) if (!matchesAny(f, role.owns_paths)) fail("roles", "outside-owns-paths", `${t.id}: ${f} is outside ${t.role} owns_paths`);
+      for (const g of t.write_scope ?? []) if (!insideOwnsPaths(g, role.owns_paths)) fail("roles", "outside-owns-paths", `${t.id}: write_scope ${g} is outside ${t.role} owns_paths`);
     }
+    for (const g of t.write_scope ?? []) if (!isGlob(g) && !g.endsWith("/")) fail("size", "write-scope-not-a-glob", `${t.id}: write_scope entry ${g} is a single file — list it in files_expected; write_scope holds folder globs like src/features/x/ui/overview-header/**`);
     if (tdd.mode === "required") {
       const exempt = (tdd.exempt_types ?? []).includes(t.type);
       if (!t.tdd) fail("tdd", "missing", `${t.id} declares no tdd block`);
@@ -86,15 +102,41 @@ export function run(ctx) {
         for (const f of t.tdd.red_tests ?? []) if (!t.files_expected.includes(f)) fail("tdd", "red-test-not-expected", `${t.id}: red test ${f} is not in files_expected`);
         const globs = ctx.packs?.[role?.stack]?.stack?.test_globs ?? [];
         for (const f of t.tdd.red_tests ?? []) if (!TEST_FILE.test(f) && !matchesAny(f, globs)) fail("tdd", "red-test-not-a-test", `${t.id}: red test ${f} is not a test file`);
-        // A red test is a new file: an existing file's passing tests can never be a valid red.
+        // A red test is normally a new file: an existing file's passing tests can never be a valid red. A task may
+        // extend an existing test file only when it is the task's own: inside its write_scope, or a file of
+        // its slice (another task with the same `slice` lists it). A test file of an unrelated slice is not.
         const started = ctx.state?.tasks?.[t.id] && ctx.state.tasks[t.id].status !== "pending";
         for (const f of started ? [] : (t.tdd.red_tests ?? [])) {
-          if (existsSync(join(ctx.projectDir, f))) fail("tdd", "red-test-exists", `${t.id}: red test ${f} already exists — put the new tests in a new file`);
+          if (!existsSync(join(ctx.projectDir, f))) continue;
+          const own = matchesAny(f, t.write_scope ?? []) || (t.slice && tasks.data.tasks.some((o) => o.id !== t.id && o.slice === t.slice && [...(o.tdd?.red_tests ?? []), ...o.files_expected].includes(f)));
+          if (!own) fail("tdd", "red-test-exists", `${t.id}: red test ${f} already exists and is outside this task's write_scope/slice — put the new tests in a new file, or declare write_scope (the slice folder) to extend it`);
         }
       }
     }
   }
   for (const ac of specAcs) if (!satisfied.has(ac)) fail("trace", "unsatisfied-ac", `${ac} is not satisfied by any task`);
+  // A fix round amends the task that owns the slice; it adds a task only when no task owns the work.
+  if (ctx.state?.fix_pending) {
+    const owned = new Map();
+    for (const t of byId.values()) if (t.slice && ctx.state.tasks?.[t.id]) owned.set(t.slice, t.id);
+    for (const t of byId.values()) {
+      if (ctx.state.tasks?.[t.id] || !t.slice || !owned.has(t.slice)) continue;
+      fail("fix-plan", "new-task-in-owned-slice", `${t.id} adds a task to slice "${t.slice}", which ${owned.get(t.slice)} owns — amend ${owned.get(t.slice)} (extend definition_of_done / files_expected) instead`);
+    }
+    // The label is the planner's to choose ("apply-coupon-fix" or none at all): what owns the work is the folder. A new task
+    // whose files fall inside an existing task's write_scope is a task in an owned slice, whatever it is called.
+    for (const t of byId.values()) {
+      if (ctx.state.tasks?.[t.id] || (t.slice && owned.has(t.slice))) continue;
+      for (const o of byId.values()) {
+        if (o === t || !ctx.state.tasks?.[o.id] || !o.write_scope?.length) continue;
+        const inside = [...(t.files_expected ?? []), ...(t.write_scope ?? [])].filter((f) => matchesAny(f, o.write_scope));
+        if (inside.length) {
+          fail("fix-plan", "new-task-in-owned-scope", `${t.id} is a new task whose files (${inside.slice(0, 3).join(", ")}) lie inside the write_scope of ${o.id} — amend ${o.id} (extend definition_of_done / files_expected) instead`);
+          break;
+        }
+      }
+    }
+  }
   // A removed requirement is work too: some task must take the behaviour out (tasks[].removes).
   const removing = new Set(tasks.data.tasks.flatMap((t) => t.removes ?? []));
   for (const id of ctx.spec()?.removed ?? []) if (!removing.has(id)) fail("trace", "removal-without-task", `${id} is removed in the delta-spec but no task removes it`);
@@ -142,7 +184,7 @@ export function run(ctx) {
 
   // Human notes made so far must be mapped to something in the plan, or declined.
   const known = new Set([...specAcs, ...byId.keys(), ...(spec?.reqs.map((r) => r.id) ?? [])]);
-  for (const note of (ctx.load("human-notes")?.data ?? []).filter((n) => ["open", "mapped"].includes(n.status))) {
+  for (const note of (ctx.load("human-notes")?.data ?? []).filter((n) => ["open", "mapped"].includes(n.status) && n.kind !== "process")) {
     if (note.status === "open") fail("notes", "unmapped", `${note.id} ("${note.text.slice(0, 50)}") is not mapped to a REQ, AC or task`, "human-notes.yaml");
     for (const id of note.mapped_to) {
       if (/^(REQ|AC|TASK)-/.test(id) && !known.has(id)) fail("notes", "dangling", `${note.id} is mapped to ${id}, which does not exist`, "human-notes.yaml");
