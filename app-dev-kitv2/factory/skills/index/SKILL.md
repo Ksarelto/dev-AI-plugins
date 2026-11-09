@@ -14,6 +14,6 @@ Run `F index`. The Cartographer writes `.factory/_index/component-inventory.yaml
 it was built from, using the index adapter of each enabled role's stack (FSD today).
 
 Report the number of components and the commit. The inventory is read by planning (reuse
-decisions), by the prototype trigger (which surfaces are new) and by reviewers; it never changes
+decisions) and by reviewers; it never changes
 source code. The capability map written at discovery is the human-confirmed view; the inventory is
 the mechanical one.

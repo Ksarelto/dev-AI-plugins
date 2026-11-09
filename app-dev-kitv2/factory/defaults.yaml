@@ -39,54 +39,77 @@ shared_paths: {}
 pipeline:
   profile: standard            # used for modes not listed in mode_profiles
   mode_profiles: { greenfield: greenfield }
-  tier_profiles: { patch: patch }
+  tier_profiles: { patch: patch, small: small }
+  # intake sizes a feature from its sources (tier patch | small | standard; --tier overrides) and requirements
+  # re-checks it from the REQ/AC/story counts; false keeps every feature on the entry mode's profile.
+  auto_tier: true
+  size_limits:                   # a feature is "small" up to these counts, "patch" up to the patch ones (words, screens: judged at intake from the sources; reqs, acs: re-checked from the real spec after requirements)
+    small: { words: 700, reqs: 6, acs: 18, screens: 3 }
+    patch: { words: 90, reqs: 2, acs: 6 }
+  # Human gates a profile does not ask (approved by the profile itself, recorded in events).
+  # GATE-A always asks (the spec). GATE-C always asks (the built feature, before the commit).
+  skip_gates:
+    standard: [GATE-D, GATE-B]
+    greenfield: [GATE-D, GATE-B]
+    small: [GATE-D, GATE-B]
+    patch: [GATE-D, GATE-B]
   profiles:
-    standard: [intake, discovery, requirements, stories, prototype, architecture, planning,
+    standard: [intake, discovery, requirements, stories, architecture, planning,
                acceptance, implementation, verification, qa, docs, delivery, feedback]
-    greenfield: [intake, bootstrap, requirements, stories, prototype, architecture, planning,
+    greenfield: [intake, bootstrap, requirements, stories, architecture, planning,
                  acceptance, implementation, verification, qa, docs, delivery, feedback]
     patch: [intake, requirements-lite, implementation, verification-lite, delivery, feedback]
+    # small: no separate acceptance stage (the builder's tests carry the acceptance checks), no QA or docs stage,
+    # GATE-B not asked.
+    small: [intake, discovery, requirements, stories, architecture, planning,
+            implementation, verification, delivery, feedback]
   stages: {}                   # project overrides of stage.yaml defaults, key by key
   digest_after: [requirements, planning, verification]
-
-prototype:
-  # The living app prototype (.factory/prototype/, static HTML) is updated by every feature whose
-  # stories add, change or remove a user-facing surface (never for the patch tier). false turns it off.
-  enabled: true
 
 flow:
   policy: kanban               # kanban | iterations
   role_tracks: parallel        # parallel: one task per role at a time, in parallel when roles have different paths
   kanban: { wip: { verify: 2 } }
-  iterations: { length_days: 10, token_budget: 9000000 }
+  iterations: { length_days: 10 }
 
 automation:
-  # When true, the engine approves every stage's human_gate itself (GATE-D, GATE-A, GATE-P, GATE-B,
-  # GATE-C) the moment it is reached — same code path as a human `factory approve` (HD notes,
-  # splitBacklog, breakingDeltaBack all still run), recorded with `by: "autopilot"` so events and
+  # When true, the engine approves every stage's human_gate itself (GATE-D, GATE-A, GATE-B,
+  # GATE-C) the moment it is reached — same code path as a human `factory approve` (HD notes
+  # and splitBacklog still run), recorded with `by: "autopilot"` so events and
   # `factory metrics` show it. /factory:run then goes from intake straight through implementation,
-  # quality and delivery (a real PR opens there only if delivery.dry_run is also false) without
-  # stopping, on to the feedback stage. A CLARIFY stop — an agent that cannot proceed without an
-  # answer — is never auto-approved; there is no safe default to invent. A human-owned action
-  # (policy.human_owned) is never touched by autopilot either.
+  # quality and delivery (a real PR opens there only if delivery.pr is true and delivery.dry_run is false) without
+  # stopping, on to the feedback stage (GATE-B is approved this way only once gate plan has passed: the stage
+  # reaches its human gate only with a green gate, and the event records the auto-approval). A CLARIFY stop — an agent that cannot proceed without an
+  # answer — is never auto-approved; there is no safe default to invent. Nor is a gate a human REJECTED earlier:
+  # the revision that comes back to it (the reopened GATE-A included) waits for the human who asked for it.
+  # A human-owned action (policy.human_owned) is never touched by autopilot either.
   autopilot: false
 
 quality:
   # gate-spec in the requirements stage: completeness.yaml must score at least this (0 turns it off).
-  # Below it the engine asks one batch of the analyst's gap questions, then shows the rest at GATE-A.
+  # Below it the gaps are shown on spec.md at GATE-A. They do not insert a question round.
+  # A contradiction between sources does insert one CLARIFY.
   completeness_min: 85
   coverage_changed_lines_min: 90
   axe_critical_max: 0              # frontend axe audit: critical violations beyond this are P1 (blocking)
   axe_routes: ["/"]                # routes of the built app the axe audit opens
   bundle_kb_max: 250               # frontend bundle audit: gzip KB per JavaScript chunk (P2 above it)
   review_blocking: [P0, P1]
+  # Task gates (gate impl) do one task's worth of work: typecheck (incremental when it is plain tsc), lint of the
+  # files the task changed since its base ref, tests with `--changed <base ref>`, the architecture check and the
+  # role's checks. No production build per task: verification builds (gate checks). true adds it to every task.
+  impl_build: false
+  task_tests: scoped             # scoped | full — full runs the whole suite in every task gate
+  task_lint: scoped              # scoped | full — full runs `lint` (the whole project) in every task gate
+  tsc_incremental: true          # plain `tsc` typechecks keep their build info in .factory/cache
+  cache_failures: true           # a failed gate is not re-run on an identical working tree (record after the agent's own exit check)
   integration_tests: run         # run: verification runs each stack's test_integration (Docker for Testcontainers); skip: never
-  task_limits: { files_max: 3, loc_max: 200 }
-  task_limits_by_type: {}      # e.g. { migration: { files_max: 4 } }; wins over a role's budgets.task_limits
+  tasks_max: 10                # gate-plan too-many-tasks: a feature plan may not exceed this
+  task_limits: { files_max: 12, loc_max: 600 }   # one vertical slice per task; a component folder is ~4 files
+  task_limits_by_type: {}      # e.g. { migration: { files_max: 4 } }; wins over a role's budgets.task_limits (files_max counts files_expected; a write_scope glob adds no count)
   tdd:
     mode: required             # required | off
-    author: separate           # separate | builder_two_phase
-    pipeline_red: true
+    author: builder_two_phase  # builder_two_phase: ONE builder dispatch writes the red tests, runs `gate red`, then implements and runs `gate impl` (the engine checks the gate log: red passed first) | separate: test author, then builder (two dispatches)
     exempt_types: [characterisation, refactor, config, docs, styling-token, dependency-bump, rename, migration, eval]
     exempt_may_satisfy: [migration, eval]   # the only exempt types that may satisfy an AC
   vague_terms: [fast, quick, quickly, easy, easily, intuitive, intuitively, user-friendly, simple, nice,
@@ -98,33 +121,32 @@ quality:
                 works fine, handles errors]   # matched as phrases; an AC needs a measure to use one
 
 budgets:
-  feature: { tokens: 2500000, wall_clock_min: 240, dispatches: 60 }
+  # dispatches and wall clock are floors: once planning has produced the tasks, the engine raises them to
+  # dispatches = 4 × tasks + 20 (the implementation and verification stage caps, stage.dispatches_max_by_stage, the same; other stages keep stage.dispatches_max) and wall_clock_min = max(240, 30 × tasks + 120)
+  # (never lowers a value a person set; written to the feature's overrides.yaml and recorded in events).
+  # feature.tokens is unset: a run is not halted for tokens. Set a positive budgets.feature.tokens to cap one.
+  feature: { wall_clock_min: 240, dispatches: 60 }
   stage: { attempts_max: 3, dispatches_max: 8 }
   task: { attempts_max: 3 }
-  prototype: { revisions_max: 3, tokens: 180000 }
   backward_edges:
-    prototype_to_requirements: 1
-    verification_to_implementation: 2
+    verification_to_implementation: 4   # failures at verification go back to implementation (fix tasks amend the owning slices)
     verification-lite_to_implementation: 2
     qa_to_implementation: 2
     delivery_to_implementation: 3      # changes requested on the PR (GATE-C reject)
+    docs_to_implementation: 2          # a note given while the docs are written
     feedback_to_implementation: 3      # PR comments classified as "change"
     total_regressions_max: 6
 
 context:
-  budgets:                     # tokens per dispatch
-    conductor: 20000
-    analysis_roles: 60000
-    execution_roles: 45000
-    review_roles: 35000
-    prototype_role: 45000
-    mechanical_roles: 20000
-  read_allowlist_max: { analysis_roles: 30, execution_roles: 12, review_roles: 20, prototype_role: 20, mechanical_roles: 10 }
+  # budgets is unset: a pack is not trimmed and context_degraded stays false.
+  # Set a positive context.budgets.<role> (conductor, analysis_roles, execution_roles, review_roles, mechanical_roles)
+  # to drop optional inputs above that many tokens.
+  read_allowlist_max: { analysis_roles: 30, execution_roles: 20, review_roles: 20, mechanical_roles: 10 }
   return_summary_max_words: 200
   digest: engine               # engine: written from the artifacts (no dispatch); curator: the curator agent writes it
   digest_max_words: 600
 
-model_tiers: { reasoning: opus, execution: sonnet, mechanical: haiku }
+model_tiers: { reasoning: opus, execution: sonnet }   # reasoning: rung-2 retries, diagnosis, planning; execution: mechanical task types, amendments, fix plans
 
 policy:
   # halt: a step stops when files outside .factory/ changed since the engine's last action (a person
@@ -144,5 +166,7 @@ intake:
 delivery:
   adapter: factory-adapter-github
   draft_pr: true
-  dry_run: true                # never opens a real PR until set to false
+  docs: false                  # the docs stage runs only when this is true
+  pr: false                    # commit and stop; true also prepares a PR
+  dry_run: true                # when pr is true, record the PR commands and do not run them until this is false
   reviewers: []

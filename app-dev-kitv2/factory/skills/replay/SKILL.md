@@ -17,3 +17,13 @@ Arguments: `$ARGUMENTS` (in Cursor: the text typed after the command).
 3. Report the stage the feature is in now and suggest `/factory:run`.
 
 Use `/factory:gate reject` instead when the feature is waiting at the gate of that same stage.
+
+## A disputed acceptance test
+
+An acceptance test that is wrong (a fixture that disagrees with the API contract) is not replayed as a stage; two
+human commands settle it, and a builder never bends production code to it:
+
+- `F replay acceptance --relock "<test file or file::test name>" --with "<why it is wrong>"`: the
+  acceptance-test-author rewrites only that file from the contract at the next step, then the engine locks it again.
+- `F acceptance waive "<test file or file::test name>" --reason "<why>" [--by "<name>"]` (recorded as approved by `--by`, else the git user): accept it as failing for this feature. It is the
+  only way a failing acceptance test passes verification; the review and the digest list every waiver.

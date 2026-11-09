@@ -8,6 +8,7 @@ config:
     frontend: { enabled: false }
     backend: { enabled: true, pack: factory-role-backend, stack: node-backend-dev-kit, path: ".", owns_paths: ["src/**", "tests/**", "drizzle/**"] }
   quality: { integration_tests: skip }   # mocked runs: no Docker
+  delivery: { pr: true }
   pipeline:
     profile: be
     profiles: { be: [intake, requirements-lite, implementation, verification-lite, delivery, feedback] }
@@ -15,18 +16,17 @@ expect:
   final_action: done
   final_status: done
   dispatches_max: 12
-  gates: [GATE-C]
+  build_dispatches: 1
+  gates: [GATE-A, GATE-C]
   verdicts:
     - { stage: intake, verdict: advance }
     - { stage: requirements-lite, verdict: advance }
-    - { stage: implementation, task: TASK-001, verdict: advance }
-    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }   # one build dispatch
     - { stage: implementation, task: TASK-002, verdict: retry }
     - { stage: implementation, task: TASK-002, verdict: advance }
     - { stage: verification-lite, verdict: advance }
     - { stage: delivery, verdict: advance }
   models:
-    be-test-author: sonnet
     be-builder: sonnet
     migration-author: sonnet
     reviewer: opus

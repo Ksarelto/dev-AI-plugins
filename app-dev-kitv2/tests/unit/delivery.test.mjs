@@ -170,7 +170,7 @@ test("gate-ready-for-pr: commits per task with trailers, conventional subjects, 
 });
 
 test("delivery ships with real git and a dry-run PR, then GATE-C reject becomes fix items", async () => {
-  const { env, plan, pr } = deliverySetup();
+  const { env, plan, pr } = deliverySetup("delivery: { pr: true }");
   const d = conductor.step(env.dir).dispatches[0];
   assert.equal(d.agent, "release-manager");
   mkdirSync(join(env.featureDir, "08-delivery"), { recursive: true });
@@ -250,6 +250,30 @@ const shipPlan = (env, plan, pr) => {
 };
 const gitOut = (env, args) => execFileSync("git", args, { cwd: env.dir, encoding: "utf8" });
 
+test("ship commits and does not record PR commands when delivery.pr is off", async () => {
+  const { env, plan, pr } = deliverySetup();
+  const d = conductor.step(env.dir).dispatches[0];
+  shipPlan(env, plan, pr);
+  assert.equal((await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id) })).verdict, "advance");
+  const shipped = JSON.parse(readFileSync(join(env.featureDir, "08-delivery", "ship.json"), "utf8"));
+  assert.equal(shipped.pr.skipped, true);
+  assert.equal(shipped.pr.commands, undefined);
+  assert.ok(shipped.commits.length > 0);
+  mkdirSync(join(env.featureDir, "06-verify"), { recursive: true });
+  writeFileSync(join(env.featureDir, "06-verify", "change.diff"), "diff\n");
+  const asked = conductor.step(env.dir);
+  assert.equal(asked.gate, "GATE-C");
+  assert.match(asked.review[0], /06-verify\/change\.diff$/);
+});
+
+test("the docs stage is skipped unless delivery.docs is on", () => {
+  const off = setup(["docs"]);
+  assert.equal(conductor.step(off.dir).action, "done");
+  assert.equal(featureState(off.featureDir).stages.docs.status, "skipped");
+  const on = setup(["docs"], "delivery: { docs: true }");
+  assert.equal(conductor.step(on.dir).dispatches[0].agent, "tech-writer");
+});
+
 test("ship commits only the planned paths: the user's staged work and task snapshots stay out", async () => {
   const { env, plan, pr } = deliverySetup();
   env.write("notes.txt", "my unrelated work\n");
@@ -276,7 +300,7 @@ test("ship refuses a branch pattern that names the default branch", async () => 
 });
 
 test("with real PRs on, a failed push blocks instead of asking for GATE-C", async () => {
-  const { env, plan, pr } = deliverySetup("delivery: { dry_run: false }");
+  const { env, plan, pr } = deliverySetup("delivery: { pr: true, dry_run: false }");
   const d = conductor.step(env.dir).dispatches[0];
   shipPlan(env, plan, pr);
   const r = await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id) });

@@ -3,7 +3,8 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "coverage"] },
+  // .factory holds the factory's own files (the living prototype's browser JS), not app code.
+  { ignores: ["dist", "node_modules", "coverage", ".factory"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

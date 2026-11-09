@@ -1,12 +1,12 @@
 ---
 name: be-red-tests
-description: Procedure for the factory backend test author — write failing Vitest unit tests for controllers, services, Zod schemas and middleware from acceptance criteria, using in-memory fakes instead of Postgres, add only the stubs they import, and write characterisation tests for change requests. Preloaded by be-test-author; not for direct use.
+description: Procedure for the factory backend test author — write failing Vitest unit tests for controllers, services, Zod schemas and middleware from acceptance criteria, using in-memory fakes instead of Postgres, add only the stubs they import, and write characterisation tests for change requests. Preloaded by be-test-author, and by be-builder for the red half of its one-dispatch build; not for direct use.
 user-invocable: false
 ---
 
 # Backend red tests
 
-Runs on: be-test-author (sonnet) — one backend task's red or characterisation phase: up to three unit-test files plus the stubs they import, no database.
+Runs on: be-test-author (characterisation, separate mode and its disputes; in the default one-dispatch mode a dispute goes back to the builder) and be-builder (the RED half of phase `build`, before it implements) — one backend task's red or characterisation phase: the unit-test files plus the stubs they import, no database. In `build` run `gate red --task <id>` yourself when the tests are written and do not implement until it passes.
 
 The criteria are the specification; the code under test does not exist yet. The case catalogue, the
 file locations the gates accept and the stub rules are in [be-test-matrix.md](references/be-test-matrix.md).
@@ -110,3 +110,4 @@ summary — the engine asks a human on a second dispute.
 - [ ] Each failure is an assertion or `not implemented`, checked per file before the gate
 - [ ] Permission rows: 401, 403 wrong role, 404 for a stranger's row
 - [ ] Every other test still passes; `gate red` (or `gate impl` for `char`) run and its result in the envelope
+- [ ] Stack skills loaded with the Skill tool before writing, and named in the envelope's `skills_loaded`

@@ -8,8 +8,10 @@ node_version: ">=22.12"
 commands:
   typecheck: { script: typecheck }
   lint: { script: lint }
+  lint_files: { exec: eslint, args: [--no-warn-ignored, "{files}"] }   # task gates lint only the files the task changed; verification runs `lint`
   architecture_check: { exec: depcruise, args: [src, --config, .dependency-cruiser.cjs] }
   test: { script: "test:unit", args: [--reporter=json, "--outputFile={report}", "{files}"] }
+  test_related: { exec: vitest, args: [related, "{files}", --run, --reporter=json, "--outputFile={report}"] }   # a task gate runs only the tests related to the files the task changed since its base ref (--changed would still cover every uncommitted change); the engine adds the flags (--config, --project) of the `test` package script
   test_integration: { script: "test:integration" }
   eval: { script: eval, args: [--reporter=json, "--outputFile={report}"] }   # real models; thresholds live in the suite
   build: { script: build }
@@ -30,6 +32,7 @@ skills:
   streaming: [node-agent-dev-kit:streaming-api, node-agent-dev-kit:agent-observability]
   guardrail: node-agent-dev-kit:guardrails-safety
   eval: node-agent-dev-kit:agent-evals
+  refactor: [node-agent-dev-kit:langgraph-agent, node-agent-dev-kit:graph-state-design]
 # Task type → exemplar file(s) the builder matches.
 golden_files:
   graph: skills/langgraph-agent/examples.md
@@ -61,6 +64,7 @@ stage_skills:
   ai-architect: [node-agent-dev-kit:langgraph-agent, node-agent-dev-kit:graph-state-design, node-agent-dev-kit:agent-tools, node-agent-dev-kit:rag-pipeline, node-agent-dev-kit:llm-models, node-agent-dev-kit:human-in-the-loop, node-agent-dev-kit:multi-agent]
   planner: node-agent-dev-kit:langgraph-agent
   test-strategist: node-agent-dev-kit:agent-evals
+  acceptance-test-author: node-agent-dev-kit:agent-evals   # the scripted-model helper its acceptance tests use
   reviewer: [node-agent-dev-kit:guardrails-safety, node-agent-dev-kit:agent-evals]
 index_adapter: langgraph
 boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }

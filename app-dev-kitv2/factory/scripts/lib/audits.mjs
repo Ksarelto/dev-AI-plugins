@@ -16,10 +16,11 @@ const TESTS = /\.(test|spec)\.[cm]?[jt]sx?$/;
 /**
  * @param changed project-relative files the feature changed (the change set)
  * @param artifact (type) → absolute path of a feature artifact, or null; fills `{<type>}` in args
+ * @param opts     { role, only } — limit to one role and to audits for which only(audit) is true (the per-task run)
  */
-export function runAudits(c, changed, artifact) {
+export function runAudits(c, changed, artifact, { role: onlyRole, only } = {}) {
   const findings = [];
-  for (const role of enabledRoles(c.config)) {
+  for (const role of enabledRoles(c.config).filter((r) => !onlyRole || r.name === onlyRole)) {
     const pack = c.packs[role.pack];
     const audits = pack?.role?.gates?.audits ?? [];
     if (!audits.length) continue;
@@ -27,7 +28,7 @@ export function runAudits(c, changed, artifact) {
     const cwd = join(c.projectDir, dir);
     const mine = changed.filter((f) => (!dir || f.startsWith(`${dir}/`)) && !TESTS.test(f) && existsSync(join(c.projectDir, f)));
     const off = new Set(c.config.roles?.[role.name]?.checks_off ?? []);
-    for (const audit of audits.filter((a) => !off.has(a.name))) {
+    for (const audit of audits.filter((a) => !off.has(a.name) && (!only || only(a)))) {
       const files = mine.filter((f) => !audit.files || new RegExp(audit.files).test(f)).map((f) => toPosix(relative(cwd, join(c.projectDir, f))));
       let missing = null;
       const args = (audit.args ?? ["{files}"]).flatMap((a) => {
@@ -69,4 +70,19 @@ export function runAudits(c, changed, artifact) {
     }
   }
   return findings;
+}
+
+/**
+ * The cheap static audits a role marks `per_task: true` (raw colours, untranslated text), run in gate impl on the
+ * files one task changed — so a violation is fixed by the builder that wrote it, not found at verification.
+ * Blocking severities: quality.task_audit_blocking (default P0–P2); the rest are warnings. Returns gate failures.
+ */
+export function taskAuditFailures(ctx, files) {
+  if (!ctx.task) return [];
+  const blocking = ctx.config.quality?.task_audit_blocking ?? ["P0", "P1", "P2"];
+  const findings = runAudits(ctx, files, () => null, { role: ctx.task.role, only: (a) => a.per_task === true });
+  return findings.map((f) => ({
+    check: "audit", rule: String(f.agent).split(":").pop(), ...(f.file ? { file: f.file } : {}), ...(blocking.includes(f.severity) ? {} : { warn: true }),
+    message: `${f.severity} ${f.claim}${f.evidence ? ` (${f.evidence})` : ""}${f.line ? ` at line ${f.line}` : ""}`,
+  }));
 }

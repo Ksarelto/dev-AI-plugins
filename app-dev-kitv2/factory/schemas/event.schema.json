@@ -26,6 +26,9 @@
         "halt",
         "register",
         "digest",
+        "budget",
+        "waiver",
+        "resize",
         "error"
       ]
     },

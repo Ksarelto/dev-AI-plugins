@@ -1,0 +1,11 @@
+{
+  "plugin": "prototype-kit",
+  "source": "./prototype-kit",
+  "component": "agents",
+  "cases": [
+    {
+      "prompt": "Senior designer, write the Alpine HTML screens in prototype/ from the product brief using ui-ux-pro-max and do not ask me anything",
+      "expect": "senior-designer"
+    }
+  ]
+}

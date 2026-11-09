@@ -17,5 +17,5 @@ gates:
   checks:
     - { name: eval, command: eval, report: true, per_ac: true, at_verify: true, task_types: [graph, node, tool, prompt, model, rag, guardrail, eval] }
 # A tool is its factory, the registry and a test; a graph change also touches state and a node.
-budgets: { task_limits: { tool: { files_max: 4 }, graph: { files_max: 5 }, rag: { files_max: 4 } } }
+budgets: { task_limits: { tool: { files_max: 8 }, graph: { files_max: 10 }, rag: { files_max: 8 } } }
 requires: { factory: "^0.1" }

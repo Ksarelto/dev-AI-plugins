@@ -127,8 +127,27 @@ export function run(ctx) {
     }
     for (const r of spec.data.removed ?? []) unique(r.id);
   }
+  failures.push(...sourceConflicts(ctx));
   failures.push(...completeness(ctx, spec, sources));
   return failures;
+}
+
+/**
+ * Contradictions between the feature's sources (completeness.yaml `conflicts`, written by the requirements
+ * analyst after diffing every normalised source). An open one fails here with rule unresolved-conflict;
+ * the Conductor turns that into exactly one CLARIFY listing all of them (conflictRound), proposing the
+ * user's own brief as the winner. A resolved one must say how.
+ */
+export function sourceConflicts(ctx) {
+  if (!(ctx.stage?.outputs ?? []).includes("completeness")) return [];
+  const file = ctx.load("completeness");
+  const list = file && !validate("completeness", file.data).length ? file.data.conflicts ?? [] : [];
+  const out = [];
+  for (const c of list) {
+    if (c.status === "open") out.push({ check: "conflicts", rule: "unresolved-conflict", file: file.rel, message: `sources contradict each other on "${c.topic}": ${c.claims.map((x) => `${x.source} says "${x.claim}"`).join(" vs ")} — proposed winner: ${c.default_winner}` });
+    else if (!c.resolution) out.push({ check: "conflicts", rule: "no-resolution", file: file.rel, message: `the conflict "${c.topic}" is resolved but names no resolution` });
+  }
+  return out;
 }
 
 /** Completeness is scored where the stage produces completeness.yaml (requirements; never the patch tier). */

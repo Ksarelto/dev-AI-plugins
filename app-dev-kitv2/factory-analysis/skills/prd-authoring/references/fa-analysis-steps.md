@@ -24,9 +24,24 @@ gate fails on a paragraph that is neither cited nor set aside (`source-dropped`)
 | open question | "TBD", "?", "unclear" | an `OQ-n` with a severity and default |
 | preference | taste without a rule ("I like cards") | `sources_not_used`, reason "preference, no requirement" — or an OQ when it matters |
 
-The heading a paragraph sits under is a strong hint: text under "Glossary", "Decisions",
-"Out of scope", "Success measures", "Open questions" or "Background" is classified by that heading
-unless the text itself states behaviour.
+The heading a paragraph sits under is the class of the bullets under it. Text under "Glossary",
+"Decisions", "Out of scope", "Success measures", "Open questions" or "Background" is classified by
+that heading unless the text itself states behaviour. The requirements template uses the same rule:
+
+| Heading | Class |
+|---|---|
+| Users | actors. Empty (hints only) is a blocker gap |
+| Goals | why it is wanted. Empty is a blocker gap |
+| Scope / In | requirements |
+| Scope / Out | `out_of_scope`, never a requirement |
+| Data | entities and fields; numbers stay verbatim |
+| Rules | constraints; quoted messages and numbers stay verbatim |
+| Non-functional | `nfr` |
+| Acceptance | acceptance criteria; quoted messages and numbers stay verbatim |
+| Design | not a coverage topic. `authority: none` means no prototype |
+| Open questions | open questions with defaults |
+
+A blockquote, and a line that is only `authority: …`, is a hint left for the author. It is unanswered, not a requirement. Do not cite it and do not turn it into a REQ.
 
 A paragraph that another feature's spec already cites does not need a second citation (after a
 backlog split the sibling owns it).
@@ -94,9 +109,18 @@ For every pair of statements that seem to disagree, decide the type:
 | `scope difference` | both true in different contexts | write both, each with its context in the text |
 | `terminology drift` | same concept, different words | pick the canonical word; cite both sources |
 
-Only contradictions are asked. When you must lean while waiting, prefer the newer source (its `date`
-in `context/index.yaml`), the more specific one, and an authoritative document over discussion notes.
-Record the lean as the question's default.
+**Diff every source before you write.** List the claims of ALL normalised sources of the feature on the same
+subject (a control's state, a limit, a wording, a flow) and compare them across sources, not only within one.
+Each contradiction goes into `completeness.yaml` `conflicts` as `{ topic, claims: [{ source, claim }, …],
+default_winner, status: open }`. **All of them in one list**: the engine asks the human exactly ONE question
+listing every one, so never raise them one by one or settle one yourself.
+
+The default winner is the user's own brief: the source marked as the base in the inbox or `context/index.yaml`,
+else the shortest or first-person one ("I want …"), never a generated or mockup document just because it is
+more detailed. A mockup or spec that contradicts the brief proposes a change; it does not silently win.
+After the human's answer (`Human answer (HD-n)`), set each conflict to `status: resolved` with a `resolution`
+(the answer, or the default winner when they approved) and write the spec accordingly. Other contradictions
+you cannot settle stay open questions as before.
 
 ## 8. Walk the feature as every user
 

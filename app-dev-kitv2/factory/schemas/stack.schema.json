@@ -418,6 +418,102 @@
               }
             }
           ]
+        },
+        "lint_files": {
+          "description": "lint of named files only ({files}: the files the task changed, relative to the role's folder); task gates use it instead of `lint` when the stack has it, verification runs `lint` in full",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "test_related": {
+          "description": "the tests related to the files a task changed (vitest related {files} --run); task gates use it when the task has a base ref, verification runs `test`",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "minItems": 1
+            },
+            {
+              "type": "object",
+              "required": [
+                "script"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "script": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            {
+              "type": "object",
+              "required": [
+                "exec"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "exec": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ]
         }
       }
     },

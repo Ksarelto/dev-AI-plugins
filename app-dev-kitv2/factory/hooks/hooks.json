@@ -63,6 +63,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"$CLAUDE_PROJECT_DIR/.factory/state.json\" ] || exit 0; node \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.mjs\" post-skill",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "SubagentStop": [

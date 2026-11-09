@@ -1,7 +1,7 @@
 # UX notes — FEAT-001 coupons at checkout
 
 Worked example. One section per surface named in `stories.yaml` (`ux.surfaces`), covering every state.
-A surface is a screen; its kebab-case name (`checkout-summary`) is the prototype's screen id.
+A surface is a screen; its kebab-case name (`checkout-summary`) is the screen id.
 
 ## CheckoutSummary — coupon field (STORY-0001)
 | State | What the user sees |

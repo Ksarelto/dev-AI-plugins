@@ -43,7 +43,6 @@
         "analysis_roles",
         "execution_roles",
         "review_roles",
-        "prototype_role",
         "mechanical_roles"
       ]
     },
@@ -167,12 +166,6 @@
       ],
       "description": "engine work before the stage's agents run: scaffold copies each role's boilerplate into its folder and installs dependencies"
     },
-    "on_approve": {
-      "enum": [
-        "spec_delta"
-      ],
-      "description": "spec_delta: approving the human gate with breaking spec deltas in the prototype report sends the feature back to requirements"
-    },
     "review": {
       "type": "array",
       "items": {
@@ -204,31 +197,6 @@
         ]
       },
       "description": "agent → model for this stage only (the patch tier plans on sonnet)"
-    },
-    "fan_out": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "agent",
-        "over"
-      ],
-      "description": "after the stage's own agents: one parallel dispatch of agent per item of over",
-      "properties": {
-        "agent": {
-          "type": "string"
-        },
-        "over": {
-          "enum": [
-            "prototype-screens"
-          ]
-        }
-      }
-    },
-    "snapshot": {
-      "enum": [
-        "prototype"
-      ],
-      "description": "copy .factory/prototype/ aside when the stage starts (restored on abort or factory proto --revert)"
     }
   }
 }

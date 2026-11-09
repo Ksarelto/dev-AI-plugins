@@ -1,12 +1,12 @@
 ---
 name: fe-red-tests
-description: Procedure for the factory frontend test author — write failing Vitest + Testing Library tests from acceptance criteria with the exact values, add only the stubs they import, and write characterisation tests that pin current behaviour. Preloaded by fe-test-author; not for direct use.
+description: Procedure for the factory frontend test author — write failing Vitest + Testing Library tests from acceptance criteria with the exact values, add only the stubs they import, and write characterisation tests that pin current behaviour. Preloaded by fe-test-author, and by fe-builder for the red half of its one-dispatch build; not for direct use.
 user-invocable: false
 ---
 
 # Red tests (and characterisation tests)
 
-Runs on: fe-test-author (sonnet) — the red phase of one TDD frontend task, a revision after a test dispute, or the characterisation tests of a change request.
+Runs on: fe-test-author (characterisation, separate mode and its disputes; in the default one-dispatch mode a dispute goes back to the builder) and fe-builder (the RED half of phase `build`, before it implements) — the red phase of one TDD frontend task, a revision after a test dispute, or the characterisation tests of a change request. In `build` run `gate red --task <id>` yourself when the tests and stubs are written and do not implement until it passes (the engine locks the tests then).
 
 Per task type: the stub and the assertions, what gate-red accepts, state and i18n tests, mocking,
 characterisation — [fe-red-test-patterns.md](references/fe-red-test-patterns.md). Test placement and
@@ -18,7 +18,7 @@ the boundary rule are shared with the builder:
 1. **T0.** Task id, type, phase (`red` or `char`), "Satisfies" (AC ids with their text), "Planned test
    cases" (id, level, title), the red test files, the stubs (`stubs` signatures or the
    `files_expected` paths), "You may write only" and the exit check.
-2. **T1.** Load `frontend-dev-kit:testing` and the task type's skills with the Skill tool; read every
+2. **T1.** Load `frontend-dev-kit:testing` and the task type's skills with the Skill tool (first, per the pack's Skills preflight; report them as `skills_loaded` in the envelope); read every
    `Rule: … [READ]` file. The type's skill tells you the component, hook or form shape the stub must
    have; the golden file in T2 shows the final names.
 3. **T2.** The stories' Gherkin for exact values, the UX notes for the surface's states, the API
@@ -31,8 +31,9 @@ the boundary rule are shared with the builder:
 1. **Plan the file.** One `it` per planned case (more when the AC has several examples). Title:
    `"<AC id> <observable outcome>"`. List the states from the UX notes; each one the task's ACs touch
    gets a test (loading, error, empty, success, pending).
-2. **Write the tests** in the red test files only — always new files (gate-plan already refused an
-   existing one). Test through the public surface: a component through what the user sees
+2. **Write the tests** in the red test files only — new files, or the slice's own existing test file when it is
+   in the task's `write_scope` (extend it; gate red then needs at least one new failing test and tolerates the
+   file's old passing ones). Test through the public surface: a component through what the user sees
    (`screen.getByRole`, `getByLabelText`, `userEvent`), a hook through `renderHook` with the real
    query client, a model function through its exported signature.
 3. **Assert the values from the spec**: the exact amount, the exact message (the English locale

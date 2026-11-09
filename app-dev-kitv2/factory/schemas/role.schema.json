@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "factory/role",
-  "title": "role.yaml — the role contract implemented by a role pack",
+  "title": "role.yaml \u2014 the role contract implemented by a role pack",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -40,9 +40,6 @@
         "test_author": {
           "type": "string"
         },
-        "prototyper": {
-          "type": "string"
-        },
         "extra": {
           "type": "array",
           "items": {
@@ -54,15 +51,11 @@
           "additionalProperties": {
             "type": "string"
           },
-          "description": "task type → specialist builder agent (green phase); other types use builder"
+          "description": "task type \u2192 specialist builder agent (green phase); other types use builder"
         },
         "architect": {
           "type": "string",
           "description": "joins the architecture stage (role:architect) for this role's design"
-        },
-        "prototype_designer": {
-          "type": "string",
-          "description": "writes the prototype's design, shared CSS/JS, shell and screens.yaml (role:prototype_designer)"
         }
       }
     },
@@ -93,6 +86,10 @@
             "properties": {
               "name": {
                 "type": "string"
+              },
+              "per_task": {
+                "type": "boolean",
+                "description": "also run in gate impl on the files each task changed (cheap static audits: raw colours, untranslated text); blocking per quality.task_audit_blocking"
               },
               "node": {
                 "type": "string",
@@ -170,6 +167,36 @@
               }
             }
           }
+        }
+      }
+    },
+    "component_files": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary",
+        "companions"
+      ],
+      "description": "Files a convention requires next to a new unit (frontend: a component folder). gate-plan adds the missing companions to files_expected of a task that creates a file matching `primary` (plan lint), so a scope gap never reaches the builder.",
+      "properties": {
+        "task_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "task types the lint applies to (default: all)"
+        },
+        "primary": {
+          "type": "string",
+          "description": "path suffix of the file that implies the others; {name} names the unit and repeats, e.g. {name}/{name}.tsx"
+        },
+        "companions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "paths relative to the folder that holds the primary's {name} folder; {name} is replaced, e.g. {name}/styles.ts"
         }
       }
     },

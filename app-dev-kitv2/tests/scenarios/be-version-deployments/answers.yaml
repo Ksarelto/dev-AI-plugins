@@ -1,1 +1,2 @@
+- { gate: GATE-A, approve: true }
 - { gate: GATE-C, approve: true }

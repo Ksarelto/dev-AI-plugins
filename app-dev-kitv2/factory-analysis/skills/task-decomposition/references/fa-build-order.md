@@ -1,5 +1,9 @@
 # Build order, task sizing and plan rules
 
+A task is a **vertical slice**: one FSD slice or component folder (or one endpoint) of one story, built
+test-first end to end by one builder dispatch. The segment order below is the order of work INSIDE a
+slice task, not a list of tasks; the table rows are the task types a slice task may carry.
+
 Used by `task-decomposition` (planner, S4 and the patch tier). The plan rules mirror what T1 prints
 under "Plan rules (gate-plan checks every one)" — `planRules()` in the engine's conductor — and what
 `gates/plan.mjs` checks. Each role pack's builder has its own file-by-file order inside a task; this
@@ -45,13 +49,20 @@ public API, extended by the task that adds an export).
 | copy only | `i18n` | the slice's `locales/` files |
 | design tokens | `styling-token` | theme files (test-exempt) |
 
-Count every file the stack's layout needs: the component, its folder `index.ts`, the slice
-`index.ts` when it gains an export, and the test under `<component>/tests/` (the stack's
-`frontend-dev-kit:testing` skill gives the test locations). A component that needs more files than
-the limit is two tasks: the component with its test, then the wiring that exports and uses it.
+Count every file the stack's layout needs: the component, its `styles.ts`, its folder `index.ts`, the
+slice `index.ts` when it gains an export, and the test under `<component>/tests/` (the stack's
+`frontend-dev-kit:testing` skill gives the test locations) — about four files per component. The engine
+adds the convention files you forget (plan lint, from the role's `component_files`). One component with its
+sub-components is ONE task (`slice: overview-header`, `write_scope: [src/features/x/ui/overview-header/**]`,
+about 12 files at most); a component that does not fit is two tasks only when its parts are separate
+behaviours, never because it has several files.
 
-Typical chain for a new feature slice: `entity-model` → `api-client` → `query-hook` → `feature-ui` →
-`page` (or extend an existing page) → `route` when the screen is new.
+Typical slice tasks for a new side panel: the entity model and its fetchers (`entity-model` /
+`api-client` with the query hook), one task per panel section component folder, the page wiring with the
+locale files. That is about 5–8 tasks for a small feature.
+
+Typical chain for a new feature: `entity-model` → `api-client` (with its `query-hook` when it is the same
+slice) → `feature-ui` per section → `page` (or extend an existing page) → `route` when the screen is new.
 
 ## Backend — layered Express (node-backend-dev-kit)
 
@@ -61,8 +72,9 @@ For the stack's layering routes → controllers → services → repositories �
 **Order:** schema / migration → repository → service → validation → controller → route →
 composition → OpenAPI registration.
 
-The role's budgets (T1 plan rules) widen some types: `migration` up to 6 files, `endpoint` up to 5,
-`service` up to 4. Map the order onto tasks like this (paths inside the role folder, e.g.
+The role's budgets (T1 plan rules) set the file cap per type: `migration` up to 6 files, `endpoint` up to
+12, `service` and `repository` up to 8. An endpoint task may carry its validation schema, its service and
+repository method, and the route (one story, one endpoint, one task). Map the order onto tasks like this (paths inside the role folder, e.g.
 `apps/api/`):
 
 | Step | Task type | Files |
@@ -84,14 +96,14 @@ note (`policy.human_owned: destructive_migration`).
 
 | Step | Task type | Files (under `src/agents/<name>/` unless noted) |
 |---|---|---|
-| a capability the model can call | `tool` (up to 4 files) | `tools/<tool>.ts`, `tools/index.ts`, its dependency interface, `tests/unit/agents/<name>-<tool>.test.ts` |
+| a capability the model can call | `tool` (up to 8 files) | `tools/<tool>.ts`, `tools/index.ts`, its dependency interface, `tests/unit/agents/<name>-<tool>.test.ts` |
 | run data | `state` / `memory` | `state.ts` + the graph test that proves the field |
 | fixed prompts and replies | `prompt` | `prompts.ts` + test |
 | one reasoning step or guard | `node` / `guardrail` | `nodes/<node>.ts` (and `src/guardrails/…`) + test |
-| the flow | `graph` (up to 5 files) | `graph.ts`, the state or node it needs, `tests/unit/agents/<name>.test.ts` |
+| the flow | `graph` (up to 10 files) | `graph.ts`, the state or node it needs, `tests/unit/agents/<name>.test.ts` |
 | service wiring | `graph` (or `model` / `memory` when only those change) | `src/services/<name>.service.ts`, `src/container.ts` |
 | streaming and run observability | `streaming` | the SSE route and callbacks; HTTP routes and schemas follow the backend layering |
-| retrieval | `rag` (up to 4 files) | `src/rag/…` + test |
+| retrieval | `rag` (up to 8 files) | `src/rag/…` + test |
 | golden set | `eval` | `evals/golden/<agent>.json`, `evals/<agent>.eval.ts` (test-exempt; may satisfy an AC) |
 
 When `03-architecture/agent-design.md` exists, its topology, state and tool list are binding: one
@@ -114,10 +126,14 @@ task per tool, then state, then nodes, then the graph.
 | Rule | Failure |
 |---|---|
 | a task's files sit only in its role's `owns_paths`; its `type` is one of the role's task types | `outside-owns-paths`, `unknown-task-type`, `unknown-role` |
-| at most `files_max` files (default 3) and `loc_max` estimated LOC (default 200), unless the role allows more for that type; `size.est_loc` always set | `too-many-files`, `too-large`, `no-estimate` |
+| at most `files_max` `files_expected` (default 12) and `loc_max` estimated LOC (default 600), or the role's cap for that type; a `write_scope` glob counts as the files listed, not as one; `size.est_loc` always set | `too-many-files`, `too-large`, `no-estimate` |
+| at most `tasks_max` tasks in the plan (default 10) | `too-many-tasks` |
+| `write_scope` entries are folder globs inside the role's `owns_paths` | `write-scope-not-a-glob`, `outside-owns-paths` |
+| plan lint: the role's `component_files` convention (frontend: `styles.ts`, `index.ts`, `tests/<name>.test.tsx` next to a new `<name>.tsx`) is added to `files_expected` by the engine, with a warning | `convention-files-added` (warning) |
+| a fix round adds no task to a slice an existing task owns (`slice`): amend that task | `new-task-in-owned-slice` |
 | test-first for every type except `quality.tdd.exempt_types`; an exempt task needs a whitelisted type and a reason | `missing`, `bad-exemption` |
 | an exempt task satisfies no AC unless it is a `migration` or `eval` | `exempt-satisfies` |
-| a test-first task lists `red_tests`, each in `files_expected`, each a test file, each a **new** file | `no-red-tests`, `red-test-not-expected`, `red-test-not-a-test`, `red-test-exists` |
+| a test-first task lists `red_tests`, each in `files_expected`, each a test file, each a new file — or an existing test file of the task's own `write_scope` / `slice`, which it extends | `no-red-tests`, `red-test-not-expected`, `red-test-not-a-test`, `red-test-exists` |
 | every spec AC satisfied by a task and tested by a planned case | `unsatisfied-ac`, `untested-ac` |
 | every test-first task has a unit, component or integration case naming it | `task-without-case` |
 | a case's AC is one its task satisfies | `case-task-mismatch` |
@@ -131,21 +147,24 @@ rename, migration, eval.
 
 ## Sizing a task for the builder
 
-Builders run on sonnet with a pack of about 45k tokens, 12 extra reads and three attempts. A task
-fits when a builder can hold all of it at once and prove it with its own red tests. Split it when:
+Builders run on sonnet with a pack of about 60k tokens, 20 extra reads and three attempts, and each one
+dispatch writes the red tests and the code. A task fits when a builder can hold the whole slice at once and
+prove it with its own red tests. Split it when:
 
 | Sign | Why it is too big | Split into |
 |---|---|---|
-| more than 3 ACs, or ACs of two different behaviours | the red tests cover several behaviours; one failing blocks all | one task per behaviour |
-| it spans two layers (an entity and the feature UI) | two procedures and two golden files in one pack | one task per layer |
-| it creates a shared abstraction and its first consumer | the abstraction's shape is decided under pressure | the abstraction, then the consumer |
+| more than 8 ACs, or ACs of two unrelated behaviours | the red tests cover several behaviours; one failing blocks all | one task per behaviour |
+| it spans two layers that two stories own (an entity and an unrelated feature UI) | two procedures and two golden files in one pack | one task per slice |
+| it creates a shared abstraction and its first consumer in two slices | the abstraction's shape is decided under pressure | the abstraction, then the consumer |
 | the builder would need a design decision the component map or an ADR does not record | it guesses, and review rejects it | send it back: `needs_scope_change` to the architect |
-| it touches more than about 8 files the builder must read to understand | the read allowance runs out | split by the files it must understand |
+| it needs more than the role's file cap | the read allowance runs out | split by slice, never by segment |
 | it changes a contract operation and its UI | two roles' concerns | one task per role |
 | a state machine with many transitions, or concurrency rules | many paths, one task | one task per transition group |
-| the definition of done needs more than 3 bullets | it is several outcomes | one task per outcome |
 | the estimate is near the LOC limit | estimates run low | split before the gate does |
 
-A good task has one public signature (or a small cluster) in `stubs`, one to three ACs, a
-definition of done a test can check, and a golden file of the same type. When a task keeps failing,
-the engine's rung 4 asks you to split it into 2–3 smaller ones — plan so that rarely happens.
+Do **not** split because a slice has several files, segments or components: one task per slice is the unit
+(44 tasks for one side panel came from 3-file caps, one test per task and a task per fix item). A good
+task has a small cluster of public signatures in `stubs`, three to eight ACs of one slice, a definition of
+done a test can check, and a golden file of the same type. When a task keeps failing, the engine's rung 4
+asks you to AMEND it from the diagnosis (scope, definition of done), never to split it: rung 4 amends,
+and a split happens only through a human `/factory:split` for two unrelated behaviours.

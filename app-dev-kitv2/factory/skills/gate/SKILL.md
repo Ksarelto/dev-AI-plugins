@@ -1,6 +1,6 @@
 ---
 name: gate
-description: "Approve or reject the human gate a factory feature is waiting at (GATE-D baseline, GATE-A spec, GATE-P prototype, GATE-B plan, GATE-C pull request, or a clarification). Notes and reasons are stored as HD notes the agents must address. Use for /factory:gate."
+description: "Approve or reject the human gate a factory feature is waiting at (GATE-D baseline, GATE-A spec, GATE-B plan, GATE-C pull request, or a clarification). Notes and reasons are stored as HD notes the agents must address. Use for /factory:gate."
 argument-hint: "approve [\"notes\"] | reject \"<reason>\" [--feature FEAT-NNN]"
 disable-model-invocation: true
 allowed-tools: Bash(node:*)

@@ -14,15 +14,15 @@ Write `02-stories/stories.yaml` ([fa-stories.yaml](../../templates/fa-stories.ya
 Gherkin, surface naming and UX-note content in detail:
 [fa-story-rules.md](references/fa-story-rules.md).
 
-The spec passed GATE-A: it is fixed. You reuse its REQ and AC IDs and its exact values. When it is
+The spec passed its machine gate and is fixed (the human approves it at GATE-A). You reuse its REQ and AC IDs and its exact values. When it is
 unclear, return `needs_clarification`; never guess.
 
 ## Procedure
 
 1. **Read the spec** (T2: `prd.md` or `delta-spec.yaml`). For a delta-spec, the requirements are
    `added` plus `modified`. Note each requirement's priority and each AC's `kind`.
-2. **Read the baseline names** — the capability map and, when T2 lists them,
-   `.factory/prototype/screens.yaml` and the component inventory. Existing screens keep their names.
+2. **Read the baseline names** — the capability map and, when T2 lists it, the component
+   inventory. Existing screens keep their names.
 3. **Group ACs into stories.** Start with one story per requirement; split a requirement only when
    `i_want` would name more than one capability (workflow step, business rule, data variation,
    role). Merge nothing across requirements unless one is meaningless alone.

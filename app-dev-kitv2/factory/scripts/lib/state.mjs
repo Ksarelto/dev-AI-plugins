@@ -204,12 +204,18 @@ export const activeName = (dispatchId) => dispatchId.replaceAll("/", ".");
 /** Where the SubagentStop hook keeps a dispatch's valid envelope for `factory record --saved`. */
 export const savedEnvelopeFile = (projectDir, dispatchId) => join(factoryPaths(projectDir).active, `${activeName(dispatchId)}.envelope.json`);
 
+/** Tokens the SubagentStop hook already added to the budget for a dispatch (so --tokens is not counted twice). */
+export const tokensCountedFile = (projectDir, dispatchId) => join(factoryPaths(projectDir).active, `${activeName(dispatchId)}.tokens`);
+
+/** Per-dispatch log of the skills the agent really loaded (PostToolUse Skill), kept in the feature dir next to its pack. */
+export const skillsLogFile = (projectDir, dispatch) => join(projectDir, dirname(dirname(dispatch.pack)), "skills-loaded", `${activeName(dispatch.id)}.log`);
+
 export function setActive(projectDir, dispatch) {
   writeJson(join(factoryPaths(projectDir).active, `${activeName(dispatch.id)}.json`), dispatch);
 }
 
 export function clearActive(projectDir, dispatchId) {
-  for (const ext of [".json", ".reads", ".envelope.json"]) {
+  for (const ext of [".json", ".reads", ".envelope.json", ".tokens", ".skillretry"]) {
     const file = join(factoryPaths(projectDir).active, `${activeName(dispatchId)}${ext}`);
     if (existsSync(file)) unlinkSync(file);
   }

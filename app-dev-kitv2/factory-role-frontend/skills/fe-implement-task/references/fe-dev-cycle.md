@@ -42,7 +42,7 @@ with the files a task of that type normally owns. The golden file in T2 is the s
 | `styling-token` | theme tokens, a `cva` variant in `shared/ui/<name>/styles.ts` | `tailwind-styles` | `tailwind-styles/examples.md` |
 | `characterisation` | test files only (fe-test-author) | `testing` | — |
 | `fix` | the files of the failure in T0; a regression red test comes first | the rules for `fix` in T1 | the golden file of the code you touch |
-| `refactor` | the files in T0; behaviour stays as the existing tests pin it | `architecture-audit` | — |
+| `refactor` | the files in T0; behaviour stays as the existing tests pin it | `react-feature` | — |
 
 All golden files are under `frontend-dev-kit/skills/`. A `fix` or `refactor` task reads every rule
 T1 lists for it (react, component-structure, styling, i18n, api-contract): a fix can land anywhere.

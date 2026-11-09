@@ -73,7 +73,7 @@ test("a dispute restores the sources at red, clears escalation, and gets a fresh
   assert.match(conductor.step(env.dir).dispatches[0].id, /implementation\.TASK-002\.red2\/fe-test-author\/a1$/);
 });
 
-test("a human reject on a disputed task sends it back to its test author", async () => {
+test("a human reject on a disputed task sends it back to red", async () => {
   const env = loopSetup();
   setTasks(env, { "TASK-001": { status: "done" }, "TASK-002": { status: "green", phase: "green", disputed: true, red_lock: {}, round: 2 } });
   const d = conductor.step(env.dir).dispatches[0];
@@ -82,7 +82,7 @@ test("a human reject on a disputed task sends it back to its test author", async
   conductor.reject(env.dir, { reason: "The builder is right: the AC says 95.00" });
   const unit = featureState(env.featureDir).tasks["TASK-002"];
   assert.equal(unit.phase, "red");
-  assert.match(unit.feedback, /sent TASK-002 back to its test author \(HD-1\)/);
+  assert.match(unit.feedback, /sent TASK-002 back to red \(HD-1\)/);
 });
 
 test("split: the pack's exit check names no task, and the planner may update the test plan", () => {
@@ -141,10 +141,9 @@ test("the task loop marks its stage as running and entered", () => {
   assert.deepEqual([st.status, st.entered], ["running", true]);
 });
 
-test("an enabled role whose pack is missing halts the prototype stage instead of skipping it", () => {
-  const dir = makeProject(`packs: { factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}" }\nroles: { frontend: { enabled: true, pack: not-installed } }\npipeline: { profiles: { test: [prototype, requirements] } }`);
-  const featureDir = makeFeature(dir, { stages: ["prototype", "requirements"] });
-  putArtifact(featureDir, "stories.yaml", "02-stories/stories.yaml");
+test("an enabled role whose pack is missing halts a role-slot stage instead of skipping it", () => {
+  const dir = makeProject(`packs: { factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}" }\nroles: { frontend: { enabled: true, pack: not-installed } }\npipeline: { profiles: { test: [architecture] }, stages: { architecture: { agents: ["role:builder"] } } }`);
+  makeFeature(dir, { stages: ["architecture"] });
   const r = conductor.step(dir);
   assert.equal(r.action, "halt");
   assert.match(r.reason, /pack "not-installed" is not installed/);

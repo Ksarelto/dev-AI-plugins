@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { UsageError, readYaml, writeJson } from "./lib/core.mjs";
 import { explainConfig, loadConfig, profileFor, profileStages } from "./lib/config.mjs";
-import { abort, acceptChanges, approve, writeTreeSnapshot, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, revertPrototype, scaffold, setOverride, split, stepAsync } from "./lib/conductor.mjs";
+import { abort, acceptChanges, approve, writeTreeSnapshot, checkEnvelope, diagnose, load, note, parseEnvelope, record, reject, replay, resolveStage, resume, scaffold, scopeAdd, markRedPassed, setOverride, split, stepAsync, relockAcceptance, waiveAcceptance } from "./lib/conductor.mjs";
 import { buildIndex } from "./lib/cartographer.mjs";
 import { ship } from "./lib/delivery.mjs";
 import { resolvePacks } from "./lib/registry.mjs";
@@ -15,9 +15,11 @@ import { resolveStack } from "./lib/stackexec.mjs";
 import { intake } from "./lib/intake.mjs";
 import { brief, briefMarkdown } from "./lib/brief.mjs";
 import { gateContext, idCoverage, runGate } from "./lib/gatekeeper.mjs";
-import { setNoteStatus } from "./lib/notes.mjs";
+import { remapNotes, setNoteStatus } from "./lib/notes.mjs";
 import { appendEvent, createFeature, loadAppState, readEvents, saveAppState, saveFeature, withLock } from "./lib/state.mjs";
 import { metrics, metricsMarkdown } from "./lib/metrics.mjs";
+import { addReference, readReferences } from "./lib/references.mjs";
+import { raiseBudget } from "./lib/budgets.mjs";
 
 const HELP = `factory <command> [options]
   init [--mode M] [--name N] [--roles frontend,backend]   create .factory/
@@ -32,15 +34,21 @@ const HELP = `factory <command> [options]
   record --dispatch ID [--saved | --file F | stdin] [--tokens N]  persist an envelope, run gate + warden; returns the next step
   gate <name> [--task ID | --screen ID]                   run one gate now
   accept-changes                                          keep files edited outside the factory since the last step (the step halts on them)
-  proto revert                                            put .factory/prototype/ back as it was before this feature's prototype stage; the stage runs again
+  reference add <path|url> [--allow-inside] · reference list   record a mockup the brief points at (binding design input; agents may read it, never write it; a .html file is the file itself; the project folder and its parents are refused, an in-project folder under a role's source folders needs --allow-inside)
   idcov --stage S                                         tracked-ID coverage of a stage
-  envelope check [--file F | stdin] [--pack-id ID]        validate an envelope
-  approve [GATE] [--notes "..."] · reject [GATE] --reason "..."
-  note "<text>" · note decline HD-n --reason "..." · note done HD-n   human instructions (HD-*)
+  envelope check --file F [--pack-id ID] (or pipe it on stdin)  validate an envelope; agents may use .factory/scratch/<name>.json
+  approve [GATE] [--notes "..." [--kind product|process]] · reject [GATE] --reason "..." [--kind process]   notes given at a gate are product notes unless --kind says otherwise
+  resume [TASK-NNN]                                       clear a halt and run the same phase again at the same rung (a blocked stage runs its agents again)
+  budget raise <key> <value>                              raise one budget of this feature (feature.dispatches, feature.wall_clock_min, stage.dispatches_max_by_stage.implementation, …), then resume
+  note "<text>" [--kind product|process] · note decline HD-n --reason "..." · note done HD-n   human instructions (HD-*)
+  note remap TASK-005=TASK-019 [...]                      repoint notes mapped to a task that was split or replaced
   override <stage> force|skip|clear                       force or skip an optional stage
   replay <stage> --with "<feedback>"                      re-run an earlier stage with feedback
+  replay acceptance --relock <test> [--with "why"]        the acceptance author rewrites only that disputed test (file or file::name); the engine re-locks it
+  acceptance waive <test> --reason "..."                  accept a failing acceptance test (file or file::name) for this feature; human only, listed in the review
   diagnose --stage S | --task T                           jump a stage or task to escalation rung 3
-  split TASK-NNN                                          escalation rung 4: the planner splits the task
+  split TASK-NNN                                          the planner splits a task that is two unrelated behaviours (human only)
+  scope add TASK-NNN [<file|glob> ...]                    widen a task's files_expected / write_scope without a planner run (no paths: what the builder named); gate-plan re-checks
   index                                                   rebuild the component inventory (Cartographer)
   comments --file F                                       PR review comments for S9 (JSON array)
   scaffold                                                greenfield: copy and install each role's boilerplate (resumable)
@@ -59,12 +67,33 @@ function parseArgs(argv) {
       const next = argv[i + 1];
       if (next === undefined || next.startsWith("--")) args[key] = true;
       else {
-        args[key] = next;
+        args[key] = key === "route" && args[key] !== undefined ? [args[key], next].flat() : next; // --route may repeat
         i++;
       }
     } else args._.push(a);
   }
   return args;
+}
+
+/** Piped stdin, but never wait for a terminal or a pipe nobody writes to: fail fast with usage. */
+function readStdinFast(usage, idleMs = 3000) {
+  if (process.stdin.isTTY) return Promise.reject(new UsageError(usage));
+  return new Promise((resolveText, reject) => {
+    const chunks = [];
+    const timer = setTimeout(() => {
+      process.stdin.destroy(); // a waiting listener would keep the process alive
+      reject(new UsageError(`${usage} (nothing on stdin)`));
+    }, idleMs);
+    process.stdin.on("data", (c) => {
+      clearTimeout(timer);
+      chunks.push(c);
+    });
+    process.stdin.on("end", () => {
+      clearTimeout(timer);
+      if (chunks.length) resolveText(Buffer.concat(chunks).toString("utf8"));
+      else reject(new UsageError(`${usage} (empty stdin)`));
+    });
+  });
 }
 
 const readInput = (args) => (args.file ? readFileSync(resolve(args.file), "utf8") : readFileSync(0, "utf8"));
@@ -131,9 +160,10 @@ async function main(argv) {
     }
     case "accept-changes":
       return { out: acceptChanges(project, { feature }) };
-    case "proto": {
-      if (sub !== "revert") throw new UsageError("usage: factory proto revert [--feature FEAT-NNN]");
-      return { out: revertPrototype(project, { feature }) };
+    case "reference": {
+      if (sub === "add") return { out: addReference(project, args._[2], { feature: typeof args.feature === "string" ? args.feature : undefined, allowInside: Boolean(args["allow-inside"]) }) };
+      if (sub === "list" || !sub) return { out: { references: readReferences(project, { status: "all" }) } };
+      throw new UsageError("usage: factory reference add <path-or-url> [--feature FEAT-NNN] [--allow-inside] | reference list");
     }
     case "gate": {
       if (!sub) throw new UsageError("usage: factory gate <name>");
@@ -145,6 +175,8 @@ async function main(argv) {
       const ctx = gateContext({ projectDir: project, app: c.app, feature: c.feature, config: c.config, task, stack: task ? resolveStack(c, task.role) : undefined, packs: c.packs, stage, screen });
       const results = [];
       for (const name of sub.split(",")) results.push(await runGate(name, ctx, { useCache: !args["no-cache"] }));
+      // builder_two_phase: a red that passes in the builder's own dispatch locks the red tests (what the red phase does for the engine).
+      if (task && results.some((r) => r.gate === "red" && r.pass)) await markRedPassed(project, { feature, task: task.id });
       const out = results.length === 1 ? results[0] : { gate: sub, pass: results.every((r) => r.pass), results };
       return { out, code: out.pass ? 0 : 1 };
     }
@@ -157,15 +189,40 @@ async function main(argv) {
       return { out: { stage: stage.id, missing }, code: missing.length ? 1 : 0 };
     }
     case "envelope": {
-      if (sub !== "check") throw new UsageError("usage: factory envelope check [--file F] [--pack-id ID]");
-      const errors = checkEnvelope(parseEnvelope(readInput(args)), { packId: args["pack-id"] });
+      const usage = "usage: factory envelope check --file <envelope.json> [--pack-id ID] (or pipe the envelope on stdin)";
+      if (sub !== "check") throw new UsageError(usage);
+      const text = typeof args.file === "string" ? readInput(args) : await readStdinFast(usage);
+      const errors = checkEnvelope(parseEnvelope(text), { packId: args["pack-id"] });
       return { out: { valid: !errors.length, errors }, code: errors.length ? 1 : 0 };
     }
     case "approve":
-      return { out: approve(project, { gate: sub, notes: typeof args.notes === "string" ? args.notes : undefined, feature, by: args.by }) };
+      if (args.kind !== undefined && !["product", "process"].includes(args.kind)) throw new UsageError("--kind is product or process");
+      return { out: approve(project, { gate: sub, notes: typeof args.notes === "string" ? args.notes : undefined, feature, by: args.by, kind: args.kind }) };
     case "reject":
-      return { out: reject(project, { gate: sub, reason: args.reason, feature, by: args.by }) };
+      if (args.kind !== undefined && !["product", "process"].includes(args.kind)) throw new UsageError("--kind is product or process");
+      return { out: reject(project, { gate: sub, reason: args.reason, feature, by: args.by, kind: args.kind }) };
+    case "budget": {
+      if (sub !== "raise") throw new UsageError("usage: factory budget raise <key> <value>   e.g. factory budget raise feature.dispatches 120");
+      return { out: withLock(project, () => { const c = load(project, feature); const out = raiseBudget(project, c, { key: args._[2], value: args._[3] }); return out; }) };
+    }
     case "note": {
+      if (sub === "remap") {
+        const pairs = args._.slice(2);
+        if (!pairs.length) throw new UsageError("usage: factory note remap OLD=NEW [OLD=NEW …]   e.g. TASK-005=TASK-019");
+        return {
+          out: withLock(project, () => {
+            const c = load(project, feature);
+            let result;
+            try {
+              result = remapNotes(c.feature.dir, pairs);
+            } catch (error) {
+              throw new UsageError(error.message);
+            }
+            appendEvent(project, { type: "note", feature: c.fid, remapped: result.pairs, notes: result.changed });
+            return { feature: c.fid, ...result };
+          }),
+        };
+      }
       if (sub === "decline" || sub === "done") {
         const id = args._[2];
         if (!id || (sub === "decline" && typeof args.reason !== "string")) throw new UsageError('usage: factory note decline HD-n --reason "..." | factory note done HD-n');
@@ -179,22 +236,39 @@ async function main(argv) {
         };
       }
       const text = args._.slice(1).join(" ");
-      if (!text) throw new UsageError('usage: factory note "<text>"');
-      return { out: note(project, { text, feature, by: args.by }) };
+      if (!text) throw new UsageError('usage: factory note "<text>" [--kind product|process]');
+      if (args.kind !== undefined && !["product", "process"].includes(args.kind)) throw new UsageError("--kind is product or process");
+      const added = note(project, { text, feature, by: args.by, kind: args.kind });
+      // Echo the kind back: it decides whether the note is planned and mapped (product) or only steers the run (process).
+      return { out: { ...added, kind: added.note.kind, kind_source: args.kind ? "explicit" : "auto", hint: `recorded as a ${added.note.kind} note${args.kind ? "" : ` (classified from the text; override with --kind ${added.note.kind === "product" ? "process" : "product"})`}` } };
     }
     case "override": {
       const value = args._[2];
       if (!sub || !["force", "skip", "clear"].includes(value)) throw new UsageError("usage: factory override <stage> force|skip|clear");
       return { out: setOverride(project, { feature, stage: sub, value: value === "clear" ? undefined : value }) };
     }
+    case "acceptance": {
+      if (sub !== "waive" || !args._[2] || typeof args.reason !== "string") throw new UsageError('usage: factory acceptance waive <test file or file::test name> --reason "..."');
+      return { out: waiveAcceptance(project, { feature, test: args._[2], reason: args.reason, by: typeof args.by === "string" ? args.by : undefined }) };
+    }
     case "replay":
+      if (typeof args.relock === "string") {
+        if ((sub ?? args.stage) !== "acceptance") throw new UsageError('--relock belongs to the acceptance stage: factory replay acceptance --relock <test>');
+        return { out: relockAcceptance(project, { feature, test: args.relock, reason: typeof args.with === "string" ? args.with : undefined }) };
+      }
       return { out: replay(project, { feature, stage: sub ?? args.stage, feedback: typeof args.with === "string" ? args.with : undefined }) };
+    case "resume":
+      return { out: resume(project, { feature, task: typeof args.task === "string" ? args.task : typeof sub === "string" ? sub : undefined }) };
     case "diagnose":
       if (!(sub ?? args.stage ?? args.task)) throw new UsageError("usage: factory diagnose --stage <stage> | --task TASK-NNN");
       return { out: diagnose(project, { feature, stage: sub ?? args.stage, task: typeof args.task === "string" ? args.task : undefined }) };
     case "split":
       if (!sub) throw new UsageError("usage: factory split TASK-NNN");
       return { out: split(project, { feature, task: sub }) };
+    case "scope": {
+      if (sub !== "add" || !args._[2]) throw new UsageError("usage: factory scope add TASK-NNN [<file or glob> ...] [--feature FEAT-NNN]");
+      return { out: await scopeAdd(project, { feature, task: args._[2], entries: args._.slice(3) }) };
+    }
     case "comments": {
       // S9 input: PR review comments as a JSON array [{ id, body, path?, line? }] (from gh or a file).
       if (typeof args.file !== "string") throw new UsageError("usage: factory comments --file <comments.json>");

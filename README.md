@@ -21,7 +21,7 @@ A plugin marketplace with reusable **skills**, **rules**, **commands**, and **ag
 
 The last seven are separate marketplace plugins under [`app-dev-kit/`](app-dev-kit/). See that README for the pipeline map. Discoverability evals live in `evals/cases/<plugin-name>.json` (plus `<plugin-name>-agents.json` when the kit ships agents).
 
-**[app-dev-kitv2](app-dev-kitv2/)** is a second, independent pipeline family — nine marketplace plugins (`factory`, `factory-analysis`, `factory-role-frontend`, `factory-role-backend`, `factory-role-ai-agent`, `factory-quality`, `factory-delivery`, `factory-adapter-github`) implementing the hub-and-spoke "AI factory" design in [`Suggestions/`](Suggestions/README.md): a deterministic Conductor dispatches single-purpose agents against file-based state in `.factory/`, with scripts, not models, deciding pass/fail and retries. See [app-dev-kitv2/README.md](app-dev-kitv2/README.md) for install and usage.
+**[app-dev-kitv2](app-dev-kitv2/)** is a second, independent pipeline family — eight factory plugins (`factory`, `factory-analysis`, `factory-role-frontend`, `factory-role-backend`, `factory-role-ai-agent`, `factory-quality`, `factory-delivery`, `factory-adapter-github`). `prototype-kit` is a separate install when a clickable reference is wanted. The factory implements the hub-and-spoke "AI factory" design in [`Suggestions/`](Suggestions/README.md): a deterministic Conductor dispatches single-purpose agents against file-based state in `.factory/`, with scripts, not models, deciding pass/fail and retries. See [app-dev-kitv2/README.md](app-dev-kitv2/README.md) for install and usage.
 
 **Boilerplates** (not plugins): [`backend-boilerplate/`](backend-boilerplate/) and [`agent-boilerplate/`](agent-boilerplate/) are runnable, tested starters (Docker, Postgres, auth, logging, error handling, graceful degradation, Vitest + Testcontainers) that the two Node kits describe and their `scaffold-*` skills copy.
 
@@ -84,7 +84,7 @@ Or reload inside a session after changes:
 |-----------|-------------|------------|
 | Skills | `skills/*/SKILL.md` | `/plugin-name:skill-name` |
 | Commands | `commands/*.md` | `/plugin-name:command-name` |
-| Agents | `agents/*.md` (Cursor: `agents/`, or `cursor-agents/` for spec, html, and feature kits) | Agent picker |
+| Agents | `agents/*.md` (Cursor install mirror adds `cursor-agents/` for kits in `scripts/model-tiers.json`) | Agent picker |
 | Rules | `rules/*.mdc` | Injected by Claude automatically |
 | MCP | `.mcp.json` | Available to all agents in plugin |
 
@@ -98,7 +98,7 @@ Or reload inside a session after changes:
 
 ## Cursor
 
-Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the same `rules/`, `skills/`, `commands/`, and MCP files as Claude Code. Claude `agents` is `./agents/*.md`. Cursor `agents` is `./agents/`, except spec-dev-kit, html-generator-kit, and feature-dev-kit, which point at generated `./cursor-agents/`.
+Kits ship side-by-side Cursor manifests (`.cursor-plugin/`) that point at the same `rules/`, `skills/`, `commands/`, and MCP files as Claude Code. Claude `agents` is `./agents/*.md`. Cursor `agents` is `./agents/`, except the kits in `scripts/model-tiers.json`, which point at `./cursor-agents/`. That folder is not in the repo. `npm run install:cursor-local` writes it into `~/.cursor/plugins/local/.source-repo` before linking.
 
 ### Install from GitHub
 

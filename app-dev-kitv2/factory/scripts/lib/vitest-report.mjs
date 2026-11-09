@@ -35,6 +35,11 @@ const ENV_ERRORS = /^(\w*Error: )?(Invalid environment|ZodError)|ECONNREFUSED|EN
 // Assertion wording without the class name: vitest's "expected X to …" and Testing Library lookups.
 const GOOD_RED = /Unable to find an? (accessible )?(element|label|role|text)|\bexpected\b.*\bto\b/i;
 
+// eslint-disable-next-line no-control-regex
+const ANSI = /\u001b\[[0-9;?]*[ -/]*[@-~]|\u001b\][^\u0007]*\u0007/g;
+/** Removes terminal colour codes: a runner that ignores NO_COLOR must not turn an assertion into a "wrong failure". */
+export const stripAnsi = (text) => String(text).replace(ANSI, "");
+
 /** Whether a failing test fails for the right reason (assertion or explicit "not implemented"). */
 export function goodRedFailure(message) {
   const first = firstLine(message);
@@ -52,4 +57,4 @@ export function freshReport(file) {
 /** Acceptance tests fail by design until verification; task gates leave them out of "the suite passes". */
 export const isAcceptanceTest = (file) => /\.acceptance\.test\./.test(file);
 
-export const firstLine = (message) => String(message).split("\n").find((l) => l.trim())?.trim().slice(0, 200) ?? "";
+export const firstLine = (message) => stripAnsi(message).split("\n").find((l) => l.trim())?.trim().slice(0, 200) ?? "";

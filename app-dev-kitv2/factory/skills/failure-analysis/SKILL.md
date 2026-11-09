@@ -26,7 +26,7 @@ Runs on: diagnostician (opus) — root-causing a stage or task that keeps failin
 | Misread requirement | output contradicts an AC or the spec | quote the AC; say what to change |
 | Missing input | the agent needed a file it was not given | name the file; the Conductor adds it |
 | Unsatisfiable check | the gate demands something the spec forbids | fix the gate or the spec — escalate to a human |
-| Task too large | failures spread across many files | split (rung 4) with a proposed split |
+| Task too large | failures spread across many files | amend (rung 4): the planner corrects the task; never propose a split yourself — a split only happens when a human runs `/factory:split` |
 | Environment | tool, dependency or path problem | the exact command and error |
 
 ## Write `diagnosis/<stage-or-task>.md`

@@ -47,10 +47,10 @@ const RULES = {
   'unused-export': 'no export nothing else imports (index.ts: nothing outside the folder; registry bases: types only)',
   'motion-css': '@keyframes / custom animation in CSS (warn); tw-animate-css imported twice (error)',
   'lib-imports-api': 'feature/entity lib/ does not import api/ or @/shared/api — a fetcher may import the helper, or the helper takes the fetcher as an argument',
-  'arrow-body': 'an arrow that only returns has no block — => expr, or => (expr) when it breaks across lines',
+  'arrow-body': 'an arrow that only returns has no block — => expr (Prettier decides how a long body breaks; a multi-line JSX body is wrapped in parentheses)',
   'max-len': 'line is at most 160 characters (URLs do not count)',
   'block-gap': 'blank line before and after a block, a multi-line parenthesized value, or a multi-line => ( arrow, when it has a neighbor',
-  'wrapped-expr': 'a value continued on the next line is wrapped in parentheses',
+  'wrapped-expr': 'a returned value or a JSX initializer that continues on the next line is wrapped in parentheses (as Prettier prints them; other initializers are left to Prettier)',
   'node-access': 'no DOM walking in a test — screen.getByRole / getByLabelText / getByText, or within(...).getByRole',
   'class-constant': 'class strings are written in styles.ts — do not store them in constants.ts or import them back',
   'translated-local': 'call t(key) at the JSX or attribute — do not store the translation in a local',
@@ -343,9 +343,15 @@ const bindsContainer = (name) => {
   return false
 }
 
-const checkWrapped = (file, sf, anchorEnd, expr) => {
+const isJsx = (n) => ts.isJsxElement(n) || ts.isJsxFragment(n) || ts.isJsxSelfClosingElement(n)
+
+// Prettier owns line breaks: it parenthesizes a multi-line JSX value and a multi-line `return` value, and
+// nothing else — a variable initializer or an arrow body such as `a &&\n b` stays unwrapped. The rules
+// flag only what Prettier would not leave, so formatted code always passes.
+const checkWrapped = (file, sf, anchorEnd, expr, { jsxOnly = false } = {}) => {
   if (lineOf(sf, expr.getStart(sf)) === lineOf(sf, anchorEnd)) return
   if (ts.isParenthesizedExpression(expr)) return
+  if (jsxOnly && !isJsx(expr)) return
   report(file, sf, expr.getStart(sf), 'error', 'wrapped-expr', 'a value continued on the next line is wrapped in parentheses')
 }
 
@@ -414,15 +420,15 @@ const checkAst = (file, sf) => {
     if (ts.isArrowFunction(n) && ts.isBlock(n.body)) {
       const only = n.body.statements
       if (only.length === 1 && ts.isReturnStatement(only[0])) {
-        report(file, sf, n.getStart(sf), 'error', 'arrow-body', 'this arrow only returns — drop the block and write => (expr)')
+        report(file, sf, n.getStart(sf), 'error', 'arrow-body', 'this arrow only returns — drop the block and write => expr (Prettier adds parentheses only where it needs them)')
       }
-    } else if (ts.isArrowFunction(n) && !ts.isBlock(n.body) && spansLines(sf, n.body) && !ts.isParenthesizedExpression(n.body)) {
-      report(file, sf, n.getStart(sf), 'error', 'arrow-body', 'a multi-line arrow body is wrapped in parentheses')
+    } else if (ts.isArrowFunction(n) && !ts.isBlock(n.body) && spansLines(sf, n.body) && isJsx(n.body)) {
+      report(file, sf, n.getStart(sf), 'error', 'arrow-body', 'a multi-line JSX arrow body is wrapped in parentheses')
     }
 
     if (ts.isVariableDeclaration(n) && n.initializer) {
       const equals = n.getChildren(sf).find((c) => c.kind === ts.SyntaxKind.EqualsToken)
-      if (equals) checkWrapped(file, sf, equals.end, n.initializer)
+      if (equals) checkWrapped(file, sf, equals.end, n.initializer, { jsxOnly: true })
     }
 
     if (ts.isReturnStatement(n) && n.expression) {

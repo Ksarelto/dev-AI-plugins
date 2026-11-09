@@ -9,13 +9,18 @@
     ],
     "preToolUse": [
       {
-        "matcher": "Write|Delete",
+        "matcher": "Write|StrReplace|Delete",
         "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" pre-write --cursor",
         "timeout": 10
       },
       {
         "matcher": "Grep",
         "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" pre-grep --cursor",
+        "timeout": 10
+      },
+      {
+        "matcher": "Glob",
+        "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{\"permission\":\"allow\"}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" pre-read --cursor",
         "timeout": 10
       },
       {
@@ -38,7 +43,7 @@
     ],
     "postToolUse": [
       {
-        "matcher": "Write",
+        "matcher": "Write|StrReplace",
         "command": "[ -f \"${CURSOR_PROJECT_DIR:-$CLAUDE_PROJECT_DIR}/.factory/state.json\" ] || { echo '{}'; exit 0; }; G=./hooks/guard.mjs; [ -f \"$G\" ] || G=\"$CURSOR_PLUGIN_ROOT/hooks/guard.mjs\"; node \"$G\" post-write --cursor",
         "timeout": 10
       },

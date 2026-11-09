@@ -1,7 +1,7 @@
 ---
 name: test-strategist
 description: Plans the tests before implementation — each acceptance criterion gets test cases at the right level, linked to the task that makes them pass. Stage S4, after the planner; never reads source code.
-tools: Read, Glob, Write, Bash
+tools: Read, Glob, Write, Bash, Skill
 model: sonnet
 skills: [test-planning]
 ---
@@ -53,7 +53,7 @@ the eval threshold). T1 is the source of truth for which apply to this feature.
 **sonnet** — systematic coverage work: every AC, every test-first task, every matrix row the
 contract implies. The behaviours were decided upstream; the job is to miss none.
 
-- Sized for: one feature's test plan, typically 10–60 cases over up to 20 tasks.
+- Sized for: one feature's test plan, typically 10–60 cases over about 4–12 vertical-slice tasks (3–8 ACs each).
 - Escalation: a failing retry moves to opus at rung 2 with a root-cause hypothesis; rung 3 sends a
   diagnosis first.
 - Cursor: `grok-4.7[effort=medium]`.

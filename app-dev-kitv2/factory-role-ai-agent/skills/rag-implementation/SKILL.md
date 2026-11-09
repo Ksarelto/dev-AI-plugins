@@ -6,7 +6,7 @@ user-invocable: false
 
 # Implement a retrieval task (green phase)
 
-Runs on: ai-rag-builder (sonnet) — one `rag` task: ingestion, the hybrid search query, the retriever or the citation path, within four files.
+Runs on: ai-rag-builder (sonnet) — one `rag` task: ingestion, the hybrid search query, the retriever or the citation path, within the file budget `role.yaml` sets for `rag` tasks (`budgets.task_limits`).
 
 Constraints: `rules/rag.mdc` (T1 marks it `[READ]`). Patterns and SQL: `node-agent-dev-kit:rag-pipeline`
 and its hybrid-search reference. Path split and checklist:
@@ -69,7 +69,7 @@ the retriever factory's deps — never from the tool's arguments — and keep th
    (Docker, `pgvector/pgvector:pg17`), which the task gate does not run.
 2. Walk [ai-rag-checklist.md](references/ai-rag-checklist.md) for the path you touched.
 3. Run the exit check (`gate impl`): red tests unchanged and green, touched tests green, typecheck,
-   lint, build, and — `rag` is a model-facing task type — the eval run against real models (it costs
+   lint (no production build per task: verification builds), and — `rag` is a model-facing task type — the eval run against real models (it costs
    money and needs `OPENROUTER_API_KEY`), with a passing eval test per planned AC.
 4. Worse eval results mean the retrieval change is wrong. Never tune a golden case, a threshold or
    `RRF_K` / top-k silently to pass; a knob change belongs in the design with before/after pass rates.
@@ -83,3 +83,5 @@ the retriever factory's deps — never from the tool's arguments — and keep th
   a human decision (`policy.human_owned: destructive_migration`) — ask with `needs_clarification`.
 - Add an external vector store, a LangChain `VectorStore` wrapper or a reranker SDK.
 - Touch graph topology, prompts or other tools (ai-builder's task types).
+- Bend production code to fit a fixture or a red test: no shaped result, test-only hook, shim or adapter. A test that contradicts
+  the AC, the design or `rules/rag.mdc` is a `test_dispute` naming the test and the contract line.

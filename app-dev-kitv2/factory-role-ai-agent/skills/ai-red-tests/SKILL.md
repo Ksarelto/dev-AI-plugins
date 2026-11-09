@@ -1,12 +1,12 @@
 ---
 name: ai-red-tests
-description: Procedure for the factory AI-agent test author — write failing Vitest tests for tools, nodes, graphs, guardrails and prompts with a scripted model and fake retrievers (deterministic, offline), add only the stubs they import, and pin current agent behaviour for change requests. Preloaded by ai-test-author; not for direct use.
+description: Procedure for the factory AI-agent test author — write failing Vitest tests for tools, nodes, graphs, guardrails and prompts with a scripted model and fake retrievers (deterministic, offline), add only the stubs they import, and pin current agent behaviour for change requests. Preloaded by ai-test-author, and by ai-builder and ai-rag-builder for the red half of their one-dispatch build; not for direct use.
 user-invocable: false
 ---
 
 # AI-agent red tests
 
-Runs on: ai-test-author (sonnet) — one AI-agent task's red or characterisation phase: offline unit tests with a scripted model, plus the stubs they import.
+Runs on: ai-test-author (characterisation, separate mode and its disputes; in the default one-dispatch mode a dispute goes back to the builder) and ai-builder / ai-rag-builder (the RED half of phase `build`, before they implement) — one AI-agent task's red or characterisation phase: offline unit tests with a scripted model, plus the stubs they import. In `build` run `gate red --task <id>` yourself when the tests are written and do not implement until it passes.
 
 A scripted model plays the LLM, so a test fails because code is missing, never because a model was
 unlucky. The case table, per-type drivers and stub pitfalls are in
@@ -104,3 +104,4 @@ right (once); otherwise keep it and give the reason in your summary.
 - [ ] Done-criteria cases present for model-facing tasks; eval-level cases left to the eval task
 - [ ] Every failure is an assertion or `not implemented`, checked per file
 - [ ] Only T0's files and stubs written; the exit check passed
+- [ ] Stack skills loaded with the Skill tool before writing, and named in the envelope's `skills_loaded`

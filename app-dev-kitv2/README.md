@@ -9,14 +9,15 @@ Status: **all five phases built** — engine, analysis, three roles, quality, de
 
 ## Plugins
 
-This family is **nine separate marketplace plugins**. Install the engine plus whichever stage, role
-and adapter packs a project needs.
+This family is **eight factory plugins**. Install the engine plus whichever stage, role and adapter
+packs a project needs. `prototype-kit` (at `./prototype-kit` in the same marketplace) is a separate
+install when a clickable reference is wanted. It is not a factory stage.
 
 | Layer | Plugin | Status | Ships |
 |---|---|---|---|
 | Engine | [`factory`](factory/) | ✅ phase 1 | `/factory:*` commands, CLI, schemas, gates, Loop Warden, Context Broker, hooks, engine digest, `curator` (optional), `diagnostician` |
 | Stage | [`factory-analysis`](factory-analysis/) | ✅ phase 2 | intake → bootstrap/discovery → requirements → stories → architecture → planning; 8 agents, 10 skills, worked-example templates |
-| Role | [`factory-role-frontend`](factory-role-frontend/) | ✅ phase 3 | test author (red), builder (green), the living app prototype (prototype-designer + one prototyper per screen); the task loop runs real tests, typecheck, lint, layer rules, build and the convention and duplicate checks; bundle and axe audits at verification; shadcn and context7 MCP |
+| Role | [`factory-role-frontend`](factory-role-frontend/) | ✅ phase 3 | builder (red tests, proof with `gate red`, then green in one dispatch; a test author writes red first only with `quality.tdd.author: separate`); the task loop runs real tests, typecheck, lint, layer rules and the convention and duplicate checks (the build at verification); bundle and axe audits at verification; shadcn and context7 MCP |
 | Stage | [`factory-quality`](factory-quality/) | ✅ phase 4 | acceptance tests before the build, machine checks then the seven-lens review plus the roles' scripted audits, exploratory QA; failures become fix tasks |
 | Stage | [`factory-delivery`](factory-delivery/) | ✅ phase 4 | feature docs and ADRs, commit plan and PR body, PR-comment triage (S9); the engine commits and ships |
 | Adapter | [`factory-adapter-github`](factory-adapter-github/) | ✅ phase 4 | `git push` + `gh pr create --draft`; dry-run by default (commands recorded, never run) |
@@ -101,6 +102,14 @@ runs there and what still differs from Claude Code.
 `/factory:ship` commits and opens the PR once the delivery gate passes (dry-run until
 `delivery.dry_run: false` in the config — see [factory-adapter-github](factory-adapter-github/README.md)).
 `/factory:note "…"` records a human instruction (`HD-*`) the plan must account for before it can pass.
+`/factory:resume` clears a halt (a plugin installed, a budget raised) and runs the same phase again at the same rung,
+without wiping tasks; `/factory:diagnose`, `/factory:scope`, `/factory:split` and `/factory:replay` change the plan instead.
+
+A mockup the brief points at (a folder with an HTML entry or an `.html` file outside the project, or a URL) is only
+*proposed* at intake: the first step asks once whether it is binding. `factory reference add <path|url> [--feature FEAT-NNN]`
+confirms one at once; confirmed references are read-only for dispatched agents and scoped to their feature. Other human
+commands: `factory acceptance waive … [--by …]`,
+`factory replay acceptance --relock …`, `factory scope add`, `factory note [--kind process] | remap OLD=NEW`.
 
 ## Structure
 
@@ -108,13 +117,13 @@ runs there and what still differs from Claude Code.
 app-dev-kitv2/
   factory/                 # engine: every project needs this one
     scripts/factory.mjs    #   CLI — init, intake, step, record, gate, status, doctor, metrics,
-                            #   comments, ship, note, replay, abort, split, diagnose
+                            #   comments, ship, note, replay, abort, split, diagnose, resume, scope, reference, acceptance
     scripts/gates/         #   deterministic pass/fail checks, one per stage/task transition
     schemas/                #   JSON Schemas that state, context-pack and envelope files are checked against
     skills/                 #   one skill per /factory:* command
     hooks/                  #   guard.mjs — enforces each dispatch's context pack, Claude Code + Cursor
   factory-analysis/         # stage pack: stages/{intake,bootstrap,discovery,requirements,
-                            #   requirements-lite,stories,architecture,planning,prototype}/stage.yaml
+                            #   requirements-lite,stories,architecture,planning}/stage.yaml
   factory-quality/          # stage pack: stages/{acceptance,verification,verification-lite,qa}/stage.yaml
   factory-delivery/         # stage pack: stages/{docs,delivery,feedback}/stage.yaml
   factory-role-frontend/    # role pack: a single role.yaml + agents/ + skills/ + audit scripts
@@ -152,93 +161,111 @@ In a project where the factory has been initialized, `/factory:init` creates:
   └─ factory step     → { action: dispatch, dispatches: [{ subagent_type, model, pack, prompt }] }
        Conductor sends each dispatch as an Agent call (parallel when the stage allows)
   └─ factory record   → envelope check → gate → ID coverage → Loop Warden verdict → state + events
-       advance · retry (rung 1, feedback in the pack) · retry on opus (rung 2)
-       · diagnose (rung 3, diagnostician) · split (rung 4, tasks) · block (rung 5, human)
+       advance · retry (rung 1, feedback in the pack) · retry on the reasoning tier (rung 2: opus on Claude, grok-4.7-xhigh on Cursor)
+       · diagnose (rung 3, diagnostician) · amend (rung 4, tasks: the planner corrects the same task, once per task; a second exhaustion goes to rung 5) · block (rung 5, human)
 ```
 
-Every dispatch gets a **context pack** (`.factory/features/<FEAT>/packs/*.pack.md`): the mission,
-the files it may write, the exit check to run, the inputs by path, and attempt feedback. Hooks
+Every dispatch gets a **context pack** (`.factory/features/<FEAT>/packs/*.pack.md`): the stable rules
+and input paths first, then the mission, the files it may write, the exit check to run and attempt
+feedback. A task pack carries its own slice of the plan (its ACs, stories, test cases, component and
+contract entries) and the notes that concern it; the whole artifacts are optional reads. Hooks
 enforce the pack: writes outside the allowlist, unscoped searches, over-budget reads, package
 installs and force-pushes are denied for dispatched agents; engine-owned state files are denied for
 everyone.
 
 ## Doing each check once
 
-- Task gates run typecheck, lint, the architecture check, the build, the tests and the role's checks
-  side by side (`quality.gate_concurrency`, default 4). They leave out a dependency-cruiser run the
-  lint script already does and a build that is only `tsc`; verification runs lint and build in full.
-- A task gate runs the tests (and evals) the uncommitted changes touch — the stack's
-  `test_scoped_args`, `vitest --changed` — and the role's last task runs them all; verification runs
-  the whole suite and the full eval suite once (`at_verify`). `quality.task_tests: full` turns it off.
+- Task gates run typecheck, lint, the architecture check, the tests and the role's checks
+  side by side (`quality.gate_concurrency`, default 4); the production build is left to verification
+  (`quality.impl_build: true` adds it to every task). They leave out a dependency-cruiser run the
+  lint script already does; verification runs lint and build in full.
+- A task gate runs the tests (and evals) its own change touches — the stack's `test_scoped_args`,
+  `vitest related <the files it changed since its base ref>` (the stack's `test_related`; without one, `--changed`) — and lints only the files it changed (the stack's `lint_files`); the
+  role's last task runs and lints everything; verification runs the whole suite, the full lint, the
+  build and the full eval suite once (`at_verify`). `quality.task_tests: full` / `quality.task_lint: full` turn it off.
+  The base ref is a commit object the engine writes when the task's first dispatch starts (a throw-away
+  copy of the index, `write-tree`, `commit-tree`: no branch, index or worktree file changes; git prunes it
+  after two weeks), kept in `state.json` as `tasks.<id>.base_ref`. Outside git the gates run unscoped.
+- A task gate does not build (`quality.impl_build: false`; `true` keeps it) and typechecks plain `tsc`
+  incrementally (build info in `.factory/cache`, `quality.tsc_incremental: false` turns it off).
+- A failed gate is cached like a pass: an identical failure on an unchanged tree is not re-run at
+  `record` (`quality.cache_failures: false` turns it off; crashes, timeouts and missing reports are never reused).
 - A passing red, impl or verification check is cached against a hash of the working tree: the agent's
   own exit check is not run again at `record` unless a file changed.
 - Verification runs its machine checks (`precheck: checks`) before dispatching the reviewer: failing
   code goes back to implementation without a review round. Role audits (raw colours, i18n, OpenAPI
   drift) are scripts the engine runs (`role.yaml gates.audits`), not agents.
-- The engine writes the feature digest (`context.digest: engine`), and every pack inlines it with the
-  human notes. `record` returns the next step (`next`), and reads the envelope the stop hook saved
+- The engine writes the feature digest (`context.digest: engine`); a stage pack inlines it while it is
+  fresh, a task pack gets none, and every pack inlines the human notes of its scope. `record` returns the next step (`next`), and reads the envelope the stop hook saved
   (`--saved`), so the Conductor neither calls `step` nor copies envelopes.
 
 ## The fix loop and delivery
 
 Verification, QA, a rejected GATE-C and `change` PR comments do not edit code. Their failures become
 fix items; the feature goes back to `implementation`, where the planner first adds fix tasks
-(`fixplan`), and those go through red → green like any task. Each backward edge has a budget in
+(`fixplan`): it amends the tasks that own the affected slices (a finished task whose entry changed is reopened) and adds a task only when no slice owns the work; each task then goes through red → green like any task. Each backward edge has a budget in
 `defaults.yaml`. After the PR gate passes, the engine — not an agent — commits the release manager's
 plan on the feature branch (one commit per task, `Factory-Task:` trailer), commits the `.factory`
-artifacts, and runs the adapter. Set `delivery.dry_run: false` to open a real PR; `/factory:ship`
+artifacts, and runs the adapter. Docs run only with `delivery.docs: true`. A pull request is prepared only with `delivery.pr: true`; set `delivery.dry_run: false` as well to open a real PR. Otherwise the pipeline commits and stops. `/factory:ship`
 asks first. `factory comments --file <json>` feeds review comments into S9.
+
+## Sizing, gates and early quality
+
+- **Tiers.** Intake sizes the feature (`patch` / `small` / `standard`; `--tier` overrides): `small` has no
+  separate acceptance stage, no QA or docs stage, and does not ask GATE-B. Requirements re-checks small vs
+  standard from the REQ/AC counts.
+- **Gates.** GATE-A is asked at requirements (read `01-requirements/spec.md`), before stories. The pipeline
+  also stops at GATE-C (the built feature, before the commit). Discovery and the plan still run; GATE-D and
+  GATE-B are approved by the profile (`pipeline.skip_gates`). GATE-C always asks.
+- **Source conflicts.** The requirements analyst diffs all sources and lists every contradiction in
+  `completeness.yaml` `conflicts`; the engine asks the human exactly one CLARIFY, with the user's own brief as the
+  proposed winner, before the requirements reach their gate.
+- **Acceptance tests.** Written with the API contract, the inbox API sections and the entity types. A wrong one is
+  settled by a human: `factory acceptance waive <test> --reason …` or `factory replay acceptance --relock <test>`.
+- **Early quality.** The raw-colour and i18n audits run in `gate impl` on each task's files; the reviewer runs once
+  after the first finished slice (non-blocking; findings amend the owning slices) and again at verification.
+- **Budgets** follow the plan (`4 × tasks + 20` dispatches); `factory doctor` also warns about `eslint .`
+  linting `.factory/`.
 
 ## Unattended runs (autopilot)
 
 Set `automation.autopilot: true` in `factory.config.yaml` and the engine approves every stage's
-`human_gate` (GATE-D, GATE-A, GATE-P, GATE-B, GATE-C) itself, the moment it is reached — the same
-code path as a human `factory approve` (HD notes, `splitBacklog`, a breaking delta still all run),
+`human_gate` (GATE-D, GATE-A, GATE-B, GATE-C) itself, the moment it is reached — the same
+code path as a human `factory approve` (HD notes and `splitBacklog` still run),
 recorded with `by: "autopilot"` so events and `factory metrics` show it. Turning it on also resolves
-a gate a feature is already waiting at. Combined with `delivery.dry_run: false`, `/factory:run` then
+a gate a feature is already waiting at. Combined with `delivery.pr: true` and `delivery.dry_run: false`, `/factory:run` then
 goes from intake straight through implementation, quality and delivery to a real pull request with no
 stop in between — delivery still only pushes a branch and opens the PR (see
 [factory-adapter-github](factory-adapter-github/README.md)); nothing merges it.
 
 A CLARIFY stop — an agent that cannot proceed without an answer only a human has — is never
-auto-approved; there is no safe default to invent. A halted or blocked feature still halts. Leave
+auto-approved; there is no safe default to invent. Nor is a gate a human rejected: when the revision
+comes back it waits for the human who asked for it. A halted or blocked feature still halts. Leave
 `autopilot: false` (the default) for a human to review and approve each gate as usual.
 
 ## Roles and tracks
 
 A role pack is a `role.yaml` plus agents and skills; the engine knows nothing else about it. Each task
-goes to its role's test author (red) and builder (green) — or to a specialist builder for its type
-(`agents.builders`) — and gate-impl adds the role's own checks (`gates.checks`). Give each role its
+goes to its role's builder — or to a specialist builder for its type (`agents.builders`) — which, in the
+default `quality.tdd.author: builder_two_phase`, writes the failing tests, proves them with `gate red`, then
+implements in ONE dispatch (the engine checks the gate log: red passed before impl). With
+`quality.tdd.author: separate` the role's test author writes the red tests first (two dispatches). Test authors
+also write characterisation tests and revise tests after a dispute. gate-impl adds the role's own checks
+(`gates.checks`). A task is a vertical slice (`slice`, `write_scope`; up to 12 files); a builder that needs a
+file of its slice the plan left out returns `needs_scope_change` and a human runs `/factory:scope` (no planner run). Give each role its
 package folder (`roles.<role>.path: api`) and the task loop runs one task per role **in parallel**;
 roles that share a folder take turns. An existing app that does not follow its stack kit's conventions
 yet can turn a role check or audit off by name (`roles.frontend.checks_off: [conventions]`).
-
-## The living app prototype
-
-`.factory/prototype/` is one clickable, static HTML prototype of the whole app (Alpine.js from a CDN,
-no build). Every feature whose stories add, change or remove a user-facing surface updates it in place:
-
-1. The engine snapshots the folder (`02b-prototype/before/`).
-2. The **prototype-designer** applies binding brand inputs (or a neutral light theme), updates the
-   design brief, shared CSS/JS, the navigation shell and `screens.yaml`, marking each screen added,
-   changed, unchanged, removed or placeholder.
-3. One **prototyper** per added or changed screen writes `pages/<id>.html` and a note with the spec
-   gaps it found — in parallel.
-4. gate-proto checks the increment (real page changes vs `screens.yaml`, every story's surface and
-   states, links, binding tokens, the state blocks and dev panel, landmarks); GATE-P shows it.
-   Approving with breaking spec deltas sends the feature back to requirements.
-
-`/factory:proto --revert` restores the snapshot and runs the stage again; aborting the feature restores
-it too (unless a later feature prototyped on top). The folder is committed with the feature.
 
 ## Spec completeness
 
 In the requirements stage the analyst credits ten weighted categories (error states, permissions, edge
 cases, non-functional, backward compatibility, undo, notifications, data lifecycle, observability,
-localisation and accessibility) in `completeness.yaml`. gate-spec scores it; below
-`quality.completeness_min` (85) the engine asks one batch of the analyst's gap questions, each with a
-recommended answer, then shows what is still missing at GATE-A. A PRD needs measurable performance,
-accessibility and security NFRs; a story for a must requirement needs an error, edge or permission AC.
+localisation and accessibility) in `completeness.yaml`. gate-spec scores it. A score under
+`quality.completeness_min` (85) is shown on `spec.md` at GATE-A and does not insert a question round.
+A contradiction between sources does insert one CLARIFY, with the brief as the proposed winner. A PRD
+needs measurable performance, accessibility and security NFRs; a story for a must requirement needs an
+error, edge or permission AC.
 
 ## No unexpected changes
 
@@ -265,10 +292,11 @@ procedure skill names the agent and model that run it (`Runs on:`).
 | Tier | Agents | Why |
 |---|---|---|
 | opus | requirements-analyst, solution-architect, planner, reviewer, ai-architect, diagnostician | ambiguity, trade-offs and decomposition: errors here are the expensive ones, and each runs a few times per feature |
-| sonnet | builders, test authors, prototype-designer, prototyper, story-writer, contract-steward, test-strategist, codebase-analyst, acceptance-test-author, QA, release-manager | execution against a precise contract: one task of ≤ 3 files / ≤ 200 LOC, a story set, a page — the planner sizes tasks so sonnet can do any of them |
+| sonnet | builders, test authors, story-writer, contract-steward, test-strategist, codebase-analyst, acceptance-test-author, QA, release-manager | execution against a precise contract: one vertical-slice task of ≤ 12 files / ≤ 600 LOC (its red tests and its code), a story set, a page — the planner sizes tasks so sonnet can do any of them |
 | haiku | intake-normaliser, curator (when enabled), tech-writer | mechanical transformation with a checking gate behind it |
 
-A task or stage that fails twice moves to opus (Loop Warden rung 2); rung 3 is the opus diagnostician.
+A task or stage that fails twice moves to the reasoning tier (Loop Warden rung 2). Claude passes the engine `model` (`opus`). Cursor omits `model` on rung 0 and 1, and on rung 2 and above passes `grok-4.7-xhigh`; if that call fails, omit `model` and record the failure. Do not pass `opus` on Cursor. Rung 3 is the opus diagnostician on Claude.
+
 The patch tier plans on sonnet (`stage.models`), and a fix plan for a known failure list runs on
 sonnet. `scripts/check-factory-consistency.mjs` enforces the tiers, the `## Model` sections and the
 `Runs on:` lines.
@@ -280,8 +308,8 @@ Every plugin also ships for Cursor (`.cursor-plugin/plugin.json`). In the IDE, i
 (one per plugin: `factory`, the stage and role packs, and their stack kits). Checked live with
 cursor-agent 2026.10.22: `/factory:doctor`, `/factory:intake` and one `/factory:next` ran end to end.
 
-- Agents come from `cursor-agents/` (generated, Cursor model ids). The Conductor dispatches with
-  `Task` by the step's plain `agent` name and leaves out `model`; the rung-2 move to opus does not apply.
+- Agents come from `cursor-agents/` in the local plugin mirror (generated from `agents/`, Cursor model ids). The Conductor dispatches with
+  `Task` by the step's plain `agent` name. Omit `model` on rung 0 and 1 so the agent file applies. On rung 2 and above pass `model` = `grok-4.7-xhigh`. If that call fails, omit `model` and record the failure. Agent files still document Claude tier names (`opus`, `sonnet`); `scripts/model-tiers.json` maps those at install time.
 - Skills find the engine through their own folder when `${CLAUDE_SKILL_DIR}` is not filled in.
 - Hooks run from `hooks/cursor-hooks.json` through `guard.mjs --cursor`, located from the hook's working
   directory (the plugin folder): Cursor can set `CURSOR_PLUGIN_ROOT` to another plugin.

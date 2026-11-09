@@ -1,0 +1,13 @@
+{
+  "name": "prototype-kit",
+  "displayName": "Prototype Kit",
+  "description": "Living HTML prototype at prototype/ in the app root. Init builds the shell and base pages from a plain-text brief; update edits that same folder from a change note. A senior designer writes the UI. A provided theme or layout is binding; ui-ux-pro-max fills only what the brief leaves open.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Artsiom Murashko"
+  },
+  "license": "MIT",
+  "keywords": ["prototype", "html", "alpinejs", "design-system", "ui-ux", "ui-ux-pro-max"],
+  "category": "productivity",
+  "skills": "./skills/"
+}

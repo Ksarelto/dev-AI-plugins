@@ -17,16 +17,12 @@ capability-slice:   { scope: app, path: "_index/slices/*.slice.md", format: mark
 feature-ledger:     { scope: app, path: ledger/feature-ledger.yaml, format: yaml, schema: feature-ledger }
 prd:                { scope: feature, path: 01-requirements/prd.md, format: frontmatter, schema: prd, ids: [REQ, AC, OQ, NFR, SRC, HD] }
 delta-spec:         { scope: feature, path: 01-requirements/delta-spec.yaml, format: yaml, schema: delta-spec, ids: [REQ, AC, OQ, NFR, SRC, HD] }
+spec-view:          { scope: feature, path: 01-requirements/spec.md, format: markdown, producer: engine, engine_writes: true }
 completeness:       { scope: feature, path: 01-requirements/completeness.yaml, format: yaml, schema: completeness, ids: [REQ, AC, OQ, NFR] }
 open-questions:     { scope: feature, path: 01-requirements/open-questions.md, format: markdown, ids: [OQ] }
 stories:            { scope: feature, path: 02-stories/stories.yaml, format: yaml, schema: stories, ids: [REQ, AC] }
 ux-notes:           { scope: feature, path: 02-stories/ux-notes.md, format: markdown }
-prototype-report:   { scope: feature, path: 02b-prototype/prototype-report.yaml, format: yaml, schema: prototype-report }
-prototype-screen-notes: { scope: feature, path: "02b-prototype/screens/*.yaml", format: yaml, schema: prototype-screen-note }
-app-prototype:      { scope: app, path: "prototype/**", format: any }
-prototype-design-brief: { scope: app, path: prototype/design-brief.md, format: markdown }
 design-inputs:      { scope: app, path: "design/**", format: any, external: true }   # .factory/design/: binding brand, style guide, mockups
-prototype-screens:  { scope: app, path: prototype/screens.yaml, format: yaml, schema: prototype-screens }
 component-map:      { scope: feature, path: 03-architecture/component-map.md, format: frontmatter, schema: component-map, ids: [ADR] }
 adr:                { scope: feature, path: "03-architecture/adr-*.md", format: frontmatter, schema: adr, ids: [ADR] }
 api-contract:       { scope: feature, path: 03-architecture/api-contract.yaml, format: yaml, ids: [AC] }
@@ -37,6 +33,8 @@ human-notes:        { scope: feature, path: human-notes.yaml, format: yaml, sche
 digest:             { scope: feature, path: digest.md, format: markdown, producer: engine }
 root-cause:         { scope: feature, path: "diagnosis/*.md", format: markdown, producer: engine }
 acceptance-tests:   { scope: project, path: "**/*.acceptance.test.*", format: any }
+acceptance-waiver:  { scope: feature, path: acceptance-waiver.yaml, format: yaml, schema: acceptance-waiver, producer: engine, engine_writes: true }
+entity-types:       { scope: project, path: "**/entities/**/model/{types,schema}.ts", format: any, external: true }   # the app's entity types and schemas (read-only inputs of the acceptance author)
 change-set:         { scope: feature, path: 06-verify/change-set.yaml, format: yaml, schema: change-set, producer: engine, engine_writes: true }
 change-diff:        { scope: feature, path: 06-verify/change.diff, format: any, producer: engine, engine_writes: true }
 review:             { scope: feature, path: 06-verify/review.md, format: frontmatter, schema: review, producer: engine, engine_writes: true }

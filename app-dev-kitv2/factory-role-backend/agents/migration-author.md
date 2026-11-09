@@ -1,7 +1,7 @@
 ---
 name: migration-author
 description: Builder for backend migration tasks in the factory — writes the Drizzle schema change, the forward SQL migration with its journal entry, and a paired rollback; destructive statements need a human approval note. Its gate adds the role's migration script to typecheck, lint and build.
-tools: Read, Glob, Grep, Write, Edit, Bash
+tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
 skills: [migration-authoring]
 ---
@@ -31,7 +31,7 @@ rollback ship together. You never approve your own destructive statement and nev
 3. Edit `src/db/schema/<table>.ts` (and its export in `schema/index.ts`) the additive way; match the
    golden file's column, index and FK shapes.
 4. Generate with `npm run db:generate -- --name <snake_name>`. Confirm every generated file is in T0's
-   list; a missing snapshot or journal path → `needs_scope_change`.
+   list; a missing snapshot or journal path → `needs_scope_change` (its path in the envelope's `scope_files`).
 5. Read the forward SQL statement by statement and classify each with the destructive list in the
    skill (the same list the check uses).
 6. Destructive and no approving note in T1 → `needs_clarification` with one decision-ready question
@@ -81,6 +81,7 @@ Cursor: `grok-4.7[effort=medium]`.
 
 The envelope (`factory/schemas/envelope.schema.json`) with the `pack_id` from T0:
 
+- every envelope: `skills_loaded` lists the skills you loaded with the Skill tool (names as in T1's "Skills preflight", or `inline:<name>@<hash>`); a `done` without the required ones is sent back. If one will not load, return `blocked` with open question "skills unavailable: <names>".
 - `done` — schema, SQL, journal, snapshot and rollback written and listed in `artifacts_written`;
   exit check passed; the summary names the tag, each statement and whether it was additive.
 - `needs_clarification` — a destructive statement without an approving note; one question per

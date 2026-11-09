@@ -1,7 +1,7 @@
 // Shared helpers for the factory engine: paths, file IO with atomic writes, hashing, globbing.
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { YAML, picomatch } from "../vendor/deps.bundle.mjs";
@@ -98,6 +98,9 @@ export function treeHash(projectDir) {
     const code = e.slice(0, 2);
     const file = e.slice(3);
     const full = join(root, file);
+    // The engine's own directory never counts, ignored or not (--ignored lists a wholly ignored .factory/ as one entry).
+    const fromProject = toPosix(relative(realpathSync(projectDir), full));
+    if (fromProject === ".factory" || fromProject.startsWith(".factory/")) continue;
     const isDir = file.endsWith("/") || (existsSync(full) && statSync(full).isDirectory());
     if (isDir && code !== "!!") return null; // a nested repository or submodule: its changes are invisible here
     entries.push(`${code} ${file} ${isDir || !existsSync(full) ? "-" : fileHash(full)}`);

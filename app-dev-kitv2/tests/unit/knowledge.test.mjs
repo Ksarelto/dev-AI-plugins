@@ -21,7 +21,8 @@ test("taskKnowledge: test skill outside green, the type's skills, '*' + type rul
   assert.deepEqual(red.golden, [join(ROOT, "frontend-dev-kit", "skills/react-feature/examples.md")]);
   const green = taskKnowledge(fe, "feature-ui", "green");
   assert.ok(!green.skills.includes("frontend-dev-kit:testing"), "green does not load the test skill");
-  assert.deepEqual(taskKnowledge(null, "x", "red"), { skills: [], rules: [], golden: [] });
+  assert.deepEqual(red.skill_files.map((f) => f.replace(`${ROOT}/`, "")), ["frontend-dev-kit/skills/testing/SKILL.md", "frontend-dev-kit/skills/react-feature/SKILL.md", "frontend-dev-kit/skills/react-component/SKILL.md", "frontend-dev-kit/skills/error-handling/SKILL.md"], "the forced skill loads, for the context estimate");
+  assert.deepEqual(taskKnowledge(null, "x", "red"), { skills: [], skill_files: [], rules: [], golden: [] });
 });
 
 test("stageKnowledge: only agents a stack names, with that stack's whole rule set", () => {

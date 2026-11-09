@@ -3,7 +3,7 @@
 // A file that fails to import (the feature's modules do not exist yet) is a valid red: its declared
 // test names count, as failing.
 import { firstLine } from "../lib/vitest-report.mjs";
-import { declaredTests, enabledStacks, featureAcceptance, runTests, scopeArgs } from "../lib/testrun.mjs";
+import { declaredTests, enabledStacks, featureAcceptance, runTests, testScope } from "../lib/testrun.mjs";
 import { resolveStack } from "../lib/stackexec.mjs";
 
 export const inputs = ["acceptance-tests", "prd", "delta-spec"];
@@ -18,7 +18,7 @@ export async function run(ctx) {
   // Each role's stack runs in its own folder: coverage is judged over every stack's report together.
   const mine = [];
   // New acceptance files are uncommitted changes, so a scoped run (vitest --changed) includes them.
-  const runs = await Promise.all(stacks.map((stack) => runTests(ctx, stack, `${ctx.state.feature}-acceptance-${stack.role}`, { extra: scopeArgs(ctx, stack) })));
+  const runs = await Promise.all(stacks.map((stack) => runTests(ctx, stack, `${ctx.state.feature}-acceptance-${stack.role}`, { scope: testScope(ctx, stack) })));
   for (const [i, stack] of stacks.entries()) {
     const { run, report } = runs[i];
     if (!report) failures.push({ check: "acceptance", rule: "no-report", message: `${stack.role}: the test command wrote no report (exit ${run.code}):\n${run.tail}` });

@@ -6,7 +6,7 @@ user-invocable: false
 
 # Implement one frontend task (green phase)
 
-Runs on: fe-builder (sonnet) — one green-phase task of the React FSD stack (entity-model, api-client, query-hook, component, feature-ui, form, page, route, store, i18n, styling-token, fix, refactor) of at most a few files.
+Runs on: fe-builder (sonnet) — the GREEN half of one task of the React FSD stack (entity-model, api-client, query-hook, component, feature-ui, form, page, route, store, i18n, styling-token, fix, refactor): a vertical slice of up to 12 files. In phase `build` you first write and prove the red tests (`fe-red-tests`, `gate red`), then follow this procedure.
 
 The red tests are the specification and they are read-only. The rules you are held to:
 [fe-build-contract.md](references/fe-build-contract.md). File order per layer and task type:
@@ -22,7 +22,7 @@ packages: [fe-shadcn.md](references/fe-shadcn.md).
 2. **T3 on a retry.** Rung 1: fix only the failures listed. Rung 2 (you may now be on opus): write a
    one-sentence root-cause hypothesis in the summary first, then fix. Rung 3: read the diagnosis file
    in T1 and apply its fix; do not repeat what it lists as tried.
-3. **T1.** Load every stack skill it lists with the Skill tool; read every `Rule: … [READ]` file.
+3. **T1.** Load every stack skill it lists with the Skill tool (first, per the pack's Skills preflight; report them as `skills_loaded` in the envelope); read every `Rule: … [READ]` file.
    They are the source of truth for your task type, not this file.
 4. **T2.** Open the golden file for your task type; that is the shape to match (names, folder
    layout, hook signature). Then the component map (`03-architecture/component-map.md`) for the
@@ -42,7 +42,7 @@ packages: [fe-shadcn.md](references/fe-shadcn.md).
 | Does it need a registry primitive? | [fe-shadcn.md](references/fe-shadcn.md) § 1–2 |
 | Does it need an npm package that is not installed? | Human-owned: [fe-shadcn.md](references/fe-shadcn.md) § 4 |
 | Unsure of an installed library's API? | Context7 lookup, contract § 9; name the source in the summary |
-| Does a red test contradict its AC, the contract or a stack rule? | `test_dispute` (§ 5); never edit the test |
+| Does a red test (or an acceptance fixture) contradict its AC, the contract or a stack rule? | `test_dispute` (§ 5) naming the test and the contract line; never edit the test, never bend production code, add a shim, adapter or test-only hook to fit a fixture |
 
 ## 3. Write
 
@@ -75,7 +75,7 @@ and `error` from the mutation, maps the error code through `config/coupon-errors
    - a red test or acceptance test changed since its lock (`red-test-changed`, `acceptance-test-changed`);
    - a task test missing, empty or skipped (`task-test-missing`, `no-tests`, `skipped-test`);
    - any touched test failing or not loading (`failing`, `does-not-load`);
-   - typecheck, lint, the architecture check or the build failing (`<step>-failed`);
+   - typecheck, lint or the architecture check failing (`<step>-failed`; the build only with `quality.impl_build: true` — verification builds);
    - the role's checks (convention rules, duplicate scan) when the role wires them for your type.
    Fix each failure line, re-run. Warnings are reported, never block. A passing run on an unchanged
    tree is reused by the engine, so do not re-run it after it passed.
@@ -86,8 +86,8 @@ and `error` from the mutation, maps the error code through `config/coupon-errors
   cannot both pass): leave every file of the test alone and return status `done` with
   `"test_dispute": { "test": "<file>", "reason": "<the line, what it expects, the AC or rule it contradicts>" }`.
   Do not also change code around it. The engine restores the sources to their state at red and the
-  test author gets one round; a second dispute goes to the human.
-- **A file you need is outside your list**: `needs_scope_change`, naming the file and the step.
+  tests get one revision round (yours in phase `build`, the test author's in separate mode); a second dispute goes to the human.
+- **A file you need is outside your list**: `needs_scope_change`, naming the file and the step, and put every such path in the envelope's `scope_files` (the engine reads that list to offer `scope add`).
 - **A dependency or a product decision**: `needs_clarification` with one concrete question and its
   options in `open_questions`.
 - **A missing lower-layer piece** owned by another task, or a project setup failure the gate reports

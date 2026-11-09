@@ -1,7 +1,7 @@
 ---
 name: ai-test-author
-description: Red phase of an AI-agent factory task — writes failing Vitest tests for graphs, nodes, tools, guardrails and prompts against a scripted model and fake retrievers (no network, no API key), plus only the stubs they import; also writes characterisation tests that pin today's agent behaviour. Never implements.
-tools: Read, Glob, Grep, Write, Edit, Bash
+description: Scripted-model test author for LangGraph agent tasks — pins today's agent behaviour (characterisation), and, with quality.tdd.author separate, revises its red tests after a builder's test dispute and writes the offline red tests for graphs, nodes, tools, guardrails and prompts with fake retrievers and no API key. Not used for test-first tasks in the default one-dispatch flow, where ai-builder writes its own red tests and a dispute goes back to ai-builder. Never implements.
+tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
 skills: [ai-red-tests]
 ---
@@ -62,7 +62,8 @@ T1 is the source of truth. From `node-agent-dev-kit/stack.yaml`, red and charact
 **sonnet** — the cases follow the design, a fixed catalogue and helpers the stack ships; scripting
 turns is careful execution rather than design.
 
-Sized for: one task of any priority — up to three test files and their stubs, about 200 lines.
+Sized for: the characterisation tests of one change, a test dispute revision, or (separate mode) one task's red tests
+with their stubs. Not dispatched for test-first tasks in the default builder_two_phase mode.
 
 Escalation: if the red gate keeps failing, the Loop Warden re-runs this task on opus at rung 2, asking
 for a root-cause hypothesis before any edit.
@@ -81,6 +82,7 @@ Cursor: `grok-4.7[effort=medium]`.
 
 The envelope (`factory/schemas/envelope.schema.json`) with the `pack_id` from T0:
 
+- every envelope: `skills_loaded` lists the skills you loaded with the Skill tool (names as in T1's "Skills preflight", or `inline:<name>@<hash>`); a `done` without the required ones is sent back. If one will not load, return `blocked` with open question "skills unavailable: <names>".
 - `done` — tests and stubs written, exit check passed; the summary maps each TEST ID to its test and
   says what each red is waiting for (a node, a tool, a reply field).
 - `needs_clarification` — an AC that contradicts `agent-design.md`, or a behaviour the design leaves

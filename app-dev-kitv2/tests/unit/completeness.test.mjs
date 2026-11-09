@@ -1,5 +1,5 @@
 // Spec completeness (ported from spec-dev-kit): scoring, the gate-spec and gate-stories rules that came
-// with it, and the one question round the engine runs before a low score reaches GATE-A.
+// with it. A low score does not ask; the gaps are shown on GATE-A with the readable spec.
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -86,26 +86,19 @@ test("gate-stories: a must story needs an unhappy-path AC or a reason; a story t
   assert.equal(r.pass, false);
 });
 
-test("a low score asks one batch of gap questions without spending an attempt, then reaches GATE-A with the gaps", async () => {
+test("a low score does not ask; the gaps and spec.md are on GATE-A", async () => {
   const env = setup(`${COMPLETENESS}\ncontext: { digest: engine }`);
-  const low = YAML.stringify(credits());
-  let s = conductor.step(env.dir);
+  const s = conductor.step(env.dir);
   putArtifact(env.featureDir, "delta-spec.yaml", "01-requirements/delta-spec.yaml");
-  writeFileSync(join(env.featureDir, "01-requirements", "completeness.yaml"), low);
-  let r = await conductor.record(env.dir, { dispatchId: s.dispatches[0].id, envelopeText: envelope(s.dispatches[0].id) });
+  writeFileSync(join(env.featureDir, "01-requirements", "completeness.yaml"), YAML.stringify(credits()));
+  const r = await conductor.record(env.dir, { dispatchId: s.dispatches[0].id, envelopeText: envelope(s.dispatches[0].id) });
   assert.equal(r.action, "ask_human");
-  assert.equal(featureState(env.featureDir).stages.requirements.attempts ?? 0, 0, "the question round costs no attempt");
-  s = conductor.step(env.dir);
-  assert.equal(s.gate, "CLARIFY");
-  assert.ok(s.questions.some((q) => /^permissions_roles \(partial\): Can a guest[^—]*— recommended: "?No/.test(q)), JSON.stringify(s.questions));
-  conductor.approve(env.dir, { notes: "Guests cannot use coupons; a Remove link restores the total" });
-  s = conductor.step(env.dir);
-  assert.equal(s.action, "dispatch");
-  assert.match(readFileSync(join(env.dir, s.dispatches[0].pack), "utf8"), /Human answer \(HD-\d+\): Guests cannot use coupons/);
-  const hd = /Human answer \((HD-\d+)\)/.exec(readFileSync(join(env.dir, s.dispatches[0].pack), "utf8"))[1];
-  r = await conductor.record(env.dir, { dispatchId: s.dispatches[0].id, envelopeText: envelope(s.dispatches[0].id, { notes_mapped: [{ id: hd, to: ["REQ-0001"] }] }) });
-  assert.equal(r.verdict, "advance", `the second low score no longer blocks: ${JSON.stringify(r.gate?.failures)}`);
-  s = conductor.step(env.dir);
-  assert.equal(s.gate, "GATE-A");
-  assert.match(s.reason, /completeness 75\/100 \(below 85\)\. Still open after the question round: permissions_roles \(partial\): Can a guest/);
+  assert.equal(r.verdict, "advance", `a low score no longer blocks: ${JSON.stringify(r.gate?.failures)}`);
+  const asked = conductor.step(env.dir);
+  assert.equal(asked.gate, "GATE-A");
+  assert.match(asked.reason, /completeness 75\/100 \(below 85\)\. permissions_roles \(partial\): Can a guest/);
+  assert.match(asked.review[0], /01-requirements\/spec\.md$/);
+  const view = readFileSync(join(env.featureDir, "01-requirements", "spec.md"), "utf8");
+  assert.match(view, /REQ-0001/);
+  assert.match(view, /## Must not change/);
 });

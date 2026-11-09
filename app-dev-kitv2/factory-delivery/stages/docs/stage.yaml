@@ -6,4 +6,5 @@ context_role: mechanical_roles
 inputs: ["prd|delta-spec", stories, component-map?, adr?, api-contract?, change-set?, review?]
 outputs: [feature-doc, adr-doc, changelog, docs-report]
 gate: docs
+when: docs.enabled
 requires: { factory: "^0.1" }

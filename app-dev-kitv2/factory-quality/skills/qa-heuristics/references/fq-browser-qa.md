@@ -1,4 +1,4 @@
-# Driving the running app — start, browser, API, prototype
+# Driving the running app — start, browser, API
 
 ## Start the app
 
@@ -55,20 +55,3 @@ useful is `blocked`.
 - Problem responses: check `content-type: application/problem+json`, `status`, `code` and that no
   stack trace or SQL appears.
 - Concurrency: run two calls in one command, `curl … & curl … & wait`.
-
-## The living app prototype — expected flow, not the truth
-
-When the app has a prototype at `.factory/prototype/` (static HTML: `index.html`, `pages/<id>.html`,
-`screens.yaml` listing each screen's stories, states and nav entry), use it to learn the intended
-flow before a charter:
-
-- Read `screens.yaml` for the screens whose `stories` include the feature's stories; open those
-  `pages/<id>.html` (read the file, or serve the folder on loopback, for example
-  `python3 -m http.server 4610 --bind 127.0.0.1 --directory .factory/prototype`, and navigate to it).
-- Each state is a `data-state="<name>"` block and a dev-panel option: those are the states the real
-  surface should have (loading, empty, error, success, dialogs).
-- Use it for: where the user starts, which controls exist, the order of steps, which states to
-  provoke.
-- Never use it to override the spec. App ≠ prototype but = spec → no defect. App ≠ spec → defect,
-  whatever the prototype shows. Prototype ≠ spec and the spec is silent on the point → `spec_gap`.
-- Sample data and decorative chrome in the prototype are not requirements.

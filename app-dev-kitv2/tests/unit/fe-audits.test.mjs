@@ -36,6 +36,61 @@ test("fe-conventions: task mode fails on the rules a builder breaks; findings mo
   assert.ok(hits.some((h) => h.rule === "inline-class" && h.severity === "P2" && h.line === 1), audit.stdout);
 });
 
+// Prettier output (printWidth 80, no config) of a component whose arrow bodies, initializers and return value
+// break across lines: the checker must not ask for anything Prettier removes again.
+const PRETTIER_FORMATTED = `import type { ReactElement } from 'react'
+
+const wide = (list: number[], extra: number) =>
+  list.map((item) => item + extra + extra + extra + extra + extra + extra + extra + extra + extra)
+
+export const pick = (flag: boolean) =>
+  flag
+    ? someVeryLongConditionResultNumberOne
+    : someVeryLongConditionResultNumberTwoXX
+
+const value =
+  someCondition &&
+  anotherCondition &&
+  yetAnotherCondition &&
+  theLastConditionInTheChain1234
+
+const message =
+  \`hello \${someVeryLongVariableName} and \${anotherVeryLongVariableName} and \${third}\`
+    .trim()
+    .toUpperCase()
+
+export const Card = ({ title }: { title: string }): ReactElement => (
+  <div>
+    <h1>{title}</h1>
+  </div>
+)
+
+export function check() {
+  return (
+    someCondition &&
+    anotherCondition &&
+    yetAnotherCondition &&
+    theLastConditionInTheChain1234 &&
+    more
+  )
+}
+`;
+
+test("fe-conventions: Prettier-formatted code passes (multi-line arrow bodies, initializers and returns); only a block that merely returns is flagged", () => {
+  const dir = app({
+    "src/features/x/ui/c/c.tsx": PRETTIER_FORMATTED,
+    "src/features/x/ui/c/tests/c.test.tsx": "import { Card } from '../c'\n\nit('renders', () => {\n  expect(Card).toBeDefined()\n})\n",
+  });
+  const ok = run("fe-conventions.mjs", ["--project", dir, "--task-type", "component", "--notes", "-", "--files", "src/features/x/ui/c/c.tsx"], dir);
+  assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+  assert.doesNotMatch(ok.stdout, /arrow-body|wrapped-expr/);
+  const bad = app({ "src/features/x/ui/c/c.tsx": "export const f = (a: number) => {\n  return a + 1\n}\n", "src/features/x/ui/c/tests/c.test.tsx": "it('x', () => {})\n" });
+  assert.match(run("fe-conventions.mjs", ["--project", bad, "--task-type", "component", "--notes", "-", "--files", "src/features/x/ui/c/c.tsx"], bad).stdout, /arrow-body/);
+  // JSX that continues on the next line without parentheses is not what Prettier prints either.
+  const jsx = app({ "src/features/x/ui/c/c.tsx": "export const A = () =>\n  <div>\n    <b />\n  </div>\n", "src/features/x/ui/c/tests/c.test.tsx": "it('x', () => {})\n" });
+  assert.match(run("fe-conventions.mjs", ["--project", jsx, "--task-type", "component", "--notes", "-", "--files", "src/features/x/ui/c/c.tsx"], jsx).stdout, /arrow-body/);
+});
+
 test("fe-duplicates: a body copied from shared is flagged in task and findings mode; the self-check passes", () => {
   const body = "export function formatSize(bytes) {\n  const kb = 1024\n  const mb = kb * 1024\n  const gb = mb * 1024\n  if (bytes > gb) return 'gb'\n  if (bytes > mb) return 'mb'\n  return 'kb'\n}\n";
   const dir = app({ "src/shared/lib/format.ts": body, "src/features/files/lib/format.ts": body });

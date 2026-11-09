@@ -9,12 +9,14 @@ config:
   roles: { frontend: { enabled: true, owns_paths: ["src/**"], checks_off: [conventions], stack_overrides: { package_manager: pnpm } } }
   pipeline:
     profile: analysis
-    profiles: { analysis: [intake, discovery, requirements, stories, prototype, architecture, planning, acceptance, implementation, verification, qa, docs, delivery, feedback] }
+    profiles: { analysis: [intake, discovery, requirements, stories, architecture, planning, acceptance, implementation, verification, qa, docs, delivery, feedback] }
+  delivery: { docs: true, pr: true }
 expect:
   final_action: done
   final_status: done
-  dispatches_max: 35   # the prototype is a designer plus one prototyper per screen
-  gates: [CLARIFY, GATE-D, GATE-A, GATE-P, GATE-B, GATE-C]
+  build_dispatches: 4   # TASK-002 twice (one retry), TASK-003 and TASK-004 once: never a red dispatch plus a green one
+  dispatches_max: 35
+  gates: [CLARIFY, GATE-D, GATE-A, GATE-B, GATE-C]
   verdicts:
     - { stage: intake, verdict: ask_human }
     - { stage: intake, verdict: advance }
@@ -23,18 +25,14 @@ expect:
     - { stage: requirements, verdict: retry }
     - { stage: requirements, verdict: advance }
     - { stage: stories, verdict: advance }
-    - { stage: prototype, verdict: advance }
     - { stage: architecture, verdict: advance }
     - { stage: planning, verdict: advance }
     - { stage: acceptance, verdict: advance }
-    - { stage: implementation, task: TASK-001, verdict: advance }
+    - { stage: implementation, task: TASK-001, verdict: advance }   # characterisation: the test author, once
+    - { stage: implementation, task: TASK-002, verdict: retry }     # one build dispatch each: red tests, gate red, code
     - { stage: implementation, task: TASK-002, verdict: advance }
-    - { stage: implementation, task: TASK-002, verdict: retry }
-    - { stage: implementation, task: TASK-002, verdict: advance }
-    - { stage: implementation, task: TASK-003, verdict: advance }
     - { stage: implementation, task: TASK-003, verdict: advance }
     - { stage: implementation, verdict: fixplan }   # the precheck finds the failing acceptance tests: no review round
-    - { stage: implementation, task: TASK-004, verdict: advance }
     - { stage: implementation, task: TASK-004, verdict: advance }
     - { stage: verification, verdict: advance }
     - { stage: qa, verdict: advance }
@@ -51,8 +49,6 @@ expect:
     test-strategist: sonnet
     fe-test-author: sonnet
     fe-builder: sonnet
-    prototype-designer: sonnet
-    prototyper: sonnet
     acceptance-test-author: sonnet
     reviewer: opus
     qa-engineer: sonnet

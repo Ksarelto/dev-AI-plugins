@@ -8,6 +8,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import { findForkedLoads } from "./forked-skills.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const family = join(root, "app-dev-kitv2");
@@ -18,7 +19,7 @@ const LIMITS = { skill: 150, rule: 40, agent: 120 };
 const MODEL_POLICY = {
   opus: ["requirements-analyst", "solution-architect", "planner", "reviewer", "ai-architect", "diagnostician"],
   sonnet: ["codebase-analyst", "story-writer", "contract-steward", "test-strategist", "acceptance-test-author", "qa-engineer",
-    "fe-test-author", "fe-builder", "prototype-designer", "prototyper", "be-test-author", "be-builder", "migration-author",
+    "fe-test-author", "fe-builder", "be-test-author", "be-builder", "migration-author",
     "ai-builder", "ai-rag-builder", "eval-author", "ai-test-author", "release-manager"],
   haiku: ["intake-normaliser", "curator", "tech-writer"],
 };
@@ -74,6 +75,11 @@ const byName = Object.fromEntries(plugins.map((p) => [p.name, p]));
 const allAgents = plugins.flatMap((p) => p.agents.map((a) => ({ ...a, plugin: p.name })));
 const allSkills = plugins.flatMap((p) => p.skills.map((s) => ({ ...s, plugin: p.name })));
 
+// 0. A forked skill (context: fork) is never one a dispatched agent is told to load --------------
+for (const h of findForkedLoads(root)) {
+  errors.push(`${h.file}:${h.line}: names the forked skill ${h.skill} (context: fork runs as a separate agent outside the dispatch's write scope); name the stack's non-forked skill instead (frontend-dev-kit:react-feature)`);
+}
+
 // 1. Line limits and front matter intent -------------------------------------------------------
 for (const s of allSkills) {
   const lines = readFileSync(s.file, "utf8").split("\n").length;
@@ -90,6 +96,10 @@ for (const a of allAgents) {
   const lines = readFileSync(a.file, "utf8").split("\n").length;
   if (lines > LIMITS.agent) errors.push(`${rel(a.file)}: ${lines} lines (agents ≤ ${LIMITS.agent})`);
   if (a.data?.name !== a.name) errors.push(`${rel(a.file)}: name "${a.data?.name}" must equal the file name`);
+  // An explicit `tools:` allowlist hides the Skill tool, yet every dispatch pack tells the agent to
+  // load its stack skills with it — without "Skill" the agent runs without the kit's rules.
+  const toolList = String(a.data?.tools ?? "").replace(/^\[|\]$/g, "").split(",").map((t) => t.trim()).filter(Boolean);
+  if (toolList.length && !toolList.includes("Skill")) errors.push(`${rel(a.file)}: tools: lacks "Skill", so the agent cannot load the stack skills its pack names`);
   const tier = Object.keys(MODEL_POLICY).find((t) => MODEL_POLICY[t].includes(a.name));
   if (!tier) errors.push(`${rel(a.file)}: "${a.name}" is not in the model policy table — add it deliberately`);
   else if (a.data?.model !== tier) errors.push(`${rel(a.file)}: model ${a.data?.model}, policy says ${tier}`);
@@ -230,8 +240,17 @@ for (const kit of STACK_KITS) {
     const [k, s] = String(ref).split(":");
     return existsSync(join(root, k, "skills", s ?? "", "SKILL.md"));
   };
+  // A `context: fork` skill runs as a separate agent that the dispatch's write scope does not bind.
+  const forked = (ref) => {
+    const [k, s] = String(ref).split(":");
+    const f = join(root, k, "skills", s ?? "", "SKILL.md");
+    return existsSync(f) && /^---\n[\s\S]*?^context:\s*fork\s*$[\s\S]*?^---/m.test(readFileSync(f, "utf8"));
+  };
   for (const [type, refs] of Object.entries(stack.skills ?? {})) {
-    for (const ref of [refs].flat()) if (!skillExists(ref)) errors.push(`${kit}/stack.yaml: task type "${type}" → ${ref} does not exist`);
+    for (const ref of [refs].flat()) {
+      if (!skillExists(ref)) errors.push(`${kit}/stack.yaml: task type "${type}" → ${ref} does not exist`);
+      else if (forked(ref)) errors.push(`${kit}/stack.yaml: task type "${type}" → ${ref} has context: fork (a forked skill may edit outside the dispatch's scope)`);
+    }
   }
   for (const [type, paths] of Object.entries(stack.golden_files ?? {})) {
     for (const path of [paths].flat()) if (!existsSync(join(root, kit, path))) errors.push(`${kit}/stack.yaml: golden file for "${type}" (${path}) does not exist`);
@@ -242,7 +261,25 @@ for (const kit of STACK_KITS) {
   const agentNames = new Set(allAgents.map((a) => a.name));
   for (const [agent, refs] of Object.entries(stack.stage_skills ?? {})) {
     if (!agentNames.has(agent)) errors.push(`${kit}/stack.yaml: stage_skills names "${agent}", which no factory pack ships`);
-    for (const ref of [refs].flat()) if (!skillExists(ref)) errors.push(`${kit}/stack.yaml: stage_skills for "${agent}" → ${ref} does not exist`);
+    for (const ref of [refs].flat()) {
+      if (!skillExists(ref)) errors.push(`${kit}/stack.yaml: stage_skills for "${agent}" → ${ref} does not exist`);
+      else if (forked(ref)) errors.push(`${kit}/stack.yaml: stage_skills for "${agent}" → ${ref} has context: fork (a forked skill may edit outside the dispatch's scope)`);
+    }
+  }
+}
+
+// 7b. Prose does not quote a per-type file cap that role.yaml contradicts ----------------------------
+// A role's caps live in role.yaml budgets.task_limits (default 12): "within four files" in an agent or skill
+// goes stale; point at role.yaml instead. A quoted "N files" cap must equal one of the role's caps.
+const WORD_NUMBER = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, twelve: 12 };
+for (const p of plugins.filter((x) => x.role)) {
+  const caps = new Set([12, ...Object.values(p.role.budgets?.task_limits ?? {}).map((v) => v.files_max).filter(Boolean)]);
+  const docs = [...p.agents.map((a) => a.file), ...p.skills.map((x) => x.file), ...walk(join(p.dir, "skills"), (f) => f.endsWith(".md") && f.includes("/references/"))];
+  for (const file of docs) {
+    for (const m of readFileSync(file, "utf8").matchAll(/\b(?:within|at most|up to|max(?:imum)?(?: of)?|keeps? [^.\n]{0,30} at)\s+\(?(\w+)\s+files\b|\((\w+) at most\)/gi)) {
+      const n = Number(m[1] ?? m[2]) || WORD_NUMBER[String(m[1] ?? m[2]).toLowerCase()];
+      if (n && !caps.has(n)) errors.push(`${rel(file)}: says "${m[0]}" but ${p.name}/role.yaml caps are ${[...caps].join("/")}; point at role.yaml budgets.task_limits instead of quoting a number`);
+    }
   }
 }
 

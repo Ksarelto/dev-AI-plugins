@@ -70,6 +70,27 @@
         "type": "string"
       }
     },
+    "skills_required": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "stack skills the dispatch must load (Skill tool) before it writes; from the stack's per-task-type skills"
+    },
+    "skill_files": {
+      "type": "array",
+      "description": "SKILL.md path and hash for each required skill. Cursor logs a Read of the path as a load; the agent copies inline:name@hash into skills_loaded.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "path", "hash"],
+        "properties": {
+          "name": { "type": "string" },
+          "path": { "type": "string" },
+          "hash": { "type": "string" }
+        }
+      }
+    },
     "read_deny": {
       "type": "array",
       "items": {

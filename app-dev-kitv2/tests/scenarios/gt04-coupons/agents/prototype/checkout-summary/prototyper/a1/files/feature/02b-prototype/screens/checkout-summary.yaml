@@ -1,6 +1,0 @@
-screen: checkout-summary
-stories: [STORY-0001]
-states: [empty, loading, applied, invalid, not-combinable]
-acs_shown: [AC-0001, AC-0002, AC-0004]
-spec_delta:
-  - { change: "Nothing says whether an applied coupon can be removed; the page shows a Remove link", breaking: false, kind: discovered, affects: [REQ-0001] }

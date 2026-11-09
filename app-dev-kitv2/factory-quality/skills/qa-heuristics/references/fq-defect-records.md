@@ -7,7 +7,7 @@
 | The app does not do what an AC, a story's Gherkin or a UX note says | `defect` | gate-qa makes S1/S2 a fix item → planner → fix task (with a regression test that reproduces it) |
 | The app crashes, loses data, leaks data or lets the wrong role act — spec or not | `defect` | as above |
 | The spec does not decide the behaviour, and two reasonable readings lead to different apps | `spec_gap` | the human (via `needs_clarification` for S1/S2) and the requirements analyst |
-| The prototype and the app differ, the spec agrees with the app | none | — |
+| A customer mockup and the app differ, the spec agrees with the app | none | — |
 | You would design it differently, nothing is wrong | none | a line under "Risks and suggestions" in the report |
 
 A spec gap is never a defect with a guess attached. Write what is undecided and the readings you

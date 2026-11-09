@@ -9,7 +9,7 @@ user-invocable: false
 Runs on: solution-architect (opus) — deciding where a feature's behaviour lives in an existing
 reference architecture, and what to reuse, before anyone writes code.
 
-Reuse ladder, placement per stack, field rules, ADR rules, prototype evidence and the bootstrap
+Reuse ladder, placement per stack, field rules, ADR rules and the bootstrap
 table: [fa-architecture-rules.md](references/fa-architecture-rules.md).
 
 ## Bootstrap (stage `bootstrap`, new app)
@@ -30,12 +30,12 @@ architect of an enabled role (the ai-architect) writes `agent-design.md`. Exit-c
 those files are expected now (T0 says so).
 
 1. **Load the stack knowledge.** T1 lists, per enabled role, the stack skills to load with the Skill
-   tool as reference (`frontend-dev-kit:architecture-audit`, `node-backend-dev-kit:architecture-audit`)
+   tool as reference (`frontend-dev-kit:react-feature`, `node-backend-dev-kit:architecture-audit`)
    and the stack's rules. Read the rules the feature touches. Use them as knowledge only: run none
    of their fixes, sub-agents or questions.
 2. **Read the inputs** (T2): the spec, `stories.yaml`, `ux-notes.md`, the app profile (conformance
-   and its notes), the capability map, the component inventory and, when present, the prototype
-   report and screen notes.
+   and its notes), the capability map and the component inventory. A customer mockup listed under
+   binding inputs shows the screens to place.
 3. **List what each story needs**: the screens, the actions, the business rules, the data, the API
    calls. One story usually needs a few components across layers.
 4. **Climb the reuse ladder** for each need: `existing` → `extend` → `new` composed of existing
@@ -52,15 +52,6 @@ those files are expected now (T0 says so).
    unchanged guarantees each extended module keeps.
 9. **Map human notes** that concern design (`notes_mapped` to the ADR or mention the ID).
 10. Run the exit check from T0; fix every failure that is yours.
-
-## Using prototype evidence
-
-When `02b-prototype/prototype-report.yaml` exists, the human approved it at GATE-P:
-
-- each screen in `screens` is a page-level component for the stories it lists;
-- parts several screens show are candidates for one shared component — decide reuse on them;
-- non-breaking `spec_delta` entries are design evidence; cite them in the body or an ADR;
-- never cite sandbox files as `existing` paths, never copy prototype markup.
 
 ## What the architecture gate checks
 

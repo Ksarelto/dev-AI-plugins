@@ -82,8 +82,7 @@ before inventing your own.
 - Overflow: long words, long translations and long numbers stay inside their container.
 - Contrast: text on its background readable; state not signalled by colour alone (an error has
   text or an icon too). Judge from the screenshot; note the element and colours you saw.
-- Compare with the prototype page for the same surface when there is one (expected flow and
-  states, not pixel-exactness).
+- Compare with the UX notes for the same surface (expected flow and states, not a pixel match).
 
 ## Accessibility
 

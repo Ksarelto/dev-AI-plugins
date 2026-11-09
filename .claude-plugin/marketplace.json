@@ -95,6 +95,20 @@
       ]
     },
     {
+      "name": "prototype-kit",
+      "source": "./prototype-kit",
+      "description": "Living HTML prototype at prototype/ in the app root. Init builds the shell and base pages from a plain-text brief; update edits that same folder from a change note. A senior designer writes the UI. A provided theme or layout is binding; ui-ux-pro-max fills only what the brief leaves open.",
+      "category": "productivity",
+      "tags": [
+        "prototype",
+        "html",
+        "alpinejs",
+        "design-system",
+        "ui-ux",
+        "ui-ux-pro-max"
+      ]
+    },
+    {
       "name": "agent-dev-kit",
       "source": "./app-dev-kit/agent-dev-kit",
       "description": "Rules, skills, and agents for building production TypeScript/Node AI agents with the OpenAI SDK via OpenRouter, @openai/agents or LangGraph.js, and RAG pipelines with hybrid search and reranking.",
@@ -236,7 +250,7 @@
     {
       "name": "factory-role-frontend",
       "source": "./app-dev-kitv2/factory-role-frontend",
-      "description": "app-dev-kitv2 frontend role: test author (red), builder (green) and sandboxed prototyper for React Feature-Sliced Design, gated by real test, typecheck, lint and build runs. Uses frontend-dev-kit; needs the factory engine.",
+      "description": "app-dev-kitv2 frontend role: test author (red) and builder (green) for React Feature-Sliced Design, gated by real test, typecheck, lint and build runs. Uses frontend-dev-kit; needs the factory engine.",
       "category": "productivity",
       "tags": [
         "factory",
