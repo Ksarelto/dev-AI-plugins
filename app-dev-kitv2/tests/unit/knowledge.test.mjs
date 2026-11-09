@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { ENGINE, TESTS, YAML, conductor, loopSetup, makeFeature, makeProject, putArtifact, putIntake } from "./helpers.mjs";
 
-const { taskKnowledge, stageKnowledge } = await import(`${ENGINE}/scripts/lib/knowledge.mjs`);
+const { procedureKnowledge, stageKnowledge, taskKnowledge } = await import(`${ENGINE}/scripts/lib/knowledge.mjs`);
 const ROOT = join(TESTS, "..", "..");
 const kit = (name) => ({ root: join(ROOT, name), stack: YAML.parse(readFileSync(join(ROOT, name, "stack.yaml"), "utf8")) });
 const front = (pack) => YAML.parse(pack.split("---")[1]);
@@ -33,6 +33,41 @@ test("stageKnowledge: only agents a stack names, with that stack's whole rule se
   assert.ok(reviewer[1].rules.some((r) => r.endsWith("node-backend-dev-kit/rules/database.mdc")), "type rules are part of the set");
   assert.deepEqual(stageKnowledge(packs, "intake-normaliser"), [], "an agent no stack names gets nothing");
   assert.deepEqual(stageKnowledge(packs, "contract-steward").map((k) => k.role), ["backend"]);
+});
+
+test("an agent's skills list can call each stack skill its dispatch loads, without forcing the other kits", () => {
+  const agentFile = (pack, agent) => join(ROOT, "app-dev-kitv2", pack, "agents", `${agent}.md`);
+  const skillsOf = (pack, agent) => YAML.parse(readFileSync(agentFile(pack, agent), "utf8").split("---")[1]).skills;
+  const list = (v) => (v == null ? [] : [v].flat());
+  const stacks = ["frontend-dev-kit", "node-backend-dev-kit", "node-agent-dev-kit"].map((name) => kit(name));
+  const owner = {
+    "solution-architect": "factory-analysis", planner: "factory-analysis", "test-strategist": "factory-analysis", "contract-steward": "factory-analysis",
+    "acceptance-test-author": "factory-quality", reviewer: "factory-quality", "qa-engineer": "factory-quality", "tech-writer": "factory-delivery", "ai-architect": "factory-role-ai-agent",
+  };
+  for (const stack of stacks) {
+    for (const [agent, refs] of Object.entries(stack.stack.stage_skills)) {
+      const have = skillsOf(owner[agent], agent);
+      for (const ref of list(refs)) assert.ok(have.includes(ref), `${agent} cannot call ${ref}`);
+    }
+  }
+  const builders = [
+    ["factory-role-frontend", "fe-builder", "frontend-dev-kit"],
+    ["factory-role-frontend", "fe-test-author", "frontend-dev-kit"],
+    ["factory-role-backend", "be-builder", "node-backend-dev-kit"],
+    ["factory-role-backend", "be-test-author", "node-backend-dev-kit"],
+    ["factory-role-ai-agent", "ai-builder", "node-agent-dev-kit"],
+    ["factory-role-ai-agent", "ai-test-author", "node-agent-dev-kit"],
+  ];
+  for (const [pack, agent, stackName] of builders) {
+    const have = skillsOf(pack, agent);
+    const named = new Set(Object.values(kit(stackName).stack.skills).flatMap(list));
+    for (const ref of named) assert.ok(have.includes(ref), `${agent} cannot call ${ref}`);
+  }
+  assert.ok(skillsOf("factory-role-backend", "migration-author").includes("node-backend-dev-kit:drizzle-database"));
+  assert.ok(skillsOf("factory-role-ai-agent", "ai-rag-builder").includes("node-agent-dev-kit:rag-pipeline"));
+  assert.ok(skillsOf("factory-role-ai-agent", "eval-author").includes("node-agent-dev-kit:agent-evals"));
+  const fe = { name: "factory-role-frontend", root: join(ROOT, "app-dev-kitv2", "factory-role-frontend") };
+  assert.deepEqual(procedureKnowledge(fe, "fe-builder").skills, ["factory-role-frontend:fe-implement-task", "factory-role-frontend:fe-red-tests"]);
 });
 
 test("a task pack lists its stack skills, reads its rules, carries the golden file and counts them as listed reads", async () => {

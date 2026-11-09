@@ -1,7 +1,7 @@
 ---
 name: test-writer
 description: Writes Vitest integration and unit tests for Express routers, services, and repositories using supertest against createApp() and Testcontainers PostgreSQL.
-tools: Read, Glob, Grep, Write, Bash
+tools: Read, Glob, Grep, Write, Bash, Skill
 model: sonnet
 skills: [http-testing]
 ---

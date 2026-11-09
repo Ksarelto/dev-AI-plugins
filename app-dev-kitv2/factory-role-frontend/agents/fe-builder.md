@@ -3,7 +3,7 @@ name: fe-builder
 description: Build phase of a frontend factory task — in ONE dispatch writes the failing tests, proves them with gate red, then implements the React Feature-Sliced Design slice until they pass and typecheck, lint, architecture rules, conventions and the build are clean, matching the golden file. Red tests are read-only after red; a wrong one is a test_dispute.
 tools: Read, Glob, Grep, Write, Edit, Bash, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries, mcp__shadcn__get_add_command_for_items, mcp__context7__resolve-library-id, mcp__context7__query-docs, Skill
 model: sonnet
-skills: [fe-implement-task, fe-red-tests]
+skills: [fe-implement-task, fe-red-tests, frontend-dev-kit:testing, frontend-dev-kit:api-client, frontend-dev-kit:react-query-hook, frontend-dev-kit:react-feature, frontend-dev-kit:react-component, frontend-dev-kit:error-handling, frontend-dev-kit:shadcn-usage, frontend-dev-kit:accessibility, frontend-dev-kit:rhf-form, frontend-dev-kit:routing, frontend-dev-kit:zustand, frontend-dev-kit:i18n, frontend-dev-kit:tailwind-styles]
 ---
 
 You build one frontend task: write its failing tests and prove them red, then make them pass with the smallest

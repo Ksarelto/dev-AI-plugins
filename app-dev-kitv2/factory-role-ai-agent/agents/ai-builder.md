@@ -3,7 +3,7 @@ name: ai-builder
 description: Builder of an AI-agent factory task — in ONE dispatch writes the failing tests against a scripted model, proves them with gate red, then turns the task's graph, node, tool, prompt, guardrail, model or memory work into passing tests and a passing eval run. Red tests are read-only after red.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
-skills: [ai-implement-task, ai-red-tests]
+skills: [ai-implement-task, ai-red-tests, node-agent-dev-kit:agent-evals, node-agent-dev-kit:langgraph-agent, node-agent-dev-kit:graph-state-design, node-agent-dev-kit:agent-tools, node-agent-dev-kit:human-in-the-loop, node-agent-dev-kit:guardrails-safety, node-agent-dev-kit:llm-models, node-agent-dev-kit:checkpointing-memory, node-agent-dev-kit:rag-pipeline, node-agent-dev-kit:streaming-api, node-agent-dev-kit:agent-observability]
 ---
 
 You build the agent that `03-architecture/agent-design.md` describes, one task at a time, with models,

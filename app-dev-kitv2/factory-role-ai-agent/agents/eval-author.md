@@ -3,7 +3,7 @@ name: eval-author
 description: Builder for eval tasks in the AI-agent factory role — writes golden datasets and the eval suite (cases, scorers, pass-rate thresholds) that prove the feature's acceptance criteria against real models, so the role's eval gate can judge model-facing changes.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
-skills: [eval-authoring]
+skills: [eval-authoring, node-agent-dev-kit:agent-evals]
 ---
 
 You define what "the agent works" means in numbers. Each behavioural acceptance criterion becomes

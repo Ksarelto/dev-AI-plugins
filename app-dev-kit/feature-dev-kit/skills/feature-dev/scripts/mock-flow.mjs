@@ -138,7 +138,11 @@ for (const file of agentFiles) {
   const skills = fm.skills ?? []
   const skillArr = Array.isArray(skills) ? skills : String(skills).split(',').map((s) => s.trim())
   for (const s of skillArr) {
-    if (!localSkillNames.has(s) && !EXTERNAL_SKILLS.has(s)) {
+    const [plugin, name] = s.includes(":") ? s.split(":") : [null, s]
+    const external = EXTERNAL_SKILLS.has(name) && plugin === "frontend-dev-kit"
+    if (EXTERNAL_SKILLS.has(name) && !external) {
+      fail(`${fm.name}: ${name} lives in frontend-dev-kit; write it as frontend-dev-kit:${name}`)
+    } else if (!localSkillNames.has(s) && !external) {
       fail(`${fm.name}: skills: [${s}] is not in this plugin and not a documented frontend-dev-kit skill`)
     }
   }
@@ -169,8 +173,8 @@ for (const file of agentFiles) {
     if (!/\.context\//.test(raw) || !/never write `src\/`|Never write `src\/`/i.test(raw)) {
       fail('architecture-auditor: Write must be limited to .context/ and must forbid src/')
     }
-    if (!skillArr.includes('architecture-audit')) {
-      fail('architecture-auditor: must preload skills: [architecture-audit]')
+    if (!skillArr.includes('frontend-dev-kit:architecture-audit')) {
+      fail('architecture-auditor: must preload frontend-dev-kit:architecture-audit')
     }
     if (!/REPORT_ONLY/.test(raw)) {
       fail('architecture-auditor: body must require REPORT_ONLY')

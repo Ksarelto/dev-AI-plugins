@@ -54,16 +54,22 @@ function selectedProcedureNames(agent, names, stageId, mode) {
 }
 
 /**
- * Procedure skills named on the agent file (`skills:`). They are forced loads, the same as a task
- * type's stack skills: the pack lists them in skills_required and the guard refuses a write until
- * they are loaded. Stack stage_skills stay reference knowledge and are not added here.
+ * Procedure skills named on the agent file (`skills:`) that this pack ships. They are forced loads,
+ * the same as a task type's stack skills: the pack lists them in skills_required and the guard
+ * refuses a write until they are loaded. Names of another plugin stay on the agent so the Skill
+ * tool can call them; stage_skills and the task type decide which of those a dispatch requires.
  * `stageId` and `mode` select the one authoring skill a requirements or planning dispatch uses.
  */
 export function procedureKnowledge(pack, agent, { stageId, mode } = {}) {
   if (!pack?.root || !agent) return { skills: [], skill_files: [] };
   const file = join(pack.root, "agents", `${agent}.md`);
   if (!existsSync(file)) return { skills: [], skill_files: [] };
-  const names = selectedProcedureNames(agent, [readFrontMatter(file).data.skills].flat().filter(Boolean).map(String), stageId, mode);
+  // `plugin:skill` from another kit is callable (the Skill tool allowlist) but not a blocking
+  // preflight. The dispatch still requires the ones stage_skills or the task type name, and only
+  // when that stack is enabled.
+  const declared = [readFrontMatter(file).data.skills].flat().filter(Boolean).map(String);
+  const own = declared.filter((n) => (n.includes(":") ? n.split(":")[0] : pack.name) === pack.name);
+  const names = selectedProcedureNames(agent, own, stageId, mode);
   return {
     skills: names.map((n) => (n.includes(":") ? n : `${pack.name}:${n}`)),
     skill_files: names.map((n) => toPosix(join(pack.root, "skills", n.split(":").pop(), "SKILL.md"))),

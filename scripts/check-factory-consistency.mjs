@@ -72,6 +72,11 @@ const plugins = readdirSync(family)
     return { dir, name: manifest.name, manifest, agents, skills, stages, role };
   });
 const byName = Object.fromEntries(plugins.map((p) => [p.name, p]));
+const stackSkillNames = Object.fromEntries(STACK_KITS.map((name) => {
+  const dir = join(root, name, "skills");
+  const names = existsSync(dir) ? readdirSync(dir).filter((s) => existsSync(join(dir, s, "SKILL.md"))) : [];
+  return [name, new Set(names)];
+}));
 const allAgents = plugins.flatMap((p) => p.agents.map((a) => ({ ...a, plugin: p.name })));
 const allSkills = plugins.flatMap((p) => p.skills.map((s) => ({ ...s, plugin: p.name })));
 
@@ -108,8 +113,17 @@ for (const a of allAgents) {
   if (!modelSection) errors.push(`${rel(a.file)}: no "## Model" section starting with **${a.data?.model}** (why this tier, what it is sized for, escalation, Cursor id)`);
   else if (modelSection[1] !== a.data?.model) errors.push(`${rel(a.file)}: "## Model" says ${modelSection[1]}, frontmatter says ${a.data?.model}`);
   const own = new Set(byName[a.plugin].skills.map((s) => s.name));
-  for (const skill of a.data?.skills ?? []) if (!own.has(skill)) errors.push(`${rel(a.file)}: preloads skill "${skill}", which ${a.plugin} does not ship`);
   for (const skill of a.data?.skills ?? []) {
+    const name = String(skill);
+    if (name.includes(":")) {
+      const [plugin, bare] = name.split(":");
+      if (!stackSkillNames[plugin]?.has(bare)) errors.push(`${rel(a.file)}: preloads "${name}", which ${plugin || "that plugin"} does not ship`);
+      continue;
+    }
+    if (!own.has(name)) errors.push(`${rel(a.file)}: preloads skill "${name}", which ${a.plugin} does not ship`);
+  }
+  for (const skill of a.data?.skills ?? []) {
+    if (String(skill).includes(":")) continue;
     const s = byName[a.plugin].skills.find((x) => x.name === skill);
     if (s?.data?.["disable-model-invocation"] === true) errors.push(`${rel(a.file)}: preloads "${skill}", but disable-model-invocation stops preloading`);
   }
@@ -301,7 +315,9 @@ for (const name of Object.values(MODEL_POLICY).flat()) {
   } else if (!implementedAgents.has(name)) info.push(`agent ${name}: scheduled for a later phase`);
 }
 const commands = new Set(plugins.find((p) => p.name === "factory")?.skills.filter((s) => s.data?.["disable-model-invocation"]).map((s) => s.name));
-const suggested = [...readFileSync(join(root, "Suggestions", "03-sdlc-pipeline.md"), "utf8").matchAll(/`\/factory:([a-z-]+)/g)].map((m) => m[1]);
+const design = join(root, "Suggestions", "03-sdlc-pipeline.md");
+const suggested = existsSync(design) ? [...readFileSync(design, "utf8").matchAll(/`\/factory:([a-z-]+)/g)].map((m) => m[1]) : [];
+if (!existsSync(design)) warnings.push("Suggestions/03-sdlc-pipeline.md is missing, so the design-drift check was skipped");
 for (const c of new Set(suggested)) {
   if (!commands.has(c) && !(ALLOW.later_phase_commands ?? []).includes(c)) errors.push(`/factory:${c} from Suggestions/03 is neither implemented nor scheduled`);
   else if (!commands.has(c)) info.push(`/factory:${c}: scheduled for a later phase`);

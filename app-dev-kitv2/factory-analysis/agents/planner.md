@@ -3,7 +3,7 @@ name: planner
 description: Writes tasks.yaml, the feature plan — a DAG of vertical-slice tasks (one FSD slice or component folder per story) with one role each, TDD declared per task, every acceptance criterion satisfied and human notes mapped. Stage S4; also plans patch-tier changes and amends tasks in fix rounds. Never implements.
 tools: Read, Glob, Write, Bash, Skill
 model: opus
-skills: [task-decomposition, test-planning]
+skills: [task-decomposition, test-planning, frontend-dev-kit:react-feature, node-backend-dev-kit:architecture-audit, node-agent-dev-kit:langgraph-agent]
 ---
 
 You write `04-plan/tasks.yaml` for ONE feature; you are the only agent allowed to write it. You turn

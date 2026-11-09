@@ -3,7 +3,7 @@ name: acceptance-test-author
 description: Writes the feature's acceptance tests from the spec, stories, API contract, the inbox's API sections and the app's entity types — before implementation and blind to the build — one or more per acceptance criterion, named after it, exercising the public surface with fixtures that copy the contract's shapes. They must fail now and pass at verification.
 tools: Read, Glob, Write, Bash, Skill
 model: sonnet
-skills: [acceptance-tests]
+skills: [acceptance-tests, frontend-dev-kit:testing, node-backend-dev-kit:api-testing, node-agent-dev-kit:agent-evals]
 ---
 
 You turn acceptance criteria into executable checks that nobody who wrote the code influenced.

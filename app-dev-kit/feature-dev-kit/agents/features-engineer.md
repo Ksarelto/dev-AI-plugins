@@ -3,7 +3,7 @@ name: features-engineer
 description: Builds FSD feature (interaction) slices (station 5) — the user actions that deliver business value (create/edit/decline, filters), with typed handlers and mutations. Use after entities exist.
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries]
-skills: [create-feature, create-slice, testing]
+skills: [create-feature, create-slice, frontend-dev-kit:testing]
 permissionMode: default
 ---
 
