@@ -15,6 +15,7 @@
     "app-dev-kitv2/factory-quality",
     "app-dev-kitv2/factory-delivery",
     "app-dev-kitv2/factory-role-backend",
-    "app-dev-kitv2/factory-role-ai-agent"
+    "app-dev-kitv2/factory-role-ai-agent",
+    "prototype-kit"
   ]
 }

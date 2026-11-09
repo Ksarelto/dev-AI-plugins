@@ -1,5 +1,5 @@
 import { readFileSync, existsSync, readdirSync, statSync } from "node:fs";
-import { join, dirname, basename } from "node:path";
+import { join, dirname, basename, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv from "ajv";
 import addFormats from "ajv-formats";
@@ -68,6 +68,34 @@ function pathExists(abs) {
   }
 }
 
+let generatedAgentKits = null;
+function generatedCursorAgentKits() {
+  if (!generatedAgentKits) {
+    const { kits } = JSON.parse(readFileSync(join(root, "scripts", "model-tiers.json"), "utf8"));
+    generatedAgentKits = new Set(kits);
+  }
+  return generatedAgentKits;
+}
+
+function agentsPathKey(rel) {
+  return rel.replace(/\\/g, "/").replace(/^\.\//, "").replace(/\/$/, "");
+}
+
+// cursor-agents/ is written into the Cursor install mirror, not this repo.
+function isInstallTimeCursorAgents(sourcePath, rel) {
+  if (agentsPathKey(rel) !== "cursor-agents") return false;
+  return generatedCursorAgentKits().has(relative(root, sourcePath)) && existsSync(join(sourcePath, "agents"));
+}
+
+function checkCursorAgentTarget(sourcePath, manifest, pluginName) {
+  if (!generatedCursorAgentKits().has(relative(root, sourcePath))) return true;
+  if (asPaths(manifest.agents).some((rel) => agentsPathKey(rel) === "cursor-agents")) return true;
+  console.error(
+    `FAIL: [Cursor] ${pluginName} is in scripts/model-tiers.json and must set agents to ./cursor-agents/`
+  );
+  return false;
+}
+
 function checkComponentPaths(sourcePath, manifest, label, pluginName) {
   let ok = true;
 
@@ -75,6 +103,7 @@ function checkComponentPaths(sourcePath, manifest, label, pluginName) {
     for (const rel of asPaths(manifest[field])) {
       const abs = join(sourcePath, rel);
       if (!pathExists(abs)) {
+        if (field === "agents" && isInstallTimeCursorAgents(sourcePath, rel)) continue;
         console.error(`FAIL: [${label}] ${pluginName} ${field} path missing: ${rel}`);
         ok = false;
         continue;
@@ -266,6 +295,9 @@ function validateMarketplace(manifestDir, label, marketplaceSchema, pluginSchema
       // Path checks once per plugin.json (Claude marketplace pass only) to avoid duplicate lines.
       if (label === "Claude") {
         passed = checkComponentPaths(sourcePath, pluginManifest, harnessLabel, entry.name) && passed;
+        if (dir === ".cursor-plugin") {
+          passed = checkCursorAgentTarget(sourcePath, pluginManifest, entry.name) && passed;
+        }
       }
     }
   }

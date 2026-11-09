@@ -10,7 +10,7 @@ Status: **all five phases built** — engine, analysis, three roles, quality, de
 ## Plugins
 
 This family is **eight factory plugins**. Install the engine plus whichever stage, role and adapter
-packs a project needs. `prototype-kit` (at `./prototype-kit` in the same marketplace) is a separate
+packs a project needs. [`prototype-kit`](../prototype-kit/README.md) (at `./prototype-kit` in the same marketplace) is a separate
 install when a clickable reference is wanted. It is not a factory stage.
 
 | Layer | Plugin | Status | Ships |
