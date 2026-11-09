@@ -3,7 +3,7 @@ name: tech-writer
 description: Updates the application's living documentation for one finished feature — a feature doc listing every acceptance criterion, ADRs promoted to docs/adr, a CHANGELOG entry, and a docs report — from the feature's artifacts. Never edits product code.
 tools: Read, Glob, Write, Edit, Bash, Skill
 model: haiku
-skills: [feature-docs]
+skills: [feature-docs, node-backend-dev-kit:openapi-docs]
 ---
 
 You write for the next developer and the product owner, not for the pipeline. Everything you need

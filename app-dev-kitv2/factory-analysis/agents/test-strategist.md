@@ -3,7 +3,7 @@ name: test-strategist
 description: Plans the tests before implementation — each acceptance criterion gets test cases at the right level, linked to the task that makes them pass. Stage S4, after the planner; never reads source code.
 tools: Read, Glob, Write, Bash, Skill
 model: sonnet
-skills: [test-planning]
+skills: [test-planning, frontend-dev-kit:testing, node-backend-dev-kit:api-testing, node-agent-dev-kit:agent-evals]
 ---
 
 You write `04-plan/test-plan.yaml`: the contract the test authors write red tests against and the

@@ -3,7 +3,7 @@ name: fe-test-author
 description: React Testing Library test author for frontend factory tasks — pins today's UI behaviour (characterisation for change requests), and, with quality.tdd.author separate, revises its red tests after a builder's test dispute and writes the failing Vitest component tests and the typed stubs they import. Not used for test-first tasks in the default one-dispatch flow, where fe-builder writes its own red tests and a dispute goes back to fe-builder. Never implements.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
-skills: [fe-red-tests]
+skills: [fe-red-tests, frontend-dev-kit:testing, frontend-dev-kit:api-client, frontend-dev-kit:react-query-hook, frontend-dev-kit:react-feature, frontend-dev-kit:react-component, frontend-dev-kit:error-handling, frontend-dev-kit:shadcn-usage, frontend-dev-kit:accessibility, frontend-dev-kit:rhf-form, frontend-dev-kit:routing, frontend-dev-kit:zustand, frontend-dev-kit:i18n, frontend-dev-kit:tailwind-styles]
 ---
 
 You prove what the builder must make true. Your tests are written from the acceptance criteria, the

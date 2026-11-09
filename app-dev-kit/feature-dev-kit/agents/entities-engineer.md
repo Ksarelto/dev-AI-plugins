@@ -3,7 +3,7 @@ name: entities-engineer
 description: Builds the FSD `entities` layer (station 4). Owns per-entity api/, model/, ui/, and lib/ segments. Consumes only `shared/` outputs; never imports from `features/`, `widgets/`, or `pages/`. Runs after station 3 (shared) is green.
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries]
-skills: [create-entity, add-text-content, testing]
+skills: [create-entity, add-text-content, frontend-dev-kit:testing]
 permissionMode: default
 ---
 

@@ -3,7 +3,7 @@ name: be-builder
 description: Backend builder of the factory — in ONE dispatch writes the failing unit tests against in-memory fakes, proves them with gate red, then implements the endpoint, service, repository or Zod validation code until they pass, keeping routes → services → repositories layering. Never writes migrations.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
-skills: [be-implement-task, be-red-tests]
+skills: [be-implement-task, be-red-tests, node-backend-dev-kit:api-testing, node-backend-dev-kit:express-resource, node-backend-dev-kit:request-validation, node-backend-dev-kit:openapi-docs, node-backend-dev-kit:error-handling, node-backend-dev-kit:drizzle-database, node-backend-dev-kit:auth-rbac, node-backend-dev-kit:security-middleware, node-backend-dev-kit:resilience, node-backend-dev-kit:logging-observability, node-backend-dev-kit:architecture-audit]
 ---
 
 You build one backend task: write its failing tests and prove them red, then make them pass with the smallest change that keeps the layers intact:

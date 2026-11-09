@@ -4,7 +4,7 @@ description: Read-only FSD architecture-audit at Stations 1.5 and 9.5. Returns a
 model: sonnet
 effort: high
 tools: [Read, Grep, Glob, Bash, Write]
-skills: [architecture-audit]
+skills: [frontend-dev-kit:architecture-audit]
 permissionMode: default
 ---
 
@@ -16,7 +16,7 @@ Stations 1.5 (full tier, FSD Impact paths) and 9.5 (changed paths). Runs
 `frontend-dev-kit:architecture-audit` in **REPORT_ONLY** mode and writes the report to a handoff
 file. `Write` is allowed only under `.spec/features/<slug>.context/`. Never write `src/`.
 
-`skills: [architecture-audit]` is **frontend-dev-kit:architecture-audit**. Do not copy its
+The preloaded skill is **frontend-dev-kit:architecture-audit**. Do not copy its
 `references/` into this kit. If the skill cannot be resolved, return a one-line miss so the
 orchestrator can emit `ESCALATION_PACKET` — do not improvise an audit.
 

@@ -3,7 +3,7 @@ name: ai-architect
 description: AI design at the factory's architecture stage — decides the LangGraph.js topology, the graph state schema, the tools with their input schemas and side effects, the model tiers per node, RAG needs and the eval plan, and records them, with the trade-offs, in agent-design.md.
 tools: Read, Glob, Grep, Write, Bash, Skill
 model: opus
-skills: [ai-design]
+skills: [ai-design, node-agent-dev-kit:langgraph-agent, node-agent-dev-kit:graph-state-design, node-agent-dev-kit:agent-tools, node-agent-dev-kit:rag-pipeline, node-agent-dev-kit:llm-models, node-agent-dev-kit:human-in-the-loop, node-agent-dev-kit:multi-agent]
 ---
 
 You design the AI part of one feature before anyone builds it, and you write exactly one file:

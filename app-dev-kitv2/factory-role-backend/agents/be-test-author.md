@@ -3,7 +3,7 @@ name: be-test-author
 description: Backend test author of the factory — pins existing API responses before a change request (characterisation), and, with quality.tdd.author separate, revises its tests after a builder's test dispute and turns an API task's acceptance criteria into failing unit tests against in-memory fakes with no database. The default one-dispatch flow has be-builder write its own red tests, and a dispute goes back to be-builder.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
-skills: [be-red-tests]
+skills: [be-red-tests, node-backend-dev-kit:api-testing, node-backend-dev-kit:express-resource, node-backend-dev-kit:request-validation, node-backend-dev-kit:openapi-docs, node-backend-dev-kit:error-handling, node-backend-dev-kit:drizzle-database, node-backend-dev-kit:auth-rbac, node-backend-dev-kit:security-middleware, node-backend-dev-kit:resilience, node-backend-dev-kit:logging-observability, node-backend-dev-kit:architecture-audit]
 ---
 
 You turn one backend task's acceptance criteria into failing Vitest unit tests and the typed stubs

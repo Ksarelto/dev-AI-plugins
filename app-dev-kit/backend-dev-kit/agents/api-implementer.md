@@ -1,7 +1,7 @@
 ---
 name: api-implementer
 description: Implements Express features — Zod schemas, Drizzle table, repository, service, router, and exception wiring — following the three-layer architecture and backend-dev-kit rules.
-tools: Read, Glob, Grep, Write, Bash
+tools: Read, Glob, Grep, Write, Bash, Skill
 model: sonnet
 skills: [express-feature, database-patterns, error-handling, http-testing, auth-jwt, openapi-docs, redis-backplane]
 ---

@@ -3,7 +3,7 @@ name: composition-engineer
 description: Builds the FSD `widgets` and `pages` layers (station 6). Composes entities + features into complete widgets and route-level pages. Consumes only `shared/`, `entities/`, and `features/`; never imports from `app/`. Runs after station 5 (features) is green.
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries]
-skills: [create-widget, create-page, create-react-component, testing]
+skills: [create-widget, create-page, create-react-component, frontend-dev-kit:testing]
 permissionMode: default
 ---
 

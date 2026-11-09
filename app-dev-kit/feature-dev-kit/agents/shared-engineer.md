@@ -3,7 +3,7 @@ name: shared-engineer
 description: Builds the FSD `shared` layer (station 3). Use to add UI-kit items, base-api, lib, or config that a feature needs. Pulls shadcn primitives into `shared/ui` via the shadcn MCP and installs human-approved packages with the lockfile's package manager. Only runs when the feature genuinely needs shared additions.
 model: sonnet
 tools: [Read, Write, Edit, Bash, Glob, Grep, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries, mcp__shadcn__get_add_command_for_items]
-skills: [create-shared-ui, add-text-content, testing]
+skills: [create-shared-ui, add-text-content, frontend-dev-kit:testing]
 permissionMode: default
 ---
 
