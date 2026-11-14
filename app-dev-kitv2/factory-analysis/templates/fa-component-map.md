@@ -8,7 +8,7 @@ components:
     reuse: extend
     reuse_considered: [entities/order]
   - name: CouponField
-    path: src/features/apply-coupon/ui/coupon-field.tsx
+    path: src/features/apply-coupon/ui/coupon-field/coupon-field.tsx
     layer: features
     stories: [STORY-0001]
     reuse: new

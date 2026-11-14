@@ -88,9 +88,12 @@ export function buildPack(projectDir, featureObj, config, d) {
     if (present.length) inputs.push(...present.map((f) => ({ ...f, missing: false, optional })));
     else if (found.length && !optional) inputs.push({ type: found.map((f) => f.type).join("|"), paths: [], missing: true, optional });
   }
-  const skillsRequired = [...new Set([...(d.knowledge?.skills ?? []), ...(d.procedure?.skills ?? [])])];
+  // Stage skills are the procedure for that agent (review, QA, acceptance, architecture). The hook
+  // requires them the same way it requires a task's stack skills: a copied hash does not count.
+  const stageSkills = (d.stageKnowledge ?? []).flatMap((k) => k.skills ?? []);
+  const skillsRequired = [...new Set([...(d.knowledge?.skills ?? []), ...(d.procedure?.skills ?? []), ...stageSkills])];
   const skillFilesListed = skillRecords(skillsRequired, [...(d.knowledge?.skill_files ?? []), ...(d.procedure?.skill_files ?? []), ...(d.stageKnowledge ?? []).flatMap((k) => k.skill_files ?? [])]);
-  const skillHow = "load each with the Skill tool before you start; in Cursor, open the skill by name";
+  const skillHow = "these are the procedure: follow their steps. Load each with the Skill tool, or Read its SKILL.md. The hook records that. A hash in the envelope does not count";
   const scratchEnvelope = `.factory/scratch/${String(d.id).replaceAll("/", ".")}.json`;
 
   const engineCli = toPosix(join(ENGINE_ROOT, "scripts", "factory.mjs"));
@@ -122,15 +125,15 @@ export function buildPack(projectDir, featureObj, config, d) {
       );
       if (skillFilesListed.length) {
         lines.push(
-          "Cursor has no Skill tool. Do not return blocked only because it is missing. Read each file and list these tokens exactly in skills_loaded:",
-          ...skillFilesListed.map((r) => `  - inline:${r.name}@${r.hash}  ${r.path}`),
-          `On Cursor, also write the same envelope JSON (no markdown fence) to ${scratchEnvelope} before you return.`,
+          "Cursor has no Skill tool. Do not return blocked only because it is missing. Read each SKILL.md. The hook records the Read. Do not paste a hash into the envelope.",
+          ...skillFilesListed.map((r) => `  - ${r.path}`),
+          `Your whole reply is the JSON envelope. On Cursor, also write that same JSON (no markdown fence) to ${scratchEnvelope} before you return.`,
         );
       }
     }
     if (d.knowledge?.skills?.length) lines.push(`Stack skills (${skillHow}): ${d.knowledge.skills.join(", ")}`);
     for (const k of d.stageKnowledge ?? []) {
-      lines.push(`Stack knowledge for ${k.role} (${k.stack}) — skills (${skillHow}; use them as reference knowledge and keep to your own procedure: none of their fixes, sub-agents or questions): ${k.skills.join(", ")}`);
+      lines.push(`Stack skills for ${k.role} (${k.stack}) — the procedure, follow their steps (${skillHow}): ${k.skills.join(", ")}`);
       if (k.rules.length) lines.push("  Rules of that stack (read the ones the work in front of you touches):", ...k.rules.map((r) => `  - ${r}`));
     }
     if (d.planRules?.length) lines.push("Plan rules (gate-plan checks every one):", ...d.planRules.map((l) => `  - ${l}`));
@@ -168,7 +171,7 @@ export function buildPack(projectDir, featureObj, config, d) {
       if (d.laterOwned?.length) lines.push(`  Agents after you write ${d.laterOwned.join(", ")}; failures about those files are expected now.`);
     }
     if (d.nextIds?.length) lines.push(`Next free IDs (use these for anything new; never reuse an ID): ${d.nextIds.join(", ")}`);
-    lines.push(`Return: end your reply with one \`\`\`json block — the envelope (schema ${toPosix(join(ENGINE_ROOT, "schemas", "envelope.schema.json"))}) with the required fields "pack_id": "${d.id}", "status" (done | failed | blocked | needs_scope_change | needs_clarification), "artifacts_written" (the files you wrote, [] if none) and "summary" of at most ${config.context?.return_summary_max_words ?? 200} words.`);
+    lines.push(`Return: your whole reply is one JSON envelope and nothing else (schema ${toPosix(join(ENGINE_ROOT, "schemas", "envelope.schema.json"))}). Required fields: "pack_id": "${d.id}", "status" (done | failed | blocked | needs_scope_change | needs_clarification), "artifacts_written" (the files you wrote, [] if none) and "summary" of at most ${config.context?.return_summary_max_words ?? 200} words.`);
     if (d.feedback) {
       lines.push("", "## T3 — Attempt feedback");
       lines.push(d.feedback);

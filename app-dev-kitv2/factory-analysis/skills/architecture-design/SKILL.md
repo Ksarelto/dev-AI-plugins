@@ -29,10 +29,11 @@ You go first in this stage; the contract-steward writes `api-contract.yaml` afte
 architect of an enabled role (the ai-architect) writes `agent-design.md`. Exit-check failures about
 those files are expected now (T0 says so).
 
-1. **Load the stack knowledge.** T1 lists, per enabled role, the stack skills to load with the Skill
-   tool as reference (`frontend-dev-kit:react-feature`, `node-backend-dev-kit:architecture-audit`)
-   and the stack's rules. Read the rules the feature touches. Use them as knowledge only: run none
-   of their fixes, sub-agents or questions.
+1. **Follow the stack skills.** T1 lists, per enabled role, the skills that are the procedure
+   (`frontend-dev-kit:react-feature`, `frontend-dev-kit:architecture-audit` is context: fork so it returns a report, and the other stacks'
+   equivalents) and the stack's rules. Read the rules the feature touches. `architecture-audit`
+   runs with `REPORT_ONLY` and `DIFF_SCOPE` on the change set. You still write only the architecture
+   artifacts: no product code, no sub-agents.
 2. **Read the inputs** (T2): the spec, `stories.yaml`, `ux-notes.md`, the app profile (conformance
    and its notes), the capability map and the component inventory. A customer mockup listed under
    binding inputs shows the screens to place.
@@ -77,7 +78,7 @@ and `data-table` (shared/ui, used by 11); no reorder action exists.
 ```yaml
 - { name: order, path: src/entities/order, layer: entities, stories: [STORY-0004], reuse: extend, reuse_considered: [entities/order], reuse_rejected: null }
 - name: ReorderButton
-  path: src/features/reorder/ui/reorder-button.tsx
+  path: src/features/reorder/ui/reorder-button/reorder-button.tsx
   layer: features
   stories: [STORY-0004]
   reuse: new

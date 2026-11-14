@@ -18,7 +18,7 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 - Every `useQuery` and `useMutation` for that model lives in the same segment's `api/hooks.ts`. Do not add `api/useThing.ts` per hook
 - `useQuery` and `useMutation` are called only in that `api/` segment. Other features and entities import the hook from the owner's public `index.ts`. They do not declare a second one. `features/{name}/hooks/` does not call `useQuery` or `useMutation`. A feature hook may compose navigation and local UI state, and it calls the api hook
 - Cross-feature cache invalidation: import the shared key from `shared/api/query-keys/` and call `invalidateQueries` — never import from another feature
-- `ui/` imports the api hook. It never calls `useQuery` or `useMutation`, and it never imports a fetcher
+- `ui/` imports `hooks/`, never `api/` and never a fetcher. That hook calls the query or mutation in `api/hooks.ts`. `ui/` never calls `useQuery` or `useMutation`
 - Read `shared/api/base.ts`, `config.ts`, and `query-client.ts` before adding a hook option. Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on `httpClient`. Do not copy `staleTime` or `retry` as a literal — a different policy is a named constant in `shared/api`.
 - A fetcher returns the domain value or `null` (`parseEntity` failed and already notified). The hook does not parse again. UI branches on `isPending`, `isError`, and `data === null`. It does not check entity fields.
 

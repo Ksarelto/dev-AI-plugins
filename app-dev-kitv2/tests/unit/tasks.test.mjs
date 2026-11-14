@@ -59,7 +59,7 @@ test("gate-red rules: load error, already passing, wrong failure, broken existin
   env.fake("typecheck", { code: 2, output: "src/x.ts(1,1): error TS2554" });
   const d3 = conductor.step(env.dir).dispatches[0];
   r = await conductor.record(env.dir, { dispatchId: d3.id, envelopeText: envelope(d3.id) });
-  assert.deepEqual(r.gate.failures.map((f) => f.rule).sort(), ["not-collected", "tests-do-not-compile"]);
+  assert.deepEqual(r.gate.failures.map((f) => f.rule).sort(), ["not-collected"], "typecheck waits for the style pass; gate red only judges the test report");
 });
 
 test("red → green: the red lock is recorded, the builder may not write red tests, and changing one fails gate-impl", async () => {

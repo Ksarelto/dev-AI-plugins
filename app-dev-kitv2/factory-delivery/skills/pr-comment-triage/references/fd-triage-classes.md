@@ -70,7 +70,7 @@ feature: FEAT-001
 comments:
   - id: "1182"
     class: change
-    file: src/features/apply-coupon/ui/coupon-field.tsx
+    file: src/features/apply-coupon/ui/coupon-field/coupon-field.tsx
     summary: "Trim spaces before applying the code; ' B2B10 ' must apply B2B10 (AC-0001)"
   - id: "1183"
     class: question

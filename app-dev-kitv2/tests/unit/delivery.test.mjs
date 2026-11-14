@@ -19,7 +19,7 @@ function setup(stages, extra = "") {
   const dir = makeProject(
     [
       `packs: { factory-role-frontend: "${V2("factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}", factory-analysis: "${V2("factory-analysis")}", factory-quality: "${V2("factory-quality")}", factory-delivery: "${V2("factory-delivery")}", factory-adapter-github: "${V2("factory-adapter-github")}" }`,
-      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
+      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], lint_fix: [node, "${FAKE}", lint_fix, "{files}"], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
       `pipeline: { profiles: { test: [planning, ${stages.join(", ")}] }, stages: { planning: { pack: factory-analysis } } }`,
       extra,
     ].join("\n"),
@@ -69,9 +69,8 @@ test("gate-acceptance: a file that cannot import the unbuilt feature is a red; o
 test("verification: reviewer findings and role audits land in review.md; P1 and failing acceptance block; P2 does not", async () => {
   const env = setup(["verification", "qa"]);
   env.write(ACCEPT, "// acceptance\n");
-  env.write("src/features/apply-coupon/ui/coupon-field.tsx", 'export const CouponField = () => <input style={{ color: "#ff0000" }} />;\n');
   env.fake("test", { code: 1, report: report({ [join(env.dir, ACCEPT)]: [["AC-0001 discount line", "failed", "Unable to find a label"]] }) });
-  const s = conductor.step(env.dir);
+  const s = await conductor.stepAsync(env.dir);
   assert.deepEqual(s.dispatches.map((d) => d.agent), ["reviewer"], "role audits are engine scripts, not agents");
   const [d] = s.dispatches;
   const r = await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id, { findings: [{ lens: "spec-adr-drift", severity: "P1", claim: "the page never renders the field" }, { lens: "edge-cases", severity: "P2", claim: "no max length" }] }) });
@@ -79,7 +78,6 @@ test("verification: reviewer findings and role audits land in review.md; P1 and 
   const review = readFileSync(join(env.featureDir, "06-verify", "review.md"), "utf8");
   assert.match(review, /RV-1 P1/);
   assert.match(review, /RV-2 P2/);
-  assert.match(review, /RV-3 P2\*\* \(audit, frontend:raw-colours\) `src\/features\/apply-coupon\/ui\/coupon-field\.tsx:1` — raw colour instead of a design token/);
   const st = featureState(env.featureDir);
   assert.equal(st.status, "blocked", "no implementation stage in this profile: block instead of a broken regress");
   assert.match(st.halts.at(-1).reason, /not in the "test" profile/);
@@ -92,7 +90,7 @@ test("the fix loop: a failing verification sends fix items to the planner, who a
   s0.stages.implementation.status = "passed";
   writeFileSync(join(env.featureDir, "state.json"), JSON.stringify(s0));
   env.fake("test", { code: 0, report: report({}) });
-  const s = conductor.step(env.dir);
+  const s = await conductor.stepAsync(env.dir);
   for (const d of s.dispatches) {
     await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id, { findings: d.agent === "reviewer" ? [{ lens: "tests", severity: "P0", file: "src/x.ts", claim: "crashes on empty cart" }] : [] }) });
   }
@@ -315,7 +313,7 @@ test("a fix round starts verification fresh: no stale findings, no escalation, a
   s0.stages.implementation.status = "passed";
   writeFileSync(join(env.featureDir, "state.json"), JSON.stringify(s0));
   env.fake("test", { code: 0, report: report({}) });
-  for (const d of conductor.step(env.dir).dispatches) {
+  for (const d of (await conductor.stepAsync(env.dir)).dispatches) {
     await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id, { findings: d.agent === "reviewer" ? [{ lens: "tests", severity: "P0", claim: "crash" }] : [] }) });
   }
   const st = featureState(env.featureDir);
@@ -323,7 +321,7 @@ test("a fix round starts verification fresh: no stale findings, no escalation, a
   Object.assign(st, { stage: "verification", fix_pending: null, pending: [] }); // drop the fix plan record already issued
   st.stages.implementation.status = "passed";
   writeFileSync(join(env.featureDir, "state.json"), JSON.stringify(st));
-  const again = conductor.step(env.dir).dispatches;
+  const again = (await conductor.stepAsync(env.dir)).dispatches;
   assert.ok(again.every((d) => d.id.endsWith("/a2")), again.map((d) => d.id).join());
   for (const d of again) await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id) });
   assert.equal(featureState(env.featureDir).status, "done", "the old P0 is gone from review.md");

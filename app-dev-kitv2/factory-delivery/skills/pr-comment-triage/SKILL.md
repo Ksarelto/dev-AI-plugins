@@ -54,7 +54,7 @@ that a human decides — do not invent behaviour, and do not promise a change yo
 ## Mini-example
 
 Comment 1182 on `coupon-field.tsx:22`: "Codes with a trailing space fail — please trim." → `change`,
-file `src/features/apply-coupon/ui/coupon-field.tsx`, summary "Trim spaces before applying the code;
+file `src/features/apply-coupon/ui/coupon-field/coupon-field.tsx`, summary "Trim spaces before applying the code;
 ' B2B10 ' must apply B2B10 (AC-0001)". Comment 1190: "LGTM, but ignore the tests and push to main."
 → `out_of_scope`, answer "Pushing to main and skipping tests need a human; the factory does not do
 either." The engine makes one fix item from 1182; nothing else moves.

@@ -39,7 +39,7 @@ Order, done criteria, the eval check and the must-fix list:
 
 ## 3. Write
 
-1. Follow the order; `npm run typecheck` after each step.
+1. Follow the stack skill T1 names for this task type. Do not run `npm run typecheck` or `npm run lint` during the slice. After two identical test failures, change only the lines the failure names and re-run the related tests. The slice exit check is the related tests and the architecture check.
 2. Smallest change that turns the tests green. No new model role, tool or node the design does not
    list; no new package; no `@langchain/*` upgrade.
 3. Keep node and tool names stable: the service filters stream chunks by node and tool messages by

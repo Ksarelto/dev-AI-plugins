@@ -23,8 +23,7 @@ never change the component map, the spec or any code; you never let one role res
 ## Procedure
 
 1. Read the pack, then the component map's `contract_ops` and the stories that call an API.
-2. Load the T1 stack skill with the Skill tool as reference and read the `api-design` rule. Use them
-   as knowledge only (no fixes, sub-agents or questions).
+2. Follow the T1 stack skill and read the `api-design` rule. You still write only the contract.
 3. If the map lists no operations and no story calls an API: write no contract, say so, return.
 4. For each operation, decide existing or new from the capability map's routes. Existing and
    unchanged → `x-factory.status: existing`, its real shape copied from its route and schema files.

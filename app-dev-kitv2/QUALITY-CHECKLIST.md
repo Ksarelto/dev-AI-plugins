@@ -63,7 +63,7 @@ Commands for the whole checklist: `npm run validate`, `npm run check:factory`, `
 | E1 | A fixture build pack is estimated below 20k tokens. The stable prefix (rules, stack digest) comes before the unique mission. | Broker unit test. |
 | E2 | By default each task costs one build dispatch. | e2e scenario counts dispatches per task. |
 | E3 | `gate impl` lints and tests only the task's change against the task's base ref. No production build runs per task. A failed agent exit check is not re-run by `record` on an unchanged tree. | `gates/impl.mjs`, `stackexec.mjs`, `gatekeeper.mjs`; unit tests. |
-| E4 | Default budgets come from the plan size. An 8-task plan never needs a manual budget raise. | `defaults.yaml`, budget code; e2e. |
+| E4 | Default dispatch budgets come from the plan size. An 8-task plan never needs a manual budget raise. Elapsed time is recorded and does not halt. | `defaults.yaml`, budget code; e2e. |
 | E5 | No opus model does mechanical work: scope edits, fix-plan amendments, contract steward, locale or barrel tasks. | Agent frontmatter `model:`; `scripts/model-tiers.json`; `tasks.mjs` model picks. |
 | E6 | A real re-run of a feature of FEAT-001's size stays within: ≤ 8 tasks, ≤ 35 dispatches, ≤ 3 h, ≤ 1.5 M tokens (from `state.json`). | Manual run (costs money; needs the owner's OK). |
 

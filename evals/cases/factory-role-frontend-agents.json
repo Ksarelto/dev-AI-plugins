@@ -16,7 +16,7 @@
       "expect": "fe-builder"
     },
     {
-      "prompt": "Build the frontend feature UI so typecheck, lint and tests are green",
+      "prompt": "Build the frontend feature UI so the related tests and the architecture check are green",
       "expect": "fe-builder"
     }
   ]

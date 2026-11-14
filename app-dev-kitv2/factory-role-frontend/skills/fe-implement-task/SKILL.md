@@ -1,6 +1,6 @@
 ---
 name: fe-implement-task
-description: Procedure for the factory frontend builder — make one task's red tests pass in the React Feature-Sliced Design stack with the smallest change, matching the golden file and keeping typecheck, lint, layer rules and build clean. Preloaded by fe-builder; not for direct use.
+description: Procedure for the factory frontend builder — make one task's red tests pass in the Feature-Sliced Design stack by following the stack skill. The exit check is the related tests and the architecture check. Preloaded by fe-builder; not for direct use.
 user-invocable: false
 ---
 
@@ -70,15 +70,15 @@ and `error` from the mutation, maps the error code through `config/coupon-errors
 1. Self-check the diff against the contract and the definition of done
    ([fe-definition-of-done.md](references/fe-definition-of-done.md)) — especially the convention
    rule table: each rule there is an automatic failure.
-2. Typecheck once, at the end. Run the red tests on their own until green.
+2. Run the red tests on their own until green. Do not run `npm run typecheck` or `npm run lint`.
+   After two identical test failures, change only the lines the failure names and re-run the related tests.
 3. Run the exit check from T0 (`gate impl … --task <id>`). It fails on:
    - a red test or acceptance test changed since its lock (`red-test-changed`, `acceptance-test-changed`);
    - a task test missing, empty or skipped (`task-test-missing`, `no-tests`, `skipped-test`);
    - any touched test failing or not loading (`failing`, `does-not-load`);
-   - typecheck, lint or the architecture check failing (`<step>-failed`; the build only with `quality.impl_build: true` — verification builds);
-   - the role's checks (convention rules, duplicate scan) when the role wires them for your type.
-   Fix each failure line, re-run. Warnings are reported, never block. A passing run on an unchanged
-   tree is reused by the engine, so do not re-run it after it passed.
+   - the architecture check failing (`architecture_check-failed`; the build only with `quality.impl_build: true`).
+   Lint, typecheck and the style audits run once before verification, not here.
+   Fix each failure line, re-run. A passing run on an unchanged tree is reused, so do not re-run it after it passed.
 
 ## 5. When you cannot make it green
 
@@ -96,7 +96,7 @@ and `error` from the mutation, maps the error code through `config/coupon-errors
 
 ## 6. Envelope
 
-End with the one ```json envelope from T0 (`pack_id` exactly as given):
+Your whole reply is the one JSON envelope from T0 (`pack_id` exactly as given):
 `artifacts_written` (every file you changed), `summary` (≤200 words: layers touched, reuse decisions,
 bases added, Context7 sources, the self-check line), `deviations` (`{what, why}` for any deliberate
 simplification), `follow_up_suggested` (smells next door, a package to approve later), `test_dispute`

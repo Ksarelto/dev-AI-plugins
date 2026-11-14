@@ -26,12 +26,8 @@ const planGate = async (env) => {
   return runGate("plan", gateContext({ projectDir: env.dir, app: c.app, feature: c.feature, config: c.config, packs: c.packs }), { useCache: false });
 };
 const COMPONENT = "src/features/apply-coupon/ui/coupon-field";
-/** The template plan with TASK-003 as a component folder (so the convention lint applies). */
-const componentPlan = (t) =>
-  t
-    .replace("src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx", `${COMPONENT}/coupon-field.tsx, ${COMPONENT}/tests/coupon-field.test.tsx`)
-    .replace("red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx]", `red_tests: [${COMPONENT}/tests/coupon-field.test.tsx]`)
-    .replace("type: feature-ui", "type: component");
+/** The template plan with TASK-003 typed as a component (the template already uses the component folder). */
+const componentPlan = (t) => t.replace("type: feature-ui", "type: component");
 
 test("defaults: a vertical slice is up to 12 files and 600 LOC, and one builder dispatch per task is the default", async () => {
   const env = loopSetup();
@@ -205,7 +201,7 @@ test("gate-red: existing-test-broken ignores the red tests of other tasks that a
   const env = loopSetup();
   setState(env, (s) => ({ tasks: { "TASK-001": { status: "done" } } }));
   const red = join(env.dir, "src/entities/order/model/total.test.ts");
-  const other = join(env.dir, "src/features/apply-coupon/ui/coupon-field.test.tsx"); // TASK-003's red test, stale and failing
+  const other = join(env.dir, "src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx"); // TASK-003's red test, stale and failing
   env.fake("test", { code: 1, report: report({ [red]: [["discount", "failed", "AssertionError: expected 1 to be 2"]], [other]: [["stale", "failed", "AssertionError: boom"]] }) });
   const d = conductor.step(env.dir).dispatches[0];
   let r = await conductor.record(env.dir, { dispatchId: d.id, envelopeText: envelope(d.id) });
@@ -222,10 +218,10 @@ test("gate-red: existing-test-broken ignores the red tests of other tasks that a
 test("gate-red: a red file that extends an existing slice test file may keep its passing tests but needs one new failing one", async () => {
   const env = loopSetup();
   setState(env, (s) => ({ tasks: { "TASK-001": { status: "done" }, "TASK-002": { status: "done" } } }));
-  const file = join(env.dir, "src/features/apply-coupon/ui/coupon-field.test.tsx");
+  const file = join(env.dir, "src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx");
   mkdirSync(join(file, ".."), { recursive: true });
   writeFileSync(file, "// existing\n");
-  setState(env, (s) => ({ tasks: { ...s.tasks, "TASK-003": { status: "pending", extends: ["src/features/apply-coupon/ui/coupon-field.test.tsx"] } } }));
+  setState(env, (s) => ({ tasks: { ...s.tasks, "TASK-003": { status: "pending", extends: ["src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx"] } } }));
   env.fake("test", { code: 1, report: report({ [file]: [["old passes", "passed"], ["new", "failed", "AssertionError: expected 1 to be 2"]] }) });
   const d = conductor.step(env.dir).dispatches[0];
   assert.equal(d.task, "TASK-003");

@@ -29,7 +29,8 @@
         "budget",
         "waiver",
         "resize",
-        "error"
+        "error",
+        "repair"
       ]
     },
     "feature": {

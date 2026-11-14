@@ -137,7 +137,7 @@ test("a build pack inlines the task's slice, lists the whole artifacts as option
   assert.match(body, /AC-0001: Given a cart with total 100\.00 EUR/);
   assert.match(body, /Planned test cases: TEST-0001 \(component, AC-0001\)/);
   assert.match(body, /Component map \(your files\):\n\s+- CouponField · src\/features\/apply-coupon\/ui\/coupon-field\.tsx/);
-  assert.match(body, /API contract \(operations of this task\):\n\s+- PUT \/carts\/\{cartId\}\/coupon/);
+  assert.match(body, /API contract \(operations of this task — read api-contract for the schema\):\n\s+- PUT \/carts\/\{cartId\}\/coupon/);
   // The whole artifacts are optional reads, not counted.
   assert.match(body, /## T2 — Optional reads \(read only if needed/);
   assert.match(body, /- tasks: .*tasks\.yaml/);
@@ -167,7 +167,7 @@ test("stable first, unique last: packs of two tasks share the leading rules and 
   for (const text of [a, b]) {
     const at = (h) => text.indexOf(h);
     assert.ok(at("## T1") < at("## T4") && at("## T4") < at("## T2") && at("## T2") < at("## T0 — Mission"), "T1, T4, T2, then the mission");
-    assert.ok(at("## T0 — Mission") < at("Exit check") && at("Exit check") < at("Return: end your reply"), "mission, exit check and return line are at the end");
+    assert.ok(at("## T0 — Mission") < at("Exit check") && at("Exit check") < at("Return: your whole reply"), "mission, exit check and return line are at the end");
   }
   const common = (() => {
     let i = 0;
@@ -280,7 +280,7 @@ test("base ref: recorded without touching branch, index or worktree; changedSinc
   assert.equal(recordBaseRef(plain), null, "outside git there is no base ref");
 });
 
-test("gate impl: tests run on the files related to the task's change since its base ref, lint only the task's changed files, no build, incremental off for a fake typecheck", async () => {
+test("gate impl: tests run on the files related to the task's change since its base ref, no lint or typecheck, no build", async () => {
   const env = gateEnv();
   setState(env, (s) => ({ tasks: { ...s.tasks, "TASK-001": { status: "done" }, "TASK-002": { status: "green", phase: "green" }, "TASK-003": { status: "pending" } } }));
   write(env.dir, "src/entities/order/model/old.ts", "export const old = 1;\n");
@@ -294,13 +294,12 @@ test("gate impl: tests run on the files related to the task's change since its b
   const calls = env.calls();
   assert.ok(calls.includes(`test_related ${TOTAL_TEST} src/entities/order/model/total.ts`), calls.join(" | "));
   assert.ok(!calls.some((x) => x.startsWith("test --changed")), "`--changed <ref>` does not narrow the run (vitest diffs <ref>...HEAD plus every uncommitted file)");
-  assert.ok(calls.some((x) => x === `lint_files ${TOTAL_TEST} src/entities/order/model/total.ts`), `lint names only the changed files: ${calls.join(" | ")}`);
-  assert.ok(!calls.includes("lint"), "the whole-project lint did not run");
+  assert.ok(!calls.some((x) => x.startsWith("lint") || x.startsWith("typecheck") || x.startsWith("lint_fix")), `a slice does not lint or typecheck: ${calls.join(" | ")}`);
   assert.ok(!calls.includes("build"), "no production build per task");
-  assert.ok(calls.some((x) => x.startsWith("typecheck")) && calls.some((x) => x.startsWith("arch")));
+  assert.ok(calls.some((x) => x.startsWith("arch")));
 });
 
-test("gate impl: without a base ref it falls back to --changed and the whole lint; impl_build: true builds", async () => {
+test("gate impl: without a base ref it falls back to --changed and still does not lint; impl_build: true builds", async () => {
   const env = gateEnv("quality: { impl_build: true }");
   setState(env, (s) => ({ tasks: { ...s.tasks, "TASK-001": { status: "done" }, "TASK-002": { status: "green", phase: "green" }, "TASK-003": { status: "pending" } } }));
   write(env.dir, TOTAL_TEST, "x\n");
@@ -308,7 +307,7 @@ test("gate impl: without a base ref it falls back to --changed and the whole lin
   assert.equal((await runGate("impl", env.ctx("TASK-002"), { useCache: false })).pass, true);
   const calls = env.calls();
   assert.ok(calls.includes("test --changed"), calls.join(" | "));
-  assert.ok(calls.includes("lint") && !calls.some((x) => x.startsWith("lint_files")));
+  assert.ok(!calls.some((x) => x.startsWith("lint") || x.startsWith("typecheck")));
   assert.ok(calls.includes("build"), "impl_build: true keeps the build");
 });
 

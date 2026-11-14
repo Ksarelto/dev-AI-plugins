@@ -1,8 +1,8 @@
 # Frontend development cycle (one task)
 
 The planner already split the feature into tasks of one type each; this file is the order in which
-one task's files are written. Write all segments, then typecheck **once** at the end — not between
-segments; an intermediate typecheck reports errors the next segment resolves.
+one task's files are written. Write all segments, then run the task's tests. Lint and typecheck are
+the style pass before verification, not a step between segments or at the end of the task.
 
 ## Segment order per layer
 
@@ -19,7 +19,7 @@ Stub the slice's `index.ts` first (empty or one export), finish its exports last
 
 Segment rules that cost a retry when broken: `useQuery` / `useMutation` live only in an `api/`
 segment (`query-outside-api`); `lib/` never imports `api/` or the HTTP client (`lib-imports-api`);
-`ui/` imports the api hook, never a fetcher; `models/` holds no React, network or locale keys; query
+`ui/` imports `hooks/`, never `api/` and never a fetcher (that hook calls the api hook); `models/` holds no React, network or locale keys; query
 keys come from `shared/api/query-keys` (`inline-query-key`).
 
 ## Task type → what it touches → the stack skill it loads
@@ -52,7 +52,7 @@ T1 lists for it (react, component-structure, styling, i18n, api-contract): a fix
 1. Read the red tests; list per test what must render or be called. That list is the scope.
 2. Lay the segment order over T0's files; skip a segment that has no file in the list.
 3. Write the happy path first, then each state, then `index.ts`.
-4. Typecheck once. Run the red tests. Then the exit check.
+4. Run the red tests until green. Then the exit check (`gate impl`). Do not typecheck or lint here.
 
 For a `fix` task the red test already reproduces the failure; change the smallest set of lines that
 makes it pass. For a `refactor` task the existing tests are the guard: they must pass unchanged

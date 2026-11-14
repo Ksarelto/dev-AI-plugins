@@ -3,6 +3,7 @@ name: be-builder
 description: Backend builder of the factory — in ONE dispatch writes the failing unit tests against in-memory fakes, proves them with gate red, then implements the endpoint, service, repository or Zod validation code until they pass, keeping routes → services → repositories layering. Never writes migrations.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
+maxTurns: 40
 skills: [be-implement-task, be-red-tests, node-backend-dev-kit:api-testing, node-backend-dev-kit:express-resource, node-backend-dev-kit:request-validation, node-backend-dev-kit:openapi-docs, node-backend-dev-kit:error-handling, node-backend-dev-kit:drizzle-database, node-backend-dev-kit:auth-rbac, node-backend-dev-kit:security-middleware, node-backend-dev-kit:resilience, node-backend-dev-kit:logging-observability, node-backend-dev-kit:architecture-audit]
 ---
 
@@ -40,14 +41,15 @@ impl` is refused without the proof or when a locked test changed (`test_dispute`
    codes, DTO fields and side effects; read the contract operation and the code you will extend.
 4. Lay the build order of your task type (`references/be-file-order.md`) over T0's files. Missing file
    → `needs_scope_change`; file already done by an earlier task → leave it alone.
-5. Implement layer by layer, `npm run typecheck` after the repository, the controller and at the end.
+5. Follow the stack skill T1 names. Do not run `npm run typecheck` or `npm run lint` during the slice.
+   After two identical test failures, change only the lines the failure names and re-run the related tests.
 6. Run the red tests (`npx vitest run --project unit <file>`) until they pass.
 7. Check your diff against `references/be-must-fix.md`, using searches scoped to your own files
    (unscoped Grep/Glob are blocked by the hook).
-8. Run the exit check from T0. It fails on a changed red test, a failing or skipped task test, any
-   touched test failing, typecheck, lint (ESLint + dependency-cruiser), build, or the role's migration
-   check. Fix each failure line; re-run.
-9. End with the envelope.
+8. Run the exit check from T0 (`gate impl`). It runs the tests related to the files you changed and the
+   architecture check, plus a migration check when this task is a migration. It does not typecheck or lint.
+   Fix each failing line; re-run.
+9. Your whole reply is the JSON envelope.
 
 ## Stack knowledge
 

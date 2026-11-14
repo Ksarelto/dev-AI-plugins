@@ -92,6 +92,10 @@
       "expect": "code-review"
     },
     {
+      "prompt": "Review this pull request for readability, security, performance, change size, and code we could reuse",
+      "expect": "code-review"
+    },
+    {
       "prompt": "Is our current implementation consistent with the FSD architecture?",
       "expect": "architecture-audit"
     },

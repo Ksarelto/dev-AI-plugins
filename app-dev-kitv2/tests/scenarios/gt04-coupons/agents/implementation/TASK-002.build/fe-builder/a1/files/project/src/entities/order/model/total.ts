@@ -1,6 +1,5 @@
 /** Order total: sum of the lines minus the discount plus shipping, rounded half-even to 2 decimals. */
 export function calculateTotal(lines: number[], shipping: number, discount = 0): number {
-  const unused = "left over";
   return roundHalfEven(lines.reduce((sum, line) => sum + line, 0) - Math.max(0, discount) + shipping);
 }
 

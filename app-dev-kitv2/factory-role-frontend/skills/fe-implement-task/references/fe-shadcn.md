@@ -27,8 +27,9 @@ On Cursor the call is the bare tool name (`search_items_in_registries`, and the 
 3. `mcp__shadcn__get_item_examples_from_registries` — the `<name>-demo` example. The part order and
    nesting of the demo is how you compose it (`DialogContent` → header → body → footer).
 4. `mcp__shadcn__get_add_command_for_items` — the CLI command for the project's `components.json`.
-   Run it only when step 2 found every npm dependency already installed and the paths it writes are
-   in your list; otherwise write the item's source by hand from step 2, verbatim.
+   Run `shadcn add` only when step 2 found every npm dependency already installed and the paths it
+   writes are in your list. A missing dependency is not a reason to paste the registry source.
+   Stop and follow § 4; `shadcn add` runs after the dependency is installed.
 
 ## 3. Re-home verbatim
 
@@ -47,7 +48,9 @@ not apply inside it, `dark-variant` does. Outside it, `raw-primitive` fails a ra
 
 Never install a package (`pnpm add`, `npm install`, a CLI that adds dependencies): the hook denies
 installs, `package.json` and the lockfile are not in your scope, and the dependency is a human
-decision. When the item needs a package that is not installed, stop and choose one:
+decision. `rules/shadcn.mdc` adds the primitive with `shadcn add`. Do not paste the registry source
+into `shared/ui` while a dependency is missing. When the item needs a package that is not installed,
+stop and choose one:
 
 - **`needs_scope_change`** — the work cannot continue without it. Put one question in
   `open_questions` with everything the human needs:
@@ -60,5 +63,6 @@ Find size and licence from the item's registry entry or Context7; write "unknown
 
 ## 5. Record the decision
 
-Say in the summary which bases you reused, which you added from the registry, and any you had to
-hand-write (with the reason the registry had no match).
+Say in the summary which bases you reused and which you added with `shadcn add`. A registry item
+you could not add because a dependency is missing is the `needs_scope_change` from § 4, not a file
+you wrote by hand.

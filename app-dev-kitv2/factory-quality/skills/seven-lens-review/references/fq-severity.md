@@ -36,8 +36,13 @@ an AC, cite the AC; if not, it is P2.
 | `node-backend-dev-kit:code-review` | blocker | P0 for security, data loss, secrets; P1 for broken contract or schema without migration |
 | `node-backend-dev-kit:code-review` | major | P1 when the contract or an AC depends on it, else P2 |
 | `node-backend-dev-kit:code-review` | minor / nit | P3 (minor that will spread when copied: P2) |
-| `frontend-dev-kit:code-review` checklists | their "Severity" sections | blocks the task → P1; hostile / degrades → P2; cosmetic → P3 |
+| `frontend-dev-kit:code-review` | Blocker | P0 when it is unsafe, a crash, or a faked result; otherwise P1 |
+| `frontend-dev-kit:code-review` | Must fix | P1 when an AC, a recorded decision, or the reference architecture depends on it; otherwise P2 (a documented rule with no behavioural break: inline class, missing test, hardcoded copy, magic literal) |
+| `frontend-dev-kit:code-review` | Should fix | P2 |
+| `frontend-dev-kit:code-review` | Consider | P3 |
 | v1 backend reviewer | must fix / should fix / consider | P0–P1 / P2 / P3 |
+
+The envelope accepts only `P0`, `P1`, `P2`, `P3`. That is the scale a factory review emits. The kit's Blocker / Must fix / Should fix / Consider tags stay inside `frontend-dev-kit:code-review`; translate them with the rows above before writing a finding. Do not also write that skill's report or its Approve / Request changes verdict.
 
 ## Examples
 

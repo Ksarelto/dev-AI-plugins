@@ -39,7 +39,7 @@ const HELP = `factory <command> [options]
   envelope check --file F [--pack-id ID] (or pipe it on stdin)  validate an envelope; agents may use .factory/scratch/<name>.json
   approve [GATE] [--notes "..." [--kind product|process]] · reject [GATE] --reason "..." [--kind process]   notes given at a gate are product notes unless --kind says otherwise
   resume [TASK-NNN]                                       clear a halt and run the same phase again at the same rung (a blocked stage runs its agents again)
-  budget raise <key> <value>                              raise one budget of this feature (feature.dispatches, feature.wall_clock_min, stage.dispatches_max_by_stage.implementation, …), then resume
+  budget raise <key> <value>                              raise one budget of this feature (feature.dispatches, stage.dispatches_max_by_stage.implementation, …); feature.wall_clock_min is refused, then resume
   note "<text>" [--kind product|process] · note decline HD-n --reason "..." · note done HD-n   human instructions (HD-*)
   note remap TASK-005=TASK-019 [...]                      repoint notes mapped to a task that was split or replaced
   override <stage> force|skip|clear                       force or skip an optional stage

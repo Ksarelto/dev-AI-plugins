@@ -24,8 +24,8 @@ tests, and you never pick an agent where plain code or one structured call would
 
 ## Procedure
 
-1. Read the pack. Load each T1 skill with the Skill tool as reference knowledge — keep to `ai-design`,
-   not to the skills' own fixes or questions. Read `rules/agent-architecture.mdc`,
+1. Read the pack. Follow each T1 skill's steps; `ai-design` says which artifact you write.
+   Read `rules/agent-architecture.mdc`,
    `rules/langgraph-state.mdc`, `rules/tools.mdc`, `rules/prompt-security.mdc`, `rules/rag.mdc`.
 2. Read what exists: `src/agents/`, `src/llm/models.ts`, `src/container.ts`, `src/rag/`,
    `evals/golden/`. Extending the existing graph beats a new one.

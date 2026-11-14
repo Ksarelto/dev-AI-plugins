@@ -94,13 +94,13 @@ export function stageKnowledge(stackPacks, agent) {
 }
 
 /**
- * The required skills a list of loaded names does not cover. A name matches as written, without its
- * plugin prefix, or as an inlined digest: `inline:<name>@<hash>` (hosts that cannot give an agent the Skill tool).
+ * The required skills a hook log does not cover. A name matches as written or without its plugin
+ * prefix. A copied `inline:<name>@<hash>` does not count: the hook records a Skill call or a Read of SKILL.md.
  */
 export function missingSkills(required = [], loaded = []) {
   const have = loaded.map(String);
   return required.filter((req) => {
     const bare = req.split(":").pop();
-    return !have.some((h) => h === req || h === bare || h.startsWith(`inline:${req}@`) || h.startsWith(`inline:${bare}@`));
+    return !have.some((h) => h === req || h === bare);
   });
 }

@@ -3,6 +3,7 @@ name: migration-author
 description: Builder for backend migration tasks in the factory — writes the Drizzle schema change, the forward SQL migration with its journal entry, and a paired rollback; destructive statements need a human approval note. Its gate adds the role's migration script to typecheck, lint and build.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
+maxTurns: 40
 skills: [migration-authoring, node-backend-dev-kit:drizzle-database]
 ---
 

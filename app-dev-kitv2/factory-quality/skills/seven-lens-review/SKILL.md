@@ -100,7 +100,7 @@ evidence. Then review the rest — a fix can break something else.
 ## Worked mini-example
 
 Change set: TASK-002 `src/entities/order/model/total.ts` (satisfies AC-0003), TASK-003
-`src/features/apply-coupon/ui/coupon-field.tsx` (AC-0001, AC-0002). AC-0003: "total = sum(lines) −
+`src/features/apply-coupon/ui/coupon-field/coupon-field.tsx` (AC-0001, AC-0002). AC-0003: "total = sum(lines) −
 discount + shipping". `total.ts:7` is `return sum - discount;`.
 
 - `spec-adr-drift` P1, `total.ts:7`, AC-0003: shipping is not added. Evidence: the line, the AC text.

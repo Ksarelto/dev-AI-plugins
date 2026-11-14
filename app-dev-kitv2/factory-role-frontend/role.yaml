@@ -10,13 +10,14 @@ agents:
 gates:
   red: red
   impl: impl
-  # Run in gate-impl on the task's files (ported from feature-dev-kit): FSD/React conventions of the
-  # frontend-dev-kit rules that a script can check, and bodies duplicated across slices.
+  # Script owners for FSD/React conventions and duplicated bodies. gate impl skips these two
+  # (they are style audits below); the style pass before verification runs them.
   checks:
     - { name: conventions, node: scripts/fe-conventions.mjs }
     - { name: duplicates, node: scripts/fe-duplicates.mjs }
-  # Run by the engine on the change set at verification (their findings join the review); the ones marked
-  # per_task also run in gate impl on each task's changed files, so a builder fixes its own violations early.
+  # Run by the engine on the feature change set in the style pass before verification (P0–P2 block;
+  # the builder fixes them on the execution model). Bundle and axe stay with the verification review.
+  # per_task marks the cheap ones; gate impl does not run them.
   audits:
     - { name: raw-colours, node: scripts/audit-raw-colours.mjs, files: "\\.(tsx?|css)$", per_task: true }
     - { name: i18n, node: scripts/audit-i18n.mjs, files: "\\.tsx$", per_task: true }

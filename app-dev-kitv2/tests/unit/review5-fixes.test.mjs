@@ -530,7 +530,7 @@ test("minor: the conductor's relock halt names a command that exists", () => {
 test("n9: the plugin family names no `context: fork` skill for a dispatched agent to load; the check catches one that does", async () => {
   const { findForkedLoads, allSkills } = await import(join(ROOT, "scripts", "forked-skills.mjs"));
   assert.ok(allSkills(ROOT).some((s) => s.plugin === "frontend-dev-kit" && s.skill === "architecture-audit" && s.fork), "architecture-audit of the frontend kit is forked");
-  assert.deepEqual(findForkedLoads(ROOT), []);
+  assert.deepEqual(findForkedLoads(ROOT), [], "a line that names architecture-audit also says fork, so the load is the report and not a silent escape");
   // A miniature tree with the old wording: the check names the file and line.
   const tmp = mkdtempSync(join(tmpdir(), "factory-n9-"));
   put(tmp, "kit/skills/risky/SKILL.md", "---\nname: risky\ncontext: fork\n---\nbody\n");
@@ -539,9 +539,11 @@ test("n9: the plugin family names no `context: fork` skill for a dispatched agen
   put(tmp, "app-dev-kitv2/pack/skills/s/SKILL.md", "Use the `risky` skill.\n");
   assert.deepEqual(findForkedLoads(tmp).map((h) => `${h.file}:${h.line}:${h.skill}`).sort(), ["app-dev-kitv2/pack/agents/a.md:1:kit:risky", "app-dev-kitv2/pack/skills/s/SKILL.md:1:kit:risky"]);
   // The shipped prompts name the non-forked skill.
-  for (const f of ["factory-analysis/agents/planner.md", "factory-analysis/agents/solution-architect.md", "factory-analysis/skills/architecture-design/SKILL.md", "factory-analysis/skills/task-decomposition/SKILL.md", "factory-quality/skills/seven-lens-review/references/fq-lens-frontend.md"]) {
+  for (const f of ["factory-analysis/agents/planner.md", "factory-analysis/skills/task-decomposition/SKILL.md", "factory-quality/skills/seven-lens-review/references/fq-lens-frontend.md"]) {
     assert.doesNotMatch(read("app-dev-kitv2", f), /frontend-dev-kit:architecture-audit/, f);
   }
+  assert.match(read("app-dev-kitv2", "factory-analysis/skills/architecture-design/SKILL.md"), /frontend-dev-kit:architecture-audit` is context: fork/);
+  assert.match(read("app-dev-kitv2", "factory-quality/agents/reviewer.md"), /frontend-dev-kit:architecture-audit` is context: fork/);
   assert.match(read("app-dev-kitv2", "factory-analysis/agents/planner.md"), /frontend-dev-kit:react-feature/);
 });
 
@@ -616,7 +618,8 @@ test("minor: B4 — the agents that fill `scope_files` and `app_route` name them
 test("minor: B5 — allowlist nits", () => {
   const allow = read("app-dev-kitv2", "consistency-allowlist.yaml");
   assert.doesNotMatch(allow, /prototype stage|GATE-P|factory proto/);
-  assert.match(allow, /max\(240, 30 × tasks \+ 120\)/);
+  assert.match(allow, /wall_clock_min is not raised and does not halt/);
+  assert.doesNotMatch(allow, /max\(240, 30 × tasks \+ 120\)/);
 });
 
 test("minor: F3 — the RAG builder, like the other builders, never bends production code to fit a test", () => {
@@ -820,7 +823,8 @@ test("an agent's skills: frontmatter is skills_required on the pack", async () =
   assert.equal(s.action, "dispatch", s.reason ?? s.action);
   const text = packOf(dir, s);
   assert.match(text, /skills_required:\n  - factory-analysis:story-writing/);
-  assert.match(text, /inline:factory-analysis:story-writing@/);
+  assert.match(text, /story-writing\/SKILL\.md/);
+  assert.doesNotMatch(text, /inline:factory-analysis:story-writing@/);
   const built = buildPack(dir, conductor.load(dir).feature, conductor.load(dir).config, {
     id: "FEAT-001/stories/story-writer/a1", stageId: "stories", stage: { outputs: [], inputs: [], context_role: "analysis_roles" },
     agent: "story-writer", subagent_type: "factory-analysis:story-writer", model: "sonnet", attempt: 1, procedure: k,

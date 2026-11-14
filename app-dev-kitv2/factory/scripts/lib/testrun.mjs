@@ -7,6 +7,10 @@ import { freshReport, isAcceptanceTest, readVitestReport } from "./vitest-report
 import { incrementalTscArgs, runStackCommandAsync } from "./stackexec.mjs";
 import { baseRefValid, changedSinceBase } from "./baseref.mjs";
 
+export async function runRelatedTests(ctx, stack, label, paths) {
+  return runTests(ctx, stack, label, { scope: testScope(ctx, stack, { paths }) });
+}
+
 export async function runTests(ctx, stack, label, { extra = [], scope } = {}) {
   const reportFile = freshReport(join(ctx.paths.logs, `${label}-report.json`));
   const run = await runStackCommandAsync(stack, scope?.command ?? "test", { vars: { report: reportFile, files: scope?.files ?? [], extra: scope ? scope.extra : extra }, logName: `${label}-test` });
@@ -124,7 +128,9 @@ function keepFlags(tokens) {
  * ref, no such command, a test script that is not `vitest run`, nothing changed, not git) it is the plain
  * `test` command with scopeArgs.
  */
-export function testScope(ctx, stack, { full = false } = {}) {
+export function testScope(ctx, stack, { full = false, paths = null } = {}) {
+  const fix = paths ?? (ctx.task ? ctx.state?.tasks?.[ctx.task.id]?.fix_paths : null);
+  if (Array.isArray(fix) && fix.length) return relatedOn(ctx, stack, fix);
   const extra = scopeArgs(ctx, stack, { full });
   const fallback = { command: "test", files: [], extra };
   if (!extra.length || !stack?.stack?.commands?.test_related) return fallback;
@@ -137,6 +143,18 @@ export function testScope(ctx, stack, { full = false } = {}) {
     .filter((f) => SOURCE_FILE.test(f) && existsSync(join(ctx.projectDir, f)))
     .map((f) => toPosix(relative(stack.cwd, join(ctx.projectDir, f))))
     .filter((f) => !f.startsWith(".."));
+  return files.length ? { command: "test_related", files, extra: inherited } : fallback;
+}
+
+/** vitest related on an explicit path list (a fix iteration), ignoring the rest of the task diff. */
+function relatedOn(ctx, stack, paths) {
+  const inherited = vitestScriptFlags(stack);
+  const fallback = { command: "test", files: [], extra: [] };
+  if (!inherited || !stack?.stack?.commands?.test_related) return fallback;
+  const files = paths
+    .filter((f) => SOURCE_FILE.test(f) && existsSync(join(ctx.projectDir, f)))
+    .map((f) => toPosix(relative(stack.cwd, join(ctx.projectDir, f))))
+    .filter((f) => f && !f.startsWith(".."));
   return files.length ? { command: "test_related", files, extra: inherited } : fallback;
 }
 

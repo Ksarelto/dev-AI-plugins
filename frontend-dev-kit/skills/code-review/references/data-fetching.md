@@ -1,7 +1,8 @@
 # react-query — review checklist
 
-Distilled from the `react-query-hook` skill and `rules/api-contract.mdc`. Applies to any changed `api/` or
-mutation touching cached server data. Read the rule file as well as this checklist.
+Distilled from the `react-query-hook` skill and `rules/api-contract.mdc`. Applies to any changed `api/`
+file, and to any other file that calls `useQuery`, `useMutation`, `useQueryClient`, or
+`invalidateQueries`. Read the rule file as well as this checklist.
 
 ## Queries
 
@@ -15,6 +16,7 @@ mutation touching cached server data. Read the rule file as well as this checkli
 
 ## Mutations
 
+- `invalidateQueries` is called outside the owning slice's `api/hooks.ts`. A component, a feature `hooks/` file, a page, a fetcher, or an event handler writes the cache itself. The api hook that owns the mutation or the cache write calls `invalidateQueries`. Callers use that hook.
 - Invalidation missing. Default is `onSuccess`. Use `onSettled` only when a failed mutation also needs a resync.
 - Cross-feature invalidation imports another feature (`useInvalidateOrders`) instead of the shared key factory in `shared/api/query-keys/`.
 - A domain failure thrown from `mutationFn` instead of a return value from `models/`, checked in `ui/` before `mutate`.
@@ -28,5 +30,5 @@ mutation touching cached server data. Read the rule file as well as this checkli
 
 ## Severity
 
-A per-feature `queryKeys.ts`, a query or mutation hook outside `api/hooks.ts` (including `api/useThing.ts`), a cross-feature import, a thrown domain error, a hand-rolled entity shape check, a restated `httpClient` option, and server-state
+A per-feature `queryKeys.ts`, a query or mutation hook outside `api/hooks.ts` (including `api/useThing.ts`), an `invalidateQueries` call outside `api/hooks.ts`, a cross-feature import, a thrown domain error, a hand-rolled entity shape check, a restated `httpClient` option, and server-state
 copied out of the cache are **Must fix**. `enabled` gaps are **Should fix**.

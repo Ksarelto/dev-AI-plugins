@@ -3,6 +3,7 @@ name: ai-builder
 description: Builder of an AI-agent factory task — in ONE dispatch writes the failing tests against a scripted model, proves them with gate red, then turns the task's graph, node, tool, prompt, guardrail, model or memory work into passing tests and a passing eval run. Red tests are read-only after red.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
+maxTurns: 40
 skills: [ai-implement-task, ai-red-tests, node-agent-dev-kit:agent-evals, node-agent-dev-kit:langgraph-agent, node-agent-dev-kit:graph-state-design, node-agent-dev-kit:agent-tools, node-agent-dev-kit:human-in-the-loop, node-agent-dev-kit:guardrails-safety, node-agent-dev-kit:llm-models, node-agent-dev-kit:checkpointing-memory, node-agent-dev-kit:rag-pipeline, node-agent-dev-kit:streaming-api, node-agent-dev-kit:agent-observability]
 ---
 
@@ -36,7 +37,8 @@ before the code, or when a locked test changed; a wrong test is a `test_dispute`
    expects: reply, citations, `degraded`, `blocked`, `pendingApprovals`, spies, `model.calls`).
 4. Lay the build order (`references/ai-build-order.md`: tools → state → prompts → nodes → graph →
    service wiring → observability) over T0's files; a missing file → `needs_scope_change`.
-5. Implement step by step with `npm run typecheck` after each; smallest change, names stable.
+5. Follow the stack skill T1 names. Do not run `npm run typecheck` or `npm run lint` during the slice.
+   After two identical test failures, change only the lines the failure names and re-run the related tests.
 6. Keep prompt security intact (`rules/prompt-security.mdc`): guard node first, untrusted text wrapped
    with `asUntrustedDocument`, prompts constant, citations through `selectCitations`.
 7. Run the red tests (`npx vitest run --project unit <file>`) until green, then walk the done criteria

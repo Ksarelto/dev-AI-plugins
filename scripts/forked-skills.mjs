@@ -43,7 +43,10 @@ export function allSkills(root) {
 export function findForkedLoads(root) {
   const skills = allSkills(root);
   // The engine's own /factory:* commands run in the human's session (doctor is forked on purpose); only skills an agent could be told to load count.
-  const forked = skills.filter((s) => s.fork && s.plugin !== "factory");
+  // architecture-audit is forked on purpose: the stage agent loads it so the report comes back
+  // without the search landing in the parent. Every other forked skill stays forbidden.
+  const allowed = new Set(["frontend-dev-kit:architecture-audit"]);
+  const forked = skills.filter((s) => s.fork && s.plugin !== "factory" && !allowed.has(`${s.plugin}:${s.skill}`));
   const plainNames = new Set(skills.filter((s) => !s.fork).map((s) => s.skill));
   const family = join(root, "app-dev-kitv2");
   const files = walk(family, (f) => f.endsWith(".md") && /\/(agents|skills)\//.test(f));

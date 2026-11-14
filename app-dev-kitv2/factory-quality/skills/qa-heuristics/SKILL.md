@@ -1,12 +1,12 @@
 ---
 name: qa-heuristics
-description: Procedure for the factory QA engineer — plan and run time-boxed black-box charters with test heuristics against the running feature, and record defects (S1–S5) and spec gaps with steps, expected and actual. Preloaded by the qa-engineer; not for direct use.
+description: Procedure for the factory QA engineer — plan and run black-box charters with test heuristics against the running feature, and record defects (S1–S5) and spec gaps with steps, expected and actual. Preloaded by the qa-engineer; not for direct use.
 user-invocable: false
 ---
 
 # QA by charters
 
-Runs on: qa-engineer (sonnet) — one time-boxed exploratory session of a built feature at S7, driving the running app through a browser and `curl`, never its source.
+Runs on: qa-engineer (sonnet) — one exploratory session of a built feature at S7, driving the running app through a browser and `curl`, never its source.
 
 You use the feature the way its users will, and a few ways they should not. `src/` is unreadable to
 you (the hook denies it, except acceptance tests); you work from the stories, the ACs, the UX notes,
@@ -15,7 +15,7 @@ the human notes and the running build. You record — you never fix and never cr
 ## What gate-qa checks
 
 - `07-qa/defects.yaml` exists and validates (`factory/schemas/defects.schema.json`): at least one
-  charter, each with `id`, `mission`, `timebox_min`, `result` (`passed` | `defects` | `blocked`);
+  charter, each with `id`, `mission`, `result` (`passed` | `defects` | `blocked`); `timebox_min` is optional and unused;
   each defect with `id` (`DEF-nnn`), `type` (`defect` | `spec_gap`), `severity` (`S1`–`S5`),
   `title`, `steps` (≥1), `expected`, `actual`.
 - Not every charter is `blocked` (rule `no-charter-ran`).
@@ -35,11 +35,11 @@ the human notes and the running build. You record — you never fix and never cr
 3. **Plan charters per story.** For each story (must-priority stories first), write one charter:
    "Explore <surface> with <heuristic(s)> to discover <risk>". Pick heuristics that fit the story's
    shape from [fq-heuristics.md](references/fq-heuristics.md#choosing-heuristics-for-a-charter);
-   cover each AC `kind` the story has (error, edge, permission, nfr) at least once. 2–5 charters,
-   20 minutes in total unless T0 sets another time box; split the time by risk.
+   cover each AC `kind` the story has (error, edge, permission, nfr) at least once. 2–5 charters.
+   There is no time box.
 4. **Start the app** in the background and wait for its port
    ([fq-browser-qa.md](references/fq-browser-qa.md#start-the-app)). Loopback only.
-5. **Run each charter** inside its time box: the happy path first (each AC's Gherkin with its exact
+5. **Run each charter**: the happy path first (each AC's Gherkin with its exact
    values), then the heuristics. UI: the Playwright MCP loop — navigate, snapshot, act, wait_for,
    snapshot, console messages, network requests; screenshots as evidence. API: `curl -i`. Write
    down every step and what you saw as you go.
@@ -87,9 +87,9 @@ explaining what to start.
 ## Worked mini-example
 
 Story STORY-0001 "Apply a coupon" (AC-0001 happy, AC-0002 error: expired coupon, AC-0004
-permission: guests see no field). Charters: CH-1 input + boundaries on the coupon field (8 min),
-CH-2 permissions + state (guest, logged-out, expired session) (6 min), CH-3 keyboard + viewport
-(6 min). CH-1 finds that `B2B10 ` with a trailing space is rejected → DEF-001, `defect`, S2,
+permission: guests see no field). Charters: CH-1 input + boundaries on the coupon field,
+CH-2 permissions + state (guest, logged-out, expired session), CH-3 keyboard + viewport.
+CH-1 finds that `B2B10 ` with a trailing space is rejected → DEF-001, `defect`, S2,
 AC-0001. It also finds lowercase `b2b10` rejected, and the spec says nothing about case → DEF-002,
 `spec_gap`, S3 (not blocking, listed). Exit check fails on DEF-001 → envelope `done`; the engine
 turns DEF-001 into a fix item.

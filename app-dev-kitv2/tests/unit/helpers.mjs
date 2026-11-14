@@ -1,7 +1,7 @@
 // Shared helpers for the factory control-plane tests: temp projects wired to the fixture stage pack,
 // fixture artifacts, and a scripted "agent" that writes files and returns an envelope.
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -25,8 +25,9 @@ export const state = await lib("state");
 const { readFrontMatter } = await lib("core");
 export const rawConductor = await lib("conductor");
 /**
- * The conductor, with `record` filling in `skills_loaded` for envelopes that leave it out: scripted agents
- * stand in for ones that loaded the pack's skills. Tests of the skills check itself use `rawConductor`.
+ * The conductor, with `record` writing the pack's required skills into the hook log when the test
+ * did not: scripted agents stand in for ones that loaded those skills. Tests of the skills check
+ * itself use `rawConductor`.
  */
 export const conductor = {
   ...rawConductor,
@@ -35,7 +36,11 @@ export const conductor = {
       const envelopeObj = JSON.parse(opts.envelopeText);
       const pending = rawConductor.load(projectDir, opts.feature).feature.state.pending.find((d) => d.id === (opts.dispatchId ?? envelopeObj.pack_id));
       const required = pending ? readFrontMatter(join(projectDir, pending.pack)).data.skills_required : null;
-      if (required?.length && !("skills_loaded" in envelopeObj)) return rawConductor.record(projectDir, { ...opts, envelopeText: JSON.stringify({ ...envelopeObj, skills_loaded: required }) });
+      if (required?.length && !("skills_loaded" in envelopeObj)) {
+        const file = state.skillsLogFile(projectDir, pending);
+        mkdirSync(dirname(file), { recursive: true });
+        appendFileSync(file, `${required.join("\n")}\n`);
+      }
     } catch {
       // Not a bare JSON envelope or no such dispatch: record decides.
     }
@@ -78,8 +83,10 @@ export function makeProject(extraConfig = "", { git = false } = {}) {
   };
   const config = deepMerge(base, YAML.parse(extraConfig) ?? {});
   writeFileSync(join(dir, ".factory", "factory.config.yaml"), YAML.stringify(config));
-  mkdirSync(join(dir, "src", "entities", "order", "model"), { recursive: true });
+  mkdirSync(join(dir, "src", "entities", "order", "model", "tests"), { recursive: true });
   writeFileSync(join(dir, "src", "entities", "order", "model", "total.ts"), "export const total = 0;\n");
+  // The stub is on every feature change set. A test that imports it keeps the style pass (unused exports) from blocking tests that are about a later stage.
+  writeFileSync(join(dir, "src", "entities", "order", "model", "tests", "total.test.ts"), 'import { total } from "../total";\nvoid total;\n');
   if (git) gitInit(dir);
   return dir;
 }
@@ -156,7 +163,7 @@ export function loopSetup(extra = "", { git = false } = {}) {
   const dir = makeProject(
     [
       `packs: { factory-role-frontend: "${join(ROOT, "app-dev-kitv2", "factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}", factory-analysis: "${join(ROOT, "app-dev-kitv2", "factory-analysis")}" }`,
-      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
+      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], lint_fix: [node, "${FAKE}", lint_fix, "{files}"], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
       "pipeline: { profiles: { test: [planning, implementation] }, stages: { planning: { pack: factory-analysis } } }",
       extra,
     ].join("\n"),

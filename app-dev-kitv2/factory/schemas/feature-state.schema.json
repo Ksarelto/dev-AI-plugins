@@ -172,7 +172,9 @@
               "fixplan",
               "relock",
               "early_review",
-              "screen"
+              "screen",
+              "style_fix",
+              "repair"
             ]
           },
           "parallel_group": {

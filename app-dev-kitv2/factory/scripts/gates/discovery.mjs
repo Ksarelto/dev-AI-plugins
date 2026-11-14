@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { listFiles, matchesAny } from "../lib/core.mjs";
 import { validate } from "../lib/schemas.mjs";
+import { firstLine } from "../lib/vitest-report.mjs";
 import { enabledStacks } from "../lib/testrun.mjs";
 import { resolveStack, runStackCommand } from "../lib/stackexec.mjs";
 
@@ -44,7 +45,7 @@ export function run(ctx) {
       const r = runStackCommand(stack, "architecture_check", { logName: `discovery-${stack.role}-architecture` });
       // A stack whose architecture tool is not installed in this app cannot refute the claim.
       const missingTool = /could not determine executable|command not found|not found|ENOENT|npm error canceled/i.test(r.tail ?? "") && r.code !== 1;
-      if (!r.ok && !r.skipped && !missingTool) failures.push({ check: "app-profile", rule: "not-conformant", file: profile.rel, message: `conformance is "conformant", but ${stack.role}'s architecture check fails — say partial and list the deviations in notes:\n${r.tail}` });
+      if (!r.ok && !r.skipped && !missingTool) failures.push({ check: "app-profile", rule: "not-conformant", file: profile.rel, ...(r.log ? { log: r.log } : {}), message: `conformance is "conformant", but ${stack.role}'s architecture check fails — say partial and list the deviations in notes: ${firstLine(r.tail)}` });
     }
   }
   return failures;

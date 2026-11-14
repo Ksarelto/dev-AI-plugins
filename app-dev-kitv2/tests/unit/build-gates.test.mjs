@@ -35,7 +35,7 @@ function shipped(stages = ["verification"], extra = "") {
   const dir = makeProject(
     [
       `packs: { factory-role-frontend: "${V2("factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}", factory-analysis: "${V2("factory-analysis")}", factory-quality: "${V2("factory-quality")}", factory-delivery: "${V2("factory-delivery")}", factory-adapter-github: "${V2("factory-adapter-github")}" }`,
-      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"], test_integration: [node, "${FAKE}", integration] } } } }`,
+      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], lint_fix: [node, "${FAKE}", lint_fix, "{files}"], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"], test_integration: [node, "${FAKE}", integration] } } } }`,
       `pipeline: { profiles: { test: [planning, implementation, ${stages.join(", ")}] }, stages: { planning: { pack: factory-analysis } } }`,
       extra,
     ].join("\n"),
@@ -111,6 +111,7 @@ test("the change set carries the real diff; reviewers get no exit check and do n
   const env = shipped(["verification"]);
   write(env.dir, "src/entities/order/model/total.ts", "export const total = 1;\n");
   write(env.dir, "src/stray.ts", "export const stray = 1;\n");
+  write(env.dir, "src/main.ts", 'import { stray } from "./stray";\nvoid stray;\n');
   const d = (await conductor.stepAsync(env.dir)).dispatches.find((x) => x.agent === "reviewer");
   const set = YAML.parse(readFileSync(join(env.featureDir, "06-verify", "change-set.yaml"), "utf8"));
   assert.ok(set.changed.includes("src/entities/order/model/total.ts") && set.outside_plan.includes("src/stray.ts"), JSON.stringify(set));
@@ -168,6 +169,8 @@ test("gate-qa: some charter must run; defects become fix items with their steps"
   record([{ id: "CH-1", mission: "m", timebox_min: 10, result: "defects" }], [{ id: "DEF-001", type: "defect", severity: "S2", title: "t", steps: ["open checkout", "apply B2B10 twice"], expected: "one discount", actual: "two" }]);
   const f = (await gate(env.dir, "qa")).failures[0];
   assert.match(f.message, /steps: 1\) open checkout 2\) apply B2B10 twice/);
+  record([{ id: "CH-1", mission: "m", result: "passed" }], []);
+  assert.deepEqual(rules(await gate(env.dir, "qa")), [], "a charter with no timebox_min is valid");
 });
 
 test("QA can reach the app on this machine, and nothing else", () => {
@@ -258,7 +261,7 @@ test("a drifted acceptance test is restored before the gate runs; replaying acce
 
 test("per-AC eval proof covers the ACs the plan gives the task as eval cases; skips pass only where allowed", async () => {
   const { resolveStack } = await import(`${ENGINE}/scripts/lib/stackexec.mjs`);
-  const extra = `packs: { factory-role-ai-agent: "${V2("factory-role-ai-agent")}", node-agent-dev-kit: "${join(ROOT, "node-agent-dev-kit")}" }\nroles: { frontend: { enabled: false }, ai-agent: { enabled: true, pack: factory-role-ai-agent, stack: node-agent-dev-kit, path: ".", owns_paths: ["evals/**", "src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"], eval: [node, "${FAKE}", eval, "{report}"] } } } }`;
+  const extra = `packs: { factory-role-ai-agent: "${V2("factory-role-ai-agent")}", node-agent-dev-kit: "${join(ROOT, "node-agent-dev-kit")}" }\nroles: { frontend: { enabled: false }, ai-agent: { enabled: true, pack: factory-role-ai-agent, stack: node-agent-dev-kit, path: ".", owns_paths: ["evals/**", "src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], lint_fix: [node, "${FAKE}", lint_fix, "{files}"], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"], eval: [node, "${FAKE}", eval, "{report}"] } } } }`;
   const dir = makeProject(extra);
   const featureDir = makeFeature(dir, { stages: ["implementation"] });
   const task = { id: "TASK-007", role: "ai-agent", type: "eval", title: "cases", depends_on: [], satisfies: ["AC-0001", "AC-0002"], files_expected: ["evals/golden/a.json"], tdd: { mode: "exempt", reason: "eval" }, reuse: { considered: [], reuse_rejected: "new" }, definition_of_done: ["x"], size: { files: 1, est_loc: 5 } };

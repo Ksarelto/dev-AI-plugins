@@ -54,7 +54,7 @@ export function skillChecks(packs, errors, warnings) {
         for (const ref of asList(refs)) {
           const r = resolves(ref, pack);
           if (r.ok === false) errors.push(`${pack.name} stack.yaml ${group} "${key}": skill "${ref}" does not resolve to a SKILL.md`);
-          else if (r.ok && forkedSkill(packs[ref.includes(":") ? ref.split(":")[0] : pack.name], ref.includes(":") ? ref.split(":")[1] : ref)) {
+          else if (group !== "stage_skills" && r.ok && forkedSkill(packs[ref.includes(":") ? ref.split(":")[0] : pack.name], ref.includes(":") ? ref.split(":")[1] : ref)) {
             errors.push(`${pack.name} stack.yaml ${group} "${key}": skill "${ref}" has context: fork — a forked skill runs as a separate agent the factory's write scope does not bind; name skills that load into the dispatched agent`);
           }
           else if (r.missingPlugin) warnings.push(`${pack.name} stack.yaml ${group} "${key}": skill "${ref}" names plugin "${r.missingPlugin}", which is not installed`);

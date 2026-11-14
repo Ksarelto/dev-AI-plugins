@@ -41,7 +41,7 @@ Details and the rationale: `rules/layered-architecture.mdc`, `rules/database.mdc
 
 ## 3. Write
 
-1. Follow the order; run `npm run typecheck` after the repository, after the controller and at the end.
+1. Follow the stack skill T1 names for this task type. Do not run `npm run typecheck` or `npm run lint` during the slice. After two identical test failures, change only the lines the failure names and re-run the related tests. The slice exit check is the related tests and the architecture check.
 2. Smallest change that turns the tests green, then tidy while they stay green. No speculative
    options, no refactor of code the task does not own, no new library.
 3. Errors: pick the `AppError` subclass and the code the contract names; a stranger's row is

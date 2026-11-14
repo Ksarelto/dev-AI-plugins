@@ -41,6 +41,7 @@ test("a stale report is never reused: the gate deletes it before running", async
   const r = await record(env, d);
   assert.deepEqual(r.gate.failures.map((f) => f.rule), ["no-report"]);
   assert.match(r.gate.failures[0].message, /vitest crashed/);
+  assert.match(r.gate.failures[0].log, /TASK-002-red-test\.log/);
 });
 
 test("characterisation may write only its test files, and must leave tests that ran", async () => {

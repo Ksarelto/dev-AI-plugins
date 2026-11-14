@@ -9,19 +9,19 @@ import { sizeFromSpec } from "./sizing.mjs";
 import { raiseBudgetsFromPlan } from "./budgets.mjs";
 import { resolvePacks, stageIndex } from "./registry.mjs";
 import { ARTIFACT_TYPES, artifactFiles, parseArtifactRef, validate } from "./schemas.mjs";
-import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, savedEnvelopeFile, setActive, tokensCountedFile, withLock } from "./state.mjs";
+import { activeDispatches, appendEvent, clearActive, createFeature, loadAppState, loadFeature, pauseClock, pickFeature, resumeClock, saveAppState, saveFeature, savedEnvelopeFile, setActive, skillsLogFile, tokensCountedFile, withLock } from "./state.mjs";
 import { buildPack } from "./broker.mjs";
-import { missingSkills, procedureKnowledge, stageKnowledge } from "./knowledge.mjs";
+import { missingSkills, procedureKnowledge, stageKnowledge, taskKnowledge } from "./knowledge.mjs";
 import { completenessSummary } from "../gates/spec.mjs";
 import { readReferences, refKey, resolveProposed, scanNormalised } from "./references.mjs";
-import { FRESH as TASK_FRESH, backToRed, finishEarlyReview, finishTask, loadTasks, markRedPassed as lockRed, rolePath, taskGate, taskStep } from "./tasks.mjs";
+import { FRESH as TASK_FRESH, backToRed, finishEarlyReview, finishTask, loadTasks, markRedPassed as lockRed, reopenOwnedTask, rolePath, taskGate, taskStep } from "./tasks.mjs";
 import { isGlob } from "./planlint.mjs";
-import { featureChanges, recordInLedger, ship } from "./delivery.mjs";
+import { featureChanges, recordInLedger, ship, workingTreeChanges } from "./delivery.mjs";
 import { writeSpecView } from "./spec-view.mjs";
 import { scaffoldRoles } from "./scaffold.mjs";
 import { runAudits } from "./audits.mjs";
 import { engineDigest } from "./digest.mjs";
-import { declaredTests, featureAcceptance } from "./testrun.mjs";
+import { declaredTests, featureAcceptance, runRelatedTests } from "./testrun.mjs";
 import { buildIndex } from "./cartographer.mjs";
 import { nextId } from "./ids.mjs";
 import { gateContext, idCoverage, normaliseResult, runGate } from "./gatekeeper.mjs";
@@ -29,6 +29,8 @@ import { RUNG_INSTRUCTIONS, decide, exhaustedBudgets } from "./warden.mjs";
 import { addNote, applyMappings, openNotes, readNotes } from "./notes.mjs";
 import { extractIds, formatId, observeId } from "./ids.mjs";
 import { addWaiver, gitUser, parseWaiverTarget, readWaivers } from "./waivers.mjs";
+import { classifyFailures, isSideFile, owningTask } from "./repair.mjs";
+import { resolveStack } from "./stackexec.mjs";
 
 export const ENGINE_PACK = "factory";
 /** Model aliases the Agent tool accepts per call; agents must declare one of these. */
@@ -86,7 +88,7 @@ const doneKey = (t) => `${t.agent}@${t.role ?? ""}${t.screen ? `#${t.screen}` : 
 // The same words for every dispatch, the one variable part (the pack path and ID) at the end: a stable
 // prompt prefix is cached. The pack itself repeats the ID in its Return line.
 const promptFor = (d, projectDir) =>
-  `Follow your context pack exactly, then end your reply with the JSON envelope it asks for. Context pack: ${toPosix(join(projectDir, d.pack))} (pack_id "${d.id}")`;
+  `Your whole reply is one JSON envelope, the one the context pack describes. Context pack: ${toPosix(join(projectDir, d.pack))} (pack_id "${d.id}")`;
 
 /** Conditions the engine can answer from files; a feature flag of the same name overrides them. */
 const BUILTIN_CONDITIONS = {
@@ -243,7 +245,7 @@ function issue(c, dispatches) {
     d.parallel_group = i;
     s.pending.push(d);
     // The stage's own agents and the task loop's dispatches count toward budgets.stage.dispatches_max(_by_stage); a fan-out batch of screens does not.
-    if (d.phase === "stage" || d.task || ["fixplan", "early_review"].includes(d.phase)) s.stages[d.stage].dispatches = (s.stages[d.stage].dispatches ?? 0) + 1;
+    if (d.phase === "stage" || d.task || ["fixplan", "early_review", "style_fix", "repair"].includes(d.phase)) s.stages[d.stage].dispatches = (s.stages[d.stage].dispatches ?? 0) + 1;
   });
   s.budgets.dispatches += dispatches.length;
   persist(c); // state first: a failed save must not leave hooks enforcing a dispatch that does not exist
@@ -446,8 +448,32 @@ export function step(projectDir, { feature } = {}) {
         return { action: "scaffold", feature: s.feature, stage: stageId, command: "factory scaffold", reason: s.scaffold?.status === "running" ? "a scaffold started earlier did not finish; run it again (it resumes)" : "copy and install each role's boilerplate first" };
       }
       if ((stage.inputs ?? []).some((ref) => ref.replace(/\?$/, "") === "change-set")) writeChangeSet(c);
+      if (s.repair?.pending) {
+        const d = repairDispatch(c, stageId, s.repair);
+        if (d.action === "halt") { persist(c); return d; }
+        s.repair.pending = false;
+        return issue(c, [d]);
+      }
+      if (stage.precheck === "checks" && !st.done_agents?.length && !st.style?.pass) {
+        if (!styleApplicable(c)) st.style = { pass: true, attempts: 0 };
+      }
+      if (stage.precheck === "checks" && !st.done_agents?.length && !st.style?.pass) {
+        const style = st.style ?? {};
+        if (style.pending_fix) {
+          const d = styleFixDispatch(c, stageId, style);
+          if (d.action === "halt") { persist(c); return d; }
+          st.style.pending_fix = false;
+          st.style.dispatched = true;
+          return issue(c, [d]);
+        }
+        if (!style.dispatched) {
+          persist(c);
+          return { action: "style", feature: s.feature, stage: stageId };
+        }
+      }
       if (stage.precheck && !st.done_agents?.length) {
         // Machine checks first (stepAsync runs them outside the lock): failing code skips the reviewers.
+        // The style pass runs before this, once, with eslint --fix.
         const tree = treeHash(projectDir);
         if (tree && st.precheck?.tree !== tree) {
           persist(c);
@@ -511,8 +537,12 @@ export function acceptChanges(projectDir, { feature } = {}) {
  * implementation without dispatching the reviewers. Then the ordinary step.
  */
 export async function stepAsync(projectDir, opts = {}) {
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 8; i++) {
     const r = step(projectDir, opts);
+    if (r.action === "style") {
+      await runStyle(projectDir, { ...opts, feature: r.feature });
+      continue;
+    }
     if (r.action !== "precheck") return r;
     await precheck(projectDir, { ...opts, feature: r.feature });
   }
@@ -535,11 +565,11 @@ async function precheck(projectDir, { feature } = {}) {
     const cur = load(projectDir, feature);
     const s2 = cur.feature.state;
     if (s2.stage !== stageId || s2.pending.length) return;
-    s2.stages[stageId].precheck = { tree, pass: result.pass, fingerprint: result.fingerprint };
     appendEvent(projectDir, { type: "gate", feature: s2.feature, stage: stageId, gate: result.gate, pass: result.pass, progress_signal: result.progress_signal, fingerprint: result.fingerprint, cached: result.cached, precheck: true });
     const fix = /^fix:(.+)$/.exec(stage.on_fail ?? "")?.[1];
     const fixable = result.failures.filter((f) => f.fix);
-    if (fix && fixable.length) requestFixes(cur, stageId, fix, fixable);
+    const routed = fix && fixable.length ? requestFixes(cur, stageId, fix, fixable) : false;
+    if (cur.feature.state.stage === stageId) cur.feature.state.stages[stageId].precheck = routed ? null : { tree, pass: result.pass, fingerprint: result.fingerprint };
     persist(cur);
     snapshotTree(projectDir, feature);
   });
@@ -565,9 +595,15 @@ export function checkEnvelope(envelope, { packId, maxWords = 200 } = {}) {
   return errors;
 }
 
+const failureLine = (f) => {
+  const msg = String(f.message ?? "").split("\n").find((l) => l.trim()) ?? "";
+  const log = f.log ? ` log ${f.log}` : "";
+  return `- ${f.warn ? "(warning) " : ""}[${f.check}${f.rule ? `/${f.rule}` : ""}] ${f.file ? `${f.file}: ` : ""}${msg}${log}`;
+};
+
 const formatFeedback = (result) =>
-  [`Previous gate ${result.gate}: ${result.failures.length} failure(s) · progress signal ${result.progress_signal} · fingerprint ${result.fingerprint}`,
-    ...result.failures.slice(0, 20).map((f) => `- ${f.warn ? "(warning) " : ""}[${f.check}${f.rule ? `/${f.rule}` : ""}] ${f.file ? `${f.file}: ` : ""}${f.message}`),
+  [`Previous gate ${result.gate}: ${result.failures.length} failure(s) · fingerprint ${result.fingerprint}`,
+    ...result.failures.slice(0, 20).map(failureLine),
     ...(result.failures.length > 20 ? [`- … ${result.failures.length - 20} more in gate-log.jsonl`] : [])].join("\n");
 
 /** Puts locked acceptance tests back as they were at gate-acceptance; returns the files it restored. */
@@ -642,11 +678,13 @@ async function recordOne(projectDir, { dispatchId, envelopeText, tokens = 0, fea
   restoreAcceptance(c);
   // Task gates run real tests, typecheck and builds: run them before taking the state lock.
   const taskResult = pending.task ? await taskGate(c, pending, parsed) : null;
+  // Style confirm and a side-file retest run commands. They stay outside the state lock.
+  const followUp = pending.phase === "style_fix" ? await measureStyle(c, pending) : pending.phase === "repair" ? await measureRepair(c, pending) : null;
 
   // What the agent left (and the engine wrote: restored snapshots, commits) is the new baseline for the
   // "no unexpected changes" check — taken inside the same lock, after the gates.
   return withLock(projectDir, async () => {
-    const out = await recordLocked(projectDir, feature, pending, parsed, tokens, batch, taskResult);
+    const out = await recordLocked(projectDir, feature, pending, parsed, tokens, batch, taskResult, followUp);
     snapshotTree(projectDir, feature);
     return out;
   });
@@ -663,7 +701,8 @@ const requiredSkills = (projectDir, pending) => {
 const SKILL_RETRIES = 2;
 
 /**
- * Stack skills are loaded by the agent, and it says so (envelope.skills_loaded). A `blocked` envelope
+ * Stack skills are loaded by the agent. The hook log (a Skill call, or a Read of SKILL.md) is the proof.
+ * A hash in the envelope is not. A `blocked` envelope
  * that says skills are unavailable halts the feature naming them (retrying cannot help); a `done` one
  * that skipped a required skill is sent back with the reason, twice, then the feature halts.
  */
@@ -677,7 +716,9 @@ function skillsCheck(projectDir, feature, pending, envelope) {
     if (!names.length) names = required;
     why = `${pending.agent} cannot load its stack skills: ${names.join(", ")} (skills unavailable) — install the plugin or give the agent the Skill tool, then run: factory resume`;
   } else if (envelope.status === "done" && required.length) {
-    const missing = missingSkills(required, envelope.skills_loaded ?? []);
+    const file = skillsLogFile(projectDir, pending);
+    const logged = existsSync(file) ? readFileSync(file, "utf8").split("\n").map((l) => l.trim()).filter(Boolean) : [];
+    const missing = missingSkills(required, logged);
     if (!missing.length) return null;
     const counter = tokensCountedFile(projectDir, pending.id).replace(/\.tokens$/, ".skillretry");
     const used = existsSync(counter) ? Number(readFileSync(counter, "utf8")) || 0 : 0;
@@ -685,7 +726,7 @@ function skillsCheck(projectDir, feature, pending, envelope) {
       writeFileSync(counter, String(used + 1));
       return {
         action: "redispatch",
-        reason: `required skills not loaded: ${missing.join(", ")} — call the Skill tool for each first, redo the work with them, and list them in the envelope's skills_loaded`,
+        reason: `required skills not loaded: ${missing.join(", ")} — call the Skill tool for each, or Read each SKILL.md. A hash copied from the pack does not count`,
         dispatch: { ...pending, prompt: promptFor(pending, projectDir) },
       };
     }
@@ -704,7 +745,7 @@ function skillsCheck(projectDir, feature, pending, envelope) {
   });
 }
 
-async function recordLocked(projectDir, feature, pending, parsed, tokens, batch, taskResult) {
+async function recordLocked(projectDir, feature, pending, parsed, tokens, batch, taskResult, followUp) {
   const cur = load(projectDir, feature);
   const st8 = cur.feature.state;
   st8.pending = st8.pending.filter((d) => d.id !== pending.id);
@@ -726,6 +767,8 @@ async function recordLocked(projectDir, feature, pending, parsed, tokens, batch,
   if (pending.phase === "digest") return finishDigest(cur, parsed);
   if (pending.phase === "relock") return finishRelock(cur, pending, parsed);
   if (pending.phase === "early_review") return finishEarlyReview(cur, pending, parsed, helpers);
+  if (pending.phase === "style_fix") return finishStyleFix(cur, pending, followUp);
+  if (pending.phase === "repair") return finishRepair(cur, pending, followUp);
   if (pending.task || pending.phase === "fixplan") return finishTask(cur, pending, parsed, helpers, taskResult);
   if (pending.stage !== st8.stage) {
     persist(cur);
@@ -825,7 +868,14 @@ function featureIds(c) {
   return new Set(extractIds(text));
 }
 
-const summary = (r) => ({ gate: r.gate, pass: r.pass, progress_signal: r.progress_signal, fingerprint: r.fingerprint, failures: r.failures.slice(0, 10) });
+const summary = (r) => ({
+  gate: r.gate, pass: r.pass, progress_signal: r.progress_signal, fingerprint: r.fingerprint,
+  failures: r.failures.slice(0, 10).map((f) => ({
+    check: f.check, ...(f.rule ? { rule: f.rule } : {}), ...(f.file ? { file: f.file } : {}),
+    message: String(f.message ?? "").split("\n").find((l) => l.trim()) ?? "",
+    ...(f.log ? { log: f.log } : {}),
+  })),
+});
 
 async function finishStageAgent(c, pending, envelope) {
   const s = c.feature.state;
@@ -1067,12 +1117,232 @@ function writeChangeSet(c) {
  */
 function requestFixes(c, from, to, items) {
   const s = c.feature.state;
-  if (!regress(c, from, to, `Fix items from ${from} — the planner adds fix tasks for them first.`)) return;
+  const grouped = classifyFailures(items);
+  if (grouped.kind === "side") return scheduleRepair(c, from, grouped.files);
+  if (grouped.kind === "core") {
+    const plan = loadTasks(c)?.tasks ?? [];
+    if (grouped.core.every((f) => owningTask(plan, f))) return reopenCore(c, from, to, grouped.core);
+  }
+  if (!regress(c, from, to, `Fix items from ${from} — the planner adds fix tasks for them first.`)) return false;
   s.fix_pending = {
     source: from,
     items: items.slice(0, 30).map((f) => ({ check: f.check, rule: f.rule ?? null, file: f.file ?? null, message: f.message })),
     attempts: 0,
   };
+  return true;
+}
+
+/** A test, story, or style file failed. One owner dispatch, no planner, no stage rewind. */
+function scheduleRepair(c, from, files) {
+  const d = repairDispatch(c, from, { files, role: repairRole(c, files), attempts: 0 });
+  if (d.action === "halt") return false;
+  c.feature.state.repair = { files, role: d.role, attempts: 0, pending: false };
+  if (c.feature.state.stages[from]) c.feature.state.stages[from].precheck = null;
+  issue(c, [d]);
+  appendEvent(c.projectDir, { type: "repair", feature: c.feature.state.feature, stage: from, files, agent: d.agent, backward: false, planner: false });
+  return true;
+}
+
+function repairRole(c, files) {
+  const plan = loadTasks(c)?.tasks ?? [];
+  return owningTask(plan, files[0])?.role ?? plan.find((t) => files.some((f) => owningTask([t], f)))?.role ?? enabledRoles(c.config)[0]?.name;
+}
+
+function repairDispatch(c, stageId, repair) {
+  const files = repair.files ?? [];
+  const plan = loadTasks(c)?.tasks ?? [];
+  const owner = files.map((f) => owningTask(plan, f)).find(Boolean) ?? plan.find((t) => c.config.roles?.[t.role]?.enabled);
+  const roleName = repair.role ?? owner?.role ?? enabledRoles(c.config)[0]?.name;
+  const role = c.config.roles?.[roleName];
+  const rolePack = c.packs?.[role?.pack];
+  const styleEdit = files.some((f) => /styles\.ts$|\.css$|\.scss$/.test(f));
+  const agentName = !styleEdit && files.every(isSideFile) ? rolePack?.role?.agents?.test_author : rolePack?.role?.agents?.builder;
+  if (!agentName || !rolePack) {
+    block(c, `no owner agent for ${files.join(", ")}`);
+    return { action: "halt", feature: c.feature.state.feature, reason: c.feature.state.halts.at(-1)?.reason };
+  }
+  const impl = owner?.files_expected?.find((f) => !isSideFile(f));
+  const model = c.config.model_tiers?.execution ?? "sonnet";
+  const target = { agent: agentName, pack: rolePack, role: roleName, subagent_type: `${rolePack.name}:${agentName}`, model };
+  const skillType = styleEdit ? "styling-token" : "test";
+  const type = c.packs[role.stack]?.stack?.skills?.[skillType] ? skillType : "fix";
+  const round = (c.feature.state.repair_rounds ?? 0) + 1;
+  c.feature.state.repair_rounds = round;
+  const d = makeDispatch(c, {
+    stageId, idStage: `${stageId}.repair${round}`,
+    stage: { outputs: [], inputs: [], context_role: "execution_roles", exit_check: false },
+    target, phase: "repair", attempt: (repair.attempts ?? 0) + 1, rung: 0, model, gate: null,
+    extraWrites: files,
+    extraReads: impl ? [{ label: "Implementation the test imports", path: toPosix(join(c.projectDir, impl)) }] : [],
+    mission: `Fix only these files: ${files.join(", ")}. Do not re-read the spec, do not search the repo, do not lint or typecheck. The exit check is the tests related to these files.`,
+    knowledge: taskKnowledge(c.packs[role.stack], type, "red"),
+  });
+  d.role = roleName;
+  return d;
+}
+
+/** A schema, fetcher, or other core file an existing task owns. Reopen that task. Do not call the planner. */
+function reopenCore(c, from, to, files) {
+  const plan = loadTasks(c)?.tasks ?? [];
+  const byTask = new Map();
+  for (const f of files) {
+    const task = owningTask(plan, f);
+    if (!task) return false;
+    byTask.set(task.id, [...(byTask.get(task.id) ?? []), f]);
+  }
+  if (!regress(c, from, to, `Reopen the task that owns ${files.join(", ")}. The exit check is the tests related to those files.`)) return false;
+  for (const [id, paths] of byTask) {
+    const task = plan.find((t) => t.id === id);
+    const unit = c.feature.state.tasks?.[id];
+    if (task && unit) reopenOwnedTask(c.config, task, unit, paths, `Fix ${paths.join(", ")}. Run only the tests related to those files.`);
+  }
+  appendEvent(c.projectDir, { type: "repair", feature: c.feature.state.feature, stage: from, to, files, backward: true, planner: false });
+  return true;
+}
+
+/** True when an enabled role can lint, typecheck, or run a style audit. Otherwise the pass is a no-op. */
+function styleApplicable(c) {
+  const styleAudit = new Set(["conventions", "duplicates", "raw-colours", "i18n"]);
+  for (const role of enabledRoles(c.config)) {
+    const stack = resolveStack(c, role.name);
+    const cmds = stack.error ? {} : stack.stack?.commands ?? {};
+    if (cmds.lint_fix || cmds.lint || cmds.typecheck) return true;
+    const audits = c.packs?.[role.pack]?.role?.gates?.audits ?? [];
+    const off = new Set(c.config.roles?.[role.name]?.checks_off ?? []);
+    if (audits.some((a) => styleAudit.has(a.name) && !off.has(a.name))) return true;
+  }
+  return false;
+}
+
+/** ESLint --fix, then typecheck, lint and the style audits. Once per tree, before gate checks. */
+async function runStyle(projectDir, { feature } = {}) {
+  const c = load(projectDir, feature);
+  const stageId = c.feature.state.stage;
+  const ctx = gateContext({ projectDir, app: c.app, feature: c.feature, config: c.config, stage: resolveStage(c, stageId), packs: c.packs });
+  const result = await runGate("style", ctx, { useCache: false });
+  const tree = treeHash(projectDir);
+  withLock(projectDir, () => {
+    const cur = load(projectDir, feature);
+    const st = cur.feature.state.stages[stageId];
+    const cap = cur.config.budgets?.task?.mechanical_retries ?? 4;
+    const log = result.failures.find((f) => f.log)?.log;
+    appendEvent(projectDir, { type: "gate", feature: cur.feature.state.feature, stage: stageId, gate: "style", pass: result.pass, lint_fix: true, fingerprint: result.fingerprint });
+    if (result.pass) st.style = { pass: true, tree, attempts: st.style?.attempts ?? 0, dispatched: false, pending_fix: false };
+    else {
+      const attempts = (st.style?.attempts ?? 0) + 1;
+      if (attempts > cap) block(cur, `style pass failed ${attempts} times${log ? ` (log ${log})` : ""}`);
+      else st.style = { pass: false, tree, attempts, failures: result.failures.filter((f) => !f.warn).slice(0, 30), pending_fix: true, dispatched: false };
+    }
+    persist(cur);
+    snapshotTree(projectDir, feature);
+  });
+}
+
+function styleFixDispatch(c, stageId, style) {
+  const blocking = (style.failures ?? []).filter((f) => !f.warn);
+  const roleName = blocking.find((f) => f.role)?.role ?? enabledRoles(c.config)[0]?.name;
+  const role = c.config.roles?.[roleName];
+  const rolePack = c.packs?.[role?.pack];
+  const agentName = rolePack?.role?.agents?.builder;
+  if (!agentName || !rolePack) {
+    block(c, `style pass has no builder for role ${roleName ?? "(none)"}`);
+    return { action: "halt", feature: c.feature.state.feature, reason: c.feature.state.halts.at(-1)?.reason };
+  }
+  const named = blocking.map((f) => f.file).filter(Boolean);
+  const changed = featureChanges(c.projectDir, c.feature.state.baseline ?? {})?.changed ?? [];
+  const files = [...new Set(named.length ? named : changed.filter((f) => /\.[cm]?[jt]sx?$/.test(f)))];
+  const model = c.config.model_tiers?.execution ?? "sonnet";
+  const target = { agent: agentName, pack: rolePack, role: roleName, subagent_type: `${rolePack.name}:${agentName}`, model };
+  const type = c.packs[role.stack]?.stack?.skills?.fix ? "fix" : "refactor";
+  c.feature.state.stages[stageId].style.base_hashes = workingTreeChanges(c.projectDir)?.hashes ?? {};
+  c.feature.state.stages[stageId].style.role = roleName;
+  const d = makeDispatch(c, {
+    stageId, idStage: `${stageId}.style${style.attempts ?? 1}`,
+    stage: { outputs: [], inputs: ["change-set?"], context_role: "execution_roles", exit_check: false },
+    target, phase: "style_fix", attempt: style.attempts ?? 1, rung: 0, model, gate: null,
+    extraWrites: files.length ? files : (role.owns_paths ?? ["src/**"]),
+    mission: `Style pass failed. Change only the listed lines. Do not explore.\n${blocking.slice(0, 20).map(failureLine).join("\n")}\nThe exit check is lint and typecheck on the change set, plus the tests related to the files you edit.`,
+    knowledge: taskKnowledge(c.packs[role.stack], type, "green"),
+  });
+  d.role = roleName;
+  return d;
+}
+
+async function measureStyle(c, pending) {
+  const s = c.feature.state;
+  const style = s.stages[pending.stage]?.style ?? {};
+  const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, stage: resolveStage(c, pending.stage), packs: c.packs });
+  const result = await runGate("style", ctx, { useCache: false });
+  const before = style.base_hashes ?? {};
+  const nowTree = workingTreeChanges(c.projectDir);
+  const edited = (nowTree?.changed ?? []).filter((f) => before[f] !== nowTree.hashes?.[f]);
+  let testFailed = false;
+  const roleName = pending.role ?? style.role ?? enabledRoles(c.config)[0]?.name;
+  if (edited.length && roleName) {
+    const stack = resolveStack(c, roleName);
+    if (!stack.error) {
+      const { run } = await runRelatedTests(ctx, stack, `${s.feature}-style-tests`, edited);
+      testFailed = run.ok === false;
+    }
+  }
+  return { result, testFailed, roleName };
+}
+
+function finishStyleFix(c, pending, measured) {
+  const s = c.feature.state;
+  const st = s.stages[pending.stage];
+  const style = st?.style ?? {};
+  const { result, testFailed, roleName } = measured ?? { result: { pass: false, failures: [] }, testFailed: true, roleName: pending.role };
+  const cap = c.config.budgets?.task?.mechanical_retries ?? 4;
+  const log = result.failures.find((f) => f.log)?.log;
+  const clean = result.pass && !testFailed;
+  if (clean) {
+    st.style = { pass: true, tree: treeHash(c.projectDir), attempts: style.attempts ?? 1, dispatched: false, pending_fix: false };
+  } else {
+    const attempts = (style.attempts ?? 0) + 1;
+    if (attempts > cap) {
+      block(c, `style pass failed ${attempts} times${log ? ` (log ${log})` : ""}`);
+      st.style = { ...(st.style ?? {}), pass: false, attempts, pending_fix: false, dispatched: false };
+    } else {
+      st.style = { pass: false, attempts, failures: result.failures.filter((f) => !f.warn).slice(0, 30), pending_fix: true, dispatched: false, role: roleName, base_hashes: style.base_hashes };
+    }
+  }
+  appendEvent(c.projectDir, { type: "gate", feature: s.feature, stage: pending.stage, gate: "style", pass: clean, lint_fix: true });
+  persist(c);
+  snapshotTree(c.projectDir, s.feature);
+  return { action: s.status === "blocked" ? "halt" : "continue", feature: s.feature, verdict: clean ? "advance" : "retry" };
+}
+
+async function measureRepair(c, pending) {
+  const s = c.feature.state;
+  const repair = s.repair ?? { files: [], role: pending.role, attempts: 0 };
+  const ctx = gateContext({ projectDir: c.projectDir, app: c.app, feature: c.feature, config: c.config, packs: c.packs });
+  const stack = resolveStack(c, repair.role);
+  let pass = false;
+  if (!stack.error) {
+    const { run } = await runRelatedTests(ctx, stack, `${s.feature}-repair`, repair.files ?? []);
+    pass = run.ok !== false;
+  }
+  return { pass, repair };
+}
+
+function finishRepair(c, pending, measured) {
+  const s = c.feature.state;
+  const repair = measured?.repair ?? s.repair ?? { files: [], role: pending.role, attempts: 0 };
+  const pass = measured?.pass === true;
+  appendEvent(c.projectDir, { type: "gate", feature: s.feature, stage: pending.stage, gate: "repair", pass, command: "test_related", files: repair.files ?? [] });
+  if (pass) {
+    s.repair = null;
+    if (s.stages[pending.stage]) s.stages[pending.stage].precheck = null;
+  } else {
+    const attempts = (repair.attempts ?? 0) + 1;
+    const cap = c.config.budgets?.task?.attempts_max ?? 3;
+    if (attempts >= cap) block(c, `repair of ${(repair.files ?? []).join(", ")} failed ${attempts} times`);
+    else s.repair = { ...repair, attempts, pending: true };
+  }
+  persist(c);
+  snapshotTree(c.projectDir, s.feature);
+  return { action: s.status === "blocked" ? "halt" : "continue", feature: s.feature, verdict: pass ? "advance" : "retry" };
 }
 
 /** Moves fetched PR comments aside once triaged, so S9 runs again only when new comments arrive. */

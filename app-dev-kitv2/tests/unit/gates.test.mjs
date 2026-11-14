@@ -93,9 +93,9 @@ test("gate-plan: cycle, unsatisfied and untested AC, owns_paths, TDD and size", 
       s
         .replace("depends_on: []", "depends_on: [TASK-003]")
         .replace("satisfies: [AC-0001, AC-0002]", "satisfies: [AC-0001]")
-        .replace("files_expected: [src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx]", "files_expected: [lib/coupon-field.tsx, a.ts, b.ts, c.ts, d.ts, e.ts, f.ts, g.ts, h.ts, i.ts, j.ts, k.ts, l.ts]")
+        .replace("files_expected: [src/features/apply-coupon/ui/coupon-field/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx]", "files_expected: [lib/coupon-field.tsx, a.ts, b.ts, c.ts, d.ts, e.ts, f.ts, g.ts, h.ts, i.ts, j.ts, k.ts, l.ts]")
         .replace("est_loc: 120", "est_loc: 900") // over loc_max 600
-        .replace('    tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string }): JSX.Element"] }\n', ""),
+        .replace('    tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string }): JSX.Element"] }\n', ""),
     testPlan: (s) => s.replace("  - { id: TEST-0003, ac: AC-0003, level: unit, title: total with discount and shipping, task: TASK-002 }\n", ""),
   });
   const r = rules(await gate("plan", env));
@@ -109,7 +109,7 @@ test("gate-plan: change requests need characterisation tests; TDD exemptions are
     tasks: (s) =>
       s
         .replace("    characterisation: true\n", "")
-        .replace('tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string }): JSX.Element"] }', "tdd: { mode: exempt, reason: ui only }"),
+        .replace('tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx], stubs: ["CouponField(props: { cartId: string }): JSX.Element"] }', "tdd: { mode: exempt, reason: ui only }"),
   });
   const r = rules(await gate("plan", env));
   assert.ok(r.includes("no-characterisation"));
