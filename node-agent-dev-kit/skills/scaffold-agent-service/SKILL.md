@@ -1,6 +1,6 @@
 ---
 name: scaffold-agent-service
-description: Scaffold a new Node.js AI agent service from agent-boilerplate — copy and rename the starter, create .env with OPENROUTER_API_KEY and the backend's JWT_SECRET, issuer and audience, start pgvector with docker compose, run migrations including the LangGraph checkpointer tables, verify typecheck, lint and tests, and add a second agent folder under src/agents. Use when starting a new agent, assistant, chatbot or RAG service, or adding another agent to an existing one. Not for a plain REST API without models (node-backend-dev-kit scaffold-service).
+description: Scaffold a new Node.js AI agent service from this kit's file tree — create .env with OPENROUTER_API_KEY and the backend's JWT_SECRET, issuer and audience, start pgvector with docker compose, run migrations including the LangGraph checkpointer tables, verify typecheck, lint and tests, and add a second agent folder under src/agents. Use when starting a new agent, assistant, chatbot or RAG service, or adding another agent to an existing one. Not for a plain REST API without models (node-backend-dev-kit scaffold-service).
 ---
 
 # Scaffold an agent service
@@ -11,7 +11,7 @@ description: Scaffold a new Node.js AI agent service from agent-boilerplate — 
 - Adding a second agent (`src/agents/<name>/`) to an existing agent service
 - Not for an HTTP API without models: use `node-backend-dev-kit:scaffold-service`
 
-Hard constraints: `rules/stack.mdc`, `rules/agent-architecture.mdc`. HTTP, auth, database and Docker conventions come from `node-backend-dev-kit` (required companion). The reference implementation is `agent-boilerplate/`; every file is listed in [references/tree.md](references/tree.md).
+Hard constraints: `rules/stack.mdc`, `rules/agent-architecture.mdc`. HTTP, auth, database and Docker conventions come from `node-backend-dev-kit` (required companion). The runnable starter is `agent-boilerplate` in [github.com/AtrsiomMDev/boilerplates](https://github.com/AtrsiomMDev/boilerplates). Every file is listed in [references/tree.md](references/tree.md).
 
 ## Prerequisites
 
@@ -24,12 +24,8 @@ Hard constraints: `rules/stack.mdc`, `rules/agent-architecture.mdc`. HTTP, auth,
 
 ## Procedure: new service
 
-1. Copy the starter without dependencies, build output or secrets:
-   ```bash
-   rsync -a --exclude node_modules --exclude dist --exclude coverage --exclude .env agent-boilerplate/ <service-name>/
-   ```
-   Without the starter, recreate the files in [references/tree.md](references/tree.md) in the order given there, taking code from the skills it names.
-2. Rename every `agent-boilerplate` occurrence: `package.json` `name`, `docker-compose.yml` `name:`, `APP_NAME` and `LANGSMITH_PROJECT` in `.env.example`, the `APP_NAME` default in `src/config/env.ts`, the logger default `name` in `src/lib/logger.ts`, the image tag in `.github/workflows/ci.yml`. Then `grep -rn agent-boilerplate . --exclude-dir=node_modules` returns only `README.md` history.
+1. Create the files in [references/tree.md](references/tree.md) in the order given there, taking code from the skills it names. Do not copy `node_modules`, `dist`, `coverage`, or `.env`.
+2. Set the service name in `package.json` `name`, `docker-compose.yml` `name:`, `APP_NAME` and `LANGSMITH_PROJECT` in `.env.example`, the `APP_NAME` default in `src/config/env.ts`, the logger default `name` in `src/core/logger.ts`, and the image tag in `.github/workflows/ci.yml`.
 3. Create the env file and fill the values that cannot have defaults:
    ```bash
    cp .env.example .env
@@ -37,9 +33,9 @@ Hard constraints: `rules/stack.mdc`, `rules/agent-architecture.mdc`. HTTP, auth,
    | Variable | Value |
    |---|---|
    | `OPENROUTER_API_KEY` | your key, or empty to start degraded |
-   | `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` | exactly the backend's values (defaults match `backend-boilerplate`) |
+   | `JWT_SECRET`, `JWT_ISSUER`, `JWT_AUDIENCE` | exactly the backend's values |
    | `MODEL_CHAT`, `MODEL_CHAT_FALLBACK` | OpenRouter slugs; the fallback on a different provider, or empty |
-   | `MODEL_EMBED`, `EMBEDDING_DIMENSIONS` | must match `EMBEDDING_DIMENSIONS` in `src/db/schema/knowledge.ts` |
+   | `MODEL_EMBED`, `EMBEDDING_DIMENSIONS` | must match `EMBEDDING_DIMENSIONS` in `src/infra/db/schema/knowledge.ts` |
    | `PORT`, `DATABASE_URL` | change only if 3100 / 5433 clash with another service |
 4. Install, start Postgres + pgvector, migrate (Drizzle SQL + `PostgresSaver.setup()`):
    ```bash
@@ -67,16 +63,16 @@ Hard constraints: `rules/stack.mdc`, `rules/agent-architecture.mdc`. HTTP, auth,
 Follow [references/second-agent.md](references/second-agent.md). In short:
 
 1. `src/agents/<name>/` with `state.ts`, `prompts.ts`, `nodes/`, `tools/index.ts`, `graph.ts` exporting `build<Name>Graph(deps)`.
-2. A service `src/services/<name>.service.ts` that owns thread ownership, run config and replies for that graph.
-3. Wire it in `src/container.ts`: its own `bindTools`, its own breaker or the shared `llm` breaker, the shared checkpointer.
-4. Routes and controller under a new resource (`/api/v1/<name>/...`) using the `node-backend-dev-kit:express-resource` skill.
+2. A scenario `src/domains/<name>/` that owns thread ownership through a port, run config and replies for that graph. It does not import `domains/threads`.
+3. Wire it in `src/composition/index.ts`: its own `bindTools`, its own breaker or the shared `llm` breaker, the shared checkpointer.
+4. Routes and controller under `src/api/http/v1/<name>/` (`/api/v1/<name>/...`) using the `node-backend-dev-kit:express-resource` skill. Success bodies are `{ data, meta }`.
 5. Unit tests with `scriptedModel`, a golden set in `evals/golden/<name>.json`, and an eval file.
 
 The existing dependency-cruiser rules already cover `src/agents/**`. Threads of different agents never share a `thread_id`: ids come from the `threads` table, which needs an `agent` column (or a separate table) once two agents exist.
 
 ## Checklist
 
-- [ ] No `agent-boilerplate` name left outside the README
+- [ ] Package name, `APP_NAME`, and the image tag are the service name
 - [ ] `.env` is git-ignored; `.env.example` has no real secret
 - [ ] `JWT_*` equal the backend's; `token:dev` tokens are accepted
 - [ ] `npm run db:migrate` created the app tables and the checkpointer tables

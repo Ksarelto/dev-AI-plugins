@@ -32,14 +32,14 @@ Claude Code does not load `.mdc` files, so read them yourself. The rule files ar
 
 | Changed path | Rule files |
 |---|---|
-| `src/routes/**`, `src/controllers/**` | `layered-architecture`, `validation`, `api-design`, `auth-security`, `error-handling`, `typescript-node` |
-| `src/services/**` | `layered-architecture`, `error-handling`, `typescript-node` (+ `auth-security` for `auth*`) |
-| `src/repositories/**`, `src/db/**`, `drizzle/**`, `drizzle.config.ts` | `database`, `layered-architecture`, `typescript-node` |
-| `src/schemas/**`, `src/middleware/validate.ts`, `src/config/**` | `validation`, `api-design`, `stack` |
-| `src/middleware/**`, `src/app.ts` | `auth-security`, `error-handling`, `observability`, `stack` |
-| `src/lib/{resilience,http-client,health,shutdown,lifecycle}.ts`, `src/middleware/timeout.ts`, `Dockerfile`, `docker-compose.yml` | `resilience` |
-| `src/lib/logger.ts`, `src/middleware/request-logger.ts`, any new log call | `observability` |
-| `src/openapi/**` | `api-design` |
+| `src/api/http/**/*.controller.ts`, `src/api/http/**/*.routes.ts` | `layered-architecture`, `validation`, `api-design`, `auth-security`, `error-handling`, `typescript-node` |
+| `src/domains/**` | `layered-architecture`, `error-handling`, `typescript-node` (+ `auth-security` for sessions and users) |
+| `src/domains/**/*.repository.ts`, `src/queries/**`, `src/infra/db/**`, `drizzle/**`, `drizzle.config.ts` | `database`, `layered-architecture`, `typescript-node` |
+| `src/api/http/**/dto/**`, `src/api/http/middlewares/validate.ts`, `src/config/**` | `validation`, `api-design`, `stack` |
+| `src/api/http/middlewares/**`, `src/app.ts`, `src/composition/**` | `auth-security`, `error-handling`, `observability`, `stack` |
+| `src/core/{resilience,health,shutdown,lifecycle}.ts`, `src/infra/http/**`, `src/api/http/middlewares/timeout.ts`, `Dockerfile`, `docker-compose.yml` | `resilience` |
+| `src/core/logger.ts`, `src/api/http/middlewares/request-logger.ts`, any new log call | `observability` |
+| `src/api/http/openapi/**` | `api-design` |
 | `tests/**`, or any `src/**` file without a matching test change | `testing` |
 | `package.json` | `stack` |
 

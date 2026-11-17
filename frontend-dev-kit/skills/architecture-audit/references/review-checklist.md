@@ -15,6 +15,7 @@ Final sweep after the other topics. Do not restate import-direction, public-API,
 - Non-idempotent event-shaped side effect (toast, per-change analytics) fired from a query transition (`usePrevious` + `notify`) instead of the SSE subscription owner.
 - A second slice subscribing to an event type another slice already owns, just to add its own toast.
 - New `shared/` entry with a business-specific name, or promoted before the **third** real duplicate (rule of three).
+- A role file past about 500 lines that was extended instead of becoming a same-named folder, or `api/useThing.ts` beside the hooks role. A folder while the role still fits in one file is judgment.
 - Business rule inlined next to `await`s in an orchestration hook (threshold, predicate, "which step ran") instead of a named `models/` function.
 - `models/` touching `window`/DOM/storage outside the persist-store storage binding.
 - Client-side dedup / minted idempotency key (if cross-slice-workflows did not already file it).

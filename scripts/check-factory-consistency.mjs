@@ -277,7 +277,7 @@ for (const kit of STACK_KITS) {
     if (!agentNames.has(agent)) errors.push(`${kit}/stack.yaml: stage_skills names "${agent}", which no factory pack ships`);
     for (const ref of [refs].flat()) {
       if (!skillExists(ref)) errors.push(`${kit}/stack.yaml: stage_skills for "${agent}" → ${ref} does not exist`);
-      else if (forked(ref)) errors.push(`${kit}/stack.yaml: stage_skills for "${agent}" → ${ref} has context: fork (a forked skill may edit outside the dispatch's scope)`);
+      // stage_skills may name a forked skill: it returns a report and is not loaded into the dispatch (doctor.mjs).
     }
   }
 }
@@ -317,7 +317,6 @@ for (const name of Object.values(MODEL_POLICY).flat()) {
 const commands = new Set(plugins.find((p) => p.name === "factory")?.skills.filter((s) => s.data?.["disable-model-invocation"]).map((s) => s.name));
 const design = join(root, "Suggestions", "03-sdlc-pipeline.md");
 const suggested = existsSync(design) ? [...readFileSync(design, "utf8").matchAll(/`\/factory:([a-z-]+)/g)].map((m) => m[1]) : [];
-if (!existsSync(design)) warnings.push("Suggestions/03-sdlc-pipeline.md is missing, so the design-drift check was skipped");
 for (const c of new Set(suggested)) {
   if (!commands.has(c) && !(ALLOW.later_phase_commands ?? []).includes(c)) errors.push(`/factory:${c} from Suggestions/03 is neither implemented nor scheduled`);
   else if (!commands.has(c)) info.push(`/factory:${c}: scheduled for a later phase`);

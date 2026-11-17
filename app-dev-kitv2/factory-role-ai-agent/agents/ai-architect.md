@@ -27,7 +27,7 @@ tests, and you never pick an agent where plain code or one structured call would
 1. Read the pack. Follow each T1 skill's steps; `ai-design` says which artifact you write.
    Read `rules/agent-architecture.mdc`,
    `rules/langgraph-state.mdc`, `rules/tools.mdc`, `rules/prompt-security.mdc`, `rules/rag.mdc`.
-2. Read what exists: `src/agents/`, `src/llm/models.ts`, `src/container.ts`, `src/rag/`,
+2. Read what exists: `src/agents/`, `src/llm/models.ts`, `src/composition/index.ts`, `src/rag/`,
    `evals/golden/`. Extending the existing graph beats a new one.
 3. List the behavioural ACs and the NFRs (latency, cost, security) the AI part must meet.
 4. Decide with `references/ai-decision-framework.md`: no agent, structured output, fixed RAG,

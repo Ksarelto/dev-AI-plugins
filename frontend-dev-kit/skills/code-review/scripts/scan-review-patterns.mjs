@@ -46,7 +46,7 @@ export const scanText = (rel, text) => {
   const add = (index, rule, message) => hits.push({ file: rel, line: lineOf(text, index), rule, message })
   const test = /\.(test|spec)\.(ts|tsx)$/.test(rel) || rel.includes('/tests/')
   const api = rel.includes('/api/')
-  const apiHooks = /\/api\/hooks\.tsx?$/.test(rel)
+  const apiHooks = /\/api\/hooks\.tsx?$/.test(rel) || /\/api\/hooks\//.test(rel)
 
   for (const index of nestedIfs(text)) add(index, 'nested-if', 'nested if — return early or use {cond && <Node />}')
 
@@ -71,7 +71,7 @@ export const scanText = (rel, text) => {
 
   if (!apiHooks) {
     for (const match of text.matchAll(/\binvalidateQueries\s*\(/g)) {
-      add(match.index, 'invalidate-outside-api', 'invalidateQueries outside api/hooks.ts — call it from the api hook')
+      add(match.index, 'invalidate-outside-api', 'invalidateQueries outside the hooks role — call it from api/hooks.ts or api/hooks/')
     }
   }
 
@@ -120,6 +120,14 @@ const selfCheck = () => {
   `)
   if (allowed.some((hit) => hit.rule === 'invalidate-outside-api' || hit.rule === 'query-outside-api')) {
     console.error('self-check flagged a call inside api/hooks.ts')
+    process.exit(1)
+  }
+  const allowedFolder = scanText('src/entities/order/api/hooks/orders.ts', `
+    useMutation({ mutationFn })
+    queryClient.invalidateQueries({ queryKey: orderKeys.lists() })
+  `)
+  if (allowedFolder.some((hit) => hit.rule === 'invalidate-outside-api' || hit.rule === 'query-outside-api')) {
+    console.error('self-check flagged a call inside api/hooks/')
     process.exit(1)
   }
   const fetcher = scanText('src/entities/order/api/fetchers.ts', 'queryClient.invalidateQueries({ queryKey })')

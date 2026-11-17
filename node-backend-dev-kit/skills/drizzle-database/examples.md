@@ -1,9 +1,9 @@
 # Drizzle database — examples
 
-Verbatim from `backend-boilerplate/` unless marked. A complete new table → repository → service slice
+Reference copy for this kit unless marked. A complete new table → repository → service slice
 is the `projects` example in the `express-resource` skill.
 
-## Pool and types — `src/db/client.ts`
+## Pool and types — `src/infra/db/client.ts`
 
 ```ts
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -44,7 +44,7 @@ export type Transaction = Parameters<Parameters<Database['transaction']>[0]>[0];
 export type DbExecutor = Database | Transaction;
 ```
 
-## Transactions — `src/db/transaction.ts`
+## Transactions — `src/infra/db/unit-of-work.ts`
 
 ```ts
 import type { Database, Transaction } from './client.js';
@@ -57,7 +57,7 @@ export function createTransactionRunner(db: Database): TransactionRunner {
 }
 ```
 
-## Using a transaction in a service (from `src/services/auth.service.ts`)
+## Using a transaction in a service (from `src/domains/sessions/sessions.service.ts`)
 
 ```ts
 export interface AuthServiceDeps {
@@ -87,8 +87,7 @@ async register(input: { email: string; password: string; displayName: string }):
 },
 ```
 
-Wire it in `container.ts`: `transaction: createTransactionRunner(database.db)`. Unit tests pass a
-pass-through runner: `const transaction: TransactionRunner = (work) => work({} as Transaction);`.
+The scenario opens `deps.tx.transaction()`. The repository reads `unitOfWork.current()` and takes no `tx`.
 
 ## Race-safe conditional write (from `refresh-tokens.repository.ts`)
 
@@ -146,7 +145,7 @@ async list(query: { limit: number; cursor?: string | undefined }): Promise<Page<
 },
 ```
 
-## Cursor — `src/lib/cursor.ts`
+## Cursor — `src/shared/pagination/cursor.ts`
 
 ```ts
 import { z } from 'zod';
@@ -177,7 +176,7 @@ export function decodeCursor(cursor: string): Keyset {
 }
 ```
 
-## Table with FK, unique and index — `src/db/schema/refresh-tokens.ts`
+## Table with FK, unique and index — `src/infra/db/schema/refresh-tokens.ts`
 
 ```ts
 import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
@@ -214,7 +213,7 @@ import { defineConfig } from 'drizzle-kit';
 
 export default defineConfig({
   dialect: 'postgresql',
-  schema: './src/db/schema/index.ts',
+  schema: './src/infra/db/schema/index.ts',
   out: './drizzle',
   dbCredentials: {
     url: process.env.DATABASE_URL ?? 'postgres://app:app@localhost:5432/app',
@@ -224,12 +223,12 @@ export default defineConfig({
 });
 ```
 
-## Migration runner — `src/db/migrate.ts`
+## Migration runner — `src/infra/db/migrate.ts`
 
 ```ts
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { loadEnv } from '../config/env.js';
-import { createLogger } from '../lib/logger.js';
+import { createLogger } from '../../core/logger.js';
 import { createDatabase } from './client.js';
 
 /** Applies committed SQL migrations from ./drizzle. Run before the API starts (compose `migrate` service). */
@@ -248,13 +247,13 @@ try {
 }
 ```
 
-## Idempotent seed — `src/db/seed.ts`
+## Idempotent seed — `src/infra/db/seed.ts`
 
 ```ts
 import { z } from 'zod';
 import { loadEnv } from '../config/env.js';
-import { createLogger } from '../lib/logger.js';
-import { hashPassword } from '../lib/password.js';
+import { createLogger } from '../../core/logger.js';
+import { hashPassword } from '../../infra/security/password.js';
 import { createDatabase } from './client.js';
 import { users } from './schema/index.js';
 

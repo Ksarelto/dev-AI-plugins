@@ -1,6 +1,6 @@
 ---
 name: openapi-docs
-description: "Generate OpenAPI 3.1 docs from Zod 4 schemas with @asteasolutions/zod-to-openapi — .meta({ id }) components, registry.registerPath per route, bearer security scheme, problem+json responses, Swagger UI at /api-docs. Use when documenting an endpoint, publishing or exporting the API spec, or fixing swagger output."
+description: "Generate OpenAPI 3.1 docs from Zod 4 schemas with @asteasolutions/zod-to-openapi — .meta({ id }) components, registry.registerPath per route, bearer security scheme, JSON error envelope responses, Swagger UI at /api-docs. Use when documenting an endpoint, publishing or exporting the API spec, or fixing swagger output."
 ---
 
 # OpenAPI docs
@@ -15,11 +15,11 @@ Hard constraints: `rules/api-design.mdc`, `rules/validation.mdc`. Code: [example
 
 ## Model
 
-- One function, `buildOpenApiDocument()` in `src/openapi/document.ts`, builds an `OpenAPIRegistry`, registers every path and renders with `OpenApiGeneratorV31` (`openapi: '3.1.0'`).
+- One function, `buildOpenApiDocument()` in `src/api/http/openapi/document.ts`, builds an `OpenAPIRegistry`, registers every path and renders with `OpenApiGeneratorV31` (`openapi: '3.1.0'`).
 - The schemas are the **same** Zod objects that validate requests and describe responses. No hand-written JSON schema, no second DTO definition.
 - A schema with `.meta({ id: 'Name' })` becomes `components.schemas.Name` and is referenced; without an id it is inlined.
 - `bearerAuth` is registered once as an HTTP bearer JWT security scheme; protected paths set `security: [{ [bearer.name]: [] }]`.
-- Errors are documented with the shared `problemSchema` (`id: 'Problem'`) under `application/problem+json` via the local `problem(description)` helper.
+- Errors are documented with `errorBodySchema` (`id: 'ErrorBody'`) under `application/json`: `{ error: { code, message, details, requestId } }`.
 - Served at `/api-docs` (UI) and `/api-docs/openapi.json` when `API_DOCS_ENABLED=true`.
 
 ## Procedure
@@ -37,9 +37,9 @@ Hard constraints: `rules/api-design.mdc`, `rules/validation.mdc`. Code: [example
 
 ## Checklist
 
-- [ ] Every route in `routes/` has a `registerPath` with the full `/api/v1/...` path
+- [ ] Every route under `api/http/v1` has a `registerPath` with the full `/api/v1/...` path
 - [ ] Request parts reuse the exact schemas passed to `validate()`
 - [ ] Named schemas use `.meta({ id })`; no `extendZodWithOpenApi` added for ids
-- [ ] Success and every possible problem status documented; 204 has no content
+- [ ] Success uses `{ data, meta }` and every error status uses the error envelope; 204 has no content
 - [ ] Protected routes declare `security`
 - [ ] Document test lists the new paths and components and passes

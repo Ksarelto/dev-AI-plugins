@@ -112,7 +112,7 @@ This stack runs React 19 with the React Compiler. **Do not add `React.memo`, `us
 
 - More than one prop: one prop per line, closing `/>` or `>` on its own line.
 - JSX references handlers; it never defines them. Every `on*` prop receives a named function declared in the component body before `return`. No arrow or function expression inside an `on*` prop.
-- No nested ternaries in JSX. Compute the value before `return`, early-return a whole-branch swap, use `&&` for show/hide.
+- No nested ternaries. No ternary in JSX, and no const that holds an element from a ternary. Show or hide with `{condition && <Node />}`. A conditional list is a function called as `{items && getTips()}`. Two element branches are a function with `if` / `return`, called as `{renderHeader()}`. A translation key may be chosen before `return`. A whole-screen swap may be an early `return`.
 - The left side of `&&` is a boolean — never a number that can render `0`.
 
 ---
@@ -152,7 +152,7 @@ Every component folder has a `styles.ts`. The component file owns structure and 
 
 ## API contract
 
-- One zod schema per server entity in `api/schema.ts`. An invalid body notifies and returns `null`. Callers check `null` or the HTTP error. They do not re-check entity fields.
+- One zod schema per server entity in the schema role (`api/schema.ts`, or `api/schema/` once that file outgrows one file). An invalid body notifies and returns `null`. Callers check `null` or the HTTP error. They do not re-check entity fields. Query and mutation hooks live in the hooks role the same way (`api/hooks.ts`, or `api/hooks/`). Do not add `api/useThing.ts`.
 - Do not restate `timeout`, `retry`, `prefixUrl`, `Authorization`, or `API_BASE` already set in `shared/api`.
 
 ---

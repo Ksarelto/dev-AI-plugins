@@ -72,4 +72,4 @@ stage_skills:
   reviewer: [frontend-dev-kit:code-review, frontend-dev-kit:accessibility, frontend-dev-kit:architecture-audit]
   qa-engineer: [frontend-dev-kit:accessibility, frontend-dev-kit:browser-debug]
 index_adapter: fsd
-boilerplate: null   # per project: roles.frontend.boilerplate in factory.config.yaml
+boilerplate: null   # later: { repo: https://github.com/AtrsiomMDev/boilerplates, path: frontend-boilerplate }

@@ -1,6 +1,6 @@
 # React Query Hook — Few-shot Examples
 
-Query keys live in `shared/api/query-keys/{domain}.ts`. Every `useQuery` and `useMutation` for one model lives in the owning `api/hooks.ts` (`entities/{name}/api/hooks.ts`). Fetchers live in `api/fetchers.ts` and call `httpClient`. The skill has the full list and mutation templates. Do not add `api/queryKeys.ts`, `api/useThing.ts`, or `ApiError`. `features/{name}/hooks/` does not call `useQuery` or `useMutation`.
+Query keys live in `shared/api/query-keys/{domain}.ts`. Every `useQuery` and `useMutation` for one model lives in the owning hooks role (`api/hooks.ts`, or `api/hooks/` once that file outgrows one file). Fetchers live in `api/fetchers.ts` and call `httpClient`. The samples below are the single-file form. Do not add `api/queryKeys.ts`, `api/useThing.ts`, or `ApiError`. `features/{name}/hooks/` does not call `useQuery` or `useMutation`.
 
 ```ts
 // shared/api/query-keys/orders.ts

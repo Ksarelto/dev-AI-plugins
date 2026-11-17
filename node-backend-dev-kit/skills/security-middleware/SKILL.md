@@ -35,7 +35,7 @@ Hard constraints: `rules/auth-security.mdc`, `rules/stack.mdc`, `rules/resilienc
 1. **New global middleware**: decide its slot from the table; anything that can fail must come after `requestLogger` and before `errorHandler`. Configure it from `Env`, never from literals spread across files.
 2. **CORS**: add origins to `CORS_ORIGINS` (comma-separated, parsed in `config/env.ts`). Never `origin: '*'` or `origin: true` with `credentials: true`.
 3. **Proxy**: set `TRUST_PROXY` to the hop count or subnet of your load balancer (`1`, `loopback`, `10.0.0.0/8`). `true` trusts any `X-Forwarded-For` and lets clients spoof their IP past the rate limiter.
-4. **Rate limits**: reuse `createRateLimiter({ windowMs, limit })`; mount a stricter one on sensitive routers (login, password reset, expensive search). Rejections go through `next(new TooManyRequestsError())` so the body is problem+json. More than one replica → a shared store ([examples.md](examples.md#shared-store-for-several-replicas-adaptation)).
+4. **Rate limits**: reuse `createRateLimiter({ windowMs, limit })`; mount a stricter one on sensitive routers (login, password reset, expensive search). Rejections go through `next(new RateLimitedError())` so the body is the JSON error envelope. This starter's limiter is in-memory and per process.
 5. **Bodies**: keep `100kb` globally; a route that needs more mounts its own `express.json({ limit })` before `validate()`. Uploads use streaming, not a bigger JSON limit.
 6. **Helmet**: keep defaults. Loosen only the directive you need (`helmet({ contentSecurityPolicy: { directives: { … } } })`), never `helmet({ contentSecurityPolicy: false })` globally.
 7. **Server**: `startServer` keeps `keepAliveTimeout` (65 s) above the load balancer's idle timeout and `headersTimeout` above `keepAliveTimeout`.
@@ -48,6 +48,6 @@ Hard constraints: `rules/auth-security.mdc`, `rules/stack.mdc`, `rules/resilienc
 - [ ] `helmet()` before routes; no global CSP disable
 - [ ] CORS allowlist from env; no wildcard with credentials
 - [ ] JSON limit set; health routes before timeout and limiters
-- [ ] Global `/api` limiter and stricter `/auth` limiter; 429 is problem+json; shared store when scaled out
-- [ ] `notFound()` then `errorHandler()` last
+- [ ] Global `/api` limiter and stricter `/auth` limiter; 429 is the JSON error envelope
+- [ ] `notFound()` then the error mapper last
 - [ ] Integration test covers the changed edge behaviour

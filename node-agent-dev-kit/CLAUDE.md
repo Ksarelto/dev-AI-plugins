@@ -1,6 +1,6 @@
 # node-agent-dev-kit rules
 
-Claude Code does not load `.mdc` rules, so this file carries all nine rules of the kit (`rules/*.mdc`) as one digest. Cursor attaches the same rules by glob. The HTTP core (layering, validation, errors, auth, Drizzle, logging, resilience, Docker, HTTP tests) is governed by `node-backend-dev-kit`, the required companion; these rules cover only the agent layer: `src/agents/`, `src/llm/`, `src/rag/`, `src/memory/`, `src/guardrails/`, the knowledge schema and repository, agent tests and `evals/`.
+Claude Code does not load `.mdc` rules, so this file carries all nine rules of the kit (`rules/*.mdc`) as one digest. Cursor attaches the same rules by glob. The HTTP core (layering, validation, the `{ error }` envelope, auth, Drizzle, logging, resilience, Docker, HTTP tests) is governed by `node-backend-dev-kit`, the required companion; these rules cover only the agent layer: `src/agents/`, `src/llm/`, `src/rag/`, `src/memory/`, `src/guardrails/`, `src/domains/`, the knowledge schema and the hybrid-search query, agent tests and `evals/`.
 
 Each section ends with the skill that holds the procedure.
 
@@ -24,7 +24,7 @@ The HTTP core (Node 22, Express 5, Zod 4, pino, jose, Drizzle, Vitest, Docker) i
 
 - Agents are LangGraph + LangChain only. No `@openai/agents`, no direct `openai` SDK calls, no provider SDKs (`@anthropic-ai/sdk`, `@google/genai`), no LlamaIndex, no `langchain` umbrella chains or `AgentExecutor`.
 - Every model is reached through OpenRouter. Switching provider is a slug change in env (`MODEL_CHAT`, `MODEL_CHAT_FALLBACK`, `MODEL_EMBED`), never a new dependency.
-- No external vector database (Pinecone, Qdrant, Chroma) and no LangChain `VectorStore` wrapper. Vectors live in the service's own Postgres, behind a repository.
+- No external vector database (Pinecone, Qdrant, Chroma) and no LangChain `VectorStore` wrapper. Vectors live in the service's own Postgres. Writes go through `domains/knowledge`; hybrid search is `queries/knowledge-search.query.ts`.
 - This service uses `pg`, not `postgres.js`: `PostgresSaver` requires a `pg.Pool`. One pool per process, closed on shutdown.
 - `@langchain/*` packages are upgraded together in one change, followed by `npm test` and `npm run eval`.
 
@@ -34,24 +34,27 @@ Procedure: `scaffold-agent-service` skill.
 
 ## Agent architecture
 
-HTTP layering (routes → controllers → services → repositories → db) is the `layered-architecture` rule of `node-backend-dev-kit`. The agent layers sit beside it:
+HTTP layering (`api/http` → composition → domains, with `queries` for SELECT) is the `layered-architecture` rule of `node-backend-dev-kit`. The agent layers sit beside it:
 
 | Layer | Owns | Must not |
 |---|---|---|
-| `agents/<name>/` | `state.ts`, `graph.ts`, `nodes/`, `tools/`, `prompts.ts` | import Express, `services/`, `repositories/`, `db/`; build a model, retriever or checkpointer |
-| `services/` (chat) | thread ownership, turn input and run config, building the reply, mapping provider failures to `AppError` | import Express; build prompts |
-| `rag/` | splitter, ingestion pipeline, `KnowledgeRetriever` over a repository | know about agents or HTTP |
+| `agents/<name>/` | `state.ts`, `graph.ts`, `nodes/`, `tools/`, `prompts.ts` | import Express, `domains/`, `queries/`, `infra/`; build a model, retriever or checkpointer |
+| `domains/conversations` | one turn: ownership through a `ThreadStore` port, run config, the reply, the stream | import `domains/threads`, Express, or SQL; build prompts |
+| `domains/threads` | the `threads` table | import the graph or another domain |
+| `domains/knowledge` | insert a document and its chunks in one transaction | import `rag` or the graph |
+| `rag/` | splitter, ingestion pipeline, `KnowledgeRetriever` over a `KnowledgeSearch` port | import domains, queries, agents, or HTTP |
+| `queries/` | hybrid SELECT | writes |
 | `llm/` | `createChatModel`, `createEmbeddings`, `UsageCallbackHandler` | import any layer above |
 | `memory/` | checkpointer (and store) factories | hold business rules |
 | `guardrails/` | deterministic input checks, untrusted-content wrapping, citation filtering | call a model; import another layer |
 
 - One folder per agent: `src/agents/<name>/`. The graph is built by `build<Name>Graph(deps)`, where `deps` is an interface (model, tools, checkpointer, breaker, limits, logger). Nothing in the folder reads `process.env` or `Env`.
-- `src/container.ts` is the only caller of `createChatModel`, `createEmbeddings`, `createPostgresCheckpointer`, `createKnowledgeRetriever` and `bindTools`. Tests replace them through `ContainerOptions`.
-- Tools reach data through injected interfaces (`KnowledgeRetriever`), never a repository or `db` import.
-- A graph is run only by a service (`ChatService.send` / `stream`). Controllers never call `graph.invoke` or `graph.stream`; routes never import `agents/`.
-- A missing provider is `undefined`, not a crash: the container skips the graph and the service throws 503 `LLM_NOT_CONFIGURED` / `EMBEDDINGS_NOT_CONFIGURED`.
+- `src/composition/index.ts` is the only caller of `createChatModel`, `createEmbeddings`, `createPostgresCheckpointer`, `createKnowledgeRetriever` and `bindTools`. Tests replace them through `CompositionOptions`.
+- Tools reach data through injected interfaces (`KnowledgeRetriever`), never a repository, query, or `infra` import.
+- A graph is run only by `domains/conversations` (`send` / `stream`). Controllers never call `graph.invoke` or `graph.stream`; `api/http` never imports `agents/`.
+- A missing provider is `undefined`, not a crash: composition skips the graph and the scenario throws `LLM_NOT_CONFIGURED` / `EMBEDDINGS_NOT_CONFIGURED` (the HTTP mapper turns those into 503). Domain errors carry a `code` and no HTTP status.
 - Build the `StateGraph` explicitly. Do not swap it for `createReactAgent`; the guard node, step cap and circuit breaker live in the hand-built graph.
-- A second agent is a sibling folder with its own service, never a branch inside `assistant/`. See the `scaffold-agent-service` skill.
+- A second agent is a sibling folder with its own conversation scenario, never a branch inside `assistant/`. See the `scaffold-agent-service` skill.
 - A new top-level folder under `src/` gets a dependency-cruiser rule in the same change; `npm run lint` stays green.
 
 Procedure: `langgraph-agent` skill.
@@ -69,7 +72,7 @@ Procedure: `langgraph-agent` skill.
 - Nodes are factories: `create<Name>Node(deps)` returns `(state, config) => update`. A node returns a partial update, never mutates `state`, and forwards `config` to every `invoke`.
 - Routers are named pure functions of state (`routeAfterAgent`). `addConditionalEdges` lists every destination, including `END`.
 - Every loop has a cap in state (`iterations` vs `AGENT_MAX_ITERATIONS`) that ends with a user-facing message, and the run config sets `recursionLimit` as a backstop. Never rely on `recursionLimit` alone: `GraphRecursionError` reaches the user as a 503.
-- `.compile({ checkpointer })` takes the checkpointer from deps. Every run passes `configurable: { thread_id }` from the threads table; never a constant or user-supplied thread id that skipped `findOwned`.
+- `.compile({ checkpointer })` takes the checkpointer from deps. Every run passes `configurable: { thread_id }` from the threads table; never a constant or user-supplied thread id that skipped `requireOwned`.
 - Node names (`guard`, `agent`, `tools`) and tool names are contracts: the service filters stream chunks by `langgraph_node` and tool messages by `name`. Rename them together with the service.
 
 Procedure: `graph-state-design` skill.
@@ -82,7 +85,7 @@ Procedure: `graph-state-design` skill.
 - Every client sets `apiKey`, `timeout: env.LLM_TIMEOUT_MS`, `maxRetries: env.LLM_MAX_RETRIES` and `configuration.baseURL: env.OPENROUTER_BASE_URL`. Slugs, temperature and dimensions come from `Env`, never literals.
 - A factory returns `undefined` when the key or slug is missing, and the caller handles it. Never throw at import time, never fall back to a hard-coded key.
 - A new model purpose is a new `ModelRole` plus a `MODEL_<ROLE>` env var, not a second factory.
-- Tools are bound once, in the container: `primary.bindTools(tools)`, then `.withFallbacks([fallback.bindTools(tools)])` when `MODEL_CHAT_FALLBACK` is set. The fallback is on a different provider.
+- Tools are bound once, in composition: `primary.bindTools(tools)`, then `.withFallbacks([fallback.bindTools(tools)])` when `MODEL_CHAT_FALLBACK` is set. The fallback is on a different provider.
 - In a node, the call is `deps.breaker.execute(() => deps.model.invoke(messages, config))`. Always pass the node's `config` (callbacks, abort signal, tracing).
 - The system prompt is prepended per call from `prompts.ts` (`new SystemMessage(SYSTEM_PROMPT)`). It is never stored in state or the checkpoint.
 - Structured output uses `withStructuredOutput(zodSchema, { name })`. Never regex or `JSON.parse` free text from a model.
@@ -140,7 +143,7 @@ Procedure: `rag-pipeline` skill.
 - User input is capped by the request schema (`MAX_MESSAGE_CHARS` = 4,000).
 - No secrets, tokens, connection strings or other users' data in prompts, tool output or the checkpoint. A tool returns only fields the caller may see.
 - Model output is untrusted: never `eval` it, execute it, render it as unescaped HTML, or pass it to SQL or a shell.
-- The model never decides authorization. Ownership (`findOwned(id, userId)`) and roles are checked in the service and routes before the graph runs.
+- The model never decides authorization. Ownership (`requireOwned`) and roles are checked in the conversation scenario and `api/http` before the graph runs.
 
 Procedure: `guardrails-safety` skill.
 
@@ -167,11 +170,11 @@ Procedure: `agent-observability` skill.
 
 - HTTP, Testcontainers and supertest conventions are the `testing` rule of `node-backend-dev-kit`. This rule covers graphs and models.
 - `npm test` (projects `unit` + `integration`) never calls a real model and never needs `OPENROUTER_API_KEY`. Models are `scriptedModel([...turns])` from `tests/helpers/scripted-model.ts`; embeddings are `SyntheticEmbeddings({ vectorSize })`.
-- Never `vi.mock` a `@langchain/*` module and never stub `graph.invoke`. Build the real graph with `build<Name>Graph` and `createMemoryCheckpointer()` and drive it through the service.
+- Never `vi.mock` a `@langchain/*` module and never stub `graph.invoke`. Build the real graph with `build<Name>Graph` and `createMemoryCheckpointer()` and drive it through `createConversations`.
 - Script turns with `callTool(name, args, id)`, `answer(text)`, `answerCitingFirstResult(text)` and `failing(message)`. Assert on `model.calls` to prove what the model saw: wrapped documents, history, no call when blocked.
 - Every graph has unit tests for: tool loop with a cited answer, memory across turns of one `thread_id`, retrieval failure → `degraded: true`, guard block with zero model calls, the step-limit message, provider failure → 503 `LLM_UNAVAILABLE`, another user's thread → 404, and a stream ending in a `done` event.
 - Every tool has a success test and a failure or timeout test. Every guardrail pattern has a blocking case and a benign look-alike that passes.
-- Integration tests run the real `PostgresSaver` and the real hybrid SQL on `pgvector/pgvector:pg17`, with `setupCheckpointer` in global setup. Only the model and embeddings are replaced, through `ContainerOptions`; `null` tests the not-configured path.
+- Integration tests run the real `PostgresSaver` and the real hybrid SQL on `pgvector/pgvector:pg17`, with `setupCheckpointer` in global setup. Only the model and embeddings are replaced, through `CompositionOptions`; `null` tests the not-configured path. Assert `{ data, meta }` and `body.error.code`.
 - Real-model evals live in `evals/*.eval.ts`, run only in the `eval` Vitest project (`npm run eval`), and are wrapped in `describe.skipIf(!hasKey)`. They never run in `npm test` or on pull requests from forks.
 - Evals load `evals/golden/*.json`, check required citations and phrases in code, use an LLM judge (`withStructuredOutput`) only for faithfulness, and fail below `PASS_RATE_THRESHOLD` (0.8). Never lower the threshold to make a change pass.
 - Run `npm run eval` before and after changing a prompt, a tool description, chunking, retrieval or a model, and report both pass rates.

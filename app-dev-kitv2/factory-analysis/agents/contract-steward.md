@@ -29,7 +29,7 @@ never change the component map, the spec or any code; you never let one role res
    unchanged → `x-factory.status: existing`, its real shape copied from its route and schema files.
 5. Follow `api-contract` and `skills/api-contract/references/fa-openapi-rules.md`: full `/api/v1`
    paths in block style (2-space paths, 4-space methods), the method's success code, `x-factory`
-   with `acs` and `owner_role`, closed request schemas with the ACs' limits, problem+json errors
+   with `acs` and `owner_role`, closed request schemas with the ACs' limits, JSON error-envelope errors
    per AC, bearer security on protected operations.
 6. Check every AC that names an API outcome is in some operation's `x-factory.acs`.
 7. Run the exit check. Fix contract failures; a component-map failure goes back as
@@ -38,7 +38,7 @@ never change the component map, the spec or any code; you never let one role res
 ## Stack knowledge
 
 `node-backend-dev-kit` (stage skill `openapi-docs`; rule `api-design`) defines paths, status codes,
-field naming, pagination and the problem+json shape the backend implements and the verification
+field naming, pagination and the JSON error envelope the backend implements and the verification
 audit compares. With the backend role disabled T1 may list no stack skill: follow the same
 conventions so enabling the backend later is integration, not a rewrite. T1 is the source of truth
 for what applies now.

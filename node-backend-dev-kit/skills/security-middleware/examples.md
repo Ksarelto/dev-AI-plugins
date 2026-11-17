@@ -1,6 +1,6 @@
 # Security middleware — examples
 
-Verbatim from `backend-boilerplate/` unless marked.
+Reference copy for this kit unless marked.
 
 ## Middleware order — `src/app.ts`
 
@@ -13,11 +13,11 @@ import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import type { Env } from './config/env.js';
 import type { Container } from './container.js';
-import type { Logger } from './lib/logger.js';
-import { errorHandler, notFound } from './middleware/error-handler.js';
-import { createRateLimiter } from './middleware/rate-limit.js';
-import { requestLogger } from './middleware/request-logger.js';
-import { requestTimeout } from './middleware/timeout.js';
+import type { Logger } from '../core/logger.js';
+import { errorHandler, notFound } from '../api/http/error-mapper.js';
+import { createRateLimiter } from '../api/http/middlewares/rate-limit.js';
+import { requestLogger } from '../api/http/middlewares/request-logger.js';
+import { requestTimeout } from '../api/http/middlewares/timeout.js';
 import { buildOpenApiDocument } from './openapi/document.js';
 import { createApiRouter } from './routes/index.js';
 import { createHealthRouter } from './routes/health.routes.js';
@@ -77,12 +77,12 @@ export function createApp(env: Env, logger: Logger, container: Container): Expre
 }
 ```
 
-## Rate limiter — `src/middleware/rate-limit.ts`
+## Rate limiter — `src/api/http/middlewares/rate-limit.ts`
 
 ```ts
 import type { RequestHandler } from 'express';
 import { rateLimit } from 'express-rate-limit';
-import { TooManyRequestsError } from '../lib/errors.js';
+import { TooManyRequestsError } from '../../../core/errors/app-error.js';
 
 export interface RateLimitOptions {
   windowMs: number;
@@ -160,11 +160,11 @@ export function startServer(app: Express, options: ServerOptions): Promise<Serve
 }
 ```
 
-## Request deadline — `src/middleware/timeout.ts`
+## Request deadline — `src/api/http/middlewares/timeout.ts`
 
 ```ts
 import type { RequestHandler } from 'express';
-import { ServiceUnavailableError } from '../lib/errors.js';
+import { ServiceUnavailableError } from '../../../core/errors/app-error.js';
 
 /**
  * Answers 503 when a handler runs longer than `ms`, so clients and proxies are not left

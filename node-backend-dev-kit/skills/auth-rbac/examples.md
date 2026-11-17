@@ -1,12 +1,12 @@
 # Auth and RBAC — examples
 
-Guards, ownership and the IdP verifier were verified on a copy of `backend-boilerplate/` (typecheck + ESLint).
+Guards, ownership and the IdP verifier were typechecked and linted.
 The full local auth implementation is in [references/auth-flow.md](references/auth-flow.md).
 
 ## Protecting a router
 
 ```ts
-// src/routes/users.routes.ts — every route authenticated, one admin-only
+// src/api/http/v1/users/users.routes.ts — every route authenticated, one admin-only
 export function createUsersRouter(
   controller: UsersController,
   authenticate: RequestHandler,
@@ -59,8 +59,8 @@ Lists filter by the principal in the query (`eq(projects.ownerId, ownerId)`), no
 
 ## Adding a role
 
-1. `src/lib/jwt.ts`: `export const ROLES = ['user', 'admin', 'auditor'] as const;` — `Role`, the claims schema and `requireRole` follow.
-2. `src/db/schema/users.ts` uses `pgEnum('role', ROLES)`, so `npm run db:generate -- --name add_auditor_role` emits `ALTER TYPE "public"."role" ADD VALUE 'auditor';`. Ship it in its own migration (`drizzle-database` skill).
+1. `src/infra/security/jwt.ts`: `export const ROLES = ['user', 'admin', 'auditor'] as const;` — `Role`, the claims schema and `requireRole` follow.
+2. `src/infra/db/schema/users.ts` uses `pgEnum('role', ROLES)`, so `npm run db:generate -- --name add_auditor_role` emits `ALTER TYPE "public"."role" ADD VALUE 'auditor';`. Ship it in its own migration (`drizzle-database` skill).
 3. `src/schemas/user.schema.ts`: `role: z.enum(['user', 'admin'])` is a literal list — switch it to `z.enum(ROLES)` or add the value.
 4. Guard routes with `requireRole('admin', 'auditor')` (any of the roles passes).
 5. Unit-test the guard and an integration test per protected route (403 `FORBIDDEN` for the wrong role).
@@ -70,7 +70,7 @@ Lists filter by the principal in the query (`eq(projects.ownerId, ownerId)`), no
 Drop `/auth/*`, `auth.service.ts`, the refresh-token table and `lib/password.ts`/`lib/tokens.ts`. Keep `authenticate`, `requireRole` and `requirePrincipal`. Verify tokens against the IdP's JWKS:
 
 ```ts
-// src/lib/remote-jwt.ts
+// src/infra/security/remote-jwt.ts
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { z } from 'zod';
 import { UnauthorizedError } from './errors.js';
@@ -119,13 +119,13 @@ export function createRemoteJwtVerifier(options: RemoteJwtOptions) {
 }
 ```
 
-Then widen the guard's parameter so either verifier fits — `src/middleware/authenticate.ts`:
+Then widen the guard's parameter so either verifier fits — `src/api/http/middlewares/authenticate.ts`:
 
 ```ts
 export function authenticate(jwt: Pick<JwtService, 'verifyAccessToken'>): RequestHandler {
 ```
 
-and in `container.ts` build `createRemoteJwtVerifier({ jwksUrl: env.JWKS_URL, issuer: env.JWT_ISSUER, audience: env.JWT_AUDIENCE })`
+and in `src/composition/` build `createRemoteJwtVerifier({ jwksUrl: env.JWKS_URL, issuer: env.JWT_ISSUER, audience: env.JWT_AUDIENCE })`
 (add `JWKS_URL: z.url()` to `envSchema`; drop `JWT_SECRET`). `createRemoteJWKSet` caches keys and refetches on an unknown `kid`.
 Unit tests sign tokens with a local key pair (`generateKeyPair('RS256')` + `createLocalJWKSet`) instead of calling the IdP.
 
@@ -135,12 +135,12 @@ Unit tests sign tokens with a local key pair (`generateKeyPair('RS256')` + `crea
 import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
-import { createJwtService, type Principal } from '../../../src/lib/jwt.js';
-import { createLogger } from '../../../src/lib/logger.js';
-import { authenticate, requirePrincipal } from '../../../src/middleware/authenticate.js';
-import { requireRole } from '../../../src/middleware/authorize.js';
-import { errorHandler } from '../../../src/middleware/error-handler.js';
-import { requestLogger } from '../../../src/middleware/request-logger.js';
+import { createJwtService, type Principal } from '../../../src/infra/security/jwt.js';
+import { createLogger } from '../../../src/core/logger.js';
+import { authenticate, requirePrincipal } from '../../../src/api/http/middlewares/authenticate.js';
+import { requireRole } from '../../../src/api/http/middlewares/authorize.js';
+import { errorHandler } from '../../../src/api/http/error-mapper.js';
+import { requestLogger } from '../../../src/api/http/middlewares/request-logger.js';
 import { TEST_JWT_SECRET } from '../../helpers/env.js';
 
 const jwt = createJwtService({

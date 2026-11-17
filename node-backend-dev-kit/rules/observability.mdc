@@ -1,6 +1,6 @@
 ---
 description: Structured logging with pino and pino-http — one root logger, req.log per request with X-Request-Id, levels by outcome, redaction of credentials, no console.
-globs: ["**/src/lib/logger.ts", "**/src/middleware/request-logger.ts", "**/src/middleware/error-handler.ts", "**/src/lib/shutdown.ts", "**/src/db/migrate.ts", "**/src/db/seed.ts"]
+globs: ["**/src/core/logger.ts", "**/src/api/http/middlewares/request-logger.ts", "**/src/api/http/error-mapper.ts", "**/src/core/shutdown.ts", "**/src/infra/db/migrate.ts", "**/src/infra/db/seed.ts"]
 alwaysApply: false
 ---
 

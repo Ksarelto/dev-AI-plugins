@@ -8,7 +8,7 @@ Each feature, widget, and entity exposes exactly one public entry: `{slice}/inde
 
 - Every slice has `index.ts`. Outside imports are `@/features/{x}`, `@/entities/{x}`, `@/widgets/{x}` — not `@/features/{x}/hooks/...`, `@/features/{x}/models/...`, etc. (`/index` suffix is allowed.)
 - Slice `index.ts`: no `export *`. Re-export only symbols a file outside that folder already imports. After the slice is wired, drop predicted re-exports.
-- No segment barrel: `features/x/ui/index.ts` must not re-export every component. Per-component-folder `index.ts` is required, not a finding. That folder `index.ts` exports the component. It exports `{Component}Props` only when another file imports that type.
+- No segment barrel: `features/x/ui/index.ts` must not re-export every component. Per-component-folder `index.ts` is required, not a finding. That folder `index.ts` exports the component. It exports `{Component}Props` only when another file imports that type. A role folder `index.ts` (`api/hooks/index.ts`, `api/schema/index.ts`, `config/index.ts`) is the role's entry, not a segment barrel and not a second slice entry. Files outside the role import the role path, not a leaf.
 - Do not barrel `shared/ui` as a single file wrapping the whole kit — import `@/shared/ui/<name>`.
 - A registry base in `shared/ui/<name>` exports every part the CLI generated, used or not — not a finding. A type export there (`{Component}Props`) with no outside importer is a finding, as in any other folder.
 - `@x` only on **entities**: file at `entities/{provider}/@x/{consumer}.ts`; consumer imports `@/entities/{provider}/@x/{consumer}`. The provider owns the file; the consumer never creates `@x/` to reach into someone else. Never feature↔feature `@x`.

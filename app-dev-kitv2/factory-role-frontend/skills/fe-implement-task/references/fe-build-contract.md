@@ -70,12 +70,15 @@ another slice fails `duplicate-body`; import the original through its public `in
 - One folder per component, kebab-case: `<name>/<name>.tsx`, `styles.ts`, `index.ts`,
   `<name>.stories.tsx`, and `tests/` for every test in the folder (the component and each `lib/`
   helper). `lib/` / `constants.ts` / `types.ts` only when needed. A second visual region is
-  `ui/<child>/`.
+  `ui/<child>/`. A feature also ships `{feature}.stories.tsx` beside `features/{feature}/index.ts`
+  in the same change.
 - Every class list lives in that folder's `styles.ts` (`cva` for variants). No class string, class
   ternary or `style` prop in JSX outside `shared/ui`.
 - Handlers are named `handleX` functions above `return`; no inline arrow in an `on*` prop.
-- No `let`, no IIFE, no nested ternary, no ternary in JSX. A condition is a named `const`; JSX uses
-  `{cond && <X />}`; a small calculation goes to `lib/`.
+- No `let`, no IIFE, no nested ternary, no ternary in JSX, and no const that holds an element from
+  a ternary. Show or hide with `{cond && <X />}`. A conditional list is a function called as
+  `{items && getTips()}`. Two element branches are a function with `if` / `return`, called as
+  `{renderHeader()}`. A small calculation goes to `lib/`.
 - Early-return the states in this order: pending data → error → empty → success.
 - Closed-set props use the primitive's constants (`ButtonVariant.Outline`); omit a prop at its default.
 - No comments. A name that needs one is the wrong name; a deliberate simplification goes into the

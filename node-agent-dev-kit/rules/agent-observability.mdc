@@ -1,6 +1,6 @@
 ---
 description: Agent observability — a fresh UsageCallbackHandler per request, token counts logged and returned as usage, config forwarded so callbacks reach nested runs, LangSmith via env only, no prompt or document text in logs, and llm / embeddings as optional readiness checks.
-globs: ["**/src/llm/usage-callback.ts", "**/src/agents/**/nodes/**/*.ts", "**/src/agents/**/tools/**/*.ts", "**/src/controllers/threads*.ts"]
+globs: ["**/src/llm/usage-callback.ts", "**/src/agents/**/nodes/**/*.ts", "**/src/agents/**/tools/**/*.ts", "**/src/api/http/**/threads.controller.ts"]
 alwaysApply: false
 ---
 

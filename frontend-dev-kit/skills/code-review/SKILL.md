@@ -87,7 +87,7 @@ project has one; a failure is a Blocker, a missing script is "Not verified".
 Every printed script line is a finding with file and line. Do not drop one to shorten the report. The
 pattern script covers nested `if`, `t(...)` stored in a local, a `` `${…}-${index}` `` key, raw
 `<input>`, `localStorage`, a `className` on `Button` that sets color, radius, border, shadow, padding,
-or type, `useQuery` / `useMutation` outside `api/`, `invalidateQueries` outside `api/hooks.ts`, `let` in a component, an IIFE, and a hand-rolled
+or type, `useQuery` / `useMutation` outside `api/`, `invalidateQueries` outside the hooks role (`api/hooks.ts` or `api/hooks/**`), `let` in a component, an IIFE, and a hand-rolled
 `isLoading` / `isFetching` / `isPending` / `isError` / `error`. The duplicate script covers a copied
 body and a raw `<input>`, `<button>`, or `<table>` that reimplements `shared/ui`.
 
@@ -107,7 +107,7 @@ Start the items the focus includes:
    walk the checklists in [review-axes.md](references/review-axes.md) for those axes and the
    references named below, and return one line per file, `path: clean` or
    `path: <findings with severity, line, rule, cost, fix>`. Also return, per new component, hook,
-   helper, or mapper, the simpler-path note and any existing symbol that should be reused. Tests are
+   helper, mapper, constant, enum, or feature, the simpler-path note and any existing symbol that should be reused. Tests are
    read only when a finding needs them. Pass paths of the standards to read, not their text.
 3. **Spec** — one subagent per spec file when `SPEC_PATH` is set. Each acceptance criterion is `done`,
    `partial`, or `none`. `partial` and `none` quote the criterion. Scope the spec did not ask for is
@@ -160,8 +160,8 @@ structural audit stays in `architecture-audit`.
 - **Simpler path.** For the change as a whole, state whether the same behavior could be done in
   substantially fewer lines. A roughly tenfold expansion with no extra behavior is a **Should fix**
   and names the shorter shape. `none` is a valid answer when the diff is already the short version.
-- **Reuse.** For each new component, hook, helper, or mapper, search the repo for an existing
-  implementation of that job. Keep every line the duplicate script printed. Destination:
+- **Reuse.** For each new component, hook, helper, mapper, constant, enum, or feature, search the
+  repo for an existing implementation of that job. Keep every line the duplicate script printed. Destination:
   - a primitive that already exists in `shared/ui` is reused
   - domain logic stays on the owning entity or feature; `shared/` does not gain a business noun
   - a stack-wide helper with no business noun promotes to `shared/lib` on the third use

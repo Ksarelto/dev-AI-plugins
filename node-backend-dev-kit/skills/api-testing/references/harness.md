@@ -1,6 +1,6 @@
 # Test harness — reference
 
-Verbatim from `backend-boilerplate/`.
+Reference copy for this kit.
 
 ## `vitest.config.ts`
 
@@ -16,7 +16,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/index.ts', 'src/db/migrate.ts', 'src/db/seed.ts'],
+      exclude: ['src/main.ts', 'src/infra/db/migrate.ts', 'src/infra/db/seed.ts'],
     },
     projects: [
       {
@@ -109,11 +109,11 @@ import { sql } from 'drizzle-orm';
 import type { Express } from 'express';
 import { inject } from 'vitest';
 import { createApp } from '../../src/app.js';
-import { createContainer, type ContainerOptions } from '../../src/container.js';
-import { createDatabase, type DatabaseHandle } from '../../src/db/client.js';
-import { users } from '../../src/db/schema/index.js';
-import { createLogger } from '../../src/lib/logger.js';
-import { hashPassword } from '../../src/lib/password.js';
+import { createComposition, type CompositionOptions } from '../../src/composition/index.js';
+import { createDatabase, type DatabaseHandle } from '../../src/infra/db/client.js';
+import { users } from '../../src/infra/db/schema/index.js';
+import { createLogger } from '../../src/core/logger.js';
+import { hashPassword } from '../../src/infra/security/password.js';
 import { testEnv } from './env.js';
 
 export interface TestApp {
@@ -124,14 +124,14 @@ export interface TestApp {
   close: () => Promise<void>;
 }
 
-/** The real app wired to the integration database, exactly as `src/index.ts` wires it. */
+/** The real app wired to the integration database, exactly as `src/main.ts` wires it. */
 export function createTestApp(
-  options: ContainerOptions & { env?: Record<string, string> } = {},
+  options: CompositionOptions & { env?: Record<string, string> } = {},
 ): TestApp {
   const env = testEnv({ DATABASE_URL: inject('databaseUrl'), ...options.env });
   const database = createDatabase({ url: env.DATABASE_URL, maxConnections: 5 });
-  const container = createContainer(env, database, options);
-  const app = createApp(env, createLogger({ level: 'silent', pretty: false }), container);
+  const composition = createComposition(env, database, options);
+  const app = createApp(env, createLogger({ level: 'silent', pretty: false }), composition);
 
   return {
     app,
@@ -156,11 +156,9 @@ export function createTestApp(
 
 ```ts
 import { randomUUID } from 'node:crypto';
-import type { RefreshTokenRow, UserRow } from '../../src/db/schema/index.js';
-import type { TransactionRunner } from '../../src/db/transaction.js';
-import type { Transaction } from '../../src/db/client.js';
-import type { RefreshTokensRepository } from '../../src/repositories/refresh-tokens.repository.js';
-import type { UsersRepository } from '../../src/repositories/users.repository.js';
+import type { RefreshTokenRow, UserRow } from '../../src/infra/db/schema/index.js';
+import type { SessionsRepository } from '../../src/domains/sessions/sessions.repository.js';
+import type { UsersRepository } from '../../src/domains/users/users.repository.js';
 
 /** Fakes that honour the repository contracts, for service unit tests without a database. */
 export function createInMemoryRepositories() {
@@ -193,7 +191,7 @@ export function createInMemoryRepositories() {
       ),
   };
 
-  const refreshTokens: RefreshTokensRepository = {
+  const sessions: SessionsRepository = {
     findByHash: (hash) =>
       Promise.resolve([...tokenRows.values()].find((t) => t.tokenHash === hash)),
     create: (values) => {
@@ -215,9 +213,7 @@ export function createInMemoryRepositories() {
     },
   };
 
-  const transaction: TransactionRunner = (work) => work({} as Transaction);
-
-  return { users, refreshTokens, transaction, userRows, tokenRows };
+  return { users, sessions, userRows, tokenRows };
 }
 ```
 

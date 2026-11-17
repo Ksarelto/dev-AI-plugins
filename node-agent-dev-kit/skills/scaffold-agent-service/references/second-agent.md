@@ -1,6 +1,6 @@
 # Adding a second agent
 
-`agent-boilerplate` ships one agent (`assistant`). This file is the procedure for a sibling, using `research` as the example name. It is not implemented in the boilerplate; the shapes follow `src/agents/assistant/` exactly.
+The tree ships one agent (`assistant`). This file is the procedure for a sibling, using `research` as the example name. The shapes follow `src/agents/assistant/` exactly.
 
 ## 1. Folder
 
@@ -78,12 +78,12 @@ export type ResearchGraph = ReturnType<typeof buildResearchGraph>;
 Checkpoints are keyed by `thread_id` only. Two agents must never run on the same id, and a user must not continue an `assistant` thread through the `research` routes. Add an owner-and-agent check:
 
 ```ts
-// src/db/schema/threads.ts — new column
+// src/infra/db/schema/threads.ts — new column
 agent: varchar('agent', { length: 32 }).notNull().default('assistant'),
 ```
 
 ```ts
-// src/repositories/threads.repository.ts
+// src/domains/threads/threads.repository.ts
 async findOwned(id: string, userId: string, agent: string, executor: DbExecutor = db) {
   const [row] = await executor
     .select()
@@ -98,12 +98,12 @@ Then `npm run db:generate`, review the SQL, commit it (`node-backend-dev-kit:dri
 
 ## 4. Service
 
-Copy the shape of `src/services/chat.service.ts` into `src/services/research.service.ts`, typed on `ResearchGraph` / `ResearchStateType`: `requireThread` (with the agent name), `requireGraph` (503 `LLM_NOT_CONFIGURED`), `runConfig` with `recursionLimit: maxIterations * 2 + 4`, a turn input that resets `iterations` and `blocked`, `toReply`, and `toServiceError` (503 `LLM_UNAVAILABLE`). Keep the error codes identical so clients handle both agents the same way.
+Copy the shape of `src/domains/conversations/conversations.service.ts` into `src/domains/research/`, typed on `ResearchGraph` / `ResearchStateType`: `requireOwned` through a thread port (do not import `domains/threads`), `requireGraph` (`LLM_NOT_CONFIGURED`), `runConfig` with `recursionLimit: maxIterations * 2 + 4`, a turn input that resets `iterations` and `blocked`, `toReply`, and `toServiceError` (`LLM_UNAVAILABLE`). Keep the error codes identical so clients handle both agents the same way. The HTTP mapper chooses 503.
 
 ## 5. Container
 
 ```ts
-// src/container.ts — one checkpointer and one llm breaker shared by every graph
+// src/composition/index.ts — one checkpointer and one llm breaker shared by every graph
 const checkpointer = options.checkpointer ?? createPostgresCheckpointer(database.pool);
 
 const researchTools = createResearchTools({ retriever, topK: env.RETRIEVAL_TOP_K, logger });
@@ -123,11 +123,11 @@ const researchGraph = researchModel
 const research = createResearchService({ graph: researchGraph, threads, maxIterations: env.AGENT_MAX_ITERATIONS });
 ```
 
-Add `researchModel?: ToolCallingModel | null` to `ContainerOptions` so tests can script it. Use a separate breaker only when the second agent runs on a different model slug.
+Add `researchModel?: ToolCallingModel | null` to the composition options so tests can script it. Use a separate breaker only when the second agent runs on a different model slug.
 
 ## 6. HTTP
 
-New router `src/routes/research.routes.ts` mounted at `/api/v1/research` behind `authenticate`, with its own controller and request schemas (reuse `MAX_MESSAGE_CHARS`). Follow `node-backend-dev-kit:express-resource`. For streaming copy the `stream` handler from the threads controller (`streaming-api` skill).
+New router `src/api/http/v1/research/research.routes.ts` mounted at `/api/v1/research` behind `authenticate`, with its own controller and request schemas (reuse `MAX_MESSAGE_CHARS`). Follow `node-backend-dev-kit:express-resource`. For streaming copy the `stream` handler from the threads controller (`streaming-api` skill).
 
 ## 7. Tests and evals
 

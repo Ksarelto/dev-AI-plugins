@@ -10,7 +10,7 @@ alwaysApply: false
 - Every client sets `apiKey`, `timeout: env.LLM_TIMEOUT_MS`, `maxRetries: env.LLM_MAX_RETRIES` and `configuration.baseURL: env.OPENROUTER_BASE_URL`. Slugs, temperature and dimensions come from `Env`, never literals.
 - A factory returns `undefined` when the key or slug is missing, and the caller handles it. Never throw at import time, never fall back to a hard-coded key.
 - A new model purpose is a new `ModelRole` plus a `MODEL_<ROLE>` env var, not a second factory.
-- Tools are bound once, in the container: `primary.bindTools(tools)`, then `.withFallbacks([fallback.bindTools(tools)])` when `MODEL_CHAT_FALLBACK` is set. The fallback is on a different provider.
+- Tools are bound once, in composition: `primary.bindTools(tools)`, then `.withFallbacks([fallback.bindTools(tools)])` when `MODEL_CHAT_FALLBACK` is set. The fallback is on a different provider.
 - In a node, the call is `deps.breaker.execute(() => deps.model.invoke(messages, config))`. Always pass the node's `config` (callbacks, abort signal, tracing).
 - The system prompt is prepended per call from `prompts.ts` (`new SystemMessage(SYSTEM_PROMPT)`). It is never stored in state or the checkpoint.
 - Structured output uses `withStructuredOutput(zodSchema, { name })`. Never regex or `JSON.parse` free text from a model.

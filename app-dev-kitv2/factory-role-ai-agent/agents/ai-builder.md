@@ -65,7 +65,7 @@ skills):
 | guardrail | `guardrails-safety` | `prompt-security` | `skills/guardrails-safety/examples.md` |
 
 The `*` rules are `stack`, `agent-architecture`, `agent-testing`, `llm-calls`. The HTTP core
-(routes, controllers, Zod at the edge, problem+json) follows `node-backend-dev-kit`.
+(`api/http`, Zod at the edge, `{ data, meta }` / `{ error }`) follows `node-backend-dev-kit`.
 
 ## Model
 

@@ -37,7 +37,7 @@ then confirm with the stack's architecture skill and rules (T1):
 | Stack | Ask | Layer examples |
 |---|---|---|
 | frontend-dev-kit (FSD) | domain-agnostic? a business object? one user action? a reusable block of several actions? a routed screen? app wiring? | `shared`, `entities`, `features`, `widgets`, `pages`, `app` |
-| node-backend-dev-kit (layered) | input shape? HTTP mapping? a business rule? data access? the table? wiring? | `schemas`, `routes` / `controllers`, `services`, `repositories`, `db`, `container` |
+| node-backend-dev-kit (layered) | input shape? HTTP mapping? a business rule? a list? data access? the table? wiring? | `dto`, `api/http`, `domains`, `queries`, `repository`, `infra/db`, `composition` |
 | node-agent-dev-kit (LangGraph) | a capability the model calls? shared run data? one reasoning step? the flow? the HTTP entry? | `tools`, `state`, `nodes`, `graph`, `services` / `routes` |
 
 Rules that hold for every stack:

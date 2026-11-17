@@ -1,8 +1,8 @@
 # Streaming examples
 
-Examples 1 to 3 and 5 are from `agent-boilerplate`. Example 4 (client) is an extension, typechecked and run against `openSse`.
+Examples 1 to 3 and 5 are in this kit. Example 4 (client) is an extension, typechecked and run against `openSse`.
 
-## Example 1: `ChatService.stream`
+## Example 1: conversations `stream`
 
 ```ts
 export type ChatStreamEvent = { type: 'token'; content: string } | ({ type: 'done' } & ChatReply);
@@ -156,7 +156,7 @@ export async function* streamChat(options: {
     ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!response.ok || !response.body) {
-    throw new Error(`stream rejected with ${response.status}`); // body is problem+json
+    throw new Error(`stream rejected with ${response.status}`); // body is { error: { code, message } }
   }
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();
   let buffer = '';

@@ -1,6 +1,6 @@
 ---
 name: architecture-audit
-description: Audit an Express 5 + TypeScript backend against its layered architecture — routes, controllers, services, repositories, db, schemas, middleware, lib — run dependency-cruiser, report layer violations, cycles and misplaced business logic, then fix after confirmation. Use when checking layer boundaries or import direction, or asking whether the current code matches the intended structure.
+description: Audit an Express 5 + TypeScript backend against its layered architecture — api/http, domains, queries, composition, infra, controllers, repositories — run dependency-cruiser, report layer violations, cycles and misplaced business logic, then fix after confirmation. Use when checking layer boundaries or import direction, or asking whether the current code matches the intended structure.
 argument-hint: "[src-path]"
 allowed-tools: [Read, Glob, Grep, Bash, Edit, Write]
 ---
@@ -18,7 +18,7 @@ Hard constraints: `rules/layered-architecture.mdc` (the canonical layer table), 
 ## Procedure
 
 1. **Scope.** Default `src/`. If the user names a resource or folder, audit it and everything that imports it.
-2. **Inventory.** List the layer folders and the files per resource (`<resource>.routes.ts`, `.controller.ts`, `.service.ts`, `.repository.ts`, `<entity>.schema.ts`, `db/schema/<table>.ts`). Note folders outside the model (`utils/`, `helpers/`, `models/`, `handlers/`, `dal/`) and resources missing a layer.
+2. **Inventory.** List `api/http`, `domains`, `queries`, `composition`, `infra/db` and the files per resource (`*.routes.ts`, `*.controller.ts`, `*.service.ts`, `*.repository.ts`, `dto/`, `infra/db/schema`). Note folders outside the model (`utils/`, `helpers/`, `models/`, `handlers/`, `dal/`).
 3. **Mechanical first.** Run `npx depcruise src --config .dependency-cruiser.cjs` (or `npm run lint`) and `npx tsc --noEmit`. Keep every hit. No config or not wired into `lint` → a hard finding; do not skip silently.
 4. **Semantic checks.** Run the greps in [references/layers.md](references/layers.md#semantic-checks); read each hit before reporting. Then read every controller and service in scope for the "read, not grep" items.
 5. **Report**, then stop (format below). Do not edit in this step.
@@ -26,12 +26,11 @@ Hard constraints: `rules/layered-architecture.mdc` (the canonical layer table), 
 
 ## Hard invariants
 
-- Import direction `routes → controllers → services → repositories → db`; `lib/` and `config/` import no layer; no cycles
-- Services never import `express` or touch `req`/`res`; controllers never import repositories or `db`
-- Repositories take `executor: DbExecutor = db` and never open transactions; services own them
-- Only `container.ts` calls factories with concrete dependencies; only `routes/index.ts` mounts versioned routers
+- Domains do not import each other, `api`, or Express. Queries do not write. `api/http` does not import `infra` or a domain file other than through `composition`
+- A repository and its module may import `infra/db`. They take no `tx` argument. The owning scenario opens `deps.tx.transaction()`
+- Wiring lives in `composition/`. Versioned routers mount from `api/http/router.ts`
 - Controllers read input only via `validated(res, …)` and never map errors to statuses
-- No `process.env` outside `config/env.ts` (seed excepted); no `console`
+- No `process.env` outside `config/env.ts` (seed excepted); no `new Date()` or `randomUUID()` under `domains/`; no `console`
 
 ## Report
 

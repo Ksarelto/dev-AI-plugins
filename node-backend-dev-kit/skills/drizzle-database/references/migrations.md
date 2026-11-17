@@ -2,7 +2,7 @@
 
 ## Workflow
 
-1. Edit `src/db/schema/<table>.ts` (export new tables from `schema/index.ts`).
+1. Edit `src/infra/db/schema/<table>.ts` (export new tables from `schema/index.ts`).
 2. `npm run db:generate -- --name <what-changed>` → `drizzle/NNNN_<what-changed>.sql` plus `drizzle/meta/NNNN_snapshot.json` and an updated `_journal.json`.
 3. Read the SQL. Check: column types, `NOT NULL` on existing tables, FK `ON DELETE`, index names, no unexpected `DROP`.
 4. `npm run db:migrate` locally; `npm run test:integration` (global setup applies every migration to a fresh container).

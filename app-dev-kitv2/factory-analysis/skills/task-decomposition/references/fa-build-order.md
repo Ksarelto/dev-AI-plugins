@@ -64,12 +64,12 @@ locale files. That is about 5–8 tasks for a small feature.
 Typical chain for a new feature: `entity-model` → `api-client` (with its `query-hook` when it is the same
 slice) → `feature-ui` per section → `page` (or extend an existing page) → `route` when the screen is new.
 
-## Backend — layered Express (node-backend-dev-kit)
+## Backend — domains and HTTP (node-backend-dev-kit)
 
-For the stack's layering routes → controllers → services → repositories → db, composed in
-`src/container.ts`:
+For the stack's layout `api/http` → `composition` → `domains`, with lists in `queries` and tables in
+`infra/db`:
 
-**Order:** schema / migration → repository → service → validation → controller → route →
+**Order:** schema / migration → domain (repository stays private) → validation → controller → route →
 composition → OpenAPI registration.
 
 The role's budgets (T1 plan rules) set the file cap per type: `migration` up to 6 files, `endpoint` up to
@@ -79,11 +79,11 @@ repository method, and the route (one story, one endpoint, one task). Map the or
 
 | Step | Task type | Files |
 |---|---|---|
-| table and migration | `migration` | `src/db/schema/<table>.ts`, `src/db/schema/index.ts`, `drizzle/<NNNN>_<name>.sql`, `drizzle/meta/_journal.json`, `drizzle/meta/<NNNN>_snapshot.json`, `drizzle/rollback/<NNNN>_<name>.down.sql` (test-exempt; may satisfy an AC) |
-| repository + service | `service` | `src/repositories/<r>.repository.ts`, its method in `tests/helpers/in-memory-repositories.ts`, `src/services/<r>.service.ts`, `tests/unit/services/<r>.service.test.ts` |
-| request validation | `validation` | `src/schemas/<e>.schema.ts`, `tests/unit/schemas/<e>.schema.test.ts` |
-| controller + route + composition | `endpoint` | `src/controllers/<r>.controller.ts`, `src/routes/<r>.routes.ts`, `src/routes/index.ts`, `src/container.ts`, `tests/unit/routes/<r>.routes.test.ts`; `contract_ops: [<operationId>]` |
-| OpenAPI registration | `openapi` | `src/openapi/document.ts`, `tests/unit/openapi/document.test.ts` |
+| table and migration | `migration` | `src/infra/db/schema/<table>.ts`, `src/infra/db/schema/index.ts`, `drizzle/<NNNN>_<name>.sql`, `drizzle/meta/_journal.json`, `drizzle/meta/<NNNN>_snapshot.json`, `drizzle/rollback/<NNNN>_<name>.down.sql` (test-exempt; may satisfy an AC) |
+| domain scenario | `service` | `src/domains/<name>/` (entity, commands, policy, scenario, private repository, module, index), the in-memory port, `tests/unit/domains/<name>.test.ts` |
+| request validation | `validation` | `src/api/http/v1/<resource>/dto/`, a unit test for the schema when one exists |
+| controller + route + composition | `endpoint` | presenter, controller, routes, `src/api/http/router.ts`, `src/composition/wiring/`, the route test; a list also adds `src/queries/`; `contract_ops: [<operationId>]` |
+| OpenAPI registration | `openapi` | `src/api/http/openapi/document.ts`, `tests/unit/openapi/document.test.ts` |
 
 A repository has no unit-level red test of its own (real SQL is proven at verification; unit tests
 use the in-memory fake), so plan its method inside the `service` task that proves it through the fake.
@@ -101,7 +101,7 @@ note (`policy.human_owned: destructive_migration`).
 | fixed prompts and replies | `prompt` | `prompts.ts` + test |
 | one reasoning step or guard | `node` / `guardrail` | `nodes/<node>.ts` (and `src/guardrails/…`) + test |
 | the flow | `graph` (up to 10 files) | `graph.ts`, the state or node it needs, `tests/unit/agents/<name>.test.ts` |
-| service wiring | `graph` (or `model` / `memory` when only those change) | `src/services/<name>.service.ts`, `src/container.ts` |
+| service wiring | `graph` (or `model` / `memory` when only those change) | `src/domains/<name>/`, `src/composition/index.ts` |
 | streaming and run observability | `streaming` | the SSE route and callbacks; HTTP routes and schemas follow the backend layering |
 | retrieval | `rag` (up to 8 files) | `src/rag/…` + test |
 | golden set | `eval` | `evals/golden/<agent>.json`, `evals/<agent>.eval.ts` (test-exempt; may satisfy an AC) |

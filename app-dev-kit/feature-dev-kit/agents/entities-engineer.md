@@ -37,7 +37,7 @@ Read the fixed contract first, then your card (see `context-budget.md` § Per-wo
 For each entity slice, build:
 - `api/endpoints.ts` — path strings from the card's API contract.
 - `api/schema.ts` — one zod schema per server entity. The wire type is `z.infer`. `api/fetchers.ts` calls `httpClient`, then `parseEntity` (`frontend-dev-kit:api-client`). The rename mapper stays in `api/`. Domain types stay in `model/types.ts`.
-- `api/useProfile.ts` (one file per hook, camelCase) — via `frontend-dev-kit:react-query-hook`. Keys live in `shared/api/query-keys/`.
+- `api/hooks.ts` — every query and mutation hook for this entity, via `frontend-dev-kit:react-query-hook`. Once that file outgrows one file it becomes `api/hooks/` with `index.ts`. Do not add `api/useProfile.ts` per hook. Keys live in `shared/api/query-keys/`.
 - No `api/index.ts` — the slice's public surface is its root `index.ts`.
 
 Every hook must return typed data or `null`. Never leak `any` or unchecked assertions. HTTP failures are `AppError`. An invalid body is `null` from `parseEntity`, not another error type.

@@ -1,8 +1,8 @@
 # Resilience library — reference
 
-Verbatim from `backend-boilerplate/`.
+Reference copy for this kit.
 
-## `src/lib/resilience.ts` — `withTimeout`, `retry`, `createCircuitBreaker`
+## `src/core/resilience.ts` — `withTimeout`, `retry`, `createCircuitBreaker`
 
 ```ts
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -137,7 +137,7 @@ export function createCircuitBreaker(options: CircuitBreakerOptions): CircuitBre
 }
 ```
 
-## `src/lib/http-client.ts` — `createResilientHttpClient`
+## `src/infra/http/client.ts` — `createResilientHttpClient`
 
 ```ts
 import { createCircuitBreaker, retry, type CircuitBreaker } from './resilience.js';
@@ -199,7 +199,7 @@ export function createResilientHttpClient(options: ResilientHttpClientOptions) {
 export type ResilientHttpClient = ReturnType<typeof createResilientHttpClient>;
 ```
 
-## `src/lib/health.ts` — `createHealthRegistry`
+## `src/core/health.ts` — `createHealthRegistry`
 
 ```ts
 import { withTimeout } from './resilience.js';
@@ -257,12 +257,12 @@ export function createHealthRegistry(checks: HealthCheck[]) {
 export type HealthRegistry = ReturnType<typeof createHealthRegistry>;
 ```
 
-## `src/controllers/health.controller.ts`
+## `src/api/http/v1/health/health.controller.ts`
 
 ```ts
 import type { RequestHandler } from 'express';
-import type { HealthRegistry } from '../lib/health.js';
-import type { Lifecycle } from '../lib/lifecycle.js';
+import type { HealthRegistry } from '../../../../core/health.js';
+import type { Lifecycle } from '../../../../core/lifecycle.js';
 
 export function createHealthController(health: HealthRegistry, lifecycle: Lifecycle) {
   /** Liveness: the process can serve HTTP. Never checks dependencies (that would restart healthy pods). */
@@ -286,11 +286,11 @@ export function createHealthController(health: HealthRegistry, lifecycle: Lifecy
 export type HealthController = ReturnType<typeof createHealthController>;
 ```
 
-## `src/routes/health.routes.ts`
+## `src/api/http/v1/health/health.routes.ts`
 
 ```ts
 import { Router } from 'express';
-import type { HealthController } from '../controllers/health.controller.js';
+import type { HealthController } from '../../../../api/http/v1/health/health.controller.js';
 
 export function createHealthRouter(controller: HealthController): Router {
   const router = Router();
@@ -300,7 +300,7 @@ export function createHealthRouter(controller: HealthController): Router {
 }
 ```
 
-## `src/lib/lifecycle.ts`
+## `src/core/lifecycle.ts`
 
 ```ts
 /** Shared shutdown flag: readiness turns 503 as soon as shutdown starts, before connections close. */
@@ -317,7 +317,7 @@ export function createLifecycle() {
 export type Lifecycle = ReturnType<typeof createLifecycle>;
 ```
 
-## `src/lib/shutdown.ts` — `registerGracefulShutdown`
+## `src/core/shutdown.ts` — `registerGracefulShutdown`
 
 ```ts
 import type { Server } from 'node:http';
@@ -405,11 +405,11 @@ export function registerGracefulShutdown(
 }
 ```
 
-## `src/middleware/timeout.ts` — `requestTimeout`
+## `src/api/http/middlewares/timeout.ts` — `requestTimeout`
 
 ```ts
 import type { RequestHandler } from 'express';
-import { ServiceUnavailableError } from '../lib/errors.js';
+import { ServiceUnavailableError } from '../../../core/errors/app-error.js';
 
 /**
  * Answers 503 when a handler runs longer than `ms`, so clients and proxies are not left
@@ -450,7 +450,7 @@ import {
   createCircuitBreaker,
   retry,
   withTimeout,
-} from '../../../src/lib/resilience.js';
+} from '../../../src/core/resilience.js';
 
 describe('withTimeout', () => {
   it('resolves when the operation finishes in time', async () => {

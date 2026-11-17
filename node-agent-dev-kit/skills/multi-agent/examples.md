@@ -1,6 +1,6 @@
 # Multi-agent examples
 
-Not in `agent-boilerplate`. Each example was typechecked against `@langchain/langgraph` 1.6 / `@langchain/core` 1.3 and run with `RunnableLambda` or `scriptedModel` stand-ins.
+An extension this tree does not implement. Each example was typechecked against `@langchain/langgraph` 1.6 / `@langchain/core` 1.3 and run with `RunnableLambda` or `scriptedModel` stand-ins.
 
 ## Example 1: supervisor with `Command` routing and a subgraph specialist
 

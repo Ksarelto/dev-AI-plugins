@@ -1,6 +1,6 @@
 # Model examples
 
-Examples 1, 2, 4 and 5 are from `agent-boilerplate`. Example 3 (a role map) is an extension, typechecked against `@langchain/openai` 1.8 and `@langchain/core` 1.3.
+Examples 1, 2, 4 and 5 are in this kit. Example 3 (a role map) is an extension, typechecked against `@langchain/openai` 1.8 and `@langchain/core` 1.3.
 
 ## Example 1: `llm/models.ts`
 
@@ -128,7 +128,7 @@ const verdict = JSON.parse(text.match(/\{.*\}/s)![0]);
 ## Example 5: binding, fallback, breaker, 503
 
 ```ts
-// container.ts
+// composition/index.ts
 function bindModel(
   env: Env,
   tools: Parameters<NonNullable<BaseChatModel['bindTools']>>[0],
@@ -161,7 +161,7 @@ function toServiceError(error: unknown, signal: AbortSignal | undefined): unknow
 ```
 
 ```ts
-// container.ts — readiness: optional dependency, degraded when missing or tripped
+// composition/index.ts — readiness: optional dependency, degraded when missing or tripped
 {
   name: 'llm',
   critical: false,

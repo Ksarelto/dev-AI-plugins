@@ -1,12 +1,13 @@
 # dependency-cruiser — reference
 
-Verbatim `.dependency-cruiser.cjs` from `backend-boilerplate/`. `npm run lint` runs
+Reference `.dependency-cruiser.cjs` for this kit. `npm run lint` runs
 `eslint . && depcruise src --config .dependency-cruiser.cjs`; any `error` severity fails it.
 
 ```js
 /**
- * Layer rules: routes → controllers → services → repositories → db.
- * lib/ and config/ are leaves that any layer may use; they import no layer.
+ * Layer rules for the domain / query / composition / transport split.
+ * A domain repository (and the module that constructs it) may import infra/db.
+ * infra/security and infra/db/schema may import shared/permissions for the role enum and JWT claims.
  * @type {import('dependency-cruiser').IConfiguration}
  */
 module.exports = {
@@ -18,39 +19,105 @@ module.exports = {
       to: { circular: true },
     },
     {
-      name: 'routes-only-wire',
+      name: 'domain-does-not-import-transport-or-composition',
+      comment: 'A domain is a leaf. It does not know HTTP, queries, or wiring.',
+      severity: 'error',
+      from: { path: '^src/domains/' },
+      to: { path: '^src/(api|composition|queries)/' },
+    },
+    {
+      name: 'no-cross-domain',
+      comment: 'domains/x imports only itself. Two domains meet in composition/adapters.',
+      severity: 'error',
+      from: { path: '^src/domains/([^/]+)/' },
+      to: { path: '^src/domains/', pathNot: '^src/domains/$1/' },
+    },
+    {
+      name: 'domain-infra-only-from-repository-and-module',
+      comment: 'Only the repository and the module that builds it may see the database.',
+      severity: 'error',
+      from: { path: '^src/domains/', pathNot: '\\.(repository|module)\\.ts$' },
+      to: { path: '^src/infra/' },
+    },
+    {
+      name: 'domain-repository-only-db',
+      severity: 'error',
+      from: { path: '^src/domains/.*\\.(repository|module)\\.ts$' },
+      to: { path: '^src/infra/(?!db/)' },
+    },
+    {
+      name: 'transport-no-infra-or-domain-internals',
       comment:
-        'Routes wire middleware to controllers; they never call services, repositories or the db.',
+        'HTTP maps DTOs and calls prebound scenarios. It does not touch the database or a repository.',
       severity: 'error',
-      from: { path: '^src/routes/' },
-      to: { path: '^src/(services|repositories|db)/' },
+      from: { path: '^src/api/' },
+      to: { path: '^src/(infra|domains)/' },
     },
     {
-      name: 'controllers-no-data-access',
-      comment: 'Controllers map HTTP to service calls; data access goes through a service.',
+      name: 'queries-are-a-read-path',
+      comment: 'Queries read infra/db and return flat DTOs. They do not call domains or HTTP.',
       severity: 'error',
-      from: { path: '^src/controllers/' },
-      to: { path: '^src/(repositories|db|routes)/' },
+      from: { path: '^src/queries/' },
+      to: { path: '^src/(domains|api|composition)/' },
     },
     {
-      name: 'services-no-http',
-      comment: 'Services hold business rules and stay HTTP-agnostic.',
+      name: 'queries-infra-only-db',
       severity: 'error',
-      from: { path: '^src/services/' },
-      to: { path: '^(src/(routes|controllers|middleware)/|node_modules/express/)' },
+      from: { path: '^src/queries/' },
+      to: { path: '^src/infra/(?!db/)' },
     },
     {
-      name: 'repositories-are-leaves',
-      comment: 'Repositories only talk to the db layer.',
+      name: 'no-deep-domain-imports',
+      comment: 'Outside a domain, import its index.ts only.',
       severity: 'error',
-      from: { path: '^src/repositories/' },
-      to: { path: '^src/(routes|controllers|services|middleware)/' },
+      from: { path: '^src/(api|composition|queries)/' },
+      to: { path: '^src/domains/', pathNot: '/index\\.ts$' },
     },
     {
-      name: 'lib-is-a-leaf',
+      name: 'composition-no-http',
       severity: 'error',
-      from: { path: '^src/(lib|config)/' },
-      to: { path: '^src/(routes|controllers|services|repositories|middleware|db)/' },
+      from: { path: '^src/composition/' },
+      to: { path: '^src/api/|node_modules/express/' },
+    },
+    {
+      name: 'infra-does-not-import-the-app',
+      severity: 'error',
+      from: { path: '^src/infra/' },
+      to: { path: '^src/(api|domains|composition|queries)/' },
+    },
+    {
+      name: 'infra-shared-only-permissions',
+      comment: 'The role enum and JWT claims are the shared permission set.',
+      severity: 'error',
+      from: { path: '^src/infra/' },
+      to: { path: '^src/shared/', pathNot: '^src/shared/permissions/' },
+    },
+    {
+      name: 'core-imports-only-core',
+      comment:
+        'Core is technical primitives. It does not know the app, the domains, or the database.',
+      severity: 'error',
+      from: { path: '^src/core/' },
+      to: { path: '^src/(api|domains|composition|queries|infra|shared|config)/' },
+    },
+    {
+      name: 'shared-imports-only-core',
+      severity: 'error',
+      from: { path: '^src/shared/' },
+      to: { path: '^src/(api|domains|composition|queries|infra|config)/' },
+    },
+    {
+      name: 'config-is-a-leaf',
+      severity: 'error',
+      from: { path: '^src/config/' },
+      to: { path: '^src/(api|domains|composition|queries|infra|core|shared)/' },
+    },
+    {
+      name: 'app-shell-no-domains-or-queries',
+      comment: 'app.ts wires HTTP. main.ts is the process entry and may open the pool.',
+      severity: 'error',
+      from: { path: '^src/app\\.ts$' },
+      to: { path: '^src/(domains|infra|queries)/' },
     },
   ],
   options: {
@@ -60,51 +127,8 @@ module.exports = {
     enhancedResolveOptions: {
       exportsFields: ['exports'],
       conditionNames: ['import', 'require', 'node', 'default', 'types'],
-      extensions: ['.ts', '.js'],
+      extensions: ['.ts', '.js', '.d.ts'],
     },
   },
 };
 ```
-
-## Running
-
-```bash
-npx depcruise src --config .dependency-cruiser.cjs                      # fails on violations
-npx depcruise src --config .dependency-cruiser.cjs --output-type err-long  # rule comments included
-npx depcruise src --include-only '^src' --output-type text | grep services # who imports what
-```
-
-If the project has no config, install `dependency-cruiser` as a dev dependency, copy the file above, add it
-to the `lint` script, and run it once to get the baseline. Do this only after the user confirms the finding
-"missing enforcement".
-
-## What the shipped config does not enforce
-
-These ARCHITECTURE.md invariants have no rule yet. Check them with the greps in
-[layers.md](layers.md#semantic-checks) and, when the user agrees, add rules like these:
-
-```js
-{
-  name: 'db-is-below-every-layer',
-  comment: 'db/ (client, schema, migrations, transaction runner) imports only lib/ and config/.',
-  severity: 'error',
-  from: { path: '^src/db/' },
-  to: { path: '^src/(routes|controllers|services|repositories|middleware|schemas)/' },
-},
-{
-  name: 'middleware-no-business',
-  comment: 'Middleware is cross-cutting HTTP; it never calls services, repositories or the db.',
-  severity: 'error',
-  from: { path: '^src/middleware/' },
-  to: { path: '^src/(routes|controllers|services|repositories|db)/' },
-},
-{
-  name: 'schemas-no-data-access',
-  comment: 'Schemas and DTO mappers may import service types, never repositories, db or HTTP layers.',
-  severity: 'error',
-  from: { path: '^src/schemas/' },
-  to: { path: '^src/(routes|controllers|repositories|db)/' },
-},
-```
-
-Run `npm run lint` after adding a rule; on the unmodified boilerplate all three pass.

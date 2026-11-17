@@ -1,6 +1,6 @@
 # Long-term memory with a LangGraph store
 
-Not implemented in `agent-boilerplate`. Checkpoints hold one thread; a store holds facts that every thread of a user can read. The APIs below were typechecked and run against `@langchain/langgraph` 1.6 (`InMemoryStore`, `BaseStore`, `getStore`, `compile({ store })`) and `@langchain/langgraph-checkpoint-postgres` 1.1 (`PostgresStore` from the `/store` subpath).
+An extension this tree does not implement. Checkpoints hold one thread; a store holds facts that every thread of a user can read. The APIs below were typechecked and run against `@langchain/langgraph` 1.6 (`InMemoryStore`, `BaseStore`, `getStore`, `compile({ store })`) and `@langchain/langgraph-checkpoint-postgres` 1.1 (`PostgresStore` from the `/store` subpath).
 
 ## When it is worth it
 
@@ -35,7 +35,7 @@ export function createMemoryStore(): BaseStore {
 }
 ```
 
-- Tables: call `await store.setup()` in `src/db/migrate.ts` next to `setupCheckpointer`, then `await store.stop()`.
+- Tables: call `await store.setup()` in `src/infra/db/migrate.ts` next to `setupCheckpointer`, then `await store.stop()`.
 - Shutdown: add `{ name: 'memory-store', close: () => store.stop() }` to the `resources` of `registerGracefulShutdown` in `src/index.ts`.
 - Without embeddings, build it without `index`: `search` then filters by namespace only.
 
@@ -88,7 +88,7 @@ Graph: `START → guard → recall → agent ⇄ tools`.
 Writes come from an explicit user action (a settings screen, "remember that…" confirmed by the user), through a service and an endpoint, not from a model tool that writes silently:
 
 ```ts
-// src/services/memory.service.ts
+// src/domains/memory/memory.service.ts
 import { randomUUID } from 'node:crypto';
 import type { BaseStore } from '@langchain/langgraph';
 

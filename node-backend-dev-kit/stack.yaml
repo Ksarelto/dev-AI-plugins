@@ -2,7 +2,7 @@
 # Commands name package scripts or binaries; the engine adds the project's package manager.
 # Placeholders: {files} = the task's test files, {report} = a JSON report path.
 name: node-backend-dev-kit
-reference_architecture: "Layered routes → controllers → services → repositories → db with a composition root, Zod at the edge, problem+json errors"
+reference_architecture: "Domains, queries, and an HTTP transport. Wiring in composition/, Zod at the edge, { data, meta } and { error } JSON"
 package_manager: npm
 node_version: ">=22.12"
 commands:
@@ -69,4 +69,4 @@ stage_skills:
   reviewer: node-backend-dev-kit:code-review
   tech-writer: node-backend-dev-kit:openapi-docs
 index_adapter: express-layered
-boilerplate: { repo: dev-AI-plugins, path: backend-boilerplate, ref: main }
+boilerplate: { repo: https://github.com/AtrsiomMDev/boilerplates, path: backend-boilerplate }

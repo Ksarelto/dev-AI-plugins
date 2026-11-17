@@ -5,8 +5,6 @@ description: Produce a cohesive, modern presentation design schema — WCAG AA p
 
 # SKILL: design-schema
 
-Distilled from `docs/pptx/layouts.md`. Full reasoning lives there.
-
 ## When to use
 
 Before any slide content exists, when the visual direction has to be **invented**. If the user

@@ -1,6 +1,6 @@
 # LangGraph agent examples
 
-Taken from `agent-boilerplate/src`. State is in the `graph-state-design` skill, tools in `agent-tools`, models in `llm-models`.
+Reference copy for this kit. State is in the `graph-state-design` skill, tools in `agent-tools`, models in `llm-models`.
 
 ## Example 1: `agents/assistant/graph.ts`
 
@@ -113,7 +113,7 @@ export function createGuardNode(options: { mode: 'block' | 'log'; logger: Logger
 }
 ```
 
-## Example 4: `container.ts` excerpt
+## Example 4: `composition/index.ts` excerpt
 
 ```ts
 /** Binds tools to the primary model and, when configured, to a fallback model on another provider. */
@@ -128,7 +128,7 @@ function bindModel(
   return fallback?.bindTools ? bound.withFallbacks([fallback.bindTools(tools)]) : bound;
 }
 
-// inside createContainer(env, logger, database, options)
+// inside createComposition(env, logger, database, options)
 const tools = createAssistantTools({ retriever, topK: env.RETRIEVAL_TOP_K, logger });
 const model =
   options.chatModel === null ? undefined : (options.chatModel ?? bindModel(env, tools));
@@ -144,7 +144,7 @@ const graph = model
       logger,
     })
   : undefined;
-const chat = createChatService({ graph, threads, maxIterations: env.AGENT_MAX_ITERATIONS });
+const chat = createConversations({ graph, threads, maxIterations: env.AGENT_MAX_ITERATIONS, clock: { now: () => new Date() } });
 ```
 
 ## Example 5: running the graph from `services/chat.service.ts`

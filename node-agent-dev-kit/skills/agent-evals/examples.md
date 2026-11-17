@@ -1,6 +1,6 @@
 # Agent test examples
 
-From `agent-boilerplate/tests`. The helpers are in [references/scripted-model.md](references/scripted-model.md); evals in [references/golden-evals.md](references/golden-evals.md).
+The helpers are in [references/scripted-model.md](references/scripted-model.md); evals in [references/golden-evals.md](references/golden-evals.md).
 
 ## Example 1: unit setup, real graph and service
 
@@ -34,7 +34,7 @@ function setup(
     guardrailMode: 'block',
     logger,
   });
-  const chat = createChatService({ graph, threads, maxIterations });
+  const chat = createConversations({ graph, threads, maxIterations, clock: { now: () => new Date() } });
   return { chat, threads };
 }
 ```

@@ -6,4 +6,4 @@ Inventory, globs, and stack: [README.md](README.md). Nine rules, all `alwaysAppl
 
 Cursor auto-attaches `rules/*.mdc`. Claude Code does not load `.mdc` files; [CLAUDE.md](CLAUDE.md) is the same rules as one digest, and every skill names the rules it depends on.
 
-Requires `node-backend-dev-kit` for the HTTP core (layering, validation, errors, auth, Drizzle, logging, resilience, Docker, HTTP tests). Reference implementation: `agent-boilerplate/`.
+Requires `node-backend-dev-kit` for the HTTP core (layering, validation, errors, auth, Drizzle, logging, resilience, Docker, HTTP tests). The file tree is `skills/scaffold-agent-service/references/tree.md`.

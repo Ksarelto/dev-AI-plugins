@@ -18,21 +18,21 @@ roles:
     pack: factory-role-frontend
     stack: frontend-dev-kit
     owns_paths: ["src/**", "e2e/**", "public/**"]
-    boilerplate: null          # per project, e.g. { repo: <git url>, ref: <branch|tag>, path: . }
+    boilerplate: null          # a frontend starter lands later at { repo: https://github.com/AtrsiomMDev/boilerplates, path: frontend-boilerplate }
   backend:
     enabled: false
     pack: factory-role-backend
     stack: node-backend-dev-kit
     path: apps/api               # its package folder: commands and gates run here
     owns_paths: ["apps/api/**"]
-    boilerplate: { repo: dev-AI-plugins, path: backend-boilerplate, ref: main }
+    boilerplate: { repo: https://github.com/AtrsiomMDev/boilerplates, path: backend-boilerplate }
   ai-agent:
     enabled: false
     pack: factory-role-ai-agent
     stack: node-agent-dev-kit
     path: apps/agents
     owns_paths: ["apps/agents/**"]
-    boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }
+    boilerplate: { repo: https://github.com/AtrsiomMDev/boilerplates, path: agent-boilerplate }
 
 shared_paths: {}
 

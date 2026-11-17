@@ -50,13 +50,13 @@ DTO mappers stay in the slice `api/dto.ts`, tested in `api/tests/`. Slice-wide h
 
 ## Instructions
 
-1. Determine the PascalCase export and kebab-case file stem (`CustomButton` / `custom-button`) and target path from the table above
+1. Search the repo for an existing implementation, constant, enum, or feature before adding one. Then determine the PascalCase export and kebab-case file stem (`CustomButton` / `custom-button`) and target path from the table above
 2. Read rules: `component-structure`, `react`, `styling`, `shadcn`, `i18n`, `testing`, `accessibility`. For FSD placement (`shared/ui` vs feature `ui/`), load `architecture-audit`.
 3. Create the component folder with the core files (`index.ts`, `{name}.tsx`, `styles.ts`), `{name}.stories.tsx`, **and** `tests/{name}.test.tsx` in the same change. A `lib/` helper's test goes in that same `tests/` folder. Add `types.ts` only for non-prop types. Domain types go in the slice model folder (`models/types.ts` or `model/types.ts`), not in the component folder. A nested component is `ui/{child}/`. A helper used only here is `lib/`.
 4. Every visible string is `t(key)` from the slice's `locales/` or `commonKeys` (`i18n` skill). Server data renders as-is.
 5. Handlers are named (`handleX`) and declared above the return; JSX only passes the reference.
 6. The component file holds props, the hooks that wire this view, named handlers, and JSX. A calculation that takes a few arguments and returns a value goes in `lib/`. A predicate, mapper, field list, or availability rule goes in `lib/` or `constants.ts`. No `let` in the component: a condition is a `const`, and JSX is `{cond && <Node />}`. No IIFE. A second visual region is `ui/{child}/`. Class strings stay in `styles.ts`. Do not store `t(...)` in a local. Destructure `isLoading`, `isFetching`, `isPending`, `isError`, and `error` from the query. Do not derive a second flag.
-7. Branches are computed before the return or written as early returns — no ternary in JSX, never a nested one. A branch that chooses a translation key stores the key (`submitKey`) and JSX calls `t(submitKey)`.
+7. No ternary in JSX, and no const that holds an element from a ternary. Show or hide with `{condition && <Node />}`. A conditional list is a function called as `{items && getTips()}`. Two element branches are a function with `if` / `return`, called as `{renderHeader()}`. A whole-screen swap may be an early `return`. A branch that chooses a translation key stores the key (`submitKey`) and JSX calls `t(submitKey)`.
 8. Closed-set props on primitives use their constants (`ButtonVariant.Outline`, `ButtonType.Submit`); omit a prop whose value is the default.
 9. Before finishing, scan the new file again for unexplained string and number literals (`rules/general-coding-principles.mdc`). A timeout, page size, status, z-index, or path that already has a name in `shared/api`, the slice `config/`, or this folder's `constants.ts` is a violation even once. A literal used once in an obvious spot (`length - 1`, `0`, `1`) can stay.
 10. When the component wraps or is created from an external library, confirm that library's animation is still the animation on the element (`shadcn-usage`). Do not add a second one.
@@ -178,7 +178,7 @@ Pick the state with early returns before the main `return` — never a ternary c
 - [ ] No business logic, data fetching, or TanStack Query calls inside a `shared/ui/` component
 - [ ] Every visible string is `t(key)`; no English literal, no string-map object
 - [ ] Named handlers only — no arrow or function expression in an `on*` prop
-- [ ] No ternary in JSX; no nested ternary anywhere
+- [ ] No ternary in JSX; no const that holds a conditional element; no nested ternary anywhere
 - [ ] Closed-set props use constants; defaults omitted
 - [ ] No comments
 - [ ] Interactive elements have accessible names, visible focus, and keyboard support

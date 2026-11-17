@@ -8,6 +8,7 @@ description: Write Storybook stories using CSF3 format with TypeScript. Every co
 ## When to use
 
 - Documenting any component folder (`{name}.stories.tsx` beside `{name}.tsx`)
+- Documenting a feature (`{feature}.stories.tsx` beside `features/{feature}/index.ts`, in the same change as the feature)
 - Building that component in isolation before wiring to the backend
 - Writing interaction tests via `play` functions
 - Verifying component variants across states (loading, empty, error, populated)
@@ -18,7 +19,7 @@ CSF3 (Component Story Format 3) with TypeScript `satisfies Meta<typeof Component
 
 ## Instructions
 
-1. Place `{name}.stories.tsx` beside `{name}.tsx` (`shared/ui/button/button.stories.tsx`, `features/orders/ui/order-list/order-list.stories.tsx`). Feature parts, entities, and widgets get the same file.
+1. Place `{name}.stories.tsx` beside `{name}.tsx` (`shared/ui/button/button.stories.tsx`, `features/orders/ui/order-list/order-list.stories.tsx`). Feature parts, entities, and widgets get the same file. A feature also gets `{feature}.stories.tsx` beside `features/{feature}/index.ts` in the same change. That root file does not replace the component-folder stories.
 2. Define `meta` with `satisfies Meta<typeof Component>`
 3. Create a `Default` story; add named stories per significant variant
 4. Cover all **four required data states** for data-fetching components: `Loading`, `Error`, `Empty`, `Populated`
@@ -127,6 +128,7 @@ export const SubmitForm: Story = {
 ## Checklist
 
 - [ ] `{name}.stories.tsx` sits beside `{name}.tsx` in every component folder, including feature parts, entities, and widgets
+- [ ] `{feature}.stories.tsx` sits beside `features/{feature}/index.ts` when the change adds or updates a feature
 - [ ] `meta` uses `satisfies Meta<typeof Component>`
 - [ ] All four data states covered (Loading, Error, Empty, Default/Populated) for data-fetching components
 - [ ] MSW handlers use the actual API paths from `api/endpoints.ts` (not hardcoded strings)

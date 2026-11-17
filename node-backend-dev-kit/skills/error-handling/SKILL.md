@@ -1,6 +1,6 @@
 ---
 name: error-handling
-description: Throw and map errors in an Express 5 API — AppError subclasses with stable codes, the central errorHandler, RFC 9457 problem+json responses, 404/409/422/500 mapping, unique violations to ConflictError, Retry-After on 503. Use when adding a domain error, changing error responses or fixing how failures reach the client.
+description: Throw and map errors in an Express 5 API — AppError subclasses with stable codes and no HTTP status, the error mapper, a JSON error envelope, 404/409/422/500 mapping, unique violations to a domain error, Retry-After on 503. Use when adding a domain error, changing error responses or fixing how failures reach the client.
 ---
 
 # Error handling
@@ -16,41 +16,41 @@ Hard constraints: `rules/error-handling.mdc`, `rules/api-design.mdc`. Code: [exa
 
 ## How an error travels
 
-1. A service (or middleware) throws an `AppError` subclass with a code: `throw new NotFoundError('Project not found.', 'PROJECT_NOT_FOUND')`.
+1. A scenario (or middleware) throws an `AppError` subclass with a code and no HTTP status: `throw new AccountNotFoundError()`.
 2. Express 5 forwards the thrown error or rejected promise from the handler — no `try/catch`, no `asyncHandler`.
-3. `errorHandler()` (registered last) calls `toProblem()`:
+3. `api/http/error-mapper.ts` (registered last) maps the code to a status:
 
 | Thrown | Response |
 |---|---|
-| `AppError` subclass | its `status`, `code`, `detail` = message (`ValidationError` adds `errors[]`) |
-| `ZodError` (a `.parse()` outside `validate()`) | 422 `VALIDATION_FAILED` with `errors[]` |
+| `AppError` subclass | status from the code table, body `{ error: { code, message, details, requestId } }` |
+| `ZodError` (a `.parse()` outside `validate()`) | 422 `VALIDATION_FAILED` with `details` |
 | body-parser error (4xx `status` + `type`) | 400 `MALFORMED_JSON`, 413 `PAYLOAD_TOO_LARGE`, … |
 | anything else | 500 `INTERNAL_ERROR`, `An unexpected error occurred.` |
 
-4. 5xx is logged with `req.log.error({ err })`; 4xx with `req.log.warn({ code, status })`. `ServiceUnavailableError.retryAfterSeconds` becomes `Retry-After`.
-5. The body is `application/problem+json`: `{ type, title, status, detail, code, instance, errors? }`.
+4. 5xx is logged with `req.log.error({ err })`; 4xx with `req.log.warn`. `UnavailableError.retryAfterSeconds` becomes `Retry-After`.
+5. The body is `application/json`. Clients branch on `error.code`. `error.requestId` matches `X-Request-Id`.
 
 ## Choosing the error
 
 | Situation | Throw |
 |---|---|
-| Malformed but schema-valid input (bad cursor) | `BadRequestError(msg, 'INVALID_CURSOR')` |
-| No/invalid credentials or token | `UnauthorizedError(msg, 'INVALID_TOKEN')` |
-| Authenticated but lacks a role | `ForbiddenError()` (via `requireRole`) |
-| Row missing **or** not visible to the caller | `NotFoundError(msg, '<ENTITY>_NOT_FOUND')` |
-| Unique constraint, state conflict | `ConflictError(msg, '<WHAT>_TAKEN' / '<WHAT>_CONFLICT')` |
-| Business rule on otherwise valid input | `ValidationError([{ path: 'body.startsAt', message, code: 'custom' }])` |
-| Dependency down, breaker open, deadline hit | `ServiceUnavailableError(msg, code, retryAfterSeconds)` |
+| Malformed but schema-valid input (bad cursor) | `InvalidCursorError` (`INVALID_CURSOR` → 400) |
+| No/invalid credentials or token | `MissingTokenError`, `InvalidAccessTokenError`, or the domain's credential error |
+| Authenticated but lacks a role | `ForbiddenError` (via `requireRole`) |
+| Row missing **or** not visible to the caller | a domain not-found error (`<ENTITY>_NOT_FOUND` → 404) |
+| Unique constraint, state conflict | a domain error (`EMAIL_TAKEN` → 409), thrown in the repository |
+| Business rule on otherwise valid input | `ValidationError` with `details` (422) |
+| Dependency down, breaker open, deadline hit | `UnavailableError(code, message, retryAfterSeconds)` |
 | Bug / impossible state | plain `Error` — becomes an opaque 500 and is logged |
 
 ## Procedure
 
-1. Pick the subclass from the table. Add a new class to `src/lib/errors.ts` only for a status none of them has.
-2. Name the code `UPPER_SNAKE_CASE`, specific to the cause (`PROJECT_NAME_TAKEN`, not `CONFLICT`). Never reuse or rename a published code.
-3. Throw it from the service. Keep `{ cause }` when wrapping a lower-level error.
-4. Map driver errors at the service boundary: wrap the write in `try/catch`, `isUniqueViolation(error)` → `ConflictError`, rethrow anything else.
-5. Add the status to the route's OpenAPI `responses` with `problem('…')` (`openapi-docs` skill).
-6. Test it: service unit test `rejects.toMatchObject({ code })` and an integration test asserting `status`, `content-type` `application/problem+json` and `body.code`.
+1. Pick the class from the table. A domain-specific failure lives in that domain's `*.errors.ts`. Shared transport failures live in `src/core/errors/app-error.ts`.
+2. Name the code `UPPER_SNAKE_CASE`, specific to the cause (`EMAIL_TAKEN`, not `CONFLICT`). Never reuse or rename a published code. Add the code to the mapper's status table.
+3. Throw it from the scenario. Keep `{ cause }` when wrapping a lower-level error.
+4. Map driver errors in the repository: `isUniqueViolation(error)` → the domain error, rethrow anything else.
+5. Document the error body on the route's OpenAPI `responses` (`openapi-docs` skill).
+6. Test it: a scenario unit test `rejects.toMatchObject({ code })` and an integration test asserting `status`, `content-type` `application/json` and `body.error.code`.
 
 ## Checklist
 

@@ -1,9 +1,8 @@
 # Resilience — examples
 
-The outbound client and its test were verified on a copy of `backend-boilerplate/` (typecheck, ESLint,
-dependency-cruiser, Vitest). The library itself is verbatim in [references/library.md](references/library.md).
+The outbound client and its test were typechecked, linted, and run (dependency-cruiser, Vitest). The library itself is verbatim in [references/library.md](references/library.md).
 
-## An outbound dependency — `src/lib/geo-client.ts`
+## An outbound dependency — `src/infra/http/geo-client.ts`
 
 ```ts
 import { z } from 'zod';
@@ -51,7 +50,7 @@ export type GeoClient = ReturnType<typeof createGeoClient>;
 The client lives in `lib/` (a leaf: it imports only `lib/`), validates the upstream payload with Zod, and
 exposes its breaker for health and tests.
 
-## Wiring it — `src/container.ts`
+## Wiring it — `src/composition/`
 
 ```ts
 const geo = createGeoClient({ baseUrl: env.GEO_API_URL });
@@ -73,8 +72,8 @@ Add `GEO_API_URL: z.url()` to `envSchema` and `.env.example`. A dependency the A
 ## Degrading in the service
 
 ```ts
-import { ServiceUnavailableError } from '../lib/errors.js';
-import type { GeoClient, GeoLocation } from '../lib/geo-client.js';
+import { ServiceUnavailableError } from '../core/errors/app-error.js';
+import type { GeoClient, GeoLocation } from '../infra/http/geo-client.js';
 
 /** Country is nice to have: an unavailable geo service must not block sign-up. */
 async function locateOrNull(geo: GeoClient, ip: string): Promise<GeoLocation | null> {
@@ -96,8 +95,8 @@ client gets 503 `DEPENDENCY_UNAVAILABLE` with `Retry-After`. Exhausted retries s
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
-import { createGeoClient } from '../../../src/lib/geo-client.js';
-import { CircuitOpenError } from '../../../src/lib/resilience.js';
+import { createGeoClient } from '../../../src/infra/http/geo-client.js';
+import { CircuitOpenError } from '../../../src/core/resilience.js';
 
 const ok = () => Response.json({ country: 'PL', city: 'Gdansk' });
 
@@ -145,7 +144,7 @@ const response = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal
 `createResilientHttpClient(...).get(path)` takes no signal today; add an optional `signal` parameter
 combined with `AbortSignal.any` when a call must stop as soon as the client gives up.
 
-## Registering a resource for shutdown — `src/index.ts`
+## Registering a resource for shutdown — `src/main.ts`
 
 ```ts
 registerGracefulShutdown({
@@ -165,7 +164,7 @@ registerGracefulShutdown({
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { createHealthRegistry } from '../../../src/lib/health.js';
+import { createHealthRegistry } from '../../../src/core/health.js';
 
 const up = () => Promise.resolve();
 const down = () => Promise.reject(new Error('connection refused'));

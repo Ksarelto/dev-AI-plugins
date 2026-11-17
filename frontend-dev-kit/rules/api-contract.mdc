@@ -6,12 +6,12 @@ alwaysApply: false
 
 # API contract
 
-- A server entity is parsed once, with its zod schema in that slice's `api/schema.ts`. No handwritten field guards, `typeof` chains, or `models/` shape checks for the same entity.
+- A server entity is parsed once, with its zod schema in that slice's schema role: `api/schema.ts`, or a file under `api/schema/` once the role outgrows one file. No handwritten field guards, `typeof` chains, or `models/` shape checks for the same entity. Callers import `./schema`, not a leaf.
 - `safeParse` failure notifies (`notify.error` with `commonKeys.errors.invalidResponse`) and returns `null`. It does not throw. HTTP failures stay `AppError` from `shared/api/base.ts`. A bad payload is not a new `AppError` kind.
 - Callers branch on thrown error, `null`, or data. They do not re-inspect entity fields.
 - Form input rules live on `FormFieldConfig.rules` (`requiredRule` and the rest from `@/shared/ui/form`). They are not a `ui/<form>/schema.ts` and they are not the server-entity schema.
 - Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on an `httpClient` / `http` call. `shared/api/base.ts` already sets them. Do not read `API_BASE` outside `shared/api`.
 - Omit `staleTime` and query `retry` when `query-client.ts` already has that policy. A different policy is a named constant imported from `shared/api`, not a numeric literal in the hook.
-- Every `useQuery` and `useMutation` for one owning slice lives in that slice's `api/hooks.ts`. Do not add `api/useThing.ts` per hook.
+- Every `useQuery` and `useMutation` for one owning slice lives in that slice's hooks role: `api/hooks.ts`, or a file under `api/hooks/` once the role outgrows one file. `index.ts` re-exports the role. Do not add `api/useThing.ts` per hook. Callers import `./hooks`, not a leaf.
 
 Procedure: `api-client` skill. Hooks: `react-query-hook` skill.

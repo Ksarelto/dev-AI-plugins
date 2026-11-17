@@ -1,15 +1,15 @@
 # API testing — examples
 
-Verbatim from `backend-boilerplate/`. A full new-resource test pair is in the `express-resource` skill
+Reference copy for this kit. A full new-resource test pair is in the `express-resource` skill
 (`references/tests.md`); guard and error-handler tests are in the `auth-rbac` and `error-handling` skills.
 
 ## Service unit test with in-memory repositories — `tests/unit/services/auth.service.test.ts`
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ConflictError, UnauthorizedError } from '../../../src/lib/errors.js';
-import { createJwtService } from '../../../src/lib/jwt.js';
-import { createAuthService, type AuthService } from '../../../src/services/auth.service.js';
+import { ConflictError, UnauthorizedError } from '../../../src/core/errors/app-error.js';
+import { createJwtService } from '../../../src/infra/security/jwt.js';
+import { createAuthService, type AuthService } from '../../../src/domains/sessions/sessions.service.js';
 import { TEST_JWT_SECRET } from '../../helpers/env.js';
 import { createInMemoryRepositories } from '../../helpers/in-memory-repositories.js';
 
@@ -132,7 +132,7 @@ describe('auth flow', () => {
       .post('/api/v1/auth/refresh')
       .send({ refreshToken: registered.body.refreshToken })
       .expect(401);
-    expect(reused.body.code).toBe('REFRESH_TOKEN_REUSED');
+    expect(reused.body.error.code).toBe('REFRESH_TOKEN_REUSED');
 
     await request(app)
       .post('/api/v1/auth/refresh')
@@ -151,16 +151,16 @@ describe('auth flow', () => {
   it('answers a duplicate registration with 409 EMAIL_TAKEN', async () => {
     await request(app).post('/api/v1/auth/register').send(account).expect(201);
     const res = await request(app).post('/api/v1/auth/register').send(account).expect(409);
-    expect(res.body.code).toBe('EMAIL_TAKEN');
+    expect(res.body.error.code).toBe('EMAIL_TAKEN');
   });
 
-  it('answers invalid input with 422 problem+json listing every field', async () => {
+  it('answers invalid input with 422 JSON listing every field', async () => {
     const res = await request(app)
       .post('/api/v1/auth/register')
       .send({ email: 'not-an-email', password: 'short', unexpected: true })
       .expect(422);
-    expect(res.headers['content-type']).toContain('application/problem+json');
-    const paths = (res.body.errors as { path: string }[]).map((e) => e.path);
+    expect(res.headers['content-type']).toContain('application/json');
+    const paths = (res.body.error.details as { path: string }[]).map((e) => e.path);
     expect(paths).toEqual(
       expect.arrayContaining(['body.email', 'body.password', 'body.displayName']),
     );
@@ -203,7 +203,7 @@ describe('GET /api/v1/users (admin only)', () => {
       .get('/api/v1/users')
       .set('authorization', `Bearer ${token}`)
       .expect(403);
-    expect(res.body.code).toBe('FORBIDDEN');
+    expect(res.body.error.code).toBe('FORBIDDEN');
   });
 
   it('pages through every user with a keyset cursor', async () => {
@@ -283,7 +283,7 @@ describe('health endpoints', () => {
   it('serves the OpenAPI document when docs are enabled', async () => {
     const withDocs = createTestApp({ env: { API_DOCS_ENABLED: 'true' } });
     const res = await request(withDocs.app).get('/api-docs/openapi.json').expect(200);
-    expect(res.body.info.title).toBe('backend-boilerplate API');
+    expect(res.body.info.title).toBe('service API');
     await withDocs.close();
   });
 
@@ -300,8 +300,8 @@ describe('health endpoints', () => {
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { decodeCursor, encodeCursor } from '../../../src/lib/cursor.js';
-import { BadRequestError } from '../../../src/lib/errors.js';
+import { decodeCursor, encodeCursor } from '../../../src/shared/pagination/cursor.js';
+import { BadRequestError } from '../../../src/core/errors/app-error.js';
 
 describe('pagination cursor', () => {
   it('round-trips a keyset', () => {
@@ -322,7 +322,7 @@ describe('pagination cursor', () => {
 
 ```ts
 // Bad: mocks the query builder; passes even if the SQL is wrong
-vi.mock('../../../src/db/client.js');
+vi.mock('../../../src/infra/db/client.js');
 db.select.mockReturnValue({ from: () => ({ where: () => ({ limit: () => [row] }) }) });
 
 // Good (unit): the service against a fake that honours the repository contract
@@ -340,6 +340,6 @@ expect(res.body).toBeDefined();
 
 // Good: status, contract and absence of secrets
 expect(res.status).toBe(409);
-expect(res.body.code).toBe('EMAIL_TAKEN');
+expect(res.body.error.code).toBe('EMAIL_TAKEN');
 expect(registered.body.user).not.toHaveProperty('passwordHash');
 ```

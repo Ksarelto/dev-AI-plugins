@@ -1,6 +1,6 @@
 # API layer and query keys
 
-One HTTP client, one key registry. The owning slice — the entity, or the feature when no entity owns the call — keeps every `useQuery` and `useMutation` for that model in `api/hooks.ts`, next to `fetchers.ts`. Do not add `api/useThing.ts`. Feature `hooks/` calls that file and does not call `useQuery` or `useMutation`. `ui/` imports `hooks/`, never `api/`. Neither slice owns the gateway URL or key definitions.
+One HTTP client, one key registry. The owning slice — the entity, or the feature when no entity owns the call — keeps every `useQuery` and `useMutation` for that model in the hooks role: `api/hooks.ts`, or `api/hooks/` with `index.ts` once that file outgrows one file. The schema role is `api/schema.ts` or `api/schema/`. Do not add `api/useThing.ts`. Feature `hooks/` calls the hooks role and does not call `useQuery` or `useMutation`. `ui/` imports the feature `hooks/` segment, never `api/`. Neither slice owns the gateway URL or key definitions.
 
 ## Evaluate
 
@@ -9,12 +9,12 @@ One HTTP client, one key registry. The owning slice — the entity, or the featu
 - `shared/api/` layout: `config.ts`, `base.ts`, `query-client.ts`, `query-keys/*.ts`, `errors.ts` (`AppError` / `toAppError`), `parse.ts` (`parseEntity`), optional `realtime/`.
 - Only `shared/api/config.ts` reads `import.meta.env` for `VITE_API_BASE_URL`. Features use `API_BASE` via `base.ts`. Other env is `shared/config/env`.
 - Feature/entity `api/` imports `httpClient` from `@/shared/api/base`. No `fetch(`, no `ky`, no `axios` in those layers.
-- Each server entity has one zod schema in `api/schema.ts`. Fetchers call `parseEntity`. A failed parse notifies and returns `null`. A `.json<Dto>()` cast, a `typeof` chain, or a `models/` shape check of the same entity is hard.
+- Each server entity has one zod schema in the schema role (`api/schema.ts`, or a file under `api/schema/` once the role is a folder). Fetchers call `parseEntity`. A failed parse notifies and returns `null`. A `.json<Dto>()` cast, a `typeof` chain, or a `models/` shape check of the same entity is hard.
 - Feature and entity `httpClient` calls do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization`. A hook `staleTime` or `retry` that differs from `createQueryClient` is a named constant in `shared/api`, not a numeric literal.
 - `ky` client: `retry: 0` (Query owns retry); pass `signal` from the query into the request; no `.json()` on 204.
 - Versioned API: `httpClient.extend({ prefix: API_BASE.v2 })` — not a second `ky.create`.
 - Query keys: factories from `@/shared/api/query-keys/{domain}`. No inline `queryKey: [...]` outside `query-keys/`. One file per **business domain**. The filename is the owner — do not add an owner comment.
-- `useQuery` and `useMutation` for one model live only in that slice's `api/hooks.ts`. A per-hook file (`api/useOrderList.ts`) or a call in `features/*/hooks/`, `ui/`, or a page is hard.
+- `useQuery` and `useMutation` for one model live only in that slice's hooks role (`api/hooks.ts` or `api/hooks/**`). A per-hook file (`api/useOrderList.ts`) or a call in `features/*/hooks/`, `ui/`, or a page is hard. A leaf import of `api/hooks/<file>` from outside the role is hard.
 - Every feature/entity `api/` has `endpoints.ts` with a `base` property (the path relative to `API_BASE.v1`). Other keys reuse `base`. A repeated path string or an absolute URL in that file is hard. Hooks do not hand-type path strings. A feature map lists only paths **that feature** calls — no copy of another slice's map.
 - Cross-feature refresh: mutation imports the shared key factory only — not `@/features/other`.
 - Invalidate only keys the mutation's business action legitimately affects. No blanket `invalidateQueries()` with no key.
@@ -31,7 +31,7 @@ One HTTP client, one key registry. The owning slice — the entity, or the featu
 
 ```bash
 rg -n "from ['\"]ky['\"]|from ['\"]axios['\"]|\bfetch\(" src/{features,widgets,entities}
-rg -n "useQuery|useMutation" src --glob "!**/api/hooks.ts"
+rg -n "useQuery|useMutation" src --glob "!**/api/hooks.ts" --glob "!**/api/hooks/**"
 find src -path '*/api/use*.ts'
 rg -n "queryKey:\s*\[" src --glob "!**/query-keys/**"
 rg -n "import.meta.env" src --glob "!**/shared/config/**" --glob "!**/shared/api/config.ts"

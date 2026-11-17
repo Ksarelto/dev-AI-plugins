@@ -9,8 +9,8 @@ Do not require a named pattern the screen does not need (`design.md`).
 | Situation | Expected pattern | Deviation to flag |
 |---|---|---|
 | Stateful or effectful logic in a component | Custom hook in the slice `hooks/`, pure rules in `models/` | Logic inline in JSX/handlers; a hook that imports UI |
-| Server data | Every query and mutation hook in the owning slice's `api/hooks.ts`; `invalidateQueries` only inside that file; fetcher in `api/fetchers.ts`; keys from `shared/api/query-keys/`. Feature `hooks/` calls `api/hooks.ts` | `api/useThing.ts`; `useQuery` in `hooks/` or `ui/`; `invalidateQueries` outside `api/hooks.ts`; inline `['orders', id]`; server data copied to `useState` or a store |
-| API boundary | zod schema in `api/schema.ts` + DTO mapper (anti-corruption layer) in `api/` | DTO shape leaking into `ui/`; callers re-checking entity fields |
+| Server data | Every query and mutation hook in the owning slice's hooks role (`api/hooks.ts`, or `api/hooks/` once the file outgrows one file); `invalidateQueries` only inside that role; fetcher in the fetchers role (`api/fetchers.ts` or `api/fetchers/`); keys from `shared/api/query-keys/`. Feature `hooks/` calls the hooks role | `api/useThing.ts`; `useQuery` in feature `hooks/` or `ui/`; `invalidateQueries` outside the hooks role; a leaf import of `api/hooks/<file>` from outside the role; inline `['orders', id]`; server data copied to `useState` or a store |
+| API boundary | zod schema in the schema role (`api/schema.ts` or `api/schema/`) + DTO mapper (anti-corruption layer) in `api/` | DTO shape leaking into `ui/`; callers re-checking entity fields |
 | Variants of a look | `cva` variant in `styles.ts` (strategy by lookup) | Call-site `className` override; boolean props that toggle classes |
 | Many cases of one thing | Lookup map / fields array / `field.render` | `switch` or `if` chains repeated per render; second `switch` on the same union |
 | State with modes | Discriminated union (`status: 'idle' \| 'loading' \| 'error'`), early return per branch | Parallel booleans (`isLoading`, `isError`, `hasData`) that can disagree |

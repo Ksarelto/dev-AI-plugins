@@ -15,7 +15,9 @@ Distilled from `rules/react.mdc`, `rules/general-coding-principles.mdc`, `rules/
 ## JSX control flow
 
 - A nested ternary anywhere.
-- A ternary inside JSX (children or an attribute). Compute the value before `return`, use an early return, use `&&` with a boolean, or a lookup map.
+- A ternary inside JSX (children or an attribute). Show or hide with `{condition && <Node />}`. A conditional list is a function called as `{items && getTips()}`. Two element branches are a function in the component body with `if` / `return`, called as `{renderHeader()}`.
+- A const that holds an element from a ternary (`const hintControl = hint ? <InfoMark /> : null`, or `const getTips = (items ? items.map(...) : null)`).
+- `return undefined` or `= undefined` when the value means empty. Use `null`. `undefined` stays legal for an optional prop or param, or a third-party API that requires it.
 - `&&` with a non-boolean left side (`{items.length && …}`, `{label && …}` where `label` is a string).
 
 ## Handlers
@@ -56,6 +58,7 @@ A literal used once in an obvious spot stays: `array.length - 1`, `0`, and `1`. 
 ## Structure
 
 - A component folder missing `styles.ts`, `tests/{name}.test.tsx`, or `{name}.stories.tsx`. A test file beside `{name}.tsx` is the wrong place. A `lib/` helper with no test in that same `tests/` folder is missing.
+- A feature diff that touches `features/*/index.ts` with no sibling `{feature}.stories.tsx`. Component-folder stories do not replace that file.
 - A second authored component in the same `.tsx`, or a nested component that is not under `{component}/ui/{child}/`. The exception is a file that configures an external library's compound parts (a re-homed shadcn/Radix primitive: `Dialog`, `DialogTrigger`, `DialogContent`, …).
 - A helper or view mapper dropped next to `{name}.tsx`. It belongs in `{component}/lib/`. DTO mappers belong in the slice `api/`.
 - A props `interface` in `types.ts`. It is declared in the component file. `types.ts` holds other types only: component-local non-prop types, or domain types in the slice model folder (`models/types.ts`, `model/types.ts`).
@@ -64,4 +67,4 @@ A literal used once in an obvious spot stays: `array.length - 1`, `0`, and `1`. 
 
 ## Severity
 
-Missing error boundaries and hooks above a boundary are **Must fix** (a crash takes down the page). Comments, unnecessary exports, JSX ternaries, inline handlers, literal closed-set props, unexplained string or number literals, a literal that copies an existing constant, a second authored component in one file, a props interface living in `types.ts`, a block whose only statement is `return`, a multi-line arrow body without parentheses, a line over 160 characters, a block, multi-line `=> (` arrow, or parenthesized value missing a blank line before or after it, a value hung on the next line without parentheses, a `lib/` import of a fetcher, a class string outside `styles.ts`, and a local that stores `t(...)` are **Must fix** convention breaches in this kit — the user-facing standard is explicit about each. Report every instance with its file and line; do not collapse them into "several places".
+Missing error boundaries and hooks above a boundary are **Must fix** (a crash takes down the page). Comments, unnecessary exports, JSX ternaries, a const that holds a conditional element, `undefined` used as an empty value, inline handlers, literal closed-set props, unexplained string or number literals, a literal that copies an existing constant, a second authored component in one file, a props interface living in `types.ts`, a block whose only statement is `return`, a multi-line arrow body without parentheses, a line over 160 characters, a block, multi-line `=> (` arrow, or parenthesized value missing a blank line before or after it, a value hung on the next line without parentheses, a `lib/` import of a fetcher, a class string outside `styles.ts`, and a local that stores `t(...)`, and a feature `index.ts` with no sibling `{feature}.stories.tsx` are **Must fix** convention breaches in this kit — the user-facing standard is explicit about each. Report every instance with its file and line; do not collapse them into "several places".

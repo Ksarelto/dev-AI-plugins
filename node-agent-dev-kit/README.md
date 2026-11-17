@@ -6,7 +6,7 @@ It is a stack-knowledge kit: rules, skills and MCP servers. No agents, no comman
 
 ## Required companion: `node-backend-dev-kit`
 
-An agent service is an HTTP service first. Its HTTP core (config, Express layering, Zod validation, problem+json errors, JWT auth and RBAC, Drizzle, pino logging, resilience, Docker, Vitest + Testcontainers) is documented by **`node-backend-dev-kit`** and is not restated here. Install both. This kit's rules and skills defer to it by name, for example `node-backend-dev-kit:express-resource`, `node-backend-dev-kit:drizzle-database`, `node-backend-dev-kit:security-middleware`, `node-backend-dev-kit:api-testing`.
+An agent service is an HTTP service first. Its HTTP core (config, `api/http` → composition → domains, Zod validation, the `{ data, meta }` / `{ error }` envelope, JWT auth and RBAC, Drizzle, pino logging, resilience, Docker, Vitest + Testcontainers) is documented by **`node-backend-dev-kit`** and is not restated here. Install both. This kit's rules and skills defer to it by name, for example `node-backend-dev-kit:express-resource`, `node-backend-dev-kit:drizzle-database`, `node-backend-dev-kit:security-middleware`, `node-backend-dev-kit:api-testing`.
 
 ## Install
 
@@ -35,11 +35,11 @@ npm run install:cursor-local
 
 Then **Developer: Reload Window** and enable both kits under **Customize → Plugins**.
 
-## Reference implementation
+## Reference tree
 
-[`agent-boilerplate/`](../agent-boilerplate) is the runnable starter these conventions are taken from: typecheck, ESLint `strictTypeChecked`, dependency-cruiser layer rules, unit tests with scripted models, integration tests against pgvector and the real `PostgresSaver`, evals, and a Docker image. Every code example in this kit matches its APIs, names and paths, except where a skill marks an example as an extension that the boilerplate does not implement (human-in-the-loop, multi-agent, long-term store, model roles, filters, output guard). Those extensions were typechecked and, where possible, run against the boilerplate's installed `@langchain/*` packages.
+[skills/scaffold-agent-service/references/tree.md](skills/scaffold-agent-service/references/tree.md) lists every file. Code examples in this kit match that tree, except where a skill marks an example as an extension the tree does not implement (human-in-the-loop, multi-agent, long-term store, model roles, filters, output guard).
 
-`scaffold-agent-service` starts a new service from it.
+`scaffold-agent-service` starts a new service from that tree.
 
 ## Components
 
@@ -50,13 +50,13 @@ All rules use `alwaysApply: false` and attach only when a matching file is in co
 | Rule | When it attaches | Topic |
 |------|------------------|-------|
 | `stack` | `**/src/llm/**/*.ts`, `**/src/memory/**/*.ts`, `**/src/rag/**/*.ts`, `**/src/agents/**/graph.ts` | Which library owns which agent concern; LangGraph + LangChain only; OpenRouter; pgvector in the service's Postgres; `pg` pool shared with `PostgresSaver` |
-| `agent-architecture` | `**/src/agents/**/*.ts`, `**/src/rag/**/*.ts`, `**/src/memory/**/*.ts`, `**/src/guardrails/**/*.ts` | Agent layers beside the HTTP layers; graphs never see HTTP or SQL; models, retrievers and checkpointers injected from `container.ts` |
+| `agent-architecture` | `**/src/agents/**/*.ts`, `**/src/rag/**/*.ts`, `**/src/memory/**/*.ts`, `**/src/guardrails/**/*.ts`, `**/src/domains/**/*.ts` | Agent layers beside the HTTP layers; graphs never see HTTP or SQL; models, retrievers and checkpointers injected from `composition/index.ts` |
 | `langgraph-state` | `**/src/agents/**/state.ts`, `**/src/agents/**/graph.ts`, `**/src/agents/**/nodes/**/*.ts` | `Annotation.Root`, reducers and defaults, per-turn resets, node factories, `END` in conditional edges, checkpointer, step cap + `recursionLimit` |
 | `llm-calls` | `**/src/llm/**/*.ts`, `**/src/agents/**/nodes/**/*.ts` | Model factories, timeouts and retries, `withFallbacks`, circuit breaker, structured output, 503 mapping |
 | `tools` | `**/src/agents/**/tools/**/*.ts` | `tool()` with bounded Zod schemas, injected deps, timeouts, artifacts, read-only by default, `interrupt()` for writes |
-| `rag` | `**/src/rag/**/*.ts`, `**/src/repositories/knowledge*.ts`, `**/src/db/schema/knowledge*.ts` | Chunking, batched embeddings, transactional ingestion, one-query hybrid search with RRF, filters before ranking |
+| `rag` | `**/src/rag/**/*.ts`, `**/src/domains/knowledge/**/*.ts`, `**/src/queries/knowledge*.ts`, `**/src/infra/db/schema/knowledge*.ts` | Chunking, batched embeddings, transactional ingestion, one-query hybrid search with RRF, filters before ranking |
 | `prompt-security` | `**/src/guardrails/**/*.ts`, `**/src/agents/**/prompts.ts`, `**/src/agents/**/nodes/guard*.ts` | Input guard first, untrusted `<document>` wrapping, prompts in `prompts.ts`, `selectCitations`, no secrets in prompts |
-| `agent-observability` | `**/src/llm/usage-callback.ts`, `**/src/agents/**/nodes/**/*.ts`, `**/src/agents/**/tools/**/*.ts`, `**/src/controllers/threads*.ts` | Per-request usage handler, config forwarding, LangSmith via env only, no content in logs, optional readiness checks |
+| `agent-observability` | `**/src/llm/usage-callback.ts`, `**/src/agents/**/nodes/**/*.ts`, `**/src/agents/**/tools/**/*.ts`, `**/src/api/http/**/threads.controller.ts` | Per-request usage handler, config forwarding, LangSmith via env only, no content in logs, optional readiness checks |
 | `agent-testing` | `**/tests/**/agents/**/*.ts`, `**/tests/helpers/scripted-model.ts`, `**/tests/unit/guardrails/**/*.ts`, `**/tests/unit/rag/**/*.ts`, `**/evals/**/*.ts` | Offline unit tests with scripted models, integration with real `PostgresSaver`, golden evals with a pass-rate threshold |
 
 Claude Code does not load `.mdc` rules (`rules` in `plugin.json` is a Cursor mechanism). [`CLAUDE.md`](CLAUDE.md) carries the same rules as one digest; every skill also names the rules it depends on.
@@ -65,8 +65,8 @@ Claude Code does not load `.mdc` rules (`rules` in `plugin.json` is a Cursor mec
 
 | Skill | Use when |
 |-------|----------|
-| `scaffold-agent-service` | Starting a new agent service from `agent-boilerplate/`, or adding a second agent under `src/agents/<name>/` |
-| `langgraph-agent` | Building or changing a graph: guard → agent ⇄ tools, routing, container wiring, running it from `ChatService` |
+| `scaffold-agent-service` | Starting a new agent service from this kit's file tree, or adding a second agent under `src/agents/<name>/` |
+| `langgraph-agent` | Building or changing a graph: guard → agent ⇄ tools, routing, composition wiring, running it from `domains/conversations` |
 | `graph-state-design` | Adding state fields and reducers, per-turn resets, identity in `config.configurable`, trimming or summarizing long histories |
 | `agent-tools` | Writing or fixing a tool: Zod schema, description, timeouts, artifacts, registry, tests |
 | `llm-models` | Switching or adding models and fallbacks via OpenRouter, model roles, structured output, provider failures |

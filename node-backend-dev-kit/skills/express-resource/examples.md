@@ -3,12 +3,12 @@
 A `projects` resource owned by a user: `GET/POST /api/v1/projects`, `GET/PATCH/DELETE /api/v1/projects/:id`.
 Owners see their own projects, admins see all, anyone else gets 404. A name is unique per owner.
 
-This slice was applied to a copy of `backend-boilerplate` and verified: `tsc --noEmit`, ESLint
+This slice was the worked example in this file and verified: `tsc --noEmit`, ESLint
 strictTypeChecked, dependency-cruiser, 41 unit and 18 integration tests. Copy the shapes, rename the nouns.
 
-## 1. Table — `src/db/schema/projects.ts`
+## 1. Table — `src/infra/db/schema/projects.ts`
 
-Then append `export * from './projects.js';` to `src/db/schema/index.ts`.
+Then append `export * from './projects.js';` to `src/infra/db/schema/index.ts`.
 
 ```ts
 import { index, pgTable, text, timestamp, uniqueIndex, uuid, varchar } from 'drizzle-orm/pg-core';
@@ -60,12 +60,12 @@ CREATE UNIQUE INDEX "projects_owner_id_name_idx" ON "projects" USING btree ("own
 CREATE INDEX "projects_owner_id_created_at_id_idx" ON "projects" USING btree ("owner_id","created_at","id");
 ```
 
-## 3. Repository — `src/repositories/projects.repository.ts`
+## 3. Repository — `src/domains/projects/projects.repository.ts`
 
 ```ts
 import { and, desc, eq, lt, or } from 'drizzle-orm';
-import type { Database, DbExecutor } from '../db/client.js';
-import { projects, type NewProjectRow, type ProjectRow } from '../db/schema/index.js';
+import type { Database, DbExecutor } from '../../infra/db/client.js';
+import { projects, type NewProjectRow, type ProjectRow } from '../../infra/db/schema/index.js';
 
 export interface ProjectPageQuery {
   ownerId: string;
@@ -138,17 +138,17 @@ export function createProjectsRepository(db: Database) {
 export type ProjectsRepository = ReturnType<typeof createProjectsRepository>;
 ```
 
-## 4. Service — `src/services/projects.service.ts`
+## 4. Service — `src/domains/projects/projects.service.ts`
 
-`Page<T>` is exported by `users.service.ts` in the boilerplate. When a third resource paginates, move it to `src/lib/` (e.g. `lib/pagination.ts`) instead of importing it from a sibling service.
+`Page<T>` lives with the list query. When a third resource paginates, put the shared type in `src/shared/pagination/` instead of importing it from a sibling domain.
 
 ```ts
-import type { ProjectRow } from '../db/schema/index.js';
-import { isUniqueViolation } from '../db/errors.js';
-import { decodeCursor, encodeCursor } from '../lib/cursor.js';
-import { ConflictError, NotFoundError } from '../lib/errors.js';
-import type { Principal } from '../lib/jwt.js';
-import type { ProjectsRepository } from '../repositories/projects.repository.js';
+import type { ProjectRow } from '../../infra/db/schema/index.js';
+import { isUniqueViolation } from '../../infra/db/errors.js';
+import { decodeCursor, encodeCursor } from '../../shared/pagination/cursor.js';
+import { ConflictError, NotFoundError } from '../../core/errors/app-error.js';
+import type { Principal } from '../../infra/security/jwt.js';
+import type { ProjectsRepository } from '../../domains/projects/projects.repository.js';
 import type { Page } from './users.service.js';
 
 export interface Project {
@@ -263,9 +263,9 @@ export type ProjectsService = ReturnType<typeof createProjectsService>;
 
 ```ts
 import { z } from 'zod';
-import type { ValidationSchemas } from '../middleware/validate.js';
-import type { Project } from '../services/projects.service.js';
-import type { Page } from '../services/users.service.js';
+import type { ValidationSchemas } from '../api/http/middlewares/validate.js';
+import type { Project } from '../domains/projects/projects.service.js';
+import type { Page } from '../domains/users/users.service.js';
 import { uuidParamsSchema } from './common.schema.js';
 
 const name = z.string().trim().min(1).max(100);
@@ -331,12 +331,12 @@ export function toProjectPageResponse(
 }
 ```
 
-## 6. Controller — `src/controllers/projects.controller.ts`
+## 6. Controller — `src/api/http/v1/projects/projects.controller.ts`
 
 ```ts
 import type { RequestHandler } from 'express';
-import { requirePrincipal } from '../middleware/authenticate.js';
-import { validated } from '../middleware/validate.js';
+import { requirePrincipal } from '../../../../api/http/middlewares/authenticate.js';
+import { validated } from '../../../../api/http/middlewares/validate.js';
 import {
   createProjectRequest,
   listProjectsRequest,
@@ -345,7 +345,7 @@ import {
   toProjectResponse,
   updateProjectRequest,
 } from '../schemas/project.schema.js';
-import type { ProjectsService } from '../services/projects.service.js';
+import type { ProjectsService } from '../../../../domains/projects/projects.service.js';
 
 export function createProjectsController(projects: ProjectsService) {
   const list: RequestHandler = async (_req, res) => {
@@ -381,12 +381,12 @@ export function createProjectsController(projects: ProjectsService) {
 export type ProjectsController = ReturnType<typeof createProjectsController>;
 ```
 
-## 7. Router — `src/routes/projects.routes.ts`
+## 7. Router — `src/api/http/v1/projects/projects.routes.ts`
 
 ```ts
 import { Router, type RequestHandler } from 'express';
-import type { ProjectsController } from '../controllers/projects.controller.js';
-import { validate } from '../middleware/validate.js';
+import type { ProjectsController } from '../../../../api/http/v1/projects/projects.controller.js';
+import { validate } from '../../../../api/http/middlewares/validate.js';
 import {
   createProjectRequest,
   listProjectsRequest,
@@ -409,13 +409,13 @@ export function createProjectsRouter(
 }
 ```
 
-## 8. Mount — `src/routes/index.ts`
+## 8. Mount — `src/api/http/router.ts`
 
 ```ts
 import { Router, type RequestHandler } from 'express';
-import type { AuthController } from '../controllers/auth.controller.js';
-import type { ProjectsController } from '../controllers/projects.controller.js';
-import type { UsersController } from '../controllers/users.controller.js';
+import type { AuthController } from '../../api/http/v1/auth/auth.controller.js';
+import type { ProjectsController } from '../../api/http/v1/projects/projects.controller.js';
+import type { UsersController } from '../../api/http/v1/users/users.controller.js';
 import { createAuthRouter } from './auth.routes.js';
 import { createProjectsRouter } from './projects.routes.js';
 import { createUsersRouter } from './users.routes.js';
@@ -436,21 +436,19 @@ export function createApiRouter({ controllers, authenticate, authLimiter }: ApiR
 }
 ```
 
-## 9. Wire — `src/container.ts`
+## 9. Wire — `src/composition/wiring/projects.ts`
 
-Only these lines are new; the rest is the boilerplate container.
+Only these lines are new; the rest of `src/composition/index.ts` already builds auth, users and health.
 
 ```ts
-import { createProjectsController } from './controllers/projects.controller.js';
-import { createProjectsRepository } from './repositories/projects.repository.js';
-import { createProjectsService } from './services/projects.service.js';
+import { createProjectsController } from '../../api/http/v1/projects/projects.controller.js';
+import { createProjectsRepository } from '../../domains/projects/projects.repository.js';
+import { createProjectsService } from '../../domains/projects/projects.service.js';
 
-// inside createContainer(env, database, options), after usersService:
 const projectsService = createProjectsService({
-  projects: createProjectsRepository(database.db),
+  projects: createProjectsRepository(),
 });
 
-// in the returned object:
 controllers: {
   auth: createAuthController(authService),
   users: createUsersController(usersService),
@@ -459,8 +457,7 @@ controllers: {
 },
 ```
 
-When a service needs transactions, also pass `transaction: createTransactionRunner(database.db)`, as
-`createAuthService` does.
+The scenario opens `deps.tx.transaction()`. The repository reads `unitOfWork.current()` and takes no `tx`.
 
 ## 10. OpenAPI — inside `buildOpenApiDocument()` in `src/openapi/document.ts`
 
@@ -479,8 +476,8 @@ Import `uuidParamsSchema` from `../schemas/common.schema.js` and the project sch
         description: "The caller's projects, newest first",
         ...json(projectPageResponseSchema),
       },
-      401: problem('Not authenticated'),
-      422: problem('Validation failed'),
+      401: errorResponse('Not authenticated'),
+      422: errorResponse('Validation failed'),
     },
   });
   registry.registerPath({
@@ -491,9 +488,9 @@ Import `uuidParamsSchema` from `../schemas/common.schema.js` and the project sch
     request: { body: json(createProjectBodySchema) },
     responses: {
       201: { description: 'Project created', ...json(projectResponseSchema) },
-      401: problem('Not authenticated'),
-      409: problem('Name already used by this owner'),
-      422: problem('Validation failed'),
+      401: errorResponse('Not authenticated'),
+      409: errorResponse('Name already used by this owner'),
+      422: errorResponse('Validation failed'),
     },
   });
   registry.registerPath({
@@ -504,7 +501,7 @@ Import `uuidParamsSchema` from `../schemas/common.schema.js` and the project sch
     request: { params: uuidParamsSchema },
     responses: {
       200: { description: 'Project', ...json(projectResponseSchema) },
-      404: problem('Not found or not visible to the caller'),
+      404: errorResponse('Not found or not visible to the caller'),
     },
   });
   registry.registerPath({
@@ -515,9 +512,9 @@ Import `uuidParamsSchema` from `../schemas/common.schema.js` and the project sch
     request: { params: uuidParamsSchema, body: json(updateProjectBodySchema) },
     responses: {
       200: { description: 'Project updated', ...json(projectResponseSchema) },
-      404: problem('Not found or not visible to the caller'),
-      409: problem('Name already used by this owner'),
-      422: problem('Validation failed'),
+      404: errorResponse('Not found or not visible to the caller'),
+      409: errorResponse('Name already used by this owner'),
+      422: errorResponse('Validation failed'),
     },
   });
   registry.registerPath({
@@ -528,7 +525,7 @@ Import `uuidParamsSchema` from `../schemas/common.schema.js` and the project sch
     request: { params: uuidParamsSchema },
     responses: {
       204: { description: 'Project deleted' },
-      404: problem('Not found or not visible to the caller'),
+      404: errorResponse('Not found or not visible to the caller'),
     },
   });
 ```

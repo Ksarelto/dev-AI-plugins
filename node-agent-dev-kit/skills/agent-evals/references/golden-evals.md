@@ -1,6 +1,6 @@
 # Golden-set evals
 
-Real-model behaviour checks from `agent-boilerplate/evals`. They are slow, cost money, and are not deterministic, so they never run in `npm test`.
+Real-model behaviour checks in this kit. They are slow, cost money, and are not deterministic, so they never run in `npm test`.
 
 ## Vitest project
 
@@ -91,7 +91,7 @@ describe.skipIf(!hasKey)('assistant golden set', () => {
       logger,
     });
     const threads = createInMemoryThreads();
-    const chat = createChatService({ graph, threads, maxIterations: env.AGENT_MAX_ITERATIONS });
+    const chat = createConversations({ graph, threads, maxIterations: env.AGENT_MAX_ITERATIONS, clock: { now: () => new Date() } });
 
     const results: { id: string; pass: boolean; why: string }[] = [];
     for (const golden of cases) {
@@ -112,7 +112,7 @@ describe.skipIf(!hasKey)('assistant golden set', () => {
 
 `createGoldenRetriever(embeddings)` splits the golden documents with `createTextSplitter({ chunkSize: 400, chunkOverlap: 40 })`, embeds them once, and ranks by cosine in memory. Evals test the agent (prompt, tools, model), not Postgres; the hybrid SQL is covered by integration tests.
 
-The production path is used end to end: the real graph, guard, tools, `ChatService` and `selectCitations`. Only the retriever and the checkpointer are in memory.
+The production path is used end to end: the real graph, guard, tools, `createConversations` and `selectCitations`. Only the retriever and the checkpointer are in memory.
 
 ## Judge rules
 

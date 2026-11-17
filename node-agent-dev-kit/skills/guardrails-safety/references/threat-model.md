@@ -1,6 +1,6 @@
 # Agent threat model
 
-Threats specific to an LLM agent service, the defence in `agent-boilerplate`, and what to add when the agent grows. HTTP-level threats (token theft, CSRF, brute force) are covered by `node-backend-dev-kit`.
+Threats specific to an LLM agent service, the defence in this tree, and what to add when the agent grows. HTTP-level threats (token theft, CSRF, brute force) are covered by `node-backend-dev-kit`.
 
 | Threat | Example | Defence in the boilerplate | Add when |
 |---|---|---|---|

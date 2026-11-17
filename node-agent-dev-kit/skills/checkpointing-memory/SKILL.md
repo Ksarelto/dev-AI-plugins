@@ -28,7 +28,7 @@ The ownership row is checked first (`findOwned(id, userId)` → 404 for anyone e
 ## Procedure
 
 1. **Checkpointer factory** in `memory/checkpointer.ts`: `createPostgresCheckpointer(pool)` returns `new PostgresSaver(pool)` on the pool from `createDatabase` (one pool per process, closed on shutdown). `createMemoryCheckpointer()` returns `new MemorySaver()` for unit tests only.
-2. **Tables**: `setupCheckpointer(pool)` calls `.setup()`. It runs in `src/db/migrate.ts` after the Drizzle migrations and in the integration global setup, never per request or at server start.
+2. **Tables**: `setupCheckpointer(pool)` calls `.setup()`. It runs in `src/infra/db/migrate.ts` after the Drizzle migrations and in the integration global setup, never per request or at server start.
 3. **Compile** every graph with `{ checkpointer }` from deps. Every run passes `configurable: { thread_id }` where the id is a `threads.id` the caller owns.
 4. **Read history** with `graph.getState({ configurable: { thread_id } })` and map `snapshot.values.messages` to DTOs: user text from `HumanMessage`, answers from `AIMessage` with text; skip tool calls and `ToolMessage`s.
 5. **Debug a thread** with `graph.getStateHistory(config, { limit })`: each snapshot has `metadata.step`, `next`, `values`, `createdAt` and `tasks` (with pending `interrupts`). Use it in a script or test, never in a public endpoint.

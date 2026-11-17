@@ -19,7 +19,7 @@ description: Scaffold and implement a React feature slice following FSD with api
 - HTTP calls use `httpClient` from `shared/api/base.ts` — never raw `fetch` or `ky`/`axios` directly
 - Every component folder requires a `styles.ts` — no Tailwind classes inline in JSX, ever
 - `models/` = pure business logic + Zustand stores; `hooks/` = orchestration (sequences, await chains); `ui/` = React + JSX
-- `ui/` imports `hooks/`, never `api/` and never a fetcher. That hook calls the query or mutation in `api/hooks.ts`. A form's field rules call `models/` pure functions. `useQuery` and `useMutation` live in `api/hooks.ts`
+- `ui/` imports `hooks/`, never `api/` and never a fetcher. That hook calls the query or mutation in the hooks role (`api/hooks.ts`, or `api/hooks/` once the file outgrows one file). A form's field rules call `models/` pure functions. `useQuery` and `useMutation` live in the hooks role. Do not add `api/useThing.ts`
 - Start with `api/ + ui/ + index.ts`. When the UI reads server state, add `hooks/` — `ui/` cannot import `api/`. Add `models/` when there is real client state or business logic.
 
 ## Folder structure
@@ -52,12 +52,13 @@ features/{feature}/
 │   └── tests/            — integration tests for the hook sequence
 ├── config/
 │   └── permissions.ts    — permission id constants, analytics event names, feature constants
-└── index.ts              — sole public API: components + hooks + public types only
+├── index.ts              — sole public API: components + hooks + public types only
+└── {feature}.stories.tsx — Storybook for this feature, beside index.ts; write it in the same change
 ```
 
 ## Instructions
 
-1. **Plan scope** — identify entities, API endpoints, UI components, and routes needed
+1. **Search, then plan scope** — search the repo for an existing implementation, constant, enum, or feature. Then identify entities, API endpoints, UI components, and routes needed
 2. **Register query keys** — add (or extend) `shared/api/query-keys/{domain}.ts`:
    ```ts
    export const orderKeys = {
@@ -69,10 +70,11 @@ features/{feature}/
    ```
 3. **Create `api/`** — `endpoints.ts` (path map), `schema.ts` (zod; wire type is `z.infer`), `dto.ts` (domain type and rename mapper), `fetchers.ts` (`httpClient`, then `parseEntity`), `hooks.ts` (every query and mutation hook for this model)
 4. **Create `models/`** (only when needed) — Zustand stores, validation rules, state machines as pure functions
-5. **Add the query or mutation hook to `api/hooks.ts`** — that one file holds every `useQuery` and `useMutation` for this model. `hooks/use{Feature}.ts` calls it and is what `ui/` imports. It does not call `useQuery` or `useMutation`. Other slices import the hook from this slice's `index.ts`
+5. **Add the query or mutation hook to the hooks role** — `api/hooks.ts` holds every `useQuery` and `useMutation` for this model until that file outgrows one file, then `api/hooks/` with `index.ts`. `hooks/use{Feature}.ts` calls it and is what `ui/` imports. It does not call `useQuery` or `useMutation`. Other slices import the hook from this slice's `index.ts`
 6. **Build `ui/` components** — one folder per component; every folder has `styles.ts`
 7. **Wire the page** in `pages/{route}/` — thin composition, no business logic
 8. **Write `index.ts`** — export components, orchestration hooks, public types only
+9. **Write `{feature}.stories.tsx` beside `index.ts`** — same change as the feature. Component-folder `{name}.stories.tsx` files are still required. This root file is not optional and does not replace them
 
 ## Component folder (mandatory pattern)
 
@@ -142,17 +144,17 @@ export type { Order }      from './models/types';
 
 ## Checklist
 
-- [ ] Feature folder follows `features/{name}/api/ + ui/ + index.ts` minimum
+- [ ] Feature folder follows `features/{name}/api/ + ui/ + index.ts` minimum, and `{feature}.stories.tsx` sits beside `index.ts`
 - [ ] Query keys in `shared/api/query-keys/{domain}.ts` — no per-feature `queryKeys.ts`
 - [ ] `api/endpoints.ts` holds backend paths — no hand-typed URLs in hooks or components
 - [ ] `api/fetchers.ts` uses `httpClient` only — no `fetch()`, `ky`, or `axios`
-- [ ] Every `useQuery` and `useMutation` for this model is in `api/hooks.ts` — no `api/useThing.ts`
+- [ ] Every `useQuery` and `useMutation` for this model is in the hooks role (`api/hooks.ts`, or `api/hooks/` once the file outgrows one file) — no `api/useThing.ts`
 - [ ] Every component folder is kebab-case (`custom-button/custom-button.tsx`) with `styles.ts`, `{name}.stories.tsx`, and `tests/` holding every test for that folder — one component per file, nested components in `ui/`, helpers in `lib/`, props interface in the component file, no Tailwind classes inline in JSX
 - [ ] Second pass: no unexplained string or number literals, and no literal that copies a constant already in `shared/api`, slice `config/`, or `constants.ts`
 - [ ] A component created from an external library still uses that library's animation, and does not add its own
 - [ ] `models/` and `hooks/` segments are earned, not scaffolded empty
-- [ ] `useQuery` and `useMutation` are only called in `api/hooks.ts`. `ui/` imports `hooks/`, never `api/` and never a fetcher. A form's field rules may call `models/` pure functions
-- [ ] Forms use React Hook Form and `FormItem` (`rhf-form`). Server shape is `api/schema.ts` only. Input constraints are field `rules`. Business invariants are pure functions in `models/`
+- [ ] `useQuery` and `useMutation` are only called in the hooks role. `ui/` imports `hooks/`, never `api/` and never a fetcher. A form's field rules may call `models/` pure functions
+- [ ] Forms use React Hook Form and `FormItem` (`rhf-form`). Server shape is the schema role (`api/schema.ts`, or `api/schema/` once the file outgrows one file) only. Input constraints are field `rules`. Business invariants are pure functions in `models/`
 - [ ] Loading, error, empty, and partial/stale states all handled
 - [ ] `index.ts` exports only what consumers need — no stores, DTOs, or fetchers. A public type comes from `models/types`
 - [ ] Feature never imports another feature

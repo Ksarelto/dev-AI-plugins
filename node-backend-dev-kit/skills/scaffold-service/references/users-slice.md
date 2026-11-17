@@ -1,13 +1,13 @@
 # The `users` slice
 
-Verbatim from `backend-boilerplate/`. The reference slice every new resource copies (`express-resource` skill).
+Reference copy for this kit. The reference slice every new resource copies (`express-resource` skill).
 The auth half (register, login, refresh, logout) is in the `auth-rbac` skill.
 
-## `src/db/schema/users.ts`
+## `src/infra/db/schema/users.ts`
 
 ```ts
 import { index, pgEnum, pgTable, text, timestamp, uuid, varchar } from 'drizzle-orm/pg-core';
-import { ROLES } from '../../lib/jwt.js';
+import { ROLES } from '../../../infra/security/jwt.js';
 
 export const roleEnum = pgEnum('role', ROLES);
 
@@ -34,19 +34,19 @@ export type UserRow = typeof users.$inferSelect;
 export type NewUserRow = typeof users.$inferInsert;
 ```
 
-## `src/db/schema/index.ts`
+## `src/infra/db/schema/index.ts`
 
 ```ts
 export * from './users.js';
 export * from './refresh-tokens.js';
 ```
 
-## `src/repositories/users.repository.ts`
+## `src/domains/users/users.repository.ts`
 
 ```ts
 import { and, desc, eq, lt, or } from 'drizzle-orm';
-import type { Database, DbExecutor } from '../db/client.js';
-import { users, type NewUserRow, type UserRow } from '../db/schema/index.js';
+import type { Database, DbExecutor } from '../../infra/db/client.js';
+import { users, type NewUserRow, type UserRow } from '../../infra/db/schema/index.js';
 
 export interface UserPageQuery {
   limit: number;
@@ -95,14 +95,14 @@ export function createUsersRepository(db: Database) {
 export type UsersRepository = ReturnType<typeof createUsersRepository>;
 ```
 
-## `src/services/users.service.ts`
+## `src/domains/users/users.service.ts`
 
 ```ts
-import type { UserRow } from '../db/schema/index.js';
-import { decodeCursor, encodeCursor } from '../lib/cursor.js';
-import { NotFoundError } from '../lib/errors.js';
-import type { Role } from '../lib/jwt.js';
-import type { UsersRepository } from '../repositories/users.repository.js';
+import type { UserRow } from '../../infra/db/schema/index.js';
+import { decodeCursor, encodeCursor } from '../../shared/pagination/cursor.js';
+import { NotFoundError } from '../../core/errors/app-error.js';
+import type { Role } from '../../infra/security/jwt.js';
+import type { UsersRepository } from '../../domains/users/users.repository.js';
 
 /** The domain view of a user. The password hash never leaves the service layer. */
 export interface User {
@@ -162,8 +162,8 @@ export type UsersService = ReturnType<typeof createUsersService>;
 
 ```ts
 import { z } from 'zod';
-import type { ValidationSchemas } from '../middleware/validate.js';
-import type { Page, User } from '../services/users.service.js';
+import type { ValidationSchemas } from '../api/http/middlewares/validate.js';
+import type { Page, User } from '../domains/users/users.service.js';
 
 /** Response DTO. Dates are ISO strings on the wire. */
 export const userResponseSchema = z
@@ -228,14 +228,14 @@ export const problemSchema = z
 export const uuidParamsSchema = z.object({ id: z.uuid() }).strict();
 ```
 
-## `src/controllers/users.controller.ts`
+## `src/api/http/v1/users/users.controller.ts`
 
 ```ts
 import type { RequestHandler } from 'express';
-import { requirePrincipal } from '../middleware/authenticate.js';
-import { validated } from '../middleware/validate.js';
+import { requirePrincipal } from '../../../../api/http/middlewares/authenticate.js';
+import { validated } from '../../../../api/http/middlewares/validate.js';
 import { listUsersRequest, toUserPageResponse, toUserResponse } from '../schemas/user.schema.js';
-import type { UsersService } from '../services/users.service.js';
+import type { UsersService } from '../../../../domains/users/users.service.js';
 
 export function createUsersController(users: UsersService) {
   const me: RequestHandler = async (_req, res) => {
@@ -254,13 +254,13 @@ export function createUsersController(users: UsersService) {
 export type UsersController = ReturnType<typeof createUsersController>;
 ```
 
-## `src/routes/users.routes.ts`
+## `src/api/http/v1/users/users.routes.ts`
 
 ```ts
 import { Router, type RequestHandler } from 'express';
-import type { UsersController } from '../controllers/users.controller.js';
-import { requireRole } from '../middleware/authorize.js';
-import { validate } from '../middleware/validate.js';
+import type { UsersController } from '../../../../api/http/v1/users/users.controller.js';
+import { requireRole } from '../../../../api/http/middlewares/authorize.js';
+import { validate } from '../../../../api/http/middlewares/validate.js';
 import { listUsersRequest } from '../schemas/user.schema.js';
 
 export function createUsersRouter(
@@ -275,12 +275,12 @@ export function createUsersRouter(
 }
 ```
 
-## `src/routes/index.ts`
+## `src/api/http/router.ts`
 
 ```ts
 import { Router, type RequestHandler } from 'express';
-import type { AuthController } from '../controllers/auth.controller.js';
-import type { UsersController } from '../controllers/users.controller.js';
+import type { AuthController } from '../../api/http/v1/auth/auth.controller.js';
+import type { UsersController } from '../../api/http/v1/users/users.controller.js';
 import { createAuthRouter } from './auth.routes.js';
 import { createUsersRouter } from './users.routes.js';
 
