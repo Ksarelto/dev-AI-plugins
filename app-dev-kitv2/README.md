@@ -1,11 +1,11 @@
 # app-dev-kitv2 — the AI factory
 
-A hub-and-spoke SDLC pipeline for Claude Code and Cursor, built from the design in [`Suggestions/`](../Suggestions/README.md).
+A hub-and-spoke SDLC pipeline for Claude Code and Cursor.
 A thin Conductor in the main session dispatches single-purpose agents; they talk only through
 schema-checked files in `.factory/`, and **scripts, not models, decide pass/fail, retries and when to
 stop.**
 
-Status: **all five phases built** — engine, analysis, three roles, quality, delivery, GitHub adapter. Where the build differs from the design: [Suggestions/17](../Suggestions/17-as-built.md).
+Status: **all five phases built** — engine, analysis, three roles, quality, delivery, GitHub adapter. Deliberate differences from the original design are listed in [consistency-allowlist.yaml](consistency-allowlist.yaml).
 
 ## Plugins
 
@@ -331,8 +331,8 @@ cursor-agent 2026.10.22: `/factory:doctor`, `/factory:intake` and one `/factory:
 npm run test:factory     # Layer-1 control-plane tests (node:test, no model)
 npm run test:factory:e2e # mocked end-to-end scenarios: real engine, scripted agents (tests/scenarios);
                          # GT-04 runs S0–S9 on the real stack of tests/fixtures/fsd-app; GT-12 and the
-                         # role scenarios run on backend-boilerplate and agent-boilerplate copies
-npm run setup:factory-fixtures   # once: install the FSD fixture and both boilerplates (Node 22)
+                         # role scenarios need a starter named by the scenario's repos entry
+npm run setup:factory-fixtures   # once: install the FSD fixture (Node 22)
 npm run check:factory    # duplication, wiring, model-policy and drift check
 node factory/scripts/factory.mjs metrics --md --project <app>   # first-pass rates, escalations, red validity
 npm run build:factory    # regenerate the vendored deps bundle and pack hooks
@@ -353,4 +353,4 @@ node app-dev-kitv2/factory/scripts/factory.mjs help
 ```
 
 `tests/` is not a plugin and never ships. `consistency-allowlist.yaml` records what later phases will
-add and every deliberate deviation from `Suggestions/`.
+add and every deliberate deviation from the original design.

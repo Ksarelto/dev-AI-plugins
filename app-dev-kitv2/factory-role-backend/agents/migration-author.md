@@ -29,7 +29,7 @@ rollback ship together. You never approve your own destructive statement and nev
 2. Follow `migration-authoring`. Check the journal at `HEAD`: a migration already listed there is
    applied somewhere and is never edited — a change to it is a new migration (`needs_scope_change` if
    T0 says otherwise).
-3. Edit `src/db/schema/<table>.ts` (and its export in `schema/index.ts`) the additive way; match the
+3. Edit `src/infra/db/schema/<table>.ts` (and its export in `schema/index.ts`) the additive way; match the
    golden file's column, index and FK shapes.
 4. Generate with `npm run db:generate -- --name <snake_name>`. Confirm every generated file is in T0's
    list; a missing snapshot or journal path → `needs_scope_change` (its path in the envelope's `scope_files`).

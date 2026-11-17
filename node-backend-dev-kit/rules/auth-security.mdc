@@ -1,6 +1,6 @@
 ---
 description: Authentication, authorization and HTTP hardening — jose HS256 access tokens, rotating hashed refresh tokens, argon2id passwords, authenticate + requireRole guards, ownership checks in services, helmet, CORS allowlist, rate limits.
-globs: ["**/src/middleware/**/*.ts", "**/src/lib/jwt.ts", "**/src/lib/password.ts", "**/src/lib/tokens.ts", "**/src/services/auth*.ts", "**/src/routes/**/*.ts", "**/src/app.ts"]
+globs: ["**/src/api/http/middlewares/**/*.ts", "**/src/infra/security/**/*.ts", "**/src/domains/sessions/**/*.ts", "**/src/domains/users/**/*.ts", "**/src/api/http/v1/**/*.routes.ts", "**/src/app.ts"]
 alwaysApply: false
 ---
 

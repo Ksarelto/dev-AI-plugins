@@ -1,7 +1,7 @@
 {
   "name": "base-dev-kit",
   "displayName": "Base Dev Kit",
-  "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation — applicable to any language or stack.",
+  "description": "Honesty is always applied. Security attaches to every file. On-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation — applicable to any language or stack.",
   "version": "0.1.0",
   "author": {
     "name": "Artsiom Murashko"

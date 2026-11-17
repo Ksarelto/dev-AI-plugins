@@ -19,7 +19,7 @@ choose: [ai-decision-framework.md](references/ai-decision-framework.md). The doc
 | T0 | the file you may write (`03-architecture/agent-design.md`) and the exit check (`gate arch`) |
 | T1 "Stack knowledge for ai-agent" | `node-agent-dev-kit:langgraph-agent`, `graph-state-design`, `agent-tools`, `rag-pipeline`, `llm-models`, `human-in-the-loop`, `multi-agent`, plus the stack's rule files — load the skills as reference, keep this procedure |
 | T2 | PRD or delta-spec (ACs with `kind`, NFRs for latency, cost, security), `stories.yaml`, the component map and ADRs the solution-architect wrote, `api-contract.yaml`, the capability index |
-| the codebase | `src/agents/`, `src/llm/models.ts`, `src/rag/`, `src/container.ts`, `evals/golden/` — what exists to extend |
+| the codebase | `src/agents/`, `src/llm/models.ts`, `src/rag/`, `src/composition/index.ts`, `evals/golden/` — what exists to extend |
 
 Prefer extending the existing agent and graph. A new agent folder needs a reason in "Decision".
 
@@ -74,7 +74,7 @@ Self-check before running the gate:
 - [ ] Every write tool has an approval entry; every tool has bounds and a timeout
 - [ ] Eval plan has thresholds, ≥ 20 cases, cases with `expectedTools: []`, an injection case and an
       unknown-topic case
-- [ ] Folder tree and build order name real paths under `src/agents/<name>/`, `src/services/`,
+- [ ] Folder tree and build order name real paths under `src/agents/<name>/`, `src/domains/`,
       `evals/`, `tests/unit/`
 - [ ] No library outside `rules/stack.mdc`; no model slug as a constant
 

@@ -22,7 +22,7 @@ The HTTP core (Node 22, Express 5, Zod 4, pino, jose, Drizzle, Vitest, Docker) i
 
 - Agents are LangGraph + LangChain only. No `@openai/agents`, no direct `openai` SDK calls, no provider SDKs (`@anthropic-ai/sdk`, `@google/genai`), no LlamaIndex, no `langchain` umbrella chains or `AgentExecutor`.
 - Every model is reached through OpenRouter. Switching provider is a slug change in env (`MODEL_CHAT`, `MODEL_CHAT_FALLBACK`, `MODEL_EMBED`), never a new dependency.
-- No external vector database (Pinecone, Qdrant, Chroma) and no LangChain `VectorStore` wrapper. Vectors live in the service's own Postgres, behind a repository.
+- No external vector database (Pinecone, Qdrant, Chroma) and no LangChain `VectorStore` wrapper. Vectors live in the service's own Postgres. Writes go through `domains/knowledge`; hybrid search is a query.
 - This service uses `pg`, not `postgres.js`: `PostgresSaver` requires a `pg.Pool`. One pool per process, closed on shutdown.
 - `@langchain/*` packages are upgraded together in one change, followed by `npm test` and `npm run eval`.
 

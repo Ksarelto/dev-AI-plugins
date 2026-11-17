@@ -13,7 +13,7 @@ description: "Pause a LangGraph.js agent for human approval with interrupt() and
 
 Hard constraints: `rules/tools.mdc`, `rules/langgraph-state.mdc`, `rules/prompt-security.mdc`. Copy the shapes in [examples.md](examples.md).
 
-**Not implemented in `agent-boilerplate`** (all its tools are read-only). The flow below was typechecked and run against `@langchain/langgraph` 1.6 with the boilerplate's `buildAssistantGraph`, `MemorySaver` and `scriptedModel`: `interrupt`, `Command`, `isInterrupted`, `INTERRUPT`, `getState().tasks[].interrupts` and `getState().next` behave as described.
+**Not in this tree** (its tools are read-only). The flow below was typechecked and run against `@langchain/langgraph` 1.6 with `buildAssistantGraph`, `MemorySaver` and `scriptedModel`: `interrupt`, `Command`, `isInterrupted`, `INTERRUPT`, `getState().tasks[].interrupts` and `getState().next` behave as described.
 
 ## How it works
 

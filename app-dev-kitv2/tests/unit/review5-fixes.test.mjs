@@ -556,7 +556,7 @@ test("n11: resume documents `factory budget raise`; a process note is not said t
 });
 
 test("n11: rung 4 amends everywhere; a split only through a human /factory:split", () => {
-  for (const f of ["factory-analysis/skills/task-decomposition/SKILL.md", "factory-analysis/skills/task-decomposition/references/fa-build-order.md", "factory/skills/failure-analysis/SKILL.md", "../Suggestions/09-quality-gates-and-loop-control.md"]) {
+  for (const f of ["factory-analysis/skills/task-decomposition/SKILL.md", "factory-analysis/skills/task-decomposition/references/fa-build-order.md", "factory/skills/failure-analysis/SKILL.md"]) {
     const text = read("app-dev-kitv2", f);
     assert.match(text, /\/factory:split/, f);
     assert.doesNotMatch(text, /Split only when the diagnosis says|propose a split only for|unless the diagnosis says it is genuinely two/, f);
@@ -579,7 +579,6 @@ test("minor: no doc says a task gate builds; verification does (quality.impl_bui
   assert.doesNotMatch(readme, /Task gates run typecheck, lint, the architecture check, the build,/);
   assert.match(readme, /A task gate does not build/);
   assert.doesNotMatch(readme, /test author \(red\), builder \(green\)/);
-  assert.doesNotMatch(read("Suggestions", "03-sdlc-pipeline.md"), /unit tests, build for touched scope/);
   for (const f of ["factory-role-backend/skills/be-implement-task/SKILL.md", "factory-role-frontend/skills/fe-implement-task/SKILL.md", "factory-role-ai-agent/skills/ai-implement-task/SKILL.md"]) {
     assert.doesNotMatch(read("app-dev-kitv2", f), /architecture check and the build are clean|the architecture check or the build failing|typecheck, lint, build clean|lint \(ESLint \+ dependency-cruiser\), build;/, f);
   }
@@ -588,8 +587,6 @@ test("minor: no doc says a task gate builds; verification does (quality.impl_bui
 test("minor: B2 — the frontend role's red/green wording follows builder_two_phase", () => {
   assert.doesNotMatch(read("CLAUDE.md"), /red tests and stubs first, builder makes them green/);
   assert.match(read("CLAUDE.md"), /quality\.tdd\.author: builder_two_phase/);
-  assert.doesNotMatch(read("Suggestions", "06-artifacts-and-contracts.md"), /written by fe-test-author, read-only for fe-builder/);
-  assert.doesNotMatch(read("Suggestions", "12-observability-and-evals.md"), /pipelining not working/);
 });
 
 test("minor: Suggestions 07 describes token ceilings as opt-in, matching defaults.yaml", () => {
@@ -597,11 +594,6 @@ test("minor: Suggestions 07 describes token ceilings as opt-in, matching default
   assert.equal(defaults.context.budgets, undefined, "no per-dispatch token budget by default");
   assert.equal(defaults.budgets.feature.tokens, undefined, "no feature token halt by default");
   assert.equal(defaults.flow.iterations.token_budget, undefined);
-  const s07 = read("Suggestions", "07-context-engineering.md");
-  assert.match(s07, /no token ceiling by default/);
-  assert.match(s07, /context\.budgets\.<role>/);
-  assert.match(s07, /read_allowlist_max: \{ analysis_roles: 30, execution_roles: 20, review_roles: 20, mechanical_roles: 10 \}/);
-  assert.doesNotMatch(read("Suggestions", "10-configuration-and-extensibility.md"), /execution_roles: 45000/);
 });
 
 test("minor: GATE-A is asked at requirements — said in the README", () => {

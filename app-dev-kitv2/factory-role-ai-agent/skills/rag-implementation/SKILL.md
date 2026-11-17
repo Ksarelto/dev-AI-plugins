@@ -20,8 +20,8 @@ and its hybrid-search reference. Path split and checklist:
 3. `agent-design.md` "Retrieval": sources, ingestion entry point, chunk size, `RETRIEVAL_TOP_K`,
    filters, citation fields. Departures from the stack defaults must be written there; if they are
    not, use the defaults.
-4. Read the red tests and the code: `src/rag/`, `src/repositories/knowledge.repository.ts`,
-   `src/services/knowledge.service.ts`, `src/db/schema/knowledge.ts`, the `search_knowledge` tool.
+4. Read the red tests and the code: `src/rag/`, `src/domains/knowledge/`,
+   `src/queries/knowledge-search.query.ts`, `src/infra/db/schema/knowledge.ts`, the `search_knowledge` tool.
 5. Decide which path the task touches (ingest, retrieve, generate) — usually one.
 
 ## 2. Ingest path
@@ -34,7 +34,7 @@ and its hybrid-search reference. Path split and checklist:
 | replace | same `source` → delete the old document (chunks cascade) and insert, in one service call |
 | entry | admin-only route with a size-capped schema, or a script; never a tool or node |
 
-A missing embeddings provider is `undefined` in the container; the service answers 503
+A missing embeddings provider is `undefined` in composition; the service answers 503
 `EMBEDDINGS_NOT_CONFIGURED` instead of crashing.
 
 ## 3. Retrieve path

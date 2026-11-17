@@ -88,8 +88,8 @@ how to size a task: [fa-build-order.md](references/fa-build-order.md).
   satisfies: [AC-0001, AC-0002]
   contract_ops: [reorderOrder]
   slice: orders-reorder
-  files_expected: [apps/api/src/controllers/orders.controller.ts, apps/api/src/routes/orders.routes.ts, apps/api/src/container.ts, apps/api/tests/unit/routes/orders-reorder.routes.test.ts]
-  tdd: { mode: required, red_tests: [apps/api/tests/unit/routes/orders-reorder.routes.test.ts], stubs: ["OrdersController.reorder(req, res): Promise<void>"] }
+  files_expected: [apps/api/src/api/http/v1/orders/orders.controller.ts, apps/api/src/api/http/v1/orders/orders.routes.ts, apps/api/src/composition/wiring/orders.ts, apps/api/tests/unit/routes/orders-reorder.routes.test.ts]
+  tdd: { mode: required, red_tests: [apps/api/tests/unit/routes/orders-reorder.routes.test.ts], stubs: ["ordersController.reorder(res): Promise<void>"] }
   reuse: { considered: [orders.routes], reuse_rejected: null }
   definition_of_done: ["201 with added and skipped lines; 404 ORDER_NOT_FOUND for another customer's order"]
   size: { files: 4, est_loc: 140 }

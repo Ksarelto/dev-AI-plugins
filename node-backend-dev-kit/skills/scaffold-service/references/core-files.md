@@ -1,24 +1,24 @@
 # Core files
 
-Verbatim from `backend-boilerplate/`. These are the bootstrap and tooling files that no other skill owns.
-Rename `backend-boilerplate` per the table in `SKILL.md` after copying.
+Reference copy for this kit. These are the bootstrap and tooling files that no other skill owns.
+Rename the package name per the table in `SKILL.md` after copying.
 
 ## `package.json`
 
 ```json
 {
-  "name": "backend-boilerplate",
+  "name": "service",
   "version": "0.1.0",
   "private": true,
-  "description": "Layered Node.js + Express 5 + TypeScript API starter: Postgres (Drizzle), JWT + RBAC, pino, RFC 7807 errors, graceful degradation, Docker, Vitest + Testcontainers.",
+  "description": "Node.js 22 + Express 5 + TypeScript API starter: domains, queries, HTTP, Postgres (Drizzle), JWT + RBAC, pino, a JSON error envelope, graceful degradation, Docker, Vitest + Testcontainers.",
   "type": "module",
   "engines": {
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "docker compose up -d db && tsx watch src/index.ts",
+    "dev": "docker compose up -d db && tsx watch src/main.ts",
     "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/index.js",
+    "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && depcruise src --config .dependency-cruiser.cjs",
     "format": "prettier --write .",
@@ -30,8 +30,8 @@ Rename `backend-boilerplate` per the table in `SKILL.md` after copying.
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/db/migrate.ts",
-    "db:seed": "tsx src/db/seed.ts",
+    "db:migrate": "tsx src/infra/db/migrate.ts",
+    "db:seed": "tsx src/infra/db/seed.ts",
     "docker:up": "docker compose --profile app up --build -d",
     "docker:down": "docker compose --profile app down"
   },
@@ -192,8 +192,8 @@ DATABASE_POOL_MAX=10
 
 # At least 32 characters. Generate with: node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
 JWT_SECRET=dev-only-secret-change-me-0123456789abcdef
-JWT_ISSUER=backend-boilerplate
-JWT_AUDIENCE=backend-boilerplate-api
+JWT_ISSUER=service
+JWT_AUDIENCE=service-api
 ACCESS_TOKEN_TTL_SECONDS=900
 REFRESH_TOKEN_TTL_DAYS=30
 
@@ -236,8 +236,8 @@ const envSchema = z.object({
   DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
 
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  JWT_ISSUER: z.string().min(1).default('backend-boilerplate'),
-  JWT_AUDIENCE: z.string().min(1).default('backend-boilerplate-api'),
+  JWT_ISSUER: z.string().min(1).default('service'),
+  JWT_AUDIENCE: z.string().min(1).default('service-api'),
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
@@ -292,15 +292,15 @@ export function loadEnv(): Env {
 }
 ```
 
-## `src/index.ts` — bootstrap
+## `src/main.ts` — bootstrap
 
 ```ts
 import { createApp } from './app.js';
 import { loadEnv } from './config/env.js';
-import { createContainer } from './container.js';
-import { createDatabase } from './db/client.js';
-import { createLogger } from './lib/logger.js';
-import { registerGracefulShutdown } from './lib/shutdown.js';
+import { createComposition } from './composition/index.js';
+import { createDatabase } from './infra/db/client.js';
+import { createLogger } from './core/logger.js';
+import { registerGracefulShutdown } from './core/shutdown.js';
 import { startServer } from './server.js';
 
 const env = loadEnv();
@@ -312,14 +312,14 @@ await database.ping().catch((error: unknown) => {
   logger.warn({ err: error }, 'database not reachable yet; readiness will report down');
 });
 
-const container = createContainer(env, database);
-const app = createApp(env, logger, container);
+const composition = createComposition(env, database);
+const app = createApp(env, logger, composition);
 const server = await startServer(app, { host: env.HOST, port: env.PORT });
 
 registerGracefulShutdown({
   server,
   logger,
-  lifecycle: container.lifecycle,
+  lifecycle: composition.lifecycle,
   timeoutMs: env.SHUTDOWN_TIMEOUT_MS,
   drainDelayMs: env.SHUTDOWN_DRAIN_DELAY_MS,
   resources: [{ name: 'postgres', close: database.close }],
@@ -363,15 +363,15 @@ import express, { type Express } from 'express';
 import helmet from 'helmet';
 import swaggerUi from 'swagger-ui-express';
 import type { Env } from './config/env.js';
-import type { Container } from './container.js';
-import type { Logger } from './lib/logger.js';
-import { errorHandler, notFound } from './middleware/error-handler.js';
-import { createRateLimiter } from './middleware/rate-limit.js';
-import { requestLogger } from './middleware/request-logger.js';
-import { requestTimeout } from './middleware/timeout.js';
-import { buildOpenApiDocument } from './openapi/document.js';
-import { createApiRouter } from './routes/index.js';
-import { createHealthRouter } from './routes/health.routes.js';
+import type { Composition } from './composition/index.js';
+import type { Logger } from './core/logger.js';
+import { errorMapper, notFound } from './api/http/error-mapper.js';
+import { createRateLimiter } from './api/http/middlewares/rate-limit.js';
+import { requestLogger } from './api/http/middlewares/request-logger.js';
+import { requestTimeout } from './api/http/middlewares/timeout.js';
+import { buildOpenApiDocument } from './api/http/openapi/document.js';
+import { createApiRouter } from './api/http/router.js';
+import { createHealthRouter } from './api/http/v1/health/health.routes.js';
 
 function parseTrustProxy(value: string): boolean | number | string {
   if (value === 'true') return true;
@@ -383,9 +383,9 @@ function parseTrustProxy(value: string): boolean | number | string {
 /**
  * Builds the Express app without listening, so tests drive it with supertest.
  * Order matters: logging → security headers → CORS → body → health → timeout →
- * rate limit → API → docs → 404 → error handler (last).
+ * rate limit → API → docs → 404 → error mapper (last).
  */
-export function createApp(env: Env, logger: Logger, container: Container): Express {
+export function createApp(env: Env, logger: Logger, composition: Composition): Express {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', parseTrustProxy(env.TRUST_PROXY));
@@ -395,7 +395,7 @@ export function createApp(env: Env, logger: Logger, container: Container): Expre
   app.use(cors({ origin: env.CORS_ORIGINS, credentials: true }));
   app.use(express.json({ limit: '100kb' }));
 
-  app.use(createHealthRouter(container.controllers.health));
+  app.use(createHealthRouter(composition.controllers.health));
 
   app.use(requestTimeout(env.REQUEST_TIMEOUT_MS));
   app.use(
@@ -405,8 +405,8 @@ export function createApp(env: Env, logger: Logger, container: Container): Expre
   app.use(
     '/api/v1',
     createApiRouter({
-      controllers: container.controllers,
-      authenticate: container.middleware.authenticate,
+      controllers: composition.controllers,
+      authenticate: composition.middleware.authenticate,
       authLimiter: createRateLimiter({
         windowMs: env.RATE_LIMIT_WINDOW_MS,
         limit: env.AUTH_RATE_LIMIT_MAX,
@@ -423,31 +423,30 @@ export function createApp(env: Env, logger: Logger, container: Container): Expre
   }
 
   app.use(notFound());
-  app.use(errorHandler());
+  app.use(errorMapper());
   return app;
 }
 ```
 
-## `src/container.ts` — composition root
+## `src/composition/index.ts` — composition root
 
 ```ts
-import type { Env } from './config/env.js';
-import { createAuthController } from './controllers/auth.controller.js';
-import { createHealthController } from './controllers/health.controller.js';
-import { createUsersController } from './controllers/users.controller.js';
-import type { DatabaseHandle } from './db/client.js';
-import { createTransactionRunner } from './db/transaction.js';
-import { createHealthRegistry, type HealthCheck } from './lib/health.js';
-import { createResilientHttpClient } from './lib/http-client.js';
-import { createJwtService } from './lib/jwt.js';
-import { createLifecycle, type Lifecycle } from './lib/lifecycle.js';
-import { authenticate } from './middleware/authenticate.js';
-import { createRefreshTokensRepository } from './repositories/refresh-tokens.repository.js';
-import { createUsersRepository } from './repositories/users.repository.js';
-import { createAuthService } from './services/auth.service.js';
-import { createUsersService } from './services/users.service.js';
+import type { Env } from '../config/env.js';
+import { createAuthController } from '../api/http/v1/auth/auth.controller.js';
+import { createHealthController } from '../api/http/v1/health/health.controller.js';
+import { createUsersController } from '../api/http/v1/users/users.controller.js';
+import type { DatabaseHandle } from '../infra/db/client.js';
+import { createHealthRegistry, type HealthCheck } from '../core/health.js';
+import { createResilientHttpClient } from '../infra/http/client.js';
+import { createJwtService } from '../infra/security/jwt.js';
+import { createLifecycle, type Lifecycle } from '../core/lifecycle.js';
+import { authenticate } from '../api/http/middlewares/authenticate.js';
+import { createSessionsRepository } from '../domains/sessions/sessions.repository.js';
+import { createUsersRepository } from '../domains/users/users.repository.js';
+import { createSessionsService } from '../domains/sessions/sessions.service.js';
+import { createUsersService } from '../domains/users/users.service.js';
 
-export interface ContainerOptions {
+export interface CompositionOptions {
   /** Extra readiness checks (tests use this to simulate a failing optional dependency). */
   extraHealthChecks?: HealthCheck[];
   lifecycle?: Lifecycle;
@@ -457,10 +456,10 @@ export interface ContainerOptions {
  * Composition root: the only place that knows concrete implementations.
  * Plain factory functions, no DI container. Every layer receives what it needs as arguments.
  */
-export function createContainer(
+export function createComposition(
   env: Env,
   database: DatabaseHandle,
-  options: ContainerOptions = {},
+  options: CompositionOptions = {},
 ) {
   const lifecycle = options.lifecycle ?? createLifecycle();
   const jwt = createJwtService({
@@ -470,13 +469,12 @@ export function createContainer(
     accessTokenTtlSeconds: env.ACCESS_TOKEN_TTL_SECONDS,
   });
 
-  const usersRepository = createUsersRepository(database.db);
-  const refreshTokensRepository = createRefreshTokensRepository(database.db);
+  const usersRepository = createUsersRepository();
+  const sessionsRepository = createSessionsRepository();
 
-  const authService = createAuthService({
+  const sessionsService = createSessionsService({
     users: usersRepository,
-    refreshTokens: refreshTokensRepository,
-    transaction: createTransactionRunner(database.db),
+    sessions: sessionsRepository,
     jwt,
     refreshTokenTtlDays: env.REFRESH_TOKEN_TTL_DAYS,
   });
@@ -504,7 +502,7 @@ export function createContainer(
     lifecycle,
     health,
     controllers: {
-      auth: createAuthController(authService),
+      auth: createAuthController(sessionsService),
       users: createUsersController(usersService),
       health: createHealthController(health, lifecycle),
     },
@@ -512,5 +510,5 @@ export function createContainer(
   };
 }
 
-export type Container = ReturnType<typeof createContainer>;
+export type Composition = ReturnType<typeof createComposition>;
 ```

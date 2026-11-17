@@ -2,12 +2,12 @@
 
 Language-agnostic rules and skills for honesty, security, and core engineering practices — applicable to any stack.
 
-## Rules (always/auto-applied)
+## Rules
 
 | Rule | Description |
 |------|-------------|
-| `honesty` | Ground claims in verified sources, flag uncertainty, never fabricate APIs, packages, or results. Always applied. |
-| `security` | Access control, secrets, injection prevention, supply chain, and safe handling of untrusted content — aligned to OWASP Top 10:2025. |
+| `honesty` | Ground claims in verified sources, flag uncertainty, never fabricate APIs, packages, or results. `alwaysApply: true`. |
+| `security` | Access control, secrets, injection prevention, supply chain, and safe handling of untrusted content — aligned to OWASP Top 10:2025. Attaches to every file (`globs: ["**/*"]`). |
 
 ## Skills (invoked on demand)
 

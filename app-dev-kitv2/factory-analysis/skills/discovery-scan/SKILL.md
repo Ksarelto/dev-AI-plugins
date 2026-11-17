@@ -69,8 +69,8 @@ verdict for the profile:
 | `unknown` | you could not tell (no tool, no clear structure) | treated with care by later stages |
 
 Deviations to look for: FSD — legacy `src/components` / `src/containers` / `src/utils`, slices
-without `index.ts`, deep imports into another slice, upward imports. Layered Express — a controller
-or route importing the database, missing `container.ts`, services sending HTTP responses.
+without `index.ts`, deep imports into another slice, upward imports. Express — a controller
+or route importing the database, missing `src/composition/`, domains sending HTTP responses.
 LangGraph — graphs without a typed state module, tools outside `tools/`, models created inside nodes.
 
 **`conformant` is checked.** The gate runs every enabled stack's architecture check (e.g.

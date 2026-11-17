@@ -176,10 +176,10 @@ test("a black-box stage's read_deny also covers each role's folder", () => {
   for (const g of ["src/**/!(*.acceptance.test.*|types.ts|schema.ts|*.types.ts)", "web/src/**/!(*.acceptance.test.*|types.ts|schema.ts|*.types.ts)", "api/src/**/!(*.acceptance.test.*|types.ts|schema.ts|*.types.ts)"]) assert.ok(deny.includes(g), `${g} in ${deny}`);
 });
 
-test("the default pointer (repo: dev-AI-plugins) resolves to the boilerplate in the marketplace checkout", () => {
-  const dir = greenfield({ repo: "dev-AI-plugins", path: "backend-boilerplate", ref: "main" });
+test("the default pointer (repo: dev-AI-plugins) resolves to a folder in the marketplace checkout", () => {
+  const dir = greenfield({ repo: "dev-AI-plugins", path: "app-dev-kitv2/tests/fixtures/starter", ref: "main" });
   assert.equal(conductor.scaffold(dir).action, "continue");
-  assert.ok(existsSync(join(dir, "api", "src", "container.ts")), "the real backend-boilerplate was copied");
+  assert.ok(existsSync(join(dir, "api", "src", "marker.ts")), "the starter folder was copied");
   assert.ok(!existsSync(join(dir, "api", "node_modules")));
 });
 

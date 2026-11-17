@@ -56,7 +56,7 @@
       "expect": "api-contract"
     },
     {
-      "prompt": "Write the API contract with problem+json errors traced to acceptance criteria",
+      "prompt": "Write the API contract with a JSON error envelope traced to acceptance criteria",
       "expect": "api-contract"
     },
     {

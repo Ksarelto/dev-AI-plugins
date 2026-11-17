@@ -12,12 +12,12 @@ how the service runs it, then what is logged. Each step compiles before the next
 
 | # | Step | Files | Owned by task type |
 |---|---|---|---|
-| 1 | Tools | the dependency interface next to its owner (`rag/retriever.ts`, a client in `lib/`); `agents/<name>/tools/<kebab-name>.ts` (`create<Name>Tool(deps)` → `tool(fn, { name, description, schema, responseFormat })`); the registry `tools/index.ts` | `tool` |
+| 1 | Tools | the dependency interface next to its owner (`rag/retriever.ts`, a client in `core/` or `infra/`); `agents/<name>/tools/<kebab-name>.ts` (`create<Name>Tool(deps)` → `tool(fn, { name, description, schema, responseFormat })`); the registry `tools/index.ts` | `tool` |
 | 2 | State | `agents/<name>/state.ts`: new fields with `reducer`, `default` and a lifetime comment; `<Name>StateType` / `<Name>StateUpdate` exports | `state`, `memory` |
 | 3 | Prompts | `agents/<name>/prompts.ts`: `SYSTEM_PROMPT` and every fixed reply (`BLOCKED_MESSAGE`, `ITERATION_LIMIT_MESSAGE`, new ones) | `prompt` |
 | 4 | Nodes | `agents/<name>/nodes/<node>.ts`: `create<Node>Node(deps)` returning `(state, config) => partial update`; the guard; the agent node with breaker, cap and `config` forwarded | `node`, `guardrail` (guard + `src/guardrails/`) |
 | 5 | Graph | `agents/<name>/graph.ts`: `build<Name>Graph(deps)`, `addNode`, `addEdge(START, 'guard')`, `addConditionalEdges` listing every destination including `END`, `.compile({ checkpointer: deps.checkpointer })` | `graph` |
-| 6 | Service wiring | `services/<name>.service.ts`: turn input resetting per-turn fields, run config (`thread_id`, `user_id` when needed, `recursionLimit`, `signal`, `callbacks`), `toReply` (this turn's messages, `selectCitations`, `degraded`, `pendingApprovals`), `toServiceError`; `src/container.ts`: model via `createChatModel`, `bindTools` once (+ `withFallbacks`), breaker, checkpointer, tools array, graph `undefined` without a model | `graph`, `model`, `memory` |
+| 6 | Service wiring | `domains/<name>/`: turn input resetting per-turn fields, run config (`thread_id`, `user_id` when needed, `recursionLimit`, `signal`, `callbacks`), `toReply` (this turn's messages, `selectCitations`, `degraded`, `pendingApprovals`), `toServiceError` (a `code`, no HTTP status); `src/composition/index.ts`: model via `createChatModel`, `bindTools` once (+ `withFallbacks`), breaker, checkpointer, tools array, graph `undefined` without a model | `graph`, `model`, `memory` |
 | 7 | Observability | a new `UsageCallbackHandler` per request passed as `callbacks`, `config` forwarded to every nested `invoke`, logs with counts and ids only, `runName`/`tags`/`metadata` without user text | `streaming` (+ `node-agent-dev-kit:agent-observability`) |
 
 `rag` tasks belong to ai-rag-builder and `eval` tasks to eval-author. HTTP routes, controllers and
@@ -74,7 +74,7 @@ The rules are `rules/prompt-security.mdc`; in build terms:
 
 | Defect | Fix |
 |---|---|
-| `new ChatOpenAI` / `new OpenAIEmbeddings` / `fetch` to a model API outside `src/llm/` | inject the model built by the container |
+| `new ChatOpenAI` / `new OpenAIEmbeddings` / `fetch` to a model API outside `src/llm/` | inject the model built in `src/composition/` |
 | `process.env` or `Env` read in `agents/`, a tool or a node | pass the value through the factory's deps |
 | `createReactAgent`, `AgentExecutor`, `@openai/agents`, a provider SDK | the hand-built `StateGraph` |
 | A loop without the `iterations` cap, or a run config without `recursionLimit` | cap in the agent node, `recursionLimit` in the service |

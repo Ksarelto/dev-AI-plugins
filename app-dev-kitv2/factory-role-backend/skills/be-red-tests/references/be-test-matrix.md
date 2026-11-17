@@ -32,13 +32,13 @@ AC ID first so a reviewer can trace it: `it('AC-0004 returns 409 PROJECT_NAME_TA
 | Case | Request | Assert |
 |---|---|---|
 | create — 201 | `POST` a valid body with an owner's token | status 201; `body` has every DTO field (`toMatchObject`), `id` is a UUID, timestamps are ISO strings; no `passwordHash`, token hash or internal flag (`not.toHaveProperty`) |
-| create — 422 missing field | `POST` without one required field | 422, `body.code === 'VALIDATION_FAILED'`, an `errors[]` entry with `path: 'body.<field>'` |
+| create — 422 missing field | `POST` without one required field | 422, `body.error.code === 'VALIDATION_FAILED'`, an `error.details[]` entry with `path: 'body.<field>'` |
 | create — 422 unknown field | `POST` with an extra key, preferably a server-owned one (`ownerId`, `role`, `id`) | 422, an `errors[]` entry with `path: 'body'` and `code: 'unrecognized_keys'` (strict body) |
 | create — 409 conflict | create twice with the same unique value | 409 and the specific code from the contract (`<WHAT>_TAKEN`); the in-memory fake rejects with `{ code: '23505' }` |
 | get — 200 | `GET /:id` of an own row | 200 and the DTO |
-| get — 404 | `GET /:id` with an unknown UUID | 404, `<ENTITY>_NOT_FOUND`, `content-type` matches `application/problem+json` |
+| get — 404 | `GET /:id` with an unknown UUID | 404, `error.code` `<ENTITY>_NOT_FOUND`, `content-type` matches `application/json` |
 | get — 422 bad id | `GET /not-a-uuid` | 422 with `path: 'params.id'` |
-| list — paginated | create `limit + 1` own rows, `GET ?limit=<n>` | `items.length === n`, `nextCursor` is a string; following it returns the rest, no duplicates, and `nextCursor: null` on the last page |
+| list — paginated | create `limit + 1` own rows, `GET ?limit=<n>` | `data.length === n`, `meta.nextCursor` is a string; following it returns the rest, no duplicates, and `meta.nextCursor: null` on the last page |
 | list — limit bound | `GET ?limit=101` (above the stack's maximum of 100), and `?limit=0` | 422 with `path: 'query.limit'`; a missing `limit` uses the default (20) |
 | list — bad cursor | `GET ?cursor=garbage` | 400 `INVALID_CURSOR` |
 | list — only own rows | rows of two users, list as one | only the caller's rows |
@@ -87,6 +87,6 @@ and a timeout as the wrong failure.
 
 Pin what clients rely on before a change request touches it: for each route or function the
 delta-spec lists under `unchanged_guarantees` (and each one the change touches), the status, the
-`code` of each problem response, the DTO shape and the pagination behaviour. Run the file: every test
+`error.code` of each error response, the DTO shape and the pagination behaviour. Run the file: every test
 passes now. A characterisation test that fails today is not a characterisation — read the code again
 and pin what it really does, then report the surprise in `follow_up_suggested`.

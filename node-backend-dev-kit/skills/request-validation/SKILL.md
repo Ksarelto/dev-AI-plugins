@@ -1,6 +1,6 @@
 ---
 name: request-validation
-description: Validate request params, query and body with Zod 4 through the validate() middleware and read typed input with validated(res, schemas) — strict objects, coercion, pagination query, PATCH bodies, env parsing, 422 problem details with per-field errors. Use when adding or changing input validation, request schemas or DTO parsing in an Express 5 API.
+description: Validate request params, query and body with Zod 4 through the validate() middleware and read typed input with validated(res, schemas) — strict objects, coercion, pagination query, PATCH bodies, env parsing, a 422 whose `error.details` lists each field. Use when adding or changing input validation, request schemas or DTO parsing in an Express 5 API.
 ---
 
 # Request validation (Zod 4)
@@ -39,8 +39,8 @@ Hard constraints: `rules/validation.mdc`, `rules/api-design.mdc`. Code and a Zod
 6. Never put ids, owner ids, roles or timestamps in a body schema; the service derives them from the principal and the database.
 7. Response side: a Zod response schema with `.meta({ id })` and a `to<Entity>Response()` mapper that converts `Date` to ISO strings.
 8. Cross-field and business checks that need the database belong in the service (throw `ValidationError` or `ConflictError`), not in a schema `refine`.
-9. Environment: add the variable to `envSchema` in `config/env.ts` with type, bounds and default; to `.env.example`; read it from `Env` in `container.ts`, never from `process.env`.
-10. Test: an integration case that sends invalid input and asserts 422 and the `errors[].path` values (`body.name`, `query.limit`, `params.id`).
+9. Environment: add the variable to `envSchema` in `config/env.ts` with type, bounds and default; to `.env.example`; read it from `Env` in `composition/`, never from `process.env`.
+10. Test: an integration case that sends invalid input and asserts 422 and the `error.details[].path` values (`body.name`, `query.limit`, `params.id`).
 
 ## Checklist
 

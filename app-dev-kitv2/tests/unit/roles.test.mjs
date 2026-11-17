@@ -209,10 +209,12 @@ test("check-migrations: destructive statements need a human approval line above 
   assert.equal(r.status, 0, r.stdout);
 });
 
-test("openapi-conformance compares the contract with the backend boilerplate's OpenAPI document", () => {
+test("openapi-conformance compares the contract with the service OpenAPI document", () => {
   const dir = mkdtempSync(join(tmpdir(), "factory-oas-"));
   writeFileSync(join(dir, "contract.yaml"), "openapi: 3.1.0\npaths:\n  /api/v1/users:\n    get:\n      summary: list\n  /api/v1/version:\n    get:\n      summary: version\n");
-  const r = run("openapi-conformance.mjs", ["--contract", join(dir, "contract.yaml"), "--document", join(ROOT, "backend-boilerplate", "src", "openapi", "document.ts")]);
+  const document = join(dir, "document.ts");
+  writeFileSync(document, "registry.registerPath({ method: 'get', path: '/api/v1/users' });\nregistry.registerPath({ method: 'get', path: '/api/v1/users/{id}' });\n");
+  const r = run("openapi-conformance.mjs", ["--contract", join(dir, "contract.yaml"), "--document", document]);
   const hits = JSON.parse(r.stdout);
   assert.deepEqual(hits.filter((h) => h.rule === "missing-in-document").map(({ severity, method, path, claim }) => ({ severity, method, path, claim })), [{ severity: "P1", method: "get", path: "/api/v1/version", claim: "the contract's GET /api/v1/version is not registered in the OpenAPI document" }]);
   assert.ok(hits.some((h) => h.rule === "not-in-contract" && h.path.startsWith("/api/v1/users/")), JSON.stringify(hits));

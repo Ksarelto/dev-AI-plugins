@@ -3,9 +3,9 @@
 Each item points at the rule that owns it. Read the rule when an item fails, and quote its bullet in the finding.
 
 ## Layering — `rules/layered-architecture.mdc`
-- Routes only wire; controllers call one service method; services free of Express; repositories free of business rules and transactions
-- New factories wired only in `container.ts`; new routers mounted only in `routes/index.ts`
-- Services return domain objects, not rows
+- Controllers call one prebound scenario or query; domains are free of Express; repositories take no `tx` and hold no business rules
+- Wiring lives in `composition/`; versioned routers mount from `api/http/router.ts`
+- Domain objects do not carry a password hash out of `domains/users`
 
 ## Validation — `rules/validation.mdc`
 - Every route with input mounts `validate(<request>)`; the request object uses `satisfies ValidationSchemas`
@@ -29,14 +29,14 @@ Each item points at the rule that owns it. Read the rule when an item fails, and
 ## Database — `rules/database.mdc`
 - Schema change + generated migration + `drizzle/meta` in the same diff; no edits to applied migrations
 - uuid PKs, `withTimezone` timestamps, FKs with `onDelete`, indexes for FKs and list order
-- Repository methods take `executor: DbExecutor = db`; multi-writes in `transaction`, every call passes `tx`
+- Repository methods take no `tx` and read the unit of work; the owning scenario opens one `transaction()`
 - No raw string SQL; keyset pagination with `limit + 1`; bounded limits
 - Integration `reset()` truncates the new table
 
 ## API design — `rules/api-design.mdc`
-- `/api/v1/<plural-kebab>`; correct status per method; `{ items, nextCursor }` lists
+- `/api/v1/<plural-kebab>`; correct status per method; `{ data, meta }` lists
 - DTO mapper used; no rows, hashes or internal flags returned; ISO dates
-- `registerPath` for every new or changed route, with problem responses and `security`
+- `registerPath` for every new or changed route, with `{ error }` responses and `security`
 
 ## Resilience — `rules/resilience.mdc`
 - Outbound calls through `createResilientHttpClient` or `withTimeout`; retries only when idempotent

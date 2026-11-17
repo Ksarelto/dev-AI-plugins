@@ -62,15 +62,15 @@ and `version`.
   `format` (`uuid`, `date-time`, `email`). A number in an AC ("at most 3 coupons") is a constraint here.
 - JSON fields are camelCase; ids are UUID strings; timestamps are ISO-8601 strings with offset.
 - Never expose storage internals: no database row shapes, password or token hashes, internal flags.
-- Collections return `{ items, nextCursor }` and take `limit` and `cursor` query parameters, with the
-  limits the `api-design` rule states.
+- Collections return `{ data, meta: { nextCursor, limit } }` and take `limit` and `cursor` query parameters, with the
+  limits the `api-design` rule states. A single resource is `{ data, meta }`.
 - Partial updates are `PATCH` with every field optional; the body never carries id, owner, role or
   timestamps.
 
 ## Errors
 
-- Every error response uses `application/problem+json` with one shared `Problem` schema:
-  `{ type, title, status, detail, code, instance, errors? }`. Clients branch on `code`.
+- Every error response uses `application/json` with one shared `ErrorBody` schema:
+  `{ error: { code, message, details, requestId } }`. Clients branch on `code`.
 - Declare each error status an AC requires, with a description naming the AC and the `code`:
   `"422": { description: "VALIDATION_FAILED or COUPON_EXPIRED (AC-0002)" }`.
 - Typical set per operation, only where it applies:

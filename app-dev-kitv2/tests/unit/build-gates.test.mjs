@@ -130,11 +130,11 @@ const C = (task, files, subject = "feat(order): x") => ({ ...(task ? { task } : 
 
 test("gate-ready: commits hold their own task's files, the trace names real doers and tests, nothing is left behind", async () => {
   const env = shipped(["delivery"]);
-  for (const f of ["src/entities/order/model/total.characterisation.test.ts", "src/entities/order/model/total.ts", "src/entities/order/model/total.test.ts", "src/features/apply-coupon/ui/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field.test.tsx", "src/forgotten.ts"]) write(env.dir, f, "x\n");
+  for (const f of ["src/entities/order/model/total.characterisation.test.ts", "src/entities/order/model/total.ts", "src/entities/order/model/total.test.ts", "src/features/apply-coupon/ui/coupon-field/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx", "src/forgotten.ts"]) write(env.dir, f, "x\n");
   readyFiles(env, {
     commits: [
       C("TASK-001", ["src/entities/order/model/total.characterisation.test.ts"]),
-      C("TASK-002", ["src/features/apply-coupon/ui/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field.test.tsx"]),
+      C("TASK-002", ["src/features/apply-coupon/ui/coupon-field/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx"]),
       C("TASK-003", ["src/entities/order/model/total.ts", "src/entities/order/model/total.test.ts"]),
     ],
     trace: "| AC-0001 | TASK-002 | TEST-0001 |\n| AC-0002 | TASK-003 | TEST-0099 |\n| AC-0003 | TASK-002 | TEST-0003 |",
@@ -184,12 +184,12 @@ test("QA can reach the app on this machine, and nothing else", () => {
 
 test("the ledger entry is written at ship, so the artifacts commit carries it", async () => {
   const env = shipped(["delivery"]);
-  for (const f of ["src/entities/order/model/total.characterisation.test.ts", "src/entities/order/model/total.ts", "src/entities/order/model/total.test.ts", "src/features/apply-coupon/ui/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field.test.tsx"]) write(env.dir, f, "x\n");
+  for (const f of ["src/entities/order/model/total.characterisation.test.ts", "src/entities/order/model/total.ts", "src/entities/order/model/total.test.ts", "src/features/apply-coupon/ui/coupon-field/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx"]) write(env.dir, f, "x\n");
   readyFiles(env, {
     commits: [
       C("TASK-001", ["src/entities/order/model/total.characterisation.test.ts"], "test(order): pin"),
       C("TASK-002", ["src/entities/order/model/total.ts", "src/entities/order/model/total.test.ts"]),
-      C("TASK-003", ["src/features/apply-coupon/ui/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field.test.tsx"]),
+      C("TASK-003", ["src/features/apply-coupon/ui/coupon-field/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx"]),
     ],
     trace: "| AC-0001 | TASK-003 | TEST-0001 |\n| AC-0002 | TASK-003 | TEST-0002 |\n| AC-0003 | TASK-002 | TEST-0003 |",
   });

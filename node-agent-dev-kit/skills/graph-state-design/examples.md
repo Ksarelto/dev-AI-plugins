@@ -1,6 +1,6 @@
 # Graph state examples
 
-Example 1 is `agent-boilerplate/src/agents/assistant/state.ts`. Examples 2 to 5 are extensions that are not in the boilerplate; they were typechecked and run against `@langchain/langgraph` 1.6 and `@langchain/core` 1.3.
+Example 1 is the assistant state in this tree. Examples 2 to 5 are extensions; they were typechecked and run against `@langchain/langgraph` 1.6 and `@langchain/core` 1.3.
 
 ## Example 1: the reference state
 

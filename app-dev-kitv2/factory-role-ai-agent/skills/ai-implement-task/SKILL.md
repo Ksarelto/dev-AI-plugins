@@ -21,7 +21,7 @@ Order, done criteria, the eval check and the must-fix list:
    and failure behaviour. The design is binding; a conflict with a red test is a dispute, a conflict
    with the code is a question.
 4. Read the red tests; list per test the reply, citations, flags, spies and `model.calls` it expects.
-5. Read the code you extend: `src/agents/<name>/`, the service, `src/container.ts`, `src/llm/`.
+5. Read the code you extend: `src/agents/<name>/`, the domain scenario, `src/composition/index.ts`, `src/llm/`.
 6. Lay the build order of your task type over T0's files. A needed file missing → `needs_scope_change`, with its path in the envelope's `scope_files`.
 
 ## 2. Build rules
@@ -34,7 +34,7 @@ Order, done criteria, the eval check and the must-fix list:
 | node | factory with deps; returns a partial update with only new messages; model call is `deps.breaker.execute(() => deps.model.invoke(messages, config))`; no provider error caught | `rules/llm-calls.mdc` |
 | graph | guard first; every conditional edge lists `END`; `compile({ checkpointer })` from deps; no `createReactAgent` | `rules/agent-architecture.mdc` |
 | service | run config with `thread_id` from the threads table, `recursionLimit`, signal, callbacks; reply from this turn's messages; `toServiceError` → 503 | `rules/langgraph-state.mdc`, `rules/llm-calls.mdc` |
-| container | the only caller of `createChatModel`, `createEmbeddings`, `createPostgresCheckpointer`, `bindTools`; graph `undefined` without a model | `rules/agent-architecture.mdc` |
+| composition | the only caller of `createChatModel`, `createEmbeddings`, `createPostgresCheckpointer`, `bindTools`; graph `undefined` without a model | `rules/agent-architecture.mdc` |
 | prompt | constants in `prompts.ts`; no interpolation of user, document or env text; each new rule has a golden case (eval task) | `rules/prompt-security.mdc` |
 
 ## 3. Write

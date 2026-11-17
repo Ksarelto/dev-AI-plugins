@@ -1,8 +1,8 @@
 // Cartographer: a deterministic map of the app for planning and reuse checks, one adapter per stack
 // (stack.yaml index_adapter), run in each enabled role's folder:
 // - fsd: every slice (layer/slice with a public index.ts), what it exports, how often others import it;
-// - express-layered: every routes/controllers/services/repositories/schemas/db-schema/middleware/lib
-//   module, its exports and importers, and the endpoints a routes file declares;
+// - express-layered: flat routes/controllers/services/repositories plus nested api/http, domains,
+//   queries, composition and infra/db; exports, importers, and the endpoints a routes file declares;
 // - langgraph: the express layers plus agents/<name> (graph, state, nodes, tools, prompts), llm/ and rag/.
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
@@ -45,21 +45,28 @@ const EXPORTS = /export\s+(?:async\s+)?(?:const|let|function|class|type|interfac
 const exportsOf = (text) =>
   [...text.matchAll(EXPORTS)].flatMap((m) => (m[2] ? m[2].split(",").map((x) => x.trim().split(/\s+as\s+/).pop()) : [m[1]])).filter((x) => x && x !== "type");
 
-/** Modules of the given folders under src/: exports and how many other modules import them. */
+/** Modules of the given folders under src/: exports and how many other modules import them.
+ * A third element `{ nested, match, keepIndex }` indexes files under subfolders. */
 function moduleComponents(projectDir, prefix, layers) {
   const src = join(projectDir, "src");
   if (!existsSync(src)) return [];
   const files = listFiles(src).filter((f) => /\.(ts|mts)$/.test(f) && !/\.(test|spec)\.ts$/.test(f) && !f.endsWith(".d.ts"));
   const texts = new Map(files.map((f) => [f, readText(join(src, f))]));
   const out = [];
-  for (const [layer, folder] of layers) {
-    for (const f of files.filter((x) => x.startsWith(`${folder}/`) && !x.slice(folder.length + 1).includes("/"))) {
+  for (const [layer, folder, options = {}] of layers) {
+    for (const f of files.filter((x) => {
+      if (!x.startsWith(`${folder}/`)) return false;
+      const rest = x.slice(folder.length + 1);
+      if (!options.nested && rest.includes("/")) return false;
+      if (options.match && !options.match.test(x)) return false;
+      return true;
+    })) {
       const stem = basename(f).replace(/\.(ts|mts)$/, "");
-      if (stem === "index" && layer !== "agent") continue;
+      if (stem === "index" && layer !== "agent" && !options.keepIndex) continue;
       const importers = files.filter((g) => g !== f && new RegExp(`['"][^'"]*/${stem.replace(/[.]/g, "\\.")}(\\.js)?['"]`).test(texts.get(g))).length;
       const endpoints = layer === "route" ? [...texts.get(f).matchAll(/\b(?:router|app)\.(get|post|put|patch|delete)\(\s*['"`]([^'"`]+)/g)].map((m) => `${m[1].toUpperCase()} ${m[2]}`) : [];
       out.push({
-        name: stem.replace(/\.(routes|controller|service|repository|schema|middleware)$/, ""),
+        name: stem.replace(/\.(routes|controller|service|repository|schema|middleware|presenter|query|policy|module)$/, ""),
         path: toPosix(join(prefix, "src", f)), layer, slice: folder,
         exports: exportsOf(texts.get(f)), used_by: importers,
         ...(endpoints.length ? { endpoints } : {}),
@@ -71,8 +78,22 @@ function moduleComponents(projectDir, prefix, layers) {
 
 const EXPRESS_LAYERS = [["route", "routes"], ["controller", "controllers"], ["service", "services"], ["repository", "repositories"], ["schema", "schemas"], ["db-schema", "db/schema"], ["middleware", "middleware"], ["lib", "lib"]];
 
+const EXPRESS_NESTED = [
+  ["route", "api/http", { nested: true, match: /\.routes\.ts$/ }],
+  ["controller", "api/http", { nested: true, match: /\.controller\.ts$/ }],
+  ["presenter", "api/http", { nested: true, match: /\.presenter\.ts$/ }],
+  ["schema", "api/http", { nested: true, match: /\.dto\.ts$/ }],
+  ["middleware", "api/http/middlewares", { nested: true }],
+  ["repository", "domains", { nested: true, match: /\.repository\.ts$/ }],
+  ["domain", "domains", { nested: true, match: /\.(service|policy|module)\.ts$/ }],
+  ["domain", "domains", { nested: true, match: /\/index\.ts$/, keepIndex: true }],
+  ["query", "queries", { nested: true, match: /\.query\.ts$/ }],
+  ["composition", "composition", { nested: true, keepIndex: true }],
+  ["db-schema", "infra/db/schema", { nested: true }],
+];
+
 function expressComponents(projectDir, prefix) {
-  return moduleComponents(projectDir, prefix, EXPRESS_LAYERS);
+  return moduleComponents(projectDir, prefix, [...EXPRESS_LAYERS, ...EXPRESS_NESTED]);
 }
 
 /** LangGraph agent services: the HTTP layers plus each agent folder and its graph parts. */
@@ -81,7 +102,7 @@ function langgraphComponents(projectDir, prefix) {
   const agentLayers = existsSync(agentsDir)
     ? readdirSync(agentsDir).filter((a) => statSync(join(agentsDir, a)).isDirectory()).flatMap((a) => [["agent", `agents/${a}`], ["node", `agents/${a}/nodes`], ["tool", `agents/${a}/tools`]])
     : [];
-  return moduleComponents(projectDir, prefix, [...EXPRESS_LAYERS, ["llm", "llm"], ["rag", "rag"], ["memory", "memory"], ["guardrail", "guardrails"], ...agentLayers]);
+  return moduleComponents(projectDir, prefix, [...EXPRESS_LAYERS, ...EXPRESS_NESTED, ["llm", "llm"], ["rag", "rag"], ["memory", "memory"], ["guardrail", "guardrails"], ...agentLayers]);
 }
 
 const ADAPTERS = { fsd: (dir) => fsdComponents(dir), "express-layered": expressComponents, langgraph: langgraphComponents };

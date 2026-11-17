@@ -1,14 +1,14 @@
 # Request validation — examples
 
-`validate.ts`, `auth.schema.ts` and `user.schema.ts` are verbatim from `backend-boilerplate/`. `project.schema.ts` is the
+`validate.ts`, `auth.schema.ts` and `user.schema.ts` are the reference copies. `project.schema.ts` is the
 verified `projects` slice from the `express-resource` skill.
 
-## `src/middleware/validate.ts`
+## `src/api/http/middlewares/validate.ts`
 
 ```ts
 import type { RequestHandler, Response } from 'express';
 import type { z } from 'zod';
-import { ValidationError, type ValidationIssue } from '../lib/errors.js';
+import { ValidationError, type ValidationIssue } from '../../../core/errors/app-error.js';
 
 export interface ValidationSchemas {
   params?: z.ZodType;
@@ -66,8 +66,8 @@ Shared field schemas as constants, `.strict()` objects, a request object per rou
 
 ```ts
 import { z } from 'zod';
-import type { ValidationSchemas } from '../middleware/validate.js';
-import type { AuthResult } from '../services/auth.service.js';
+import type { ValidationSchemas } from '../api/http/middlewares/validate.js';
+import type { AuthResult } from '../domains/sessions/sessions.service.js';
 import { toUserResponse, userResponseSchema } from './user.schema.js';
 
 const email = z.email().max(320);
@@ -103,8 +103,8 @@ export function toAuthResponse(result: AuthResult): z.infer<typeof authResponseS
 
 ```ts
 import { z } from 'zod';
-import type { ValidationSchemas } from '../middleware/validate.js';
-import type { Page, User } from '../services/users.service.js';
+import type { ValidationSchemas } from '../api/http/middlewares/validate.js';
+import type { Page, User } from '../domains/users/users.service.js';
 
 /** Response DTO. Dates are ISO strings on the wire. */
 export const userResponseSchema = z
@@ -151,9 +151,9 @@ export function toUserPageResponse(page: Page<User>): z.infer<typeof userPageRes
 
 ```ts
 import { z } from 'zod';
-import type { ValidationSchemas } from '../middleware/validate.js';
-import type { Project } from '../services/projects.service.js';
-import type { Page } from '../services/users.service.js';
+import type { ValidationSchemas } from '../api/http/middlewares/validate.js';
+import type { Project } from '../domains/projects/projects.service.js';
+import type { Page } from '../domains/users/users.service.js';
 import { uuidParamsSchema } from './common.schema.js';
 
 const name = z.string().trim().min(1).max(100);
@@ -223,8 +223,8 @@ export function toProjectPageResponse(
 
 ```ts
 import type { RequestHandler } from 'express';
-import { requirePrincipal } from '../middleware/authenticate.js';
-import { validated } from '../middleware/validate.js';
+import { requirePrincipal } from '../api/http/middlewares/authenticate.js';
+import { validated } from '../api/http/middlewares/validate.js';
 import {
   createProjectRequest,
   listProjectsRequest,
@@ -233,7 +233,7 @@ import {
   toProjectResponse,
   updateProjectRequest,
 } from '../schemas/project.schema.js';
-import type { ProjectsService } from '../services/projects.service.js';
+import type { ProjectsService } from '../domains/projects/projects.service.js';
 
 export function createProjectsController(projects: ProjectsService) {
   const list: RequestHandler = async (_req, res) => {

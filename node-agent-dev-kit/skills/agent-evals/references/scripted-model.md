@@ -1,6 +1,6 @@
 # Scripted model and test helpers
 
-`tests/helpers/scripted-model.ts` from `agent-boilerplate`. It is a `RunnableLambda` with the same `Runnable<BaseMessage[], BaseMessage>` shape as `model.bindTools(tools)`, so it drops into `buildAssistantGraph` and `createContainer({ chatModel })` unchanged.
+`tests/helpers/scripted-model.ts` in this kit. It is a `RunnableLambda` with the same `Runnable<BaseMessage[], BaseMessage>` shape as `model.bindTools(tools)`, so it drops into `buildAssistantGraph` and `createComposition({ chatModel })` unchanged.
 
 ```ts
 import { AIMessage, ToolMessage, type BaseMessage } from '@langchain/core/messages';

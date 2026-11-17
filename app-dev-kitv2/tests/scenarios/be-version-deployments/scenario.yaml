@@ -34,5 +34,5 @@ expect:
   ship: { commits: 3, dry_run: true, trailers: ["Factory-Task: TASK-001", "Factory-Task: TASK-002"] }
   ledger: delivered
   files_contain:
-    src/controllers/health.controller.ts: "version"
+    src/api/http/v1/health/health.controller.ts: "version"
     drizzle/rollback/0001_deployments.down.sql: 'DROP TABLE "deployments"'

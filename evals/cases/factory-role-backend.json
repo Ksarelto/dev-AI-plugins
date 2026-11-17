@@ -16,7 +16,7 @@
       "expect": "be-implement-task"
     },
     {
-      "prompt": "Make the backend service and controller green with problem+json errors and Zod validation",
+      "prompt": "Make the backend service and controller green with the JSON error envelope and Zod validation",
       "expect": "be-implement-task"
     },
     {

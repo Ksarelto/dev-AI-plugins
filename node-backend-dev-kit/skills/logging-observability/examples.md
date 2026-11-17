@@ -1,8 +1,8 @@
 # Logging and observability — examples
 
-`logger.ts` and `request-logger.ts` are verbatim from `backend-boilerplate/`.
+`logger.ts` and `request-logger.ts` are the reference copies.
 
-## `src/lib/logger.ts`
+## `src/core/logger.ts`
 
 ```ts
 import { pino, type Logger } from 'pino';
@@ -44,13 +44,13 @@ export function createLogger(options: LoggerOptions): Logger {
 }
 ```
 
-## `src/middleware/request-logger.ts`
+## `src/api/http/middlewares/request-logger.ts`
 
 ```ts
 import { randomUUID } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import { pinoHttp } from 'pino-http';
-import type { Logger } from '../lib/logger.js';
+import type { Logger } from '../../../core/logger.js';
 
 const SAFE_REQUEST_ID = /^[\w.-]{1,128}$/;
 
@@ -100,7 +100,7 @@ status and duration. Log in a handler only for an event worth its own line.
 ## Logging from a service or background job
 
 ```ts
-import type { Logger } from '../lib/logger.js';
+import type { Logger } from '../../../core/logger.js';
 
 export interface ImportServiceDeps {
   projects: ProjectsRepository;
@@ -125,7 +125,7 @@ export function createImportService({ projects, logger }: ImportServiceDeps) {
 }
 ```
 
-`container.ts` receives the root logger (add it to `createContainer`'s parameters, as `createApp` does) and
+`src/composition/index.ts` receives the root logger (add it to the composition factory's parameters, as `createApp` does) and
 passes it into the deps. Never import a module-level logger instance.
 
 ## Bad / good

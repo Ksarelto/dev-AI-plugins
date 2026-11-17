@@ -30,7 +30,7 @@ and fonts into `deck.json`. Do not open the reference, strip its slides, or pain
 - **Run the checked-in renderer.** Do not author `{OUTPUT_DIR}/_build/build_deck.py`. Do not map
   slides onto Title and Content / Two Content / Title Only. Those layouts are 4:3 leftovers.
 - Canvas is **13.333 × 7.5 in**. Hex colors are **6 digits, no `#`**.
-- Layout names are the catalog in `docs/pptx/layouts.md`: `cover`, `toc`, `section`, `bullets`,
+- Layout names, listed in this skill: `cover`, `toc`, `section`, `bullets`,
   `two_column`, `kpi_row`, `bento`, `timeline`, `icon_grid`, `chart`, `quote`, `cta`.
 - Alt text for charts is `chart.alt` in JSON (written as `descr` by the renderer). Never
   `pic.alt_text = …`.

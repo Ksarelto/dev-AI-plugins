@@ -8,8 +8,9 @@
 //   repo/                   the application the factory works on (copied into a temp git repo), or
 //   repo_from: <fixture>    in scenario.yaml: a fixture app under tests/fixtures/ (node_modules is linked,
 //                           so the real stack — tests, typecheck, lint, build — runs in the gates)
-//   repos: [{ from, to }]   several apps in one project (e.g. web/ and api/): `from` is a fixture under
-//                           tests/fixtures/ or a folder at the repo root (backend-boilerplate)
+//   repos: [{ from, to }]   several apps in one project (e.g. web/ and api/): `from` is a directory under
+//                           tests/fixtures/, the repo root, or ../boilerplates (https://github.com/AtrsiomMDev/boilerplates).
+//                           It must contain node_modules.
 //   inbox/                  customer input (copied into .factory/inbox/)
 //   answers.yaml            human answers, in order, for every ask_human
 //   agents/[<FEAT>/]<stage>[/<screen>]/<agent>/a<n>/envelope.yaml + files/{feature,factory,project}/…
@@ -127,7 +128,8 @@ export async function runScenario(scenarioDir, { keep = false, log = () => {} } 
   try {
     const repos = scenario.repos ?? (scenario.repo_from ? [{ from: scenario.repo_from, to: "." }] : []);
     for (const { from, to } of repos) {
-      const fixture = existsSync(join(FAMILY, "tests", "fixtures", from)) ? join(FAMILY, "tests", "fixtures", from) : join(ROOT, from);
+      const fixture = [join(FAMILY, "tests", "fixtures", from), join(ROOT, from), join(ROOT, "..", "boilerplates", from)].find((p) => existsSync(p));
+      if (!fixture) throw new Error(`${from} is not in tests/fixtures, the repo root, or ../boilerplates — clone https://github.com/AtrsiomMDev/boilerplates next to this repo`);
       if (!existsSync(join(fixture, "node_modules"))) throw new Error(`${from} has no node_modules — run: npm run setup:factory-fixtures`);
       const target = join(project, to);
       const skip = new Set(["node_modules", "dist", "coverage", ".env"].map((n) => join(fixture, n)));

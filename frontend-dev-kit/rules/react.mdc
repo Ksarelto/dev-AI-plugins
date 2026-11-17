@@ -29,7 +29,7 @@ alwaysApply: false
 ## JSX
 - More than one prop: one prop per line, closing `/>` or `>` on its own line. Element content starts on its own line, not inline with the tags.
 - JSX references handlers; it never defines them. Every `on*` prop receives a named function declared before `return` (`handleOpenChange`) — no arrow or function expression inside an `on*` prop, not even a one-liner. A render prop may stay inline.
-- No nested ternary, in JSX or in the values it renders. No ternary inside JSX: compute the value before `return`, early-return a whole-branch swap, `&&` with a boolean for show/hide, or a lookup map keyed by a union. The left side of `&&` is a boolean, never a number that can render `0`.
+- No nested ternary anywhere. No ternary in JSX, and no const that holds an element from a ternary. Show or hide with `{condition && <Node />}` in JSX. A conditional list is a function (`const getTips = () => items?.map(...)`) called as `{items && getTips()}`. Two element branches are a function in the component body with `if` / `return`, called as `{renderHeader()}`. A string or translation key may be chosen before `return`. A whole-screen swap may be an early `return` of the component. The left side of `&&` is a boolean, never a number that can render `0`.
 - A closed-set prop (`variant`, `size`, `type`, `side`, `align`, `orientation`) takes the constant the primitive exports from its `constants.ts` (`ButtonVariant.Outline`, `ButtonType.Submit`) — never a string literal. Omit a prop equal to the default: `Button` defaults `type` to `ButtonType.Button` and `variant` to `ButtonVariant.Default`.
 
 Detail: `skills/react-feature/references/react-state-and-effects.md`, `skills/react-component/references/jsx-conventions.md`

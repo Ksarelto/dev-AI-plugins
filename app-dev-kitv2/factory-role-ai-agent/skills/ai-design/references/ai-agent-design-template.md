@@ -10,7 +10,7 @@ feature does not need rather than dropping it.
 
 ## Decision
 <Row of the decision framework chosen, one sentence why; the cheaper row rejected and why.>
-Agent folder: `src/agents/<name>/` (new | extends `assistant`). Service: `src/services/<name>.service.ts`.
+Agent folder: `src/agents/<name>/` (new | extends `assistant`). Scenario: `src/domains/<name>/`.
 
 ## Graph
 ```mermaid
@@ -93,8 +93,8 @@ src/agents/<name>/prompts.ts          …
 src/agents/<name>/nodes/<node>.ts
 src/agents/<name>/tools/<tool>.ts, tools/index.ts
 src/agents/<name>/graph.ts
-src/services/<name>.service.ts
-src/container.ts                      wiring
+src/domains/<name>/
+src/composition/index.ts              wiring
 evals/golden/<name>.json, evals/<name>.eval.ts
 tests/unit/agents/<name>.test.ts
 ```

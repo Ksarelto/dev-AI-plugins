@@ -15,7 +15,7 @@ Slices start small, earn segments, and must remain deletable. Widgets exist only
 **Judgment**
 
 - Widget whose `@/widgets/x` importers are a single route (and maybe `app/`) — premature. Create only after the **second** route needs the same composition.
-- Split signals: 15+ `ui/` folders, a 150-line `types.ts`, two teams on one slice, `index.ts` exporting two unrelated groups — suggest a split, do not fail the audit alone.
+- Split signals: 15+ `ui/` folders, a 150-line `types.ts` of unrelated groups, two teams on one slice, `index.ts` exporting two unrelated groups — suggest a feature split, do not fail the audit alone. A role file past about 500 lines (`schema`, `hooks`, `config`, fetchers, endpoints, types) is a different signal: promote it to a same-named folder (`layers-and-segments.md`). That is not a feature split.
 - Extracting `models/` to a package — verify by hand that nothing framework-shaped snuck in. Do not start with a monorepo.
 - Hide / unflag / delete procedure is the `manage-feature` skill, not this audit.
 

@@ -1,6 +1,6 @@
 # Checkpointing examples
 
-Examples 1 to 4 are from `agent-boilerplate`. Examples 5 and 6 are extensions, typechecked against `@langchain/langgraph` 1.6 and `@langchain/langgraph-checkpoint` 1.2.
+Examples 1 to 4 are in this kit. Examples 5 and 6 are extensions, typechecked against `@langchain/langgraph` 1.6 and `@langchain/langgraph-checkpoint` 1.2.
 
 ## Example 1: `memory/checkpointer.ts`
 
@@ -107,7 +107,7 @@ async getMessages(userId: string, threadId: string): Promise<ChatMessage[]> {
 ## Example 5: deleting a conversation (extension)
 
 ```ts
-// ChatServiceDeps gains `checkpointer: BaseCheckpointSaver`; ThreadsRepository gains `delete(id)`.
+// ConversationsDeps gains `checkpointer: BaseCheckpointSaver`; the threads repository gains `delete(id)`.
 async deleteThread(userId: string, threadId: string): Promise<void> {
   await requireThread(userId, threadId);
   await deps.checkpointer.deleteThread(threadId);

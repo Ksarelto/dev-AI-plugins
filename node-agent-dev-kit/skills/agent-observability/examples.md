@@ -1,6 +1,6 @@
 # Observability examples
 
-Examples 1 to 3 and 5 are from `agent-boilerplate`. Examples 4 and 6 are extensions, typechecked against `@langchain/core` 1.3 and `@langchain/langgraph` 1.6.
+Examples 1 to 3 and 5 are in this kit. Examples 4 and 6 are extensions, typechecked against `@langchain/core` 1.3 and `@langchain/langgraph` 1.6.
 
 ## Example 1: `llm/usage-callback.ts`
 
@@ -49,7 +49,7 @@ export class UsageCallbackHandler extends BaseCallbackHandler {
 ## Example 2: one handler per request
 
 ```ts
-// container.ts
+// composition/index.ts
 controllers: {
   threads: createThreadsController(chat, () => new UsageCallbackHandler(logger)),
   // ...
@@ -76,7 +76,7 @@ Bad: one handler for the whole process; every reply reports everyone's tokens, a
 
 ```ts
 const usage = new UsageCallbackHandler(logger);
-export function createThreadsController(chat: ChatService) { /* ... callbacks: [usage] ... */ }
+export const createThreadsController = (conversations: Conversations) => { /* ... callbacks: [usage] ... */ };
 ```
 
 ## Example 3: logging without content
@@ -123,7 +123,7 @@ LANGSMITH_PROJECT=agent-boilerplate
 ```
 
 ```ts
-// container.ts
+// composition/index.ts
 const checks: HealthCheck[] = [
   { name: 'postgres', critical: true, check: database.ping },
   {

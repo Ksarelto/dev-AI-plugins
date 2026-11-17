@@ -9,7 +9,7 @@ Create paints a 16:9 deck with a **checked-in layout engine** (`render_deck.py`)
 Edit unpacks an existing `.pptx`, mutates OOXML, and packs it back. Neither path invents a
 python-pptx script at run time.
 
-Upstream docs: [docs/pptx/](../docs/pptx/README.md).
+The skills in this kit are the layout and editing source. There is no separate `docs/pptx/` tree.
 
 ---
 

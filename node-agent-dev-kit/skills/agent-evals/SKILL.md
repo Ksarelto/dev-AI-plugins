@@ -10,7 +10,7 @@ description: Test and evaluate LangGraph agents — deterministic unit tests wit
 - A graph, node, tool, guardrail or retrieval change needs tests
 - Adding golden questions for a new knowledge source, tool or prompt rule
 - Deciding whether a prompt, tool description, chunking, retrieval or model change is a regression
-- Not for HTTP-only behaviour (validation, auth, problem+json) → `node-backend-dev-kit:api-testing`
+- Not for HTTP-only behaviour (validation, auth, the `{ error }` envelope) → `node-backend-dev-kit:api-testing`
 
 Hard constraints: `rules/agent-testing.mdc`. Copy the shapes in [examples.md](examples.md). Helper source: [references/scripted-model.md](references/scripted-model.md). Eval harness and golden-set format: [references/golden-evals.md](references/golden-evals.md).
 

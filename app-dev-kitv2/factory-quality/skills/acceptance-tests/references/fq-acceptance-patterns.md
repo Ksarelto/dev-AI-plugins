@@ -63,7 +63,7 @@ module does not exist (import error — a valid red). Passes at verification whe
   1. supertest against `createApp()` built by a helper in `tests/helpers/` that wires the app over
      in-memory repositories (`createInMemoryRepositories()`) and `testEnv()`. Drive the contract's
      operations: method, path, body, auth header; assert status, `content-type`, body shape and
-     the problem+json `code` the contract names.
+     the `error.code` the contract names.
   2. When no such helper exists, the service factory the component map names, with the in-memory
      repositories from `tests/helpers/`, asserting the returned DTO or the `AppError` code the
      contract maps to the status. Record this in `deviations` (HTTP status and validation are then

@@ -7,7 +7,6 @@ description: Edit or update an existing PowerPoint .pptx in place — change sli
 
 **Invoked as**: `/pptx-dev-kit:edit-presentation`
 **Pipeline driver**: `pptx-orchestrator` with `MODE: Edit`
-**Upstream**: `docs/pptx/editing.md`
 
 ## When to use
 

@@ -1,6 +1,6 @@
 ---
 name: api-contract
-description: Procedure for the factory contract-steward — define the feature's API operations in OpenAPI 3.1 with schemas, problem+json errors and x-factory acceptance-criteria tracing, so frontend and backend can build in parallel. Preloaded by the contract-steward; not for direct use.
+description: Procedure for the factory contract-steward — define the feature's API operations in OpenAPI 3.1 with schemas, a JSON error envelope and x-factory acceptance-criteria tracing, so frontend and backend can build in parallel. Preloaded by the contract-steward; not for direct use.
 user-invocable: false
 ---
 
@@ -31,7 +31,7 @@ restate them in the contract.
    and every error AC the operation answers; `owner_role` is the role that builds it.
 6. **Schemas**: named request and response schemas under `components.schemas`; closed request
    bodies (`additionalProperties: false`, `required`); limits copied from the ACs' numbers.
-7. **Errors**: `application/problem+json` with the shared `Problem` schema; one response per error
+7. **Errors**: `application/json` with the shared `ErrorBody` schema (`{ error: { code, message, details, requestId } }`); one response per error
    status an AC needs (401, 403, 404, 409, 422 as they apply), each naming its AC and `code`.
 8. **Security**: a bearer scheme and `security` on protected operations.
 9. Run the exit check from T0. Failures in the component map are the architect's: return
@@ -61,7 +61,7 @@ paths:
         - { name: orderId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
         "201": { description: Cart with the reordered lines, content: { application/json: { schema: { $ref: "#/components/schemas/ReorderResult" } } } }
-        "404": { description: "ORDER_NOT_FOUND — unknown or another customer's order (NFR-3)", content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } } }
+        "404": { description: "ORDER_NOT_FOUND — unknown or another customer's order (NFR-3)", content: { application/json: { schema: { $ref: "#/components/schemas/ErrorBody" } } } }
 ```
 
 `ReorderResult` carries `cartId`, `added` and `skipped` (the part numbers AC-0002 reports).

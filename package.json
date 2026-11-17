@@ -14,7 +14,7 @@
     "check:factory": "node scripts/check-factory-consistency.mjs",
     "test:factory": "node --test app-dev-kitv2/tests/unit/*.test.mjs",
     "test:factory:e2e": "node --test app-dev-kitv2/tests/e2e/*.test.mjs",
-    "setup:factory-fixtures": "cd app-dev-kitv2/tests/fixtures/fsd-app && pnpm install --frozen-lockfile --ignore-scripts && cd ../../../../backend-boilerplate && npm ci --ignore-scripts && cd ../agent-boilerplate && npm ci --ignore-scripts"
+    "setup:factory-fixtures": "(cd app-dev-kitv2/tests/fixtures/fsd-app && pnpm install --frozen-lockfile --ignore-scripts) && node --input-type=module -e \"import {existsSync} from 'node:fs'; import {spawnSync} from 'node:child_process'; import {join} from 'node:path'; for (const name of ['backend-boilerplate','agent-boilerplate']) { const dir = join('..','boilerplates', name); if (existsSync(join(dir,'package.json')) && !existsSync(join(dir,'node_modules'))) { const r = spawnSync('npm', ['ci','--ignore-scripts'], {cwd: dir, stdio: 'inherit'}); if (r.status) process.exit(r.status); } }\""
   },
   "devDependencies": {
     "ajv": "^8.17.1",

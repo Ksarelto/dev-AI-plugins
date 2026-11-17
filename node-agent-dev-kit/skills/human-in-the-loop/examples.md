@@ -1,6 +1,6 @@
 # Human-in-the-loop examples
 
-Not in `agent-boilerplate`. Typechecked against `@langchain/langgraph` 1.6 / `@langchain/core` 1.3 with the boilerplate's types, and run with `buildAssistantGraph` + `MemorySaver` + `scriptedModel`.
+An extension this tree does not implement. Typechecked against `@langchain/langgraph` 1.6 / `@langchain/core` 1.3 with the boilerplate's types, and run with `buildAssistantGraph` + `MemorySaver` + `scriptedModel`.
 
 ## Example 1: a write tool that asks first
 
@@ -77,7 +77,7 @@ async ({ subject, body }) => {
 ## Example 2: service helpers
 
 ```ts
-// src/services/chat.service.ts (additions)
+// src/domains/conversations/conversations.service.ts (additions)
 import { Command, INTERRUPT, isInterrupted, type Interrupt } from '@langchain/langgraph';
 
 export interface PendingApproval {
@@ -174,12 +174,12 @@ export const approvalRequest = {
 ```
 
 ```ts
-// src/routes/threads.routes.ts
+// src/api/http/v1/threads/threads.routes.ts
 router.post('/:threadId/approvals', validate(approvalRequest), controller.approve);
 ```
 
 ```ts
-// src/controllers/threads.controller.ts
+// src/api/http/v1/threads/threads.controller.ts
 const approve: RequestHandler = async (_req, res) => {
   const { params, body } = validated(res, approvalRequest);
   const usage = usageHandler();

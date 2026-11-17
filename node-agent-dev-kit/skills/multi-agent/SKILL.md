@@ -14,7 +14,7 @@ description: Coordinate several LangGraph.js agents in one graph — a superviso
 
 Hard constraints: `rules/agent-architecture.mdc`, `rules/langgraph-state.mdc`, `rules/llm-calls.mdc`. Copy the shapes in [examples.md](examples.md).
 
-**Not implemented in `agent-boilerplate`.** The examples were typechecked and run against `@langchain/langgraph` 1.6: `Command({ goto, update, graph: Command.PARENT })`, `addNode(name, fn, { ends })`, compiled graphs as nodes, `Send`, `getCurrentTaskInput`. `@langchain/langgraph-supervisor` (`createSupervisor`) is **not** installed and not used; supervisors are hand-built so the guard, step cap and breaker stay explicit.
+**An extension this tree does not implement.** The examples were typechecked and run against `@langchain/langgraph` 1.6: `Command({ goto, update, graph: Command.PARENT })`, `addNode(name, fn, { ends })`, compiled graphs as nodes, `Send`, `getCurrentTaskInput`. `@langchain/langgraph-supervisor` (`createSupervisor`) is **not** installed and not used; supervisors are hand-built so the guard, step cap and breaker stay explicit.
 
 ## Pick a pattern
 

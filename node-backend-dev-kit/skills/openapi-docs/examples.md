@@ -1,25 +1,24 @@
 # OpenAPI docs — examples
 
-`document.ts` and its test are verbatim from `backend-boilerplate/`; the `projects` paths come from the
+`document.ts` and its test are the reference copies; the `projects` paths come from the
 verified `express-resource` example.
 
-## `src/openapi/document.ts`
+## `src/api/http/openapi/document.ts`
 
 ```ts
 import { OpenAPIRegistry, OpenApiGeneratorV31 } from '@asteasolutions/zod-to-openapi';
-import type { z } from 'zod';
+import { z } from 'zod';
 import {
   authResponseSchema,
   loginBodySchema,
   refreshBodySchema,
   registerBodySchema,
-} from '../schemas/auth.schema.js';
-import { problemSchema } from '../schemas/common.schema.js';
+} from '../v1/auth/dto/auth.dto.js';
 import {
   listUsersRequest,
   userPageResponseSchema,
   userResponseSchema,
-} from '../schemas/user.schema.js';
+} from '../v1/users/dto/user.dto.js';
 
 /**
  * The OpenAPI document is generated from the same Zod schemas that validate requests.
@@ -33,12 +32,22 @@ export function buildOpenApiDocument() {
     bearerFormat: 'JWT',
   });
 
+  const errorSchema = z
+    .object({
+      error: z.object({
+        code: z.string(),
+        message: z.string(),
+        details: z.unknown().nullable(),
+        requestId: z.string(),
+      }),
+    })
+    .meta({ id: 'ErrorBody' });
   const json = <T extends z.ZodType>(schema: T) => ({
     content: { 'application/json': { schema } },
   });
-  const problem = (description: string) => ({
+  const errorResponse = (description: string) => ({
     description,
-    content: { 'application/problem+json': { schema: problemSchema } },
+    content: { 'application/json': { schema: errorSchema } },
   });
 
   registry.registerPath({
@@ -48,8 +57,8 @@ export function buildOpenApiDocument() {
     request: { body: json(registerBodySchema) },
     responses: {
       201: { description: 'Account created', ...json(authResponseSchema) },
-      409: problem('Email already registered'),
-      422: problem('Validation failed'),
+      409: errorResponse('Email already registered'),
+      422: errorResponse('Validation failed'),
     },
   });
   registry.registerPath({
@@ -59,7 +68,7 @@ export function buildOpenApiDocument() {
     request: { body: json(loginBodySchema) },
     responses: {
       200: { description: 'Signed in', ...json(authResponseSchema) },
-      401: problem('Invalid credentials'),
+      401: errorResponse('Invalid credentials'),
     },
   });
   registry.registerPath({
@@ -69,7 +78,7 @@ export function buildOpenApiDocument() {
     request: { body: json(refreshBodySchema) },
     responses: {
       200: { description: 'Rotated tokens', ...json(authResponseSchema) },
-      401: problem('Invalid or reused token'),
+      401: errorResponse('Invalid or reused token'),
     },
   });
   registry.registerPath({
@@ -86,7 +95,7 @@ export function buildOpenApiDocument() {
     security: [{ [bearer.name]: [] }],
     responses: {
       200: { description: 'Current user', ...json(userResponseSchema) },
-      401: problem('Not authenticated'),
+      401: errorResponse('Not authenticated'),
     },
   });
   registry.registerPath({
@@ -97,13 +106,13 @@ export function buildOpenApiDocument() {
     request: { query: listUsersRequest.query },
     responses: {
       200: { description: 'Users, newest first', ...json(userPageResponseSchema) },
-      403: problem('Admin role required'),
+      403: errorResponse('Admin role required'),
     },
   });
 
   return new OpenApiGeneratorV31(registry.definitions).generateDocument({
     openapi: '3.1.0',
-    info: { title: 'backend-boilerplate API', version: '0.1.0' },
+    info: { title: 'service API', version: '0.1.0' },
   });
 }
 ```
@@ -148,8 +157,8 @@ and then call `extendZodWithOpenApi(z)` in a module every entry point imports be
         description: "The caller's projects, newest first",
         ...json(projectPageResponseSchema),
       },
-      401: problem('Not authenticated'),
-      422: problem('Validation failed'),
+      401: errorResponse('Not authenticated'),
+      422: errorResponse('Validation failed'),
     },
   });
   registry.registerPath({
@@ -160,9 +169,9 @@ and then call `extendZodWithOpenApi(z)` in a module every entry point imports be
     request: { body: json(createProjectBodySchema) },
     responses: {
       201: { description: 'Project created', ...json(projectResponseSchema) },
-      401: problem('Not authenticated'),
-      409: problem('Name already used by this owner'),
-      422: problem('Validation failed'),
+      401: errorResponse('Not authenticated'),
+      409: errorResponse('Name already used by this owner'),
+      422: errorResponse('Validation failed'),
     },
   });
   registry.registerPath({
@@ -173,7 +182,7 @@ and then call `extendZodWithOpenApi(z)` in a module every entry point imports be
     request: { params: uuidParamsSchema },
     responses: {
       200: { description: 'Project', ...json(projectResponseSchema) },
-      404: problem('Not found or not visible to the caller'),
+      404: errorResponse('Not found or not visible to the caller'),
     },
   });
   registry.registerPath({
@@ -184,9 +193,9 @@ and then call `extendZodWithOpenApi(z)` in a module every entry point imports be
     request: { params: uuidParamsSchema, body: json(updateProjectBodySchema) },
     responses: {
       200: { description: 'Project updated', ...json(projectResponseSchema) },
-      404: problem('Not found or not visible to the caller'),
-      409: problem('Name already used by this owner'),
-      422: problem('Validation failed'),
+      404: errorResponse('Not found or not visible to the caller'),
+      409: errorResponse('Name already used by this owner'),
+      422: errorResponse('Validation failed'),
     },
   });
   registry.registerPath({
@@ -197,7 +206,7 @@ and then call `extendZodWithOpenApi(z)` in a module every entry point imports be
     request: { params: uuidParamsSchema },
     responses: {
       204: { description: 'Project deleted' },
-      404: problem('Not found or not visible to the caller'),
+      404: errorResponse('Not found or not visible to the caller'),
     },
   });
 ```
@@ -212,7 +221,7 @@ Extend `arrayContaining` with every new path and component name.
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { buildOpenApiDocument } from '../../../src/openapi/document.js';
+import { buildOpenApiDocument } from '../../../src/api/http/openapi/document.js';
 
 describe('buildOpenApiDocument', () => {
   it('documents every route with shared components', () => {

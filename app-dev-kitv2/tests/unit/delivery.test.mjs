@@ -136,7 +136,7 @@ test("gate-docs: every AC in the feature doc, ADRs promoted, a CHANGELOG entry a
 
 function deliverySetup(extra = "") {
   const env = setup(["delivery"], extra);
-  for (const [f, body] of [["src/entities/order/model/total.characterisation.test.ts", "t1"], ["src/entities/order/model/total.ts", "t2"], ["src/entities/order/model/total.test.ts", "t2t"], ["src/features/apply-coupon/ui/coupon-field.tsx", "t3"], ["src/features/apply-coupon/ui/coupon-field.test.tsx", "t3t"], ["CHANGELOG.md", "FEAT-001"]]) env.write(f, `${body}\n`);
+  for (const [f, body] of [["src/entities/order/model/total.characterisation.test.ts", "t1"], ["src/entities/order/model/total.ts", "t2"], ["src/entities/order/model/total.test.ts", "t2t"], ["src/features/apply-coupon/ui/coupon-field/coupon-field.tsx", "t3"], ["src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx", "t3t"], ["CHANGELOG.md", "FEAT-001"]]) env.write(f, `${body}\n`);
   execFileSync("git", ["init", "-q"], { cwd: env.dir });
   execFileSync("git", ["config", "user.email", "t@example.invalid"], { cwd: env.dir });
   execFileSync("git", ["config", "user.name", "T"], { cwd: env.dir });
@@ -146,7 +146,7 @@ function deliverySetup(extra = "") {
     commits: [
       commit("TASK-001", "test(order): characterise\n\nFactory-Task: TASK-001", ["src/entities/order/model/total.characterisation.test.ts"]),
       commit("TASK-002", "feat(order): discount\n\nFactory-Task: TASK-002", ["src/entities/order/model/total.ts", "src/entities/order/model/total.test.ts"]),
-      commit("TASK-003", "feat(apply-coupon): field\n\nFactory-Task: TASK-003", ["src/features/apply-coupon/ui/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field.test.tsx"]),
+      commit("TASK-003", "feat(apply-coupon): field\n\nFactory-Task: TASK-003", ["src/features/apply-coupon/ui/coupon-field/coupon-field.tsx", "src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx"]),
       commit(null, "docs: coupons (FEAT-001)", ["CHANGELOG.md"]),
     ],
   };

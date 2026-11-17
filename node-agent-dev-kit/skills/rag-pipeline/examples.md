@@ -1,6 +1,6 @@
 # RAG examples
 
-Examples 1 to 4 and 6 are from `agent-boilerplate`. Example 5 (filters) is an extension, typechecked against `drizzle-orm` 0.45 but not run against Postgres in this kit.
+Examples 1 to 4 and 6 are in this kit. Example 5 (filters) is an extension, typechecked against `drizzle-orm` 0.45 but not run against Postgres in this kit.
 
 ## Example 1: schema (`db/schema/knowledge.ts`)
 

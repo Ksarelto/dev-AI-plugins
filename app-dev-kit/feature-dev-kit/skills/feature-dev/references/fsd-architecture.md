@@ -31,7 +31,7 @@ A **segment** partitions a slice by technical purpose:
 | `models/` | Features only. State, selectors, pure invariants. No React, no network, no locale keys. Form schemas live in the form's `ui/` folder |
 | `model/` | Entities (and optional widget UI state). Same job as `models/`, singular folder |
 | `hooks/` | Features only. Navigation and local UI state. Calls the api hook. Does not call `useQuery` or `useMutation` |
-| `api/` | Fetchers, `endpoints.ts`, and the `useQuery` / `useMutation` hook (`useProfile.ts`). Other slices import it from the public index. Not query-key factories |
+| `api/` | Fetchers, `endpoints.ts`, and the `useQuery` / `useMutation` hooks (`hooks.ts`). Other slices import them from the public index. Not query-key factories |
 | `lib/` | Pure utilities, validators, formatters — no side effects |
 | `config/` | Non-text constants scoped to this slice (limits, ids, enum → locale-key maps) |
 | `locales/` | `en.json` + `keys.ts` — every user-visible string this slice renders (`frontend-dev-kit:i18n`) |

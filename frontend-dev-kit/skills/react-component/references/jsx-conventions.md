@@ -66,24 +66,44 @@ const handleOpenChange = (nextOpen: boolean): void => {
 
 ## Conditionals
 
-The nested-ternary ban covers the values JSX renders, not only the JSX itself. A lookup map keyed by a
-union handles an N-way choice.
+No nested ternary. No ternary in JSX, and no const that holds an element from a ternary. A string or
+a translation key may still be chosen before `return`. A whole-screen swap may be an early `return`.
 
 ```tsx
-// ❌ Avoid
-<Button disabled={isPending}>
-  {isPending ? t(usersKeys.form.saving) : t(usersKeys.form.save)}
-</Button>
-{isLoading ? <UsersSkeleton /> : isError ? <UsersError /> : <UsersTable users={users} />}
+// ❌ Avoid — ternary in JSX, and a const that holds the element
+const hintControl = hint ? <InfoMark items={hintItems} label={hint} wide={hintWide} /> : null
+const getTips = items ? items.map((item) => <p key={item.label}>{item.label}</p>) : null
 
-// ✅ Prefer — value computed before return
-const submitLabel = isPending ? t(usersKeys.form.saving) : t(usersKeys.form.save)
+<span>
+  {label}
+  {hintControl}
+  {loaded && detail ? <OverviewHeader record={detail} /> : <span className={styles.headerSpacer} />}
+</span>
 
-<Button disabled={isPending}>
-  {submitLabel}
-</Button>
+// ✅ Prefer — condition in JSX, list as a function, two branches as if/return
+const getTips = () => items?.map((item) => <p key={item.label}>{item.label}</p>)
 
-// ✅ Prefer — branch swap as early returns
+const renderHeader = () => {
+  if (loaded && detail) {
+    return <OverviewHeader record={detail} />
+  }
+
+  return <span className={styles.headerSpacer} />
+}
+
+<span>
+  {label}
+  {hint && <InfoMark items={hintItems} label={hint} wide={hintWide} />}
+  {items && getTips()}
+  {renderHeader()}
+</span>
+
+// ✅ Prefer — a translation key is not an element
+const submitKey = isPending ? usersKeys.form.saving : usersKeys.form.save
+
+<Button disabled={isPending}>{t(submitKey)}</Button>
+
+// ✅ Prefer — a whole-screen swap is an early return
 if (isLoading) {
   return <UsersSkeleton />
 }

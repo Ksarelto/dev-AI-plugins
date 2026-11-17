@@ -16,6 +16,6 @@ alwaysApply: false
 - User input is capped by the request schema (`MAX_MESSAGE_CHARS` = 4,000).
 - No secrets, tokens, connection strings or other users' data in prompts, tool output or the checkpoint. A tool returns only fields the caller may see.
 - Model output is untrusted: never `eval` it, execute it, render it as unescaped HTML, or pass it to SQL or a shell.
-- The model never decides authorization. Ownership (`findOwned(id, userId)`) and roles are checked in the service and routes before the graph runs.
+- The model never decides authorization. Ownership (`requireOwned`) and roles are checked in the conversation scenario and `api/http` before the graph runs.
 
 Procedure: `guardrails-safety` skill.

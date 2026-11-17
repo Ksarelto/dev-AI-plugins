@@ -1,6 +1,6 @@
 # Tool examples
 
-Examples 1 to 3 are from `agent-boilerplate/src/agents/assistant/tools/`. Example 4 (a tool that needs the caller and an outside API) is an extension, typechecked and tested against the installed `@langchain/core` 1.3.
+Examples 1 to 3 are the assistant tools in this tree. Example 4 (a tool that needs the caller and an outside API) is an extension, typechecked and tested against the installed `@langchain/core` 1.3.
 
 ## Example 1: a deterministic, read-only tool
 

@@ -1,6 +1,6 @@
 ---
 name: be-implement-task
-description: Procedure for the factory backend builder — routes map paths, controllers parse with Zod and call one service, services hold the rules, only repositories touch Drizzle, dependencies are wired in the composition root and errors leave as problem+json. Preloaded by be-builder; not for direct use.
+description: Procedure for the factory backend builder — an Express endpoint's controller parses with Zod and calls one scenario, domains hold the rules, repositories touch Drizzle, dependencies are wired in the composition root and errors leave as a JSON error envelope. Keeps the layers. Preloaded by be-builder; not for direct use.
 user-invocable: false
 ---
 
@@ -22,7 +22,7 @@ The red tests are the specification and they are read-only. Build order per task
 3. Read the red tests fully. Write down, per test, the status, `code`, DTO fields and side effect it
    expects. That list is your scope.
 4. Read the contract operation in `03-architecture/api-contract.yaml` and the existing code of the
-   layers you will touch (router, controller, service, repository type, container). Reuse an existing
+   layers you will touch (router, controller, domain, repository type, composition). Reuse an existing
    function before writing a new one.
 5. Map the build order of your task type onto T0's files. A needed file missing from "You may write
    only" → stop with `needs_scope_change` and list the file(s) in the envelope's `scope_files`; a file already finished by an earlier task → leave it.
@@ -31,11 +31,11 @@ The red tests are the specification and they are read-only. Build order per task
 
 | Layer | Does | Never |
 |---|---|---|
-| route | path → `authenticate` → `requireRole` → `validate(request)` → handler | call a service, repository or `db` |
-| controller | `validated(res, request)`, `requirePrincipal(res)`, one service call, DTO + status | import a repository or `db`; `try/catch` to set a status |
-| service | rules, ownership, transactions, `AppError` with codes, row → domain object | import Express; touch `req`/`res` |
-| repository | Drizzle queries, `executor: DbExecutor = db` last | open a transaction; throw an HTTP error |
-| container | every concrete `create*` call | business logic |
+| route | path → `authenticate` → `requireRole` → `validate(request)` → handler | call a domain, repository or `db` |
+| controller | `validated(res, request)`, `requirePrincipal(res)`, one prebound call, `{ data, meta }` | import a repository or `db`; `try/catch` to set a status |
+| domain | rules, ownership, `deps.tx.transaction()`, `AppError` with a code and no status | import Express or another domain; touch `req`/`res`; `new Date()` |
+| repository | Drizzle queries via the unit of work, no `tx` argument | open a transaction; export itself from `index.ts` |
+| composition | every concrete port binding | business logic |
 
 Details and the rationale: `rules/layered-architecture.mdc`, `rules/database.mdc`, `rules/error-handling.mdc`.
 
@@ -45,7 +45,7 @@ Details and the rationale: `rules/layered-architecture.mdc`, `rules/database.mdc
 2. Smallest change that turns the tests green, then tidy while they stay green. No speculative
    options, no refactor of code the task does not own, no new library.
 3. Errors: pick the `AppError` subclass and the code the contract names; a stranger's row is
-   `NotFoundError`; unique violations map to `ConflictError` in the service.
+   a not-found domain error; unique violations map to that domain's error in the repository.
 4. Lists: keyset pagination with a bounded `limit` (1–100, default 20) and `nextCursor`.
 5. Config: from `Env`; never `process.env` outside `src/config/env.ts`; never a literal secret.
 6. Logging: `req.log` / injected child logger, object first, no tokens or bodies.

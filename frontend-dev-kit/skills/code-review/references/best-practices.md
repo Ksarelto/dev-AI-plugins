@@ -10,7 +10,7 @@ report a hypothetical you cannot trace to a line of the diff.
 - Stale closures in handlers and effects; a missing or extra dependency; an effect that writes what
   its own dependencies read (render loop).
 - Keys: index or `${…}-${index}` keys on reorderable lists; unstable keys (`Math.random()`).
-- `&&` with a number or string on the left; `null` versus `undefined` mixed for "absent".
+- `&&` with a number or string on the left. `return undefined` or `= undefined` when the value means empty — use `null`. `undefined` stays legal for an optional prop or param, or a third-party API that requires it.
 - Unhandled `null` from a parsed response (`api-contract`): a caller that dereferences without the check.
 - Date, number, and currency formatting by hand instead of the i18n formatters.
 - Non-exhaustive handling of a union: a `switch` without an exhaustive `never` check.

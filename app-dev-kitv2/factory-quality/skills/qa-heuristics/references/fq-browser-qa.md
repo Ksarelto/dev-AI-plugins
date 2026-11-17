@@ -52,6 +52,6 @@ useful is `blocked`.
 - `curl -s -i localhost:<port>/api/v1/<resource>`: status line, headers and body in one output.
 - Authenticated calls: obtain a token the way the README or the stories describe (register + login
   endpoints, a seed user from the project's seed or example files). Never use real credentials.
-- Problem responses: check `content-type: application/problem+json`, `status`, `code` and that no
+- Error responses: check `content-type: application/json`, `error.code`, `error.requestId` and that no
   stack trace or SQL appears.
 - Concurrency: run two calls in one command, `curl … & curl … & wait`.

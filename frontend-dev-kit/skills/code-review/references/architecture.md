@@ -41,7 +41,9 @@ Read the diff for these even when the subagent is skipped (small diff, `--focus`
 2. **Public API.** An import into another slice goes through its `index.ts`; a new export is imported
    by someone outside the folder.
 3. **Placement.** The new file is in the right layer and segment: a rule in `models/`, a fetcher in
-   `api/`, JSX in `ui/`, a business noun not in `shared/`.
+   `api/`, JSX in `ui/`, a business noun not in `shared/`. A role that outgrew its file (`schema`,
+   `hooks`, `config`, fetchers, endpoints, types, about 500 lines) is a folder of the same name.
+   `api/useThing.ts` beside the hooks role is a finding. Callers import the role path, not a leaf.
 4. **New slice justified.** A new entity needs a second independent consumer; a new widget needs a
    second route; a new feature owns a user-visible rule.
 5. **State ownership.** One owner per state; no server data in a store.

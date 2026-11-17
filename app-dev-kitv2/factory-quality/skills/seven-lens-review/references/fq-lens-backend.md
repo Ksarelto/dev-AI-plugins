@@ -1,4 +1,4 @@
-# Lens group: backend (node-backend-dev-kit, Express 5 layered API)
+# Lens group: backend (node-backend-dev-kit, domains, queries, HTTP)
 
 Applies to change-set files under the backend role's path. T1 names the stack knowledge to load
 (`node-backend-dev-kit:code-review`) and lists the stack's rules. The stack skill's
@@ -15,7 +15,7 @@ only: its procedure runs git, typecheck and tests, which the engine already did 
 |---|---|
 | gate-checks (before you) | typecheck, ESLint (strict type-checked) and the dependency-cruiser layer rules that `lint` runs, build, unit tests, integration tests (Testcontainers) unless `quality.integration_tests: skip` |
 | task gates (gate-impl) | `depcruise` architecture check; `check-migrations.mjs` on every backend task |
-| audit `openapi` | contract operations missing from `src/openapi/document.ts` (P1), documented paths not in the contract (P2) |
+| audit `openapi` | contract operations missing from `src/api/http/openapi/document.ts` (P1), documented paths not in the contract (P2) |
 | audit `migrations` | every changed `drizzle/*.sql`: journal entry, paired rollback, destructive statements approved by an `HD-n` note |
 
 If integration tests were skipped (`integration-not-run` in the gate log, or the config says skip),
@@ -37,18 +37,17 @@ Adapted from the v1 backend reviewer's must-fix list to this stack's vocabulary.
 
 `spec-adr-drift` (P1)
 - Layering broken in a way lint cannot see: business rules or Drizzle calls in a route or
-  controller; a service importing Express; a repository holding business rules.
-- Transactions: `db.transaction` opened or committed inside a repository; a multi-write without a
-  transaction; a call inside the transaction that does not pass `tx`. The service owns the
-  transaction; repository methods accept an executor (`DbExecutor`, defaulting to `db`).
-- Errors: an expected failure not raised as an `AppError` subclass with its own new code; a reused
-  or renamed code; status codes mapped in a controller (`res.status(4xx)`, `try/catch`) instead of
-  the error middleware turning `AppError` into problem+json; an empty `catch` or a swallowed error.
+  controller; a domain importing HTTP or composition; a repository holding business rules.
+- Transactions: `db.transaction` opened inside a repository; a multi-write without a transaction.
+  The scenario opens `deps.tx.transaction()`; the repository reads `unitOfWork.current()` and takes no `tx`.
+- Errors: an expected failure not raised as an `AppError` with its own code; a reused or renamed
+  code; status codes mapped in a controller (`res.status(4xx)`, `try/catch`) instead of
+  `api/http/error-mapper.ts` writing `{ error }`; an empty `catch` or a swallowed error.
 - Validation: a route with input but no `validate()` at the edge; a controller reading `req.body`,
   `req.query` or `req.params` directly; a body that is not strict or a string without a bound; ID,
   owner, role or timestamps accepted from the body.
 - Status and shape differ from the contract: 201/204/404/409/422 as the contract says; lists return
-  `{ items, nextCursor }`; DTOs mapped, never raw rows, hashes or internal flags.
+  `{ data, meta }`; DTOs mapped, never raw rows, hashes or internal flags.
 - Schema change without a generated migration and its `drizzle/meta` in the same change; an edit
   to a migration that was already applied.
 - `any` at an HTTP, database or env boundary; `process.env` read outside `config/env.ts`.

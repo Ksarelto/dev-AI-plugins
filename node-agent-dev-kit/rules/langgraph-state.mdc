@@ -15,7 +15,7 @@ alwaysApply: false
 - Nodes are factories: `create<Name>Node(deps)` returns `(state, config) => update`. A node returns a partial update, never mutates `state`, and forwards `config` to every `invoke`.
 - Routers are named pure functions of state (`routeAfterAgent`). `addConditionalEdges` lists every destination, including `END`.
 - Every loop has a cap in state (`iterations` vs `AGENT_MAX_ITERATIONS`) that ends with a user-facing message, and the run config sets `recursionLimit` as a backstop. Never rely on `recursionLimit` alone: `GraphRecursionError` reaches the user as a 503.
-- `.compile({ checkpointer })` takes the checkpointer from deps. Every run passes `configurable: { thread_id }` from the threads table; never a constant or user-supplied thread id that skipped `findOwned`.
+- `.compile({ checkpointer })` takes the checkpointer from deps. Every run passes `configurable: { thread_id }` from the threads table; never a constant or user-supplied thread id that skipped `requireOwned`.
 - Node names (`guard`, `agent`, `tools`) and tool names are contracts: the service filters stream chunks by `langgraph_node` and tool messages by `name`. Rename them together with the service.
 
 Procedure: `graph-state-design` skill.

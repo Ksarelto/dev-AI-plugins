@@ -1,6 +1,6 @@
 ---
 name: drizzle-database
-description: Model PostgreSQL tables with Drizzle ORM and postgres.js — pgTable schema, indexes, drizzle-kit generate and migrate, repositories taking a DbExecutor, TransactionRunner transactions, keyset cursor pagination, unique-violation handling, seeds. Use when adding a table, column, migration, query, transaction or paginated list.
+description: Model PostgreSQL tables with Drizzle ORM and postgres.js — pgTable schema, indexes, drizzle-kit generate and migrate, repositories that read the unit of work, transactions, keyset cursor pagination, unique-violation handling, seeds. Use when adding a table, column, migration, query, transaction or paginated list.
 ---
 
 # Drizzle database
@@ -17,15 +17,14 @@ Hard constraints: `rules/database.mdc`, `rules/layered-architecture.mdc`. Code: 
 
 | Piece | Where | Shape |
 |---|---|---|
-| Pool | `createDatabase({ url, maxConnections })` in `db/client.ts` | returns `{ db, ping, close }`; one per process |
-| Types | `db/client.ts` | `Database`, `Transaction`, `DbExecutor = Database \| Transaction` |
-| Transactions | `createTransactionRunner(db)` → `TransactionRunner` | `transaction(async (tx) => …)`; injected into services |
-| Unique violation | `isUniqueViolation(error)` in `db/errors.ts` | SQLSTATE 23505, walks the `cause` chain |
-| Cursor | `encodeCursor` / `decodeCursor` in `lib/cursor.ts` | base64url `{ createdAt, id }`; bad cursor → 400 `INVALID_CURSOR` |
+| Pool | `createDatabase({ url, maxConnections })` in `infra/db/client.ts` | returns `{ db, ping, close }`; one per process |
+| Unit of work | `infra/db/unit-of-work.ts` | `current()` is the ambient client or the pool; `transaction()` joins or opens |
+| Unique violation | `isUniqueViolation(error)` in `infra/db/errors.ts` | SQLSTATE 23505, walks the `cause` chain |
+| Cursor | `encodeCursor` / `decodeCursor` in `shared/pagination/cursor.ts` | base64url `{ createdAt, id }`; bad cursor → 400 `INVALID_CURSOR` |
 
 ## Procedure — table
 
-1. `src/db/schema/<table>.ts`: `pgTable('<snake_plural>', { … }, (table) => [indexes])`.
+1. `src/infra/db/schema/<table>.ts`: `pgTable('<snake_plural>', { … }, (table) => [indexes])`.
    - `id: uuid('id').primaryKey().defaultRandom()`
    - FKs: `uuid('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' | 'restrict' | 'set null' })`
    - Timestamps: `timestamp('created_at', { withTimezone: true }).notNull().defaultNow()`; `updatedAt` adds `.$onUpdate(() => new Date())`
@@ -37,28 +36,28 @@ Hard constraints: `rules/database.mdc`, `rules/layered-architecture.mdc`. Code: 
 
 ## Procedure — repository
 
-1. `create<Resource>Repository(db: Database)` returning an object of `async` methods; `export type <Resource>Repository = ReturnType<…>`.
-2. Every method's last parameter is `executor: DbExecutor = db`, and every query starts from `executor`.
-3. Single row: `const [row] = await executor.select().from(t).where(eq(t.id, id)).limit(1); return row;` (`| undefined`).
+1. `create<Resource>Repository(unitOfWork)` returning an object of arrow methods. It is not exported from the domain `index.ts`.
+2. Every query uses `unitOfWork.current()`. No `tx` parameter.
+3. Single row: `const [row] = await unitOfWork.current().select()...limit(1); return row;` (`| undefined`).
 4. Insert/update: `.returning()`; an insert that returns nothing throws a plain `Error` (a bug, not a client error).
-5. Conditional writes return `boolean` from `.returning({ id })` so the service can detect a lost race.
-6. Lists: keyset `where`, `orderBy(desc(createdAt), desc(id))`, `.limit(limit + 1)`.
-7. No business rules, no `AppError`, no `db.transaction` here.
+5. Conditional writes return `boolean` from `.returning({ id })` so the scenario can detect a lost race.
+6. Lists live in `queries/`: keyset `where`, `orderBy(desc(createdAt), desc(id))`, `.limit(limit + 1)`.
+7. No business rules and no `db.transaction` here. A unique violation becomes the domain error.
 
 ## Procedure — service side
 
-- Wrap multi-write operations in `transaction(async (tx) => …)` and pass `tx` to **every** repository call inside; do slow work (hashing, HTTP) before opening it.
-- Map `isUniqueViolation(error)` → `ConflictError('…', '<WHAT>_TAKEN')`; rethrow anything else.
-- Map rows to domain objects (`toUser(row)`) so secrets never leave the service.
-- Paginate: `decodeCursor` → repository → `hasMore = rows.length > limit` → `encodeCursor` of the last item.
+- The owning scenario calls `deps.tx.transaction(async () => …)`. Nested scenarios join it. Do slow work (hashing, HTTP) before opening it.
+- The repository maps `isUniqueViolation(error)` to the domain error and rethrows anything else.
+- Map rows to domain objects so a password hash never leaves the domain.
+- Paginate in the query: `decodeCursor` → select → `hasMore = rows.length > limit` → `encodeCursor` of the last item.
 
 ## Checklist
 
 - [ ] uuid PK, `withTimezone` timestamps, FKs with `onDelete`, indexes for FKs and keyset order
 - [ ] Row types exported; table re-exported from `schema/index.ts`
 - [ ] Migration generated with `--name`, read, applied, committed with `drizzle/meta/`; no `push`, no edited old migration
-- [ ] Repository methods take `executor: DbExecutor = db`; no business logic, no transactions
-- [ ] Multi-write service methods use the injected `TransactionRunner` and pass `tx` everywhere
+- [ ] Repository methods take no `tx` and read the unit of work; no business logic, no transactions
+- [ ] Multi-write scenarios open `deps.tx.transaction()` once; nested work joins it
 - [ ] Uniqueness enforced by the database and mapped to a coded 409
 - [ ] Lists are keyset-paginated and bounded; the order matches an index
 - [ ] Integration tests run against the migrated Testcontainers database; `reset()` truncates the new table

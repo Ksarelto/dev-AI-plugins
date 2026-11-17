@@ -136,7 +136,7 @@ test("a build pack inlines the task's slice, lists the whole artifacts as option
   assert.match(body, /Story STORY-0001/);
   assert.match(body, /AC-0001: Given a cart with total 100\.00 EUR/);
   assert.match(body, /Planned test cases: TEST-0001 \(component, AC-0001\)/);
-  assert.match(body, /Component map \(your files\):\n\s+- CouponField · src\/features\/apply-coupon\/ui\/coupon-field\.tsx/);
+  assert.match(body, /Component map \(your files\):\n\s+- CouponField · src\/features\/apply-coupon\/ui\/coupon-field\/coupon-field\.tsx/);
   assert.match(body, /API contract \(operations of this task — read api-contract for the schema\):\n\s+- PUT \/carts\/\{cartId\}\/coupon/);
   // The whole artifacts are optional reads, not counted.
   assert.match(body, /## T2 — Optional reads \(read only if needed/);

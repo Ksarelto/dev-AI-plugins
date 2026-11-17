@@ -7,8 +7,8 @@ against Testcontainers Postgres. Patterns and helpers: the `api-testing` skill.
 
 ```ts
 import { randomUUID } from 'node:crypto';
-import type { ProjectRow } from '../../src/db/schema/index.js';
-import type { ProjectsRepository } from '../../src/repositories/projects.repository.js';
+import type { ProjectRow } from '../../src/infra/db/schema/index.js';
+import type { ProjectsRepository } from '../../src/domains/projects/projects.repository.js';
 
 /** Honours the repository contract, including the (owner_id, name) unique index. */
 export function createInMemoryProjectsRepository() {
@@ -60,12 +60,12 @@ export function createInMemoryProjectsRepository() {
 
 ```ts
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ConflictError, NotFoundError } from '../../../src/lib/errors.js';
-import type { Principal } from '../../../src/lib/jwt.js';
+import { ConflictError, NotFoundError } from '../../../src/core/errors/app-error.js';
+import type { Principal } from '../../../src/infra/security/jwt.js';
 import {
   createProjectsService,
   type ProjectsService,
-} from '../../../src/services/projects.service.js';
+} from '../../../src/domains/projects/projects.service.js';
 import { createInMemoryProjectsRepository } from '../../helpers/in-memory-projects.js';
 
 const owner: Principal = { userId: 'owner-1', email: 'owner@example.com', roles: ['user'] };

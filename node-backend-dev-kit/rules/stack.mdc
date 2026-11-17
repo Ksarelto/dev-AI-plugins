@@ -1,6 +1,6 @@
 ---
 description: The backend stack contract — which library owns which concern in a Node.js 22 + Express 5 + TypeScript API. Do not add a second library for a concern that already has an owner.
-globs: ["**/src/app.ts", "**/src/server.ts", "**/src/container.ts", "**/src/config/env.ts"]
+globs: ["**/src/app.ts", "**/src/server.ts", "**/src/main.ts", "**/src/composition/**/*.ts", "**/src/config/env.ts"]
 alwaysApply: false
 ---
 
@@ -10,7 +10,7 @@ alwaysApply: false
 |---|---|
 | Runtime / language | Node 22 (`.nvmrc`), TypeScript 5.9 strict, ESM (`"type": "module"`, NodeNext) |
 | HTTP | Express 5, `helmet`, `cors`, `express-rate-limit` 8 |
-| Validation, config, DTOs | Zod 4 (`config/env.ts`, `schemas/`) |
+| Validation, config, DTOs | Zod 4 (`config/env.ts`, `api/http/**/dto`) |
 | Database | PostgreSQL 17, Drizzle ORM 0.45 + `postgres` (postgres.js 3), drizzle-kit migrations |
 | Auth | `jose` 6 (HS256 access tokens), `@node-rs/argon2` (argon2id), opaque refresh tokens |
 | Logging | `pino` 10 + `pino-http` 11 (`pino-pretty` in dev only) |
@@ -20,8 +20,8 @@ alwaysApply: false
 
 - No second library for an owned concern: no `joi`/`yup`/`class-validator`, no `dotenv` (`process.loadEnvFile`), no `winston`/`morgan`, no `jsonwebtoken`/`bcrypt`, no Prisma/TypeORM/Knex, no Jest, no `axios` (global `fetch` via `createResilientHttpClient`), no DI container library.
 - Configuration is read once in `config/env.ts` (`loadEnv()` → typed `Env`). No `process.env.X` anywhere else in `src/`, except `drizzle.config.ts` and the seed's own schema.
-- `src/container.ts` is the only composition root: plain `create*` factories, no decorators, no classes for services.
-- `src/server.ts` is the only file that listens. `createApp(env, logger, container)` builds the app without listening.
+- `src/composition/` is the only composition root: plain functions, no decorators, no DI container.
+- `src/server.ts` is the only file that listens. `createApp(env, logger, composition)` builds the app without listening. `src/main.ts` is the process entry.
 - Before using an API you are not sure of, fetch current docs through the `context7` MCP server.
 
 Procedure: `scaffold-service` skill.

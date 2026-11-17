@@ -7,16 +7,16 @@ file, and to any other file that calls `useQuery`, `useMutation`, `useQueryClien
 ## Queries
 
 - A query key built as an inline array, or a per-feature `api/queryKeys.ts`, instead of a factory in `shared/api/query-keys/{domain}.ts`.
-- `useQuery` or `useMutation` is not in the owning slice's `api/hooks.ts`. That one file holds every query and mutation hook for the model. `api/useThing.ts`, or a call in `features/*/hooks/`, `ui/`, or a page, is wrong. `ui/` imports the feature `hooks/` file, which calls `api/hooks.ts`. Other slices import the hook from the owner's `index.ts`.
+- `useQuery` or `useMutation` is not in the owning slice's hooks role. That role is `api/hooks.ts` until the file outgrows one file, then `api/hooks/` with `index.ts` and files split by meaning. `api/useThing.ts`, a leaf import from outside the role, or a call in `features/*/hooks/`, `ui/`, or a page, is wrong. `ui/` imports the feature `hooks/` segment, which calls the hooks role. Other slices import the hook from the owner's `index.ts`.
 - The fetcher isn't a separate pure async function in `api/fetchers.ts` (no React imports) — it's inlined in the hook or the component calls `useQuery` directly.
-- The fetcher casts `.json<Dto>()` or checks entity fields by hand instead of `parseEntity` against `api/schema.ts`. An invalid body must notify and return `null`, and the UI must not check those fields again.
+- The fetcher casts `.json<Dto>()` or checks entity fields by hand instead of `parseEntity` against the schema role (`api/schema.ts` or `api/schema/`). An invalid body must notify and return `null`, and the UI must not check those fields again.
 - A query with possibly-undefined params has no `enabled` guard.
 - `timeout`, `retry`, `prefixUrl`, or `Authorization` passed on `httpClient`, or a `staleTime` / `retry` literal in the hook that copies a value already set in `shared/api`. A different policy is a named constant imported from `shared/api`.
 - The query function doesn't forward `signal` through to the request.
 
 ## Mutations
 
-- `invalidateQueries` is called outside the owning slice's `api/hooks.ts`. A component, a feature `hooks/` file, a page, a fetcher, or an event handler writes the cache itself. The api hook that owns the mutation or the cache write calls `invalidateQueries`. Callers use that hook.
+- `invalidateQueries` is called outside the owning slice's hooks role (`api/hooks.ts` or `api/hooks/**`). A component, a feature `hooks/` file, a page, a fetcher, or an event handler writes the cache itself. The api hook that owns the mutation or the cache write calls `invalidateQueries`. Callers use that hook.
 - Invalidation missing. Default is `onSuccess`. Use `onSettled` only when a failed mutation also needs a resync.
 - Cross-feature invalidation imports another feature (`useInvalidateOrders`) instead of the shared key factory in `shared/api/query-keys/`.
 - A domain failure thrown from `mutationFn` instead of a return value from `models/`, checked in `ui/` before `mutate`.
@@ -30,5 +30,5 @@ file, and to any other file that calls `useQuery`, `useMutation`, `useQueryClien
 
 ## Severity
 
-A per-feature `queryKeys.ts`, a query or mutation hook outside `api/hooks.ts` (including `api/useThing.ts`), an `invalidateQueries` call outside `api/hooks.ts`, a cross-feature import, a thrown domain error, a hand-rolled entity shape check, a restated `httpClient` option, and server-state
+A per-feature `queryKeys.ts`, a query or mutation hook outside the hooks role (including `api/useThing.ts`), an `invalidateQueries` call outside the hooks role, a cross-feature import, a thrown domain error, a hand-rolled entity shape check, a restated `httpClient` option, and server-state
 copied out of the cache are **Must fix**. `enabled` gaps are **Should fix**.

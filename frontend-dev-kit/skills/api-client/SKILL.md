@@ -19,7 +19,7 @@ description: Set up the HTTP layer using ky (httpClient from shared/api/base.ts)
 - Auth token is read from `shared/lib/auth/token.ts` (a module-level accessor, not a React hook).
 - The API base URL comes from `shared/api/config.ts` (`API_BASE.v1` / `API_BASE.v2`) — features never read `import.meta.env` for the URL.
 - Feature query keys are defined in `shared/api/query-keys/` (one file per business domain), never hand-typed inline.
-- Each server entity has one zod schema in `api/schema.ts`. The fetcher parses with `parseEntity`. Failure notifies and returns `null`. Callers check `null`. They do not re-validate fields. Constraint: `rules/api-contract.mdc`.
+- Each server entity has one zod schema in the schema role: `api/schema.ts`, or a file under `api/schema/` once the role outgrows one file. Callers import `./schema`, not a leaf. The fetcher parses with `parseEntity`. Failure notifies and returns `null`. Callers check `null`. They do not re-validate fields. Constraint: `rules/api-contract.mdc`.
 
 ## Shared API setup
 
@@ -352,7 +352,7 @@ Every other kind is handled by the global `QueryClient` handler — do not dupli
 - [ ] `toAppError` helper exists in `errors.ts` and handles `HTTPError`, `TimeoutError`, and network errors
 - [ ] All feature API calls go through `features/{name}/api/fetchers.ts`
 - [ ] `endpoints.ts` has a `base` path relative to `API_BASE.v1`, and every other key reuses it — no full URLs in hooks
-- [ ] `api/schema.ts` is the only shape check for each server entity; `dto.ts` maps a parsed DTO and does not re-check fields
+- [ ] The schema role (`api/schema.ts`, or `api/schema/` once the file outgrows one file) is the only shape check for each server entity; `dto.ts` maps a parsed DTO and does not re-check fields
 - [ ] Every entity fetcher calls `parseEntity`; failure notifies and returns `null`; callers check `null` and do not re-validate
 - [ ] No `.json<Dto>()` cast standing in for validation
 - [ ] Feature and entity calls do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` — those live on `httpClient`

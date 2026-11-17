@@ -12,7 +12,7 @@
     {
       "name": "base-dev-kit",
       "source": "./base-dev-kit",
-      "description": "Honesty and security rules always applied, plus on-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation \u2014 applicable to any language or stack.",
+      "description": "Honesty is always applied. Security attaches to every file. On-demand skills for clean code, git workflow, test-driven development, dependency management, and documentation \u2014 applicable to any language or stack.",
       "category": "productivity",
       "tags": [
         "clean-code",
@@ -43,7 +43,7 @@
     {
       "name": "node-backend-dev-kit",
       "source": "./node-backend-dev-kit",
-      "description": "Rules, skills, and MCP servers for layered Node.js 22 + Express 5 + TypeScript APIs (routes \u2192 controllers \u2192 services \u2192 repositories): Zod 4, Drizzle on PostgreSQL, JWT + RBAC, RFC 9457 errors, pino, resilience, OpenAPI, Docker, and Vitest + Testcontainers. Reference implementation: backend-boilerplate.",
+      "description": "Rules, skills, and MCP servers for Node.js 22 + Express 5 + TypeScript APIs (domains, queries, HTTP): Zod 4 validation, Drizzle ORM on PostgreSQL, JWT + RBAC, a JSON error envelope, pino logging, resilience, OpenAPI, Docker, and Vitest + Testcontainers.",
       "category": "productivity",
       "tags": [
         "nodejs",
@@ -63,7 +63,7 @@
     {
       "name": "node-agent-dev-kit",
       "source": "./node-agent-dev-kit",
-      "description": "Rules, skills, and MCP servers for TypeScript AI agent services on Express 5 with LangGraph.js + LangChain.js: state graphs, tools, OpenRouter models with fallbacks, Postgres checkpoints, human-in-the-loop, multi-agent, pgvector hybrid RAG, guardrails, SSE streaming, and evals. Requires node-backend-dev-kit. Reference implementation: agent-boilerplate.",
+      "description": "Rules, skills, and MCP servers for AI agent services on Node.js 22 + Express 5 + TypeScript: LangGraph.js graphs, LangChain.js models, tools and embeddings via OpenRouter, Postgres checkpoints, pgvector hybrid RAG, guardrails, SSE streaming, token usage, and evals. Requires node-backend-dev-kit.",
       "category": "productivity",
       "tags": [
         "ai-agents",

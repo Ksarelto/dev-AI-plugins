@@ -66,7 +66,7 @@ it('AC-0004 returns 409 PROJECT_NAME_TAKEN for a duplicate name', async () => {
 - Build fresh fakes in `beforeEach`; no state shared between tests, no order dependence.
 - Tokens: sign with the stack's JWT service and `TEST_JWT_SECRET` from `tests/helpers/env.ts`; never
   disable `authenticate` in the app under test.
-- Assert what a client sees: status, `body.code`, the problem `content-type`, the DTO fields, absent
+- Assert what a client sees: status, `body.error.code`, `content-type` `application/json`, the DTO fields, absent
   secrets, `errors[].path`. Never assert on log lines, call order or private helpers.
 - A new resource needs an in-memory fake that implements the repository type. It goes in
   `tests/helpers/` only when T0 lists that file; otherwise `needs_scope_change` naming it.

@@ -7,7 +7,7 @@ alwaysApply: true
 ## Ground every factual claim
 
 Retrieve before you assert. Any API, config key, CLI flag, or version-specific behavior must come from
-the repo, the installed source, or fetched docs (`stack-docs` skill / context7 MCP) — not recall.
+the repo, the installed source, or fetched docs (context7 MCP) — not recall.
 When context is missing, say what you'd need instead of filling the gap with a plausible guess.
 
 ## Verify packages before importing them

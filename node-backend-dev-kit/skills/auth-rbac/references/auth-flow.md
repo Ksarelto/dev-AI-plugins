@@ -1,9 +1,9 @@
 # Local auth flow — reference
 
-Verbatim from `backend-boilerplate/`: HS256 access tokens, rotating refresh tokens with family revocation,
+Reference copy for this kit: HS256 access tokens, rotating refresh tokens with family revocation,
 argon2id passwords, and the guards.
 
-## `src/lib/jwt.ts`
+## `src/infra/security/jwt.ts`
 
 ```ts
 import { randomUUID } from 'node:crypto';
@@ -73,7 +73,7 @@ export function createJwtService(options: JwtOptions) {
 export type JwtService = ReturnType<typeof createJwtService>;
 ```
 
-## `src/lib/password.ts`
+## `src/infra/security/password.ts`
 
 ```ts
 import { hash, verify } from '@node-rs/argon2';
@@ -103,7 +103,7 @@ export async function verifyAgainstDummy(password: string): Promise<false> {
 }
 ```
 
-## `src/lib/tokens.ts`
+## `src/infra/security/tokens.ts`
 
 ```ts
 import { createHash, randomBytes } from 'node:crypto';
@@ -118,12 +118,12 @@ export function hashToken(token: string): string {
 }
 ```
 
-## `src/middleware/authenticate.ts`
+## `src/api/http/middlewares/authenticate.ts`
 
 ```ts
 import type { RequestHandler, Response } from 'express';
-import { UnauthorizedError } from '../lib/errors.js';
-import type { JwtService, Principal } from '../lib/jwt.js';
+import { UnauthorizedError } from '../../../core/errors/app-error.js';
+import type { JwtService, Principal } from '../../../infra/security/jwt.js';
 
 const BEARER = /^Bearer (\S+)$/i;
 
@@ -146,12 +146,12 @@ export function requirePrincipal(res: Response): Principal {
 }
 ```
 
-## `src/middleware/authorize.ts`
+## `src/api/http/middlewares/authorize.ts`
 
 ```ts
 import type { RequestHandler } from 'express';
-import { ForbiddenError } from '../lib/errors.js';
-import type { Role } from '../lib/jwt.js';
+import { ForbiddenError } from '../../../core/errors/app-error.js';
+import type { Role } from '../../../infra/security/jwt.js';
 import { requirePrincipal } from './authenticate.js';
 
 /** Role-based guard. Mount after `authenticate`. Passes when the caller has any of the roles. */
@@ -164,7 +164,7 @@ export function requireRole(...roles: Role[]): RequestHandler {
 }
 ```
 
-## `src/db/schema/refresh-tokens.ts`
+## `src/infra/db/schema/refresh-tokens.ts`
 
 ```ts
 import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
@@ -194,16 +194,16 @@ export type RefreshTokenRow = typeof refreshTokens.$inferSelect;
 export type NewRefreshTokenRow = typeof refreshTokens.$inferInsert;
 ```
 
-## `src/repositories/refresh-tokens.repository.ts`
+## `src/domains/sessions/sessions.repository.ts`
 
 ```ts
 import { and, eq, isNull } from 'drizzle-orm';
-import type { Database, DbExecutor } from '../db/client.js';
+import type { Database, DbExecutor } from '../../infra/db/client.js';
 import {
   refreshTokens,
   type NewRefreshTokenRow,
   type RefreshTokenRow,
-} from '../db/schema/index.js';
+} from '../../infra/db/schema/index.js';
 
 export function createRefreshTokensRepository(db: Database) {
   return {
@@ -245,19 +245,19 @@ export function createRefreshTokensRepository(db: Database) {
 export type RefreshTokensRepository = ReturnType<typeof createRefreshTokensRepository>;
 ```
 
-## `src/services/auth.service.ts`
+## `src/domains/sessions/sessions.service.ts`
 
 ```ts
 import { randomUUID } from 'node:crypto';
-import { isUniqueViolation } from '../db/errors.js';
-import type { DbExecutor } from '../db/client.js';
-import type { TransactionRunner } from '../db/transaction.js';
-import { ConflictError, UnauthorizedError } from '../lib/errors.js';
-import type { JwtService } from '../lib/jwt.js';
-import { hashPassword, verifyAgainstDummy, verifyPassword } from '../lib/password.js';
-import { generateOpaqueToken, hashToken } from '../lib/tokens.js';
-import type { RefreshTokensRepository } from '../repositories/refresh-tokens.repository.js';
-import type { UsersRepository } from '../repositories/users.repository.js';
+import { isUniqueViolation } from '../../infra/db/errors.js';
+import type { DbExecutor } from '../../infra/db/client.js';
+import type { TransactionRunner } from '../../infra/db/unit-of-work.js';
+import { ConflictError, UnauthorizedError } from '../../core/errors/app-error.js';
+import type { JwtService } from '../../infra/security/jwt.js';
+import { hashPassword, verifyAgainstDummy, verifyPassword } from '../../infra/security/password.js';
+import { generateOpaqueToken, hashToken } from '../../infra/security/tokens.js';
+import type { RefreshTokensRepository } from '../../domains/sessions/sessions.repository.js';
+import type { UsersRepository } from '../../domains/users/users.repository.js';
 import { toUser, type User } from './users.service.js';
 
 export interface AuthTokens {
@@ -397,8 +397,8 @@ export type AuthService = ReturnType<typeof createAuthService>;
 
 ```ts
 import { z } from 'zod';
-import type { ValidationSchemas } from '../middleware/validate.js';
-import type { AuthResult } from '../services/auth.service.js';
+import type { ValidationSchemas } from '../api/http/middlewares/validate.js';
+import type { AuthResult } from '../domains/sessions/sessions.service.js';
 import { toUserResponse, userResponseSchema } from './user.schema.js';
 
 const email = z.email().max(320);
@@ -430,18 +430,18 @@ export function toAuthResponse(result: AuthResult): z.infer<typeof authResponseS
 }
 ```
 
-## `src/controllers/auth.controller.ts`
+## `src/api/http/v1/auth/auth.controller.ts`
 
 ```ts
 import type { RequestHandler } from 'express';
-import { validated } from '../middleware/validate.js';
+import { validated } from '../../../../api/http/middlewares/validate.js';
 import {
   loginRequest,
   refreshRequest,
   registerRequest,
   toAuthResponse,
 } from '../schemas/auth.schema.js';
-import type { AuthService } from '../services/auth.service.js';
+import type { AuthService } from '../../../../domains/sessions/sessions.service.js';
 
 /** HTTP ↔ service mapping only: read validated input, call one service method, shape the response. */
 export function createAuthController(auth: AuthService) {
@@ -473,12 +473,12 @@ export function createAuthController(auth: AuthService) {
 export type AuthController = ReturnType<typeof createAuthController>;
 ```
 
-## `src/routes/auth.routes.ts`
+## `src/api/http/v1/auth/auth.routes.ts`
 
 ```ts
 import { Router, type RequestHandler } from 'express';
-import type { AuthController } from '../controllers/auth.controller.js';
-import { validate } from '../middleware/validate.js';
+import type { AuthController } from '../../../../api/http/v1/auth/auth.controller.js';
+import { validate } from '../../../../api/http/middlewares/validate.js';
 import { loginRequest, refreshRequest, registerRequest } from '../schemas/auth.schema.js';
 
 /** Wiring only: path → middleware → controller. */

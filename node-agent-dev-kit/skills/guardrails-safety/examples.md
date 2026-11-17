@@ -1,6 +1,6 @@
 # Guardrail examples
 
-Examples 1 to 3 and 5 are from `agent-boilerplate`. Example 4 (output guard) is an extension, typechecked and run against `@langchain/langgraph` 1.6.
+Examples 1 to 3 and 5 are in this kit. Example 4 (output guard) is an extension, typechecked and run against `@langchain/langgraph` 1.6.
 
 ## Example 1: `guardrails/input.ts`
 

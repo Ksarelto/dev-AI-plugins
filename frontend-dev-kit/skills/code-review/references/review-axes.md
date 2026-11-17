@@ -36,7 +36,7 @@ Detail: [best-practices.md](best-practices.md) Correctness and Resilience, [test
 - Can another engineer or agent understand this code without the author explaining it?
 - Are names descriptive and consistent with project conventions? `temp`, `data`, and `result`
   without context are findings.
-- Is the control flow straightforward? Nested ternaries and deep callback chains are findings.
+- Is the control flow straightforward? Nested ternaries, a ternary in JSX, a const that holds an element from a ternary, and deep callback chains are findings. Show or hide with `{condition && <Node />}`. A conditional list is `{items && getTips()}`. Two element branches are `{renderHeader()}`.
 - Is related code grouped, with a boundary that matches the slice?
 - Is there a clever trick whose straightforward version is shorter?
 - Could this be done in fewer lines? A thousand lines where a hundred suffice is a failure.
@@ -71,7 +71,10 @@ Detail: [architecture.md](architecture.md), [design-principles.md](design-princi
 - Does feature logic stay out of `shared/`? A business noun in `shared/` is a misplaced entity or
   feature.
 - Does this change push a file toward ~500 lines? That count is an inspection signal, separate from
-  the ~500 changed-lines threshold below. Extract a helper, subcomponent, or module before adding more.
+  the ~500 changed-lines threshold below. For a role file (`schema`, `hooks`, `config`, fetchers,
+  endpoints, types) the extraction is a folder of the same name: `index.ts` re-exports the role, and
+  sibling files split by meaning. Callers keep `from './hooks'`. Other files extract a helper,
+  subcomponent, or module before adding more.
 
 ### Checklist
 
@@ -80,7 +83,7 @@ Detail: [architecture.md](architecture.md), [design-principles.md](design-princi
 - [ ] Abstraction level matches the surrounding code
 - [ ] Refactors reduce complexity
 - [ ] No feature logic in `shared/`
-- [ ] File stays within a healthy size, or the extraction is named
+- [ ] File stays within a healthy size, or the extraction is named (a role file becomes a same-named folder)
 
 ## Design
 
@@ -184,7 +187,8 @@ Small, focused changes are easier to review, faster to merge, and safer to deplo
 - ~500 lines changed: too large. Split it. This is a **Should fix**, not a Blocker. Complete file
   deletions and automated refactors are the exception: verify intent, not every line.
 - ~500 lines in one file is a separate signal. A small diff that pushes an already-large file across
-  that line asks for an extraction before more code is added.
+  that line asks for an extraction before more code is added. For a role file the extraction is a
+  folder of the same name.
 
 One change is a single self-contained modification that addresses one thing, includes its tests, and
 leaves the system working. One part of a feature is one change. The whole feature is not.
@@ -208,8 +212,8 @@ On every change, answer both:
 
 - **Simpler path.** Can the same behavior be implemented in substantially fewer lines? A roughly
   tenfold expansion with no extra behavior is a **Should fix** and includes the shorter shape.
-- **Reuse.** For each new component, hook, helper, or mapper, search the repo for an existing
-  implementation. The search covers the symbols and shapes this diff adds.
+- **Reuse.** For each new component, hook, helper, mapper, constant, enum, or feature, search the
+  repo for an existing implementation. The search covers the symbols and shapes this diff adds.
   - A primitive that already exists in `shared/ui` is reused.
   - Domain logic stays on the owning entity or feature.
   - A stack-wide helper with no business noun promotes to `shared/lib` on the third use.

@@ -3,7 +3,7 @@
   "source": "./node-agent-dev-kit",
   "component": "skills",
   "cases": [
-    { "prompt": "Scaffold a new AI agent service from agent-boilerplate with pgvector and the checkpointer migrations", "expect": "scaffold-agent-service" },
+    { "prompt": "Scaffold a new AI agent service with pgvector and the checkpointer migrations", "expect": "scaffold-agent-service" },
     { "prompt": "Start a new chatbot assistant service and add a second agent folder under src/agents", "expect": "scaffold-agent-service" },
     { "prompt": "Build a LangGraph agent with a StateGraph, ToolNode and conditional edges to END", "expect": "langgraph-agent" },
     { "prompt": "Add a new node and change the tool-calling loop routing in our LangGraph agent graph", "expect": "langgraph-agent" },

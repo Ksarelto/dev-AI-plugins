@@ -29,10 +29,10 @@ Hard constraints: `rules/resilience.mdc`, `rules/error-handling.mdc`. Code: [exa
 ## Procedure — a new outbound dependency
 
 1. Add its URL (and key, if any) to `envSchema`; never hard-code hosts.
-2. Write `src/lib/<name>-client.ts`: build `createResilientHttpClient` inside, expose domain methods (`locate(ip)`), parse every response with a Zod schema, expose `breaker`.
+2. Write `src/infra/http/<name>-client.ts`: build `createResilientHttpClient` inside, expose domain methods (`locate(ip)`), parse every response with a Zod schema, expose `breaker`.
 3. Decide per method: idempotent → retries allowed; non-idempotent `POST` → `retries: 0` unless the upstream accepts an idempotency key you send.
 4. Pick the timeout from the upstream's p99 plus margin, well under `REQUEST_TIMEOUT_MS`.
-5. Wire it in `container.ts`, pass it to the service through its deps interface, and register a health check with an explicit `critical` flag.
+5. Wire it in `composition/`, pass it to the scenario through its deps, and register a health check with an explicit `critical` flag.
 6. Decide the degraded behaviour in the service: either let `CircuitOpenError` surface as 503, or catch `ServiceUnavailableError` and return a documented fallback (`null`, cached value). Never return fake data silently.
 7. Unit-test with an injected `fetchImpl`: retry on 503, no retry on 4xx, breaker opens and fails fast.
 

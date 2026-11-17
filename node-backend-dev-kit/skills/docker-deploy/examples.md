@@ -1,6 +1,6 @@
 # Docker and deploy — examples
 
-Verbatim from `backend-boilerplate/` (Docker smoke-tested: build, compose up, `/health/ready`).
+Reference copy for this kit (Docker smoke-tested: build, compose up, `/health/ready`).
 
 ## `Dockerfile`
 
@@ -88,7 +88,7 @@ services:
   migrate:
     profiles: ['app']
     build: .
-    command: ['node', 'dist/db/migrate.js']
+    command: ['node', 'dist/infra/db/migrate.js']
     environment: *api-env
     depends_on:
       db:

@@ -15,10 +15,10 @@ description: Create TanStack Query v5 hooks with the central query-key registry,
 
 - Query keys live in `shared/api/query-keys/{domain}.ts` — never in per-feature `api/queryKeys.ts`, never as inline array literals
 - Fetchers live in the owning slice's `api/fetchers.ts` and call `httpClient` from `shared/api/base.ts`
-- Every `useQuery` and `useMutation` for that model lives in the same segment's `api/hooks.ts`. Do not add `api/useThing.ts` per hook
+- Every `useQuery` and `useMutation` for that model lives in the same segment's hooks role: `api/hooks.ts` until that file outgrows one file, then `api/hooks/` with `index.ts` and files split by meaning. Callers import `./hooks`, not a leaf. Do not add `api/useThing.ts` per hook
 - `useQuery` and `useMutation` are called only in that `api/` segment. Other features and entities import the hook from the owner's public `index.ts`. They do not declare a second one. `features/{name}/hooks/` does not call `useQuery` or `useMutation`. A feature hook may compose navigation and local UI state, and it calls the api hook
 - Cross-feature cache invalidation: import the shared key from `shared/api/query-keys/` and call `invalidateQueries` — never import from another feature
-- `ui/` imports `hooks/`, never `api/` and never a fetcher. That hook calls the query or mutation in `api/hooks.ts`. `ui/` never calls `useQuery` or `useMutation`
+- `ui/` imports `hooks/`, never `api/` and never a fetcher. That hook calls the query or mutation in the hooks role. `ui/` never calls `useQuery` or `useMutation`
 - Read `shared/api/base.ts`, `config.ts`, and `query-client.ts` before adding a hook option. Do not pass `timeout`, `retry`, `prefixUrl`, or `Authorization` on `httpClient`. Do not copy `staleTime` or `retry` as a literal — a different policy is a named constant in `shared/api`.
 - A fetcher returns the domain value or `null` (`parseEntity` failed and already notified). The hook does not parse again. UI branches on `isPending`, `isError`, and `data === null`. It does not check entity fields.
 
@@ -146,7 +146,7 @@ Default to `invalidateQueries`. Use `setQueryData` only when the payload has an 
 - [ ] UI checks `isError` and `data === null`; it does not re-check entity fields
 - [ ] `enabled` guard when params may be undefined
 - [ ] Second pass: no unexplained string or number literals, and no literal that copies a `shared/api` constant
-- [ ] `useQuery` and `useMutation` live in that slice's `api/hooks.ts`, not in a component, not in `api/useThing.ts`, and not in `features/{name}/hooks/`
+- [ ] `useQuery` and `useMutation` live in that slice's hooks role (`api/hooks.ts`, or `api/hooks/` once the file outgrows one file), not in a component, not in `api/useThing.ts`, and not in `features/{name}/hooks/`
 
 ## Mutation hook checklist
 

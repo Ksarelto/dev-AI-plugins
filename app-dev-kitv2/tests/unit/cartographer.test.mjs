@@ -37,6 +37,29 @@ test("express-layered: layered modules with exports, importers and the endpoints
   assert.ok(!c.some((x) => x.path.includes(".test.")), "tests are not components");
 });
 
+test("express-layered: nested http, domains, queries, composition and infra/db", () => {
+  const dir = tree({
+    "api/src/api/http/v1/coupons/coupons.routes.ts": "export const createCouponsRouter = () => { router.post('/apply', c.apply); router.get('/:code', c.get); };\n",
+    "api/src/api/http/v1/coupons/coupons.controller.ts": "export const createCouponsController = () => ({});\n",
+    "api/src/domains/coupons/coupons.service.ts": "export const redeemCoupon = () => ({});\n",
+    "api/src/domains/coupons/coupons.repository.ts": "export const createCouponsRepository = () => ({});\n",
+    "api/src/domains/coupons/index.ts": "export { redeemCoupon } from './coupons.service.js';\n",
+    "api/src/queries/coupon-list.query.ts": "export const listCoupons = () => [];\n",
+    "api/src/composition/wiring/coupons.wiring.ts": "import { redeemCoupon } from '../../domains/coupons/index.js';\nexport const createCouponsWiring = () => redeemCoupon;\n",
+    "api/src/infra/db/schema/coupons.ts": "export const coupons = {};\n",
+  });
+  buildIndex(dir, { roles: { backend: { enabled: true, stack: "b", path: "api" } } }, { b: { stack: { index_adapter: "express-layered" } } });
+  const c = inventory(dir);
+  const route = c.find((x) => x.layer === "route");
+  assert.deepEqual([route.name, route.path, route.endpoints], ["coupons", "api/src/api/http/v1/coupons/coupons.routes.ts", ["POST /apply", "GET /:code"]]);
+  assert.equal(c.find((x) => x.layer === "repository").name, "coupons");
+  assert.equal(c.find((x) => x.layer === "query").name, "coupon-list");
+  assert.ok(c.some((x) => x.layer === "domain" && x.path.endsWith("index.ts")));
+  assert.ok(c.some((x) => x.layer === "composition"));
+  assert.ok(c.some((x) => x.layer === "db-schema" && x.path.endsWith("coupons.ts")));
+  assert.equal(c.find((x) => x.layer === "domain" && x.path.endsWith("index.ts")).used_by, 1);
+});
+
 test("langgraph: agent folders, their nodes and tools, and the llm/rag modules", () => {
   const dir = tree({
     "src/agents/support/graph.ts": "import { createLookupTool } from './tools/lookup.js';\nexport function buildSupportGraph() {}\n",
@@ -44,6 +67,8 @@ test("langgraph: agent folders, their nodes and tools, and the llm/rag modules",
     "src/agents/support/tools/lookup.ts": "export function createLookupTool() {}\n",
     "src/agents/support/nodes/guard.ts": "export function createGuardNode() {}\n",
     "src/llm/models.ts": "export function createChatModel() {}\n",
+    "src/domains/conversations/conversations.service.ts": "export const createConversations = () => ({});\n",
+    "src/composition/index.ts": "export const createComposition = () => ({});\n",
   });
   buildIndex(dir, { roles: { "ai-agent": { enabled: true, stack: "a" } } }, { a: { stack: { index_adapter: "langgraph" } } });
   const byLayer = (layer) => inventory(dir).filter((x) => x.layer === layer).map((x) => x.path).sort();
@@ -51,5 +76,7 @@ test("langgraph: agent folders, their nodes and tools, and the llm/rag modules",
   assert.deepEqual(byLayer("tool"), ["src/agents/support/tools/lookup.ts"]);
   assert.deepEqual(byLayer("node"), ["src/agents/support/nodes/guard.ts"]);
   assert.deepEqual(byLayer("llm"), ["src/llm/models.ts"]);
+  assert.deepEqual(byLayer("domain"), ["src/domains/conversations/conversations.service.ts"]);
+  assert.deepEqual(byLayer("composition"), ["src/composition/index.ts"]);
   assert.equal(inventory(dir).find((x) => x.layer === "tool").used_by, 1);
 });

@@ -28,7 +28,7 @@ query:   search_knowledge tool → KnowledgeRetriever.search(query, topK)
 
 ## Procedure
 
-1. **Schema** (`db/schema/knowledge.ts`): `documents` (title, source, created_by) and `chunks` (document_id cascade, position, content, metadata jsonb, `vector('embedding', { dimensions: EMBEDDING_DIMENSIONS })`, generated `search_vector`). Indexes: btree on `document_id`, HNSW `vector_cosine_ops`, GIN on `search_vector`. The first migration is `CREATE EXTENSION IF NOT EXISTS vector`.
+1. **Schema** (`infra/db/schema/knowledge.ts`): `documents` (title, source, created_by) and `chunks` (document_id cascade, position, content, metadata jsonb, `vector('embedding', { dimensions: EMBEDDING_DIMENSIONS })`, generated `search_vector`). Indexes: btree on `document_id`, HNSW `vector_cosine_ops`, GIN on `search_vector`. The first migration is `CREATE EXTENSION IF NOT EXISTS vector`.
 2. **Splitter**: `createTextSplitter({ chunkSize, chunkOverlap })`, default 1000 / 150 characters (about 250 tokens). Choose with this table, then confirm with evals:
 
    | Content | chunkSize / overlap |
@@ -37,15 +37,15 @@ query:   search_knowledge tool → KnowledgeRetriever.search(query, topK)
    | Long manuals, contracts | 1000–1500 / 150–200 |
    | Code or tables | split by structure first (sections, rows), then the splitter |
 
-3. **Ingestion** (`rag/ingest.ts`): split, embed in batches of `EMBED_BATCH_SIZE` outside the transaction, then one `TransactionRunner` call inserts the document and its chunks with `position` = index. Return `{ documentId, chunks }`.
+3. **Ingestion** (`rag/ingest.ts`): split, embed in batches of `EMBED_BATCH_SIZE` outside the transaction, then call the `KnowledgeStore` port. `domains/knowledge` opens `unitOfWork.transaction()` and inserts the document and its chunks with `position` = index. Return `{ documentId, chunks }`.
 4. **Entry points**: the admin endpoint (`requireRole('admin')`, body capped at 200,000 characters) and scripts such as `npm run ingest:sample`. Large or scheduled imports run as a script or job, never inside a chat turn.
-5. **Search**: `knowledge.repository.ts` `hybridSearch({ text, embedding, limit })`, one SQL statement: top `limit * 4` by cosine distance, top `limit * 4` by `ts_rank_cd` over `websearch_to_tsquery('english', text)`, fused with RRF (`1 / (60 + rank)` summed), joined to documents.
-6. **Retriever**: `createKnowledgeRetriever(repository, embeddings)` exposes `search(query, limit)` and is the only thing tools see.
+5. **Search**: `queries/knowledge-search.query.ts` `searchKnowledge(db, { text, embedding, limit })`, one SQL statement: top `limit * 4` by cosine distance, top `limit * 4` by `ts_rank_cd` over `websearch_to_tsquery('english', text)`, fused with RRF (`1 / (60 + rank)` summed), joined to documents. SELECT only.
+6. **Retriever**: `createKnowledgeRetriever(search, embeddings)` exposes `search(query, limit)` and is the only thing tools see. `rag` does not import the query; composition binds it.
 7. **Filters** (tenant, owner, type): put them in the `where` of both CTEs (example 5) and add a GIN index on `metadata` or a real column. Never filter after ranking.
 8. **Updates and deletes**: replace a document by deleting it (chunks cascade) and ingesting again in one service call. Keep `source` stable so callers can find the old row.
 9. **New embedding model or size**: update `EMBEDDING_DIMENSIONS` in the schema and env, `npm run db:generate`, review the migration (the column type and the HNSW index change), then re-ingest every document. Do not serve queries while vectors from two models are mixed.
 10. **Quality**: add golden questions for each source with `mustCite` titles (`agent-evals`); run `npm run eval` before and after any splitter, search or model change. For relevance debugging use the queries in [references/hybrid-search.md](references/hybrid-search.md).
-11. **Tests**: unit-test ingestion with `SyntheticEmbeddings` and a fake repository (positions, batch sizes); integration-test ingest → search → cited answer against real pgvector.
+11. **Tests**: unit-test ingestion with `SyntheticEmbeddings` and a fake `KnowledgeStore` (positions, batch sizes); integration-test ingest → search → cited answer against real pgvector. The HTTP body is `{ data, meta }`.
 
 ## Checklist
 

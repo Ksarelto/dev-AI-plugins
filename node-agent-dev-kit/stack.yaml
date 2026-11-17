@@ -70,4 +70,4 @@ stage_skills:
   acceptance-test-author: node-agent-dev-kit:agent-evals   # the scripted-model helper its acceptance tests use
   reviewer: [node-agent-dev-kit:guardrails-safety, node-agent-dev-kit:agent-evals]
 index_adapter: langgraph
-boilerplate: { repo: dev-AI-plugins, path: agent-boilerplate, ref: main }
+boilerplate: { repo: https://github.com/AtrsiomMDev/boilerplates, path: agent-boilerplate }
