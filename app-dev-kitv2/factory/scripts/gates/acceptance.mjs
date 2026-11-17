@@ -21,7 +21,7 @@ export async function run(ctx) {
   const runs = await Promise.all(stacks.map((stack) => runTests(ctx, stack, `${ctx.state.feature}-acceptance-${stack.role}`, { scope: testScope(ctx, stack) })));
   for (const [i, stack] of stacks.entries()) {
     const { run, report } = runs[i];
-    if (!report) failures.push({ check: "acceptance", rule: "no-report", message: `${stack.role}: the test command wrote no report (exit ${run.code}):\n${run.tail}` });
+    if (!report) failures.push({ check: "acceptance", rule: "no-report", ...(run.log ? { log: run.log } : {}), message: `${stack.role}: the test command wrote no report (exit ${run.code}): ${firstLine(run.tail)}` });
     else mine.push(...report.files.filter((f) => files.includes(f.file)));
   }
   if (failures.length) return failures; // a missing report makes "not run" and coverage meaningless

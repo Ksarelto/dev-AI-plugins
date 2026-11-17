@@ -79,11 +79,11 @@ test("#3 a transient failure retries in place even when on_fail sends gate failu
   assert.equal(after.budgets.regressions, 0);
 });
 
-test("#4 time waiting for a human does not count against the wall-clock budget", async () => {
+test("#4 elapsed time is recorded and a leftover wall-clock budget does not halt", async () => {
   const hour = 3600_000;
   const started = new Date(Date.now() - 5 * hour).toISOString();
   const config = { budgets: { feature: { wall_clock_min: 240 } } };
-  assert.equal(exhaustedBudgets({ budgets: { started_at: started, paused_ms: 0 } }, config).length, 1);
+  assert.deepEqual(exhaustedBudgets({ budgets: { started_at: started, paused_ms: 0 } }, config), [], "a leftover wall_clock_min does not exhaust");
   assert.deepEqual(exhaustedBudgets({ budgets: { started_at: started, paused_ms: 4 * hour } }, config), []);
   assert.deepEqual(exhaustedBudgets({ budgets: { started_at: started, paused_since: new Date(Date.now() - 4 * hour).toISOString() } }, config), []);
   const env = setup();

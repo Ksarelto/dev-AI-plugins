@@ -1,16 +1,15 @@
 // gate-impl (S5, green and characterisation phases): the red tests are unchanged since gate-red, the
-// task's own tests ran and every one of them passed (none skipped), the tests touched by the change
-// pass (the whole suite for a role's last task), and typecheck, lint, the architecture check are
-// clean (quality.impl_build: true adds the build; verification always builds), and the role's own checks (role.yaml gates.checks: an eval run, a migration check, …)
-// pass for this task type. The commands are independent and run side by side.
+// task's own tests ran and every one of them passed (none skipped), the tests related to this task's
+// change pass, and the architecture check is clean (quality.impl_build: true adds the build).
+// Lint, typecheck and style audits run once before verification, not here. The role's own checks
+// (role.yaml gates.checks: an eval run, a migration check, …) still run, except the style checks
+// conventions and duplicates. The commands are independent and run side by side.
 import { join, relative } from "node:path";
 import { fileHash, toPosix } from "../lib/core.mjs";
 import { firstLine, freshReport, isAcceptanceTest, readVitestReport } from "../lib/vitest-report.mjs";
 import { coveredCommands, inPool, runStackCommandAsync } from "../lib/stackexec.mjs";
 import { taskTestFiles } from "../lib/tasks.mjs";
-import { taskAuditFailures } from "../lib/audits.mjs";
-import { baseRefValid, changedSinceBase } from "../lib/baseref.mjs";
-import { lastOfRole, lintScope, otherOpenRedTests, scopeArgs, testScope, typecheckForTask } from "../lib/testrun.mjs";
+import { otherOpenRedTests, scopeArgs, testScope } from "../lib/testrun.mjs";
 
 export const inputs = ["tasks"];
 export const cacheable = "tree"; // a passing run is reused while the working tree is unchanged
@@ -30,27 +29,20 @@ export async function run(ctx) {
     if (fileHash(join(ctx.projectDir, file)) !== hash) failures.push({ check: "acceptance-lock", rule: "acceptance-test-changed", file, message: `${file} changed after gate-acceptance; acceptance tests are the holdout and stay as written` });
   }
   const reportFile = freshReport(join(ctx.paths.logs, `${task.id}-impl-report.json`));
-  const last = lastOfRole(ctx, task);
-  const scope = testScope(ctx, stack, { full: last });
-  // Lint only the files this task changed since its base ref (an eslint command naming files); the
-  // role's last task lints everything. A lint script that also runs the architecture check no longer
-  // covers it once lint is replaced by the files-only command.
-  const lintFiles = lintScope(ctx, stack, { full: last });
+  const scope = testScope(ctx, stack);
+  // Lint and typecheck are the style pass before verification. The architecture check stays: a broken
+  // layer import is structure the next slice builds on. The build stays off unless impl_build is set.
   const covered = coveredCommands(stack, ctx.config);
-  if (lintFiles) covered.delete("architecture_check");
-  const steps = ["typecheck", "lint", "architecture_check", "build"].filter((n) => !covered.has(n) && !(n === "lint" && lintFiles && !lintFiles.length));
+  covered.delete("architecture_check");
+  const steps = ["architecture_check", "build"].filter((n) => !covered.has(n) && stack?.stack?.commands?.[n]);
   const jobs = [
     () => runStackCommandAsync(stack, scope.command, { vars: { report: reportFile, files: scope.files, extra: scope.extra }, logName: `${task.id}-impl-test` }),
-    ...steps.map((name) => () => {
-      if (name === "typecheck") return typecheckForTask(stack, `${task.id}-impl-typecheck`, { incremental: ctx.config.quality?.tsc_incremental !== false });
-      if (name === "lint" && lintFiles) return runStackCommandAsync(stack, "lint_files", { vars: { files: lintFiles }, logName: `${task.id}-impl-lint` });
-      return runStackCommandAsync(stack, name, { logName: `${task.id}-impl-${name}` });
-    }),
+    ...steps.map((name) => () => runStackCommandAsync(stack, name, { logName: `${task.id}-impl-${name}` })),
     ...roleCheckJobs(ctx),
   ];
   const [run, ...rest] = await inPool(jobs, ctx.config.quality?.gate_concurrency ?? 4);
   const report = readVitestReport(reportFile, ctx.projectDir);
-  if (!report) failures.push({ check: "test", rule: "no-report", message: `the test command wrote no JSON report (exit ${run.code}):\n${run.tail}` });
+  if (!report) failures.push({ check: "test", rule: "no-report", ...(run.log ? { log: run.log } : {}), message: `the test command wrote no JSON report (exit ${run.code}): ${firstLine(run.tail)}` });
   const others = otherOpenRedTests(ctx); // another open task's red tests fail by design until that task is built
   for (const f of (report?.files ?? []).filter((x) => !isAcceptanceTest(x.file) && !others.has(x.file))) {
     if (!f.collected) failures.push({ check: "test", rule: "does-not-load", file: f.file, message: firstLine(f.error) });
@@ -67,13 +59,9 @@ export async function run(ctx) {
   }
   steps.forEach((name, i) => {
     const r = rest[i];
-    if (!r.ok && !r.skipped) failures.push({ check: name, rule: `${name}-failed`, message: r.tail || `${name} exited with ${r.code}` });
+    if (!r.ok && !r.skipped) failures.push({ check: name, rule: `${name}-failed`, ...(r.log ? { log: r.log } : {}), message: `${name} exited with ${r.code}: ${firstLine(r.tail)}` });
   });
   for (const checkFailures of rest.slice(steps.length)) failures.push(...checkFailures);
-  // Early quality: the role's static audits marked per_task (raw colours, untranslated text) on this task's files.
-  const base = ctx.state?.tasks?.[task.id]?.base_ref;
-  const changed = base && baseRefValid(ctx.projectDir, base) ? changedSinceBase(ctx.projectDir, base) ?? [] : [];
-  failures.push(...taskAuditFailures(ctx, [...new Set([...task.files_expected, ...changed])]));
   return failures;
 }
 
@@ -82,7 +70,7 @@ function roleCheckJobs(ctx) {
   const pack = ctx.packs?.[ctx.config.roles?.[ctx.task.role]?.pack];
   // roles.<role>.checks_off: a project turns a role check off by name (e.g. an app that predates the
   // stack's conventions); the same name turns off the audit of that name at verification.
-  const off = new Set(ctx.config.roles?.[ctx.task.role]?.checks_off ?? []);
+  const off = new Set([...(ctx.config.roles?.[ctx.task.role]?.checks_off ?? []), "conventions", "duplicates"]);
   return (pack?.role?.gates?.checks ?? []).filter((check) => !off.has(check.name) && (!check.task_types || check.task_types.includes(ctx.task.type))).map((check) => () => roleCheck(ctx, pack, check));
 }
 
@@ -109,7 +97,7 @@ async function roleCheck(ctx, pack, check) {
       return failures;
     }
     // A report-writing suite (evals) runs only what the change touches, like the tests; verification runs it whole.
-    const extra = check.report ? scopeArgs(ctx, stack, { full: lastOfRole(ctx, task) }) : [];
+    const extra = check.report ? scopeArgs(ctx, stack) : [];
     let r = await runStackCommandAsync(resolved, command, { vars: { report: reportFile ?? "", files: [], extra }, logName: label });
     let report = reportFile ? readVitestReport(reportFile, ctx.projectDir) : null;
     const counted = (rep) => (rep?.files ?? []).flatMap((f) => f.tests).filter((t) => ["passed", "failed"].includes(t.status)).length;
@@ -122,7 +110,7 @@ async function roleCheck(ctx, pack, check) {
       report = readVitestReport(reportFile, ctx.projectDir);
     }
     const allowSkipped = check.allow_skipped || ctx.config.quality?.allow_skipped_checks === true;
-    if (reportFile && !report) failures.push({ check: check.name, rule: "no-report", message: `${check.name} wrote no report (exit ${r.code}):\n${r.tail}` });
+    if (reportFile && !report) failures.push({ check: check.name, rule: "no-report", ...(r.log ? { log: r.log } : {}), message: `${check.name} wrote no report (exit ${r.code}): ${firstLine(r.tail)}` });
     for (const f of report?.files ?? []) {
       for (const t of f.tests.filter((x) => x.status === "failed")) failures.push({ check: check.name, rule: `${check.name}-failing`, file: f.file, message: `"${t.name}": ${firstLine(t.message)}` });
     }
@@ -140,7 +128,7 @@ async function roleCheck(ctx, pack, check) {
       }
     }
     if (report && !ran && !allowSkipped) failures.push({ check: check.name, rule: `${check.name}-skipped`, message: `${check.name} ran no test (all skipped or none found) — an AI task needs a real eval run; set quality.allow_skipped_checks only where evals cannot run` });
-    if (!r.ok && !(report && failures.some((f) => f.check === check.name))) failures.push({ check: check.name, rule: `${check.name}-failed`, message: r.tail || `${check.name} exited with ${r.code}` });
+    if (!r.ok && !(report && failures.some((f) => f.check === check.name))) failures.push({ check: check.name, rule: `${check.name}-failed`, ...(r.log ? { log: r.log } : {}), message: `${check.name} exited with ${r.code}: ${firstLine(r.tail)}` });
   }
   return failures;
 }

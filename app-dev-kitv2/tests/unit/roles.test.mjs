@@ -99,7 +99,9 @@ test("gate-impl runs the backend migration check for migration tasks, in the rol
   env.write("api/drizzle/meta/_journal.json", JSON.stringify({ entries: [{ idx: 0, tag: "0000_init" }] }));
   let r = await implGate(env, "TASK-003");
   assert.deepEqual(rules(r), ["migrations-failed"]);
-  assert.match(r.failures[0].message, /no entry with tag "0001_deployments"[\s\S]*rollback .* is missing/);
+  assert.match(r.failures[0].message, /no entry with tag "0001_deployments"/);
+  assert.doesNotMatch(r.failures[0].message, /\n/);
+  assert.match(readFileSync(r.failures[0].log, "utf8"), /rollback .* is missing/);
   env.write("api/drizzle/meta/_journal.json", JSON.stringify({ entries: [{ idx: 0, tag: "0000_init" }, { idx: 1, tag: "0001_deployments" }] }));
   env.write("api/drizzle/rollback/0001_deployments.down.sql", "DROP TABLE deployments;\n");
   r = await implGate(env, "TASK-003");

@@ -75,14 +75,14 @@ Workflow guides. Skills that ship templates keep them in `examples.md` (`archite
 | `testing` | Writing or fixing tests for specified files, or recently changed files |
 | `storybook` | One story file per `shared/ui` primitive, plus one story for a feature's public entry |
 | `browser-debug` | UI verification and debugging via Chrome |
-| `code-review` | Full review of a diff or paths: standards, architecture, design principles and smells, pattern usage, best practices, and optionally the originating spec |
+| `code-review` | Full review of a diff or paths: standards, architecture, design principles and smells, pattern usage, readability, correctness, security, performance, change size, reuse, and optionally the originating spec |
 | `manage-feature` | Flagging a feature, turning a flag on or off, or removing a feature and its leftovers |
 
 ### Commands
 
 | Command | Use when |
 |---------|----------|
-| `/frontend-dev-kit:review [base-ref \| path...] [--spec <file>] [--focus all\|architecture\|design\|standards]` | Reviewing a branch, uncommitted work, or named paths. Runs the `code-review` skill: mechanical scripts, a diff-scoped `architecture-audit`, design-principle and pattern checks, best practices, and an optional spec check. Read-only; ends with a verdict and severity-tagged findings |
+| `/frontend-dev-kit:review [base-ref \| path...] [--spec <file>] [--focus all\|architecture\|design\|standards\|readability\|security\|performance]` | Reviewing a branch, uncommitted work, or named paths. Runs the `code-review` skill: mechanical scripts, a diff-scoped `architecture-audit`, design-principle and pattern checks, readability, correctness, security, performance, change size, reuse, and an optional spec check. Read-only; ends with a verdict and severity-tagged findings |
 
 ### MCP Servers
 

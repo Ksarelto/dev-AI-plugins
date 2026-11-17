@@ -30,7 +30,7 @@ Delta: ADDED REQ-0001 (coupon at checkout) · MODIFIED REQ-0002 (order total) ·
 
 ## Diff
  src/entities/order/model/total.ts | 12 ++++++++----
- src/features/apply-coupon/ui/coupon-field.tsx (new, 48 lines)
+ src/features/apply-coupon/ui/coupon-field/coupon-field.tsx (new, 48 lines)
 
 ## Open items
 - OQ-1 answered with its default: coupons do not stack with the loyalty discount.

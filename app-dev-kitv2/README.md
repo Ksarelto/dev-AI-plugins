@@ -175,35 +175,40 @@ everyone.
 
 ## Doing each check once
 
-- Task gates run typecheck, lint, the architecture check, the tests and the role's checks
-  side by side (`quality.gate_concurrency`, default 4); the production build is left to verification
-  (`quality.impl_build: true` adds it to every task). They leave out a dependency-cruiser run the
-  lint script already does; verification runs lint and build in full.
-- A task gate runs the tests (and evals) its own change touches — the stack's `test_scoped_args`,
-  `vitest related <the files it changed since its base ref>` (the stack's `test_related`; without one, `--changed`) — and lints only the files it changed (the stack's `lint_files`); the
-  role's last task runs and lints everything; verification runs the whole suite, the full lint, the
-  build and the full eval suite once (`at_verify`). `quality.task_tests: full` / `quality.task_lint: full` turn it off.
-  The base ref is a commit object the engine writes when the task's first dispatch starts (a throw-away
+- A slice gate (`gate red`, `gate impl`) runs the tests related to the files that changed since the
+  task's base ref (`test_related`, or `--changed` when there is no base ref). `gate impl` also runs
+  the architecture check. It does not typecheck, lint, or run the style audits, and the last slice
+  of a role does not widen to the whole suite. A fix iteration sets `fix_paths` and the related run
+  uses only those paths. `quality.impl_build: true` adds the production build to every slice.
+- Before verification, one style pass runs `eslint --fix` (`lint_fix`) on the feature change set,
+  then typecheck, lint, and the style audits (conventions, duplicates, raw colours, i18n). P0–P2
+  block. A remaining failure is one builder dispatch on the execution model. The fifth failure
+  halts with the log path. There is no planner and no stage rewind for that pass.
+- Verification then runs `precheck: checks` once: the whole suite, typecheck, lint, the build and
+  the full eval suite (`at_verify`).
+- The base ref is a commit object the engine writes when the task's first dispatch starts (a throw-away
   copy of the index, `write-tree`, `commit-tree`: no branch, index or worktree file changes; git prunes it
-  after two weeks), kept in `state.json` as `tasks.<id>.base_ref`. Outside git the gates run unscoped.
-- A task gate does not build (`quality.impl_build: false`; `true` keeps it) and typechecks plain `tsc`
-  incrementally (build info in `.factory/cache`, `quality.tsc_incremental: false` turns it off).
+  after two weeks), kept in `state.json` as `tasks.<id>.base_ref`. Outside git the related run falls
+  back to the stack's scoped args.
+- A task gate does not build (`quality.impl_build: false`; `true` keeps it). Plain `tsc` at the style
+  pass and at verification is incremental (build info in `.factory/cache`, `quality.tsc_incremental: false` turns it off).
 - A failed gate is cached like a pass: an identical failure on an unchanged tree is not re-run at
   `record` (`quality.cache_failures: false` turns it off; crashes, timeouts and missing reports are never reused).
 - A passing red, impl or verification check is cached against a hash of the working tree: the agent's
   own exit check is not run again at `record` unless a file changed.
-- Verification runs its machine checks (`precheck: checks`) before dispatching the reviewer: failing
-  code goes back to implementation without a review round. Role audits (raw colours, i18n, OpenAPI
-  drift) are scripts the engine runs (`role.yaml gates.audits`), not agents.
+- A test, story, or style file failure re-dispatches the owner and runs the related tests on those
+  files. It does not lint, typecheck, or call the planner. A core file an existing task owns reopens
+  that task with `fix_paths`. The planner runs only when no task owns the failing file.
 - The engine writes the feature digest (`context.digest: engine`); a stage pack inlines it while it is
   fresh, a task pack gets none, and every pack inlines the human notes of its scope. `record` returns the next step (`next`), and reads the envelope the stop hook saved
   (`--saved`), so the Conductor neither calls `step` nor copies envelopes.
 
 ## The fix loop and delivery
 
-Verification, QA, a rejected GATE-C and `change` PR comments do not edit code. Their failures become
-fix items; the feature goes back to `implementation`, where the planner first adds fix tasks
-(`fixplan`): it amends the tasks that own the affected slices (a finished task whose entry changed is reopened) and adds a task only when no slice owns the work; each task then goes through red → green like any task. Each backward edge has a budget in
+Verification, QA, a rejected GATE-C and `change` PR comments do not edit code. A failure in a test,
+story, or style file re-dispatches the owner. A core file an existing task owns reopens that task.
+Only a file no task owns becomes fix items: the feature goes back to `implementation`, where the planner
+adds fix tasks (`fixplan`). Each backward edge has a budget in
 `defaults.yaml`. After the PR gate passes, the engine — not an agent — commits the release manager's
 plan on the feature branch (one commit per task, `Factory-Task:` trailer), commits the `.factory`
 artifacts, and runs the adapter. Docs run only with `delivery.docs: true`. A pull request is prepared only with `delivery.pr: true`; set `delivery.dry_run: false` as well to open a real PR. Otherwise the pipeline commits and stops. `/factory:ship`
@@ -222,9 +227,9 @@ asks first. `factory comments --file <json>` feeds review comments into S9.
   proposed winner, before the requirements reach their gate.
 - **Acceptance tests.** Written with the API contract, the inbox API sections and the entity types. A wrong one is
   settled by a human: `factory acceptance waive <test> --reason …` or `factory replay acceptance --relock <test>`.
-- **Early quality.** The raw-colour and i18n audits run in `gate impl` on each task's files; the reviewer runs once
+- **Early quality.** The raw-colour and i18n audits run in the style pass before verification; the reviewer runs once
   after the first finished slice (non-blocking; findings amend the owning slices) and again at verification.
-- **Budgets** follow the plan (`4 × tasks + 20` dispatches); `factory doctor` also warns about `eslint .`
+- **Budgets** follow the plan (`4 × tasks + 20` dispatches). Elapsed time is stored (`started_at`, `paused_ms`) and does not halt a run; `factory budget raise feature.wall_clock_min` is refused. `factory doctor` also warns about `eslint .`
   linting `.factory/`.
 
 ## Unattended runs (autopilot)

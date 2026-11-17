@@ -46,6 +46,7 @@ export const scanText = (rel, text) => {
   const add = (index, rule, message) => hits.push({ file: rel, line: lineOf(text, index), rule, message })
   const test = /\.(test|spec)\.(ts|tsx)$/.test(rel) || rel.includes('/tests/')
   const api = rel.includes('/api/')
+  const apiHooks = /\/api\/hooks\.tsx?$/.test(rel)
 
   for (const index of nestedIfs(text)) add(index, 'nested-if', 'nested if — return early or use {cond && <Node />}')
 
@@ -65,6 +66,12 @@ export const scanText = (rel, text) => {
   if (!api) {
     for (const match of text.matchAll(/\b(useQuery|useMutation)\s*\(/g)) {
       add(match.index, 'query-outside-api', `${match[1]} outside api/ — define the hook in api/ and import it`)
+    }
+  }
+
+  if (!apiHooks) {
+    for (const match of text.matchAll(/\binvalidateQueries\s*\(/g)) {
+      add(match.index, 'invalidate-outside-api', 'invalidateQueries outside api/hooks.ts — call it from the api hook')
     }
   }
 
@@ -95,15 +102,29 @@ const selfCheck = () => {
     localStorage.setItem('q', '1')
     <Button className="bg-red-500" />
     useMutation({ mutationFn })
+    queryClient.invalidateQueries({ queryKey: orderKeys.lists() })
     let button = null
     const isLoading = true
     const value = (() => 1)()
   `
   const rules = new Set(scanText('src/features/files/ui/files-list/files-list.tsx', sample).map((hit) => hit.rule))
-  const expected = ['nested-if', 'translated-local', 'index-key', 'raw-input', 'local-storage', 'button-class', 'query-outside-api', 'component-let', 'query-state-local', 'iife']
+  const expected = ['nested-if', 'translated-local', 'index-key', 'raw-input', 'local-storage', 'button-class', 'query-outside-api', 'invalidate-outside-api', 'component-let', 'query-state-local', 'iife']
   const missing = expected.filter((rule) => !rules.has(rule))
   if (missing.length) {
     console.error(`self-check missed: ${missing.join(', ')}`)
+    process.exit(1)
+  }
+  const allowed = scanText('src/entities/order/api/hooks.ts', `
+    useMutation({ mutationFn })
+    queryClient.invalidateQueries({ queryKey: orderKeys.lists() })
+  `)
+  if (allowed.some((hit) => hit.rule === 'invalidate-outside-api' || hit.rule === 'query-outside-api')) {
+    console.error('self-check flagged a call inside api/hooks.ts')
+    process.exit(1)
+  }
+  const fetcher = scanText('src/entities/order/api/fetchers.ts', 'queryClient.invalidateQueries({ queryKey })')
+  if (!fetcher.some((hit) => hit.rule === 'invalidate-outside-api')) {
+    console.error('self-check missed invalidateQueries outside api/hooks.ts')
     process.exit(1)
   }
   console.log('OK: self-check')

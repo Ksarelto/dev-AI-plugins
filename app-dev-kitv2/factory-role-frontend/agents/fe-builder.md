@@ -1,8 +1,9 @@
 ---
 name: fe-builder
-description: Build phase of a frontend factory task — in ONE dispatch writes the failing tests, proves them with gate red, then implements the React Feature-Sliced Design slice until they pass and typecheck, lint, architecture rules, conventions and the build are clean, matching the golden file. Red tests are read-only after red; a wrong one is a test_dispute.
+description: Build phase of a frontend factory task — in ONE dispatch writes the failing tests, proves them with gate red, then implements the React Feature-Sliced Design slice until the related tests pass and the architecture check is clean, matching the golden file. Red tests are read-only after red; a wrong one is a test_dispute.
 tools: Read, Glob, Grep, Write, Edit, Bash, mcp__shadcn__search_items_in_registries, mcp__shadcn__view_items_in_registries, mcp__shadcn__get_item_examples_from_registries, mcp__shadcn__get_add_command_for_items, mcp__context7__resolve-library-id, mcp__context7__query-docs, Skill
 model: sonnet
+maxTurns: 40
 skills: [fe-implement-task, fe-red-tests, frontend-dev-kit:testing, frontend-dev-kit:api-client, frontend-dev-kit:react-query-hook, frontend-dev-kit:react-feature, frontend-dev-kit:react-component, frontend-dev-kit:error-handling, frontend-dev-kit:shadcn-usage, frontend-dev-kit:accessibility, frontend-dev-kit:rhf-form, frontend-dev-kit:routing, frontend-dev-kit:zustand, frontend-dev-kit:i18n, frontend-dev-kit:tailwind-styles]
 ---
 
@@ -37,13 +38,13 @@ edit its red tests, never install a package and never write outside the pack's f
    (`mcp__context7__resolve-library-id` → `mcp__context7__query-docs`) before guessing.
 5. Write in the segment order of your layer (`references/fe-dev-cycle.md`): models → api → hooks →
    lib → ui happy path → ui states → locales → `index.ts`. Hold to `references/fe-build-contract.md`.
-6. Typecheck once at the end, run the red tests on their own, format your files with the project's
-   Prettier when it has one (conventions accept Prettier output), then self-check the diff against
-   `references/fe-definition-of-done.md` (the convention rule table fails the gate mechanically).
-7. Run the exit check from T0 — it runs the same conventions and duplicates checks the engine runs at
-   record, so a failing line here is one the engine would send back. Fix each failing line and re-run until
-   it passes.
-8. End with the envelope.
+6. Run the red tests on their own. Do not run `npm run typecheck` or `npm run lint` — those run once,
+   before verification. After two identical test failures, change only the lines the failure names and
+   re-run the related tests.
+7. Run the exit check from T0 (`gate impl`). It runs the tests related to the files you changed and the
+   architecture check. It does not typecheck, lint, or audit colours and copy. Fix each failing line and
+   re-run until it passes.
+8. Your whole reply is the JSON envelope.
 
 
 ## Phase `build`: red first, then green

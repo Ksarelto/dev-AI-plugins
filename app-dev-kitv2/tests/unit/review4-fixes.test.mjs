@@ -300,9 +300,10 @@ test("b9: no stack.yaml names a context: fork skill, and doctor rejects one", as
   const fe = join(ROOT, "frontend-dev-kit");
   assert.equal(forkedSkill({ root: fe }, "architecture-audit"), true, "the audit skill really is forked");
   const stack = YAML.parse(readFileSync(join(fe, "stack.yaml"), "utf8"));
-  const named = [...Object.values(stack.skills), ...Object.values(stack.stage_skills)].flat();
+  const taskSkills = Object.values(stack.skills).flat();
   assert.ok(stack.skills.refactor, "refactor maps to something");
-  for (const ref of named) assert.equal(forkedSkill({ root: fe }, ref.split(":")[1]), false, `${ref} is forked`);
+  for (const ref of taskSkills) assert.equal(forkedSkill({ root: fe }, ref.split(":")[1]), false, `${ref} is forked`);
+  assert.ok(Object.values(stack.stage_skills).flat().includes("frontend-dev-kit:architecture-audit"), "the architecture stage loads the forked audit; fork is why it returns a report");
   const errors = [];
   skillChecks({ "frontend-dev-kit": { name: "frontend-dev-kit", root: fe, stack: { skills: { refactor: "frontend-dev-kit:architecture-audit" } } } }, errors, []);
   assert.match(errors.join("\n"), /architecture-audit" has context: fork/);
@@ -359,9 +360,7 @@ test("dispatchesFor: another plugin's agent with the same bare name is matched o
 test("planlint: the companions the engine adds do not count toward files_max", async () => {
   const env = loopSetup("quality: { task_limits_by_type: { component: { files_max: 2 } } }");
   putArtifact(env.featureDir, "tasks.yaml", "04-plan/tasks.yaml", (t) =>
-    t.replace("src/features/apply-coupon/ui/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field.test.tsx", "src/features/apply-coupon/ui/coupon-field/coupon-field.tsx, src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx")
-      .replace("red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx]", "red_tests: [src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx]")
-      .replace("type: feature-ui", "type: component"));
+    t.replace("type: feature-ui", "type: component"));
   const { gateContext, runGate } = await import(`${ENGINE}/scripts/lib/gatekeeper.mjs`);
   const c = conductor.load(env.dir);
   const run = () => runGate("plan", gateContext({ projectDir: env.dir, app: c.app, feature: c.feature, config: c.config, packs: c.packs }), { useCache: false });

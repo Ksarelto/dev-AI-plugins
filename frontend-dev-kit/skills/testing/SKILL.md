@@ -39,19 +39,26 @@ Rules (constraints: `rules/testing.mdc`):
 1. **Determine which files need tests** — see [File Selection](references/file-selection.md)
 2. **Check for an existing test** in the location from the table above — component tests sit in `{component}/tests/`; everything else sits in that segment's `tests/`
 3. **Create or update tests** that assert behavior. A test that only imports the module and expects it to be defined does not count
-4. **Run and fix** until tests pass and coverage thresholds hold
+4. **Run**
+   - **Factory red phase** (`fe-red-tests`, before `gate red`): each new test runs and fails on an assertion, a Testing Library lookup, or `"not implemented"`. Stop there. The coverage floors below are not the exit.
+   - **Factory green phase**: run that task's tests with the project's runner until they pass. The exit check is `gate impl` (those tests and the architecture check). Lint, typecheck, and a coverage run belong to the later style pass.
+   - **Outside a factory task**: run the test script named in this repo's `package.json` until the tests pass. Apply the coverage floors when that script enforces them.
 
-## Test Execution Commands
+## Test execution
+
+Inside a factory task, use the project's runner and the factory gate. Read `package.json` for the package manager. Do not assume `yarn test:manual`, `yarn test:auto`, or any other fixed script name.
 
 ```bash
-yarn test:manual -u custom-button.test.tsx   # single file, watch mode
-yarn test:auto                               # all tests + coverage
-yarn test:coverage                           # coverage report only
-yarn test:ui                                 # vitest UI
-yarn test:ci                                 # CI mode
+gate red --task <id>                         # red phase: passes when the new tests fail for the right reason
+<package-manager> exec vitest run <file>     # green phase: the task's test files only
+gate impl --task <id>                        # exit check
 ```
 
+A full-suite coverage run belongs to the project's CI script, outside a factory task.
+
 ## Coverage Thresholds
+
+These floors apply when the project's own coverage script enforces them. A factory task does not chase them.
 
 | Metric     | Minimum |
 |------------|---------|

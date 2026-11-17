@@ -83,7 +83,7 @@ test("gate-plan: size estimates, exempt tasks, test cases tied to their task, ch
   const r = await rules("plan", setup({
     tasks: (t) => t
       .replace("    size: { files: 2, est_loc: 120 }\n", "")
-      .replace("tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field.test.tsx], stubs: [\"CouponField(props: { cartId: string }): JSX.Element\"] }", 'tdd: { mode: exempt, reason: "small" }')
+      .replace("tdd: { mode: required, red_tests: [src/features/apply-coupon/ui/coupon-field/tests/coupon-field.test.tsx], stubs: [\"CouponField(props: { cartId: string }): JSX.Element\"] }", 'tdd: { mode: exempt, reason: "small" }')
       .replace("type: feature-ui", "type: refactor")
       .replace("depends_on: [TASK-001]", "depends_on: []")
       .replace("red_tests: [src/entities/order/model/total.test.ts]", "red_tests: [src/entities/order/model/total.test-data.ts]")

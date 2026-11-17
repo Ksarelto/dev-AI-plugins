@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { CLI, ENGINE, cli, conductor, envelope, hook, makeFeature, makeProject, putIntake, rawConductor, state } from "./helpers.mjs";
@@ -58,10 +58,11 @@ test("doctor: stack skills and agent preloads must resolve to a SKILL.md", () =>
   assert.match(w[0], /plugin "other-kit", which is not installed/);
 });
 
-test("missingSkills accepts bare names and inline digests", () => {
+test("missingSkills accepts bare names and ignores a copied hash", () => {
   const req = ["frontend-dev-kit:testing", "frontend-dev-kit:react-component"];
   assert.deepEqual(missingSkills(req, ["frontend-dev-kit:testing"]), ["frontend-dev-kit:react-component"]);
-  assert.deepEqual(missingSkills(req, ["testing", "inline:frontend-dev-kit:react-component@abc123"]), []);
+  assert.deepEqual(missingSkills(req, ["testing", "inline:frontend-dev-kit:react-component@abc123"]), ["frontend-dev-kit:react-component"]);
+  assert.deepEqual(missingSkills(req, ["testing", "frontend-dev-kit:react-component"]), []);
   assert.deepEqual(missingSkills([], []), []);
 });
 
@@ -99,7 +100,7 @@ test("record: a done envelope that skipped required skills is sent back; with sk
   const { dir, d, required } = withSkills();
   const back = await rawConductor.record(dir, { dispatchId: d.id, envelopeText: envelope(d.id, { skills_loaded: [required[0]] }) });
   assert.equal(back.action, "redispatch");
-  assert.match(back.reason, /required skills not loaded: frontend-dev-kit:react-component/);
+  assert.match(back.reason, /required skills not loaded: frontend-dev-kit:testing, frontend-dev-kit:react-component/);
   const none = await rawConductor.record(dir, { dispatchId: d.id, envelopeText: envelope(d.id) });
   assert.equal(none.action, "redispatch");
   // Two sends back is the limit: the third skipped done halts the feature naming the skills.
@@ -108,9 +109,14 @@ test("record: a done envelope that skipped required skills is sent back; with sk
   assert.match(third.reason, /skills unavailable: frontend-dev-kit:testing, frontend-dev-kit:react-component/);
 });
 
-test("record: skills_loaded naming every required skill (or inline digests) passes", async () => {
+test("record: the hook log proves the skills were loaded; a hash in the envelope does not", async () => {
   const { dir, d, required } = withSkills();
-  const out = await rawConductor.record(dir, { dispatchId: d.id, envelopeText: envelope(d.id, { skills_loaded: [required[0], `inline:${required[1]}@abc`] }) });
+  const hashed = await rawConductor.record(dir, { dispatchId: d.id, envelopeText: envelope(d.id, { skills_loaded: [required[0], `inline:${required[1]}@abc`] }) });
+  assert.equal(hashed.action, "redispatch");
+  const file = state.skillsLogFile(dir, d);
+  mkdirSync(dirname(file), { recursive: true });
+  writeFileSync(file, `${required.join("\n")}\n`);
+  const out = await rawConductor.record(dir, { dispatchId: d.id, envelopeText: envelope(d.id) });
   assert.notEqual(out.action, "redispatch");
   assert.notEqual(out.action, "halt");
 });

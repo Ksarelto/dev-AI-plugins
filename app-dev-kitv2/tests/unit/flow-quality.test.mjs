@@ -16,7 +16,7 @@ const saveState = (dir, s) => writeFileSync(join(dir, "state.json"), JSON.string
 const { gateContext, runGate } = await import(`${ENGINE}/scripts/lib/gatekeeper.mjs`);
 const { fileHash } = await import(`${ENGINE}/scripts/lib/core.mjs`);
 const { estimateSize, sizeFromSpec } = await import(`${ENGINE}/scripts/lib/sizing.mjs`);
-const { budgetsForTasks, raiseBudgetsFromPlan } = await import(`${ENGINE}/scripts/lib/budgets.mjs`);
+const { budgetsForTasks, raiseBudget, raiseBudgetsFromPlan } = await import(`${ENGINE}/scripts/lib/budgets.mjs`);
 const { exhaustedBudgets } = await import(`${ENGINE}/scripts/lib/warden.mjs`);
 const { resolveStack } = await import(`${ENGINE}/scripts/lib/stackexec.mjs`);
 const { doctor } = await import(`${ENGINE}/scripts/lib/doctor.mjs`);
@@ -42,7 +42,7 @@ function verifyEnv(extra = "") {
   const dir = makeProject(
     [
       `packs: { factory-role-frontend: "${V2("factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}", factory-analysis: "${V2("factory-analysis")}", factory-quality: "${V2("factory-quality")}", factory-delivery: "${V2("factory-delivery")}" }`,
-      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
+      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], lint_fix: [node, "${FAKE}", lint_fix, "{files}"], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
       "pipeline: { profiles: { test: [planning, implementation, acceptance, verification] }, stages: { planning: { pack: factory-analysis } } }",
       extra,
     ].join("\n"),
@@ -403,30 +403,33 @@ test("the small profile does not ask GATE-B; the stage's own gate has passed and
 
 // ---- Phase 7: budgets follow the plan (E4) ----
 
-test("budgets: dispatches = 4 × tasks + 20, stage max the same, wall clock 30 × tasks + 120 (≥ 240); only ever raised; recorded", () => {
-  assert.deepEqual(budgetsForTasks(8), { dispatches: 52, wall_clock_min: 360 });
-  assert.deepEqual(budgetsForTasks(2), { dispatches: 28, wall_clock_min: 240 });
+test("budgets: dispatches = 4 × tasks + 20, stage max the same; wall clock is not raised; only ever raised; recorded", () => {
+  assert.deepEqual(budgetsForTasks(8), { dispatches: 52 });
+  assert.deepEqual(budgetsForTasks(2), { dispatches: 28 });
+  assert.equal(budgetsForTasks(8).wall_clock_min, undefined);
   const dir = makeProject();
   const featureDir = makeFeature(dir);
   const c = conductor.load(dir);
   const small = raiseBudgetsFromPlan(c, 8);
-  assert.deepEqual(small, { "feature.wall_clock_min": 360, "stage.dispatches_max.implementation": 52, "stage.dispatches_max.verification": 52 }, "60 feature dispatches already cover 8 tasks; the implementation/verification caps and the clock rise");
+  assert.deepEqual(small, { "stage.dispatches_max.implementation": 52, "stage.dispatches_max.verification": 52 }, "60 feature dispatches already cover 8 tasks; the implementation/verification caps rise; the clock does not");
+  assert.equal(c.config.budgets.feature.wall_clock_min, undefined);
   assert.equal(c.config.budgets.stage.dispatches_max_by_stage.implementation, 52);
   assert.equal(c.config.budgets.stage.dispatches_max, 8, "every other stage keeps the fixed cap");
   const big = raiseBudgetsFromPlan(c, 12);
-  assert.deepEqual(big, { "feature.dispatches": 68, "feature.wall_clock_min": 480, "stage.dispatches_max.implementation": 68, "stage.dispatches_max.verification": 68 });
+  assert.deepEqual(big, { "feature.dispatches": 68, "stage.dispatches_max.implementation": 68, "stage.dispatches_max.verification": 68 });
   assert.deepEqual(raiseBudgetsFromPlan(c, 3), {}, "never lowered");
   const reloaded = conductor.load(dir).config.budgets;
-  assert.deepEqual([reloaded.feature.dispatches, reloaded.stage.dispatches_max_by_stage.implementation, reloaded.feature.wall_clock_min], [68, 68, 480], "kept in the feature's overrides.yaml");
+  assert.deepEqual([reloaded.feature.dispatches, reloaded.stage.dispatches_max_by_stage.implementation, reloaded.feature.wall_clock_min], [68, 68, undefined], "kept in the feature's overrides.yaml; the clock is not written");
   assert.ok(existsSync(join(featureDir, "overrides.yaml")));
   assert.equal(events(dir).filter((e) => e.type === "budget").length, 2);
-  // a value a person set higher stays
-  const human = makeProject("budgets: { feature: { dispatches: 500 }, stage: { dispatches_max: 99 } }");
+  // a value a person set higher stays; a leftover wall clock in config is not raised
+  const human = makeProject("budgets: { feature: { dispatches: 500, wall_clock_min: 10 }, stage: { dispatches_max: 99 } }");
   makeFeature(human);
   const hc = conductor.load(human);
-  assert.deepEqual(raiseBudgetsFromPlan(hc, 12), { "feature.wall_clock_min": 480 });
-  assert.deepEqual([hc.config.budgets.feature.dispatches, hc.config.budgets.stage.dispatches_max], [500, 99]);
+  assert.deepEqual(raiseBudgetsFromPlan(hc, 12), {});
+  assert.deepEqual([hc.config.budgets.feature.dispatches, hc.config.budgets.feature.wall_clock_min, hc.config.budgets.stage.dispatches_max], [500, 10, 99]);
   assert.equal(hc.config.budgets.stage.dispatches_max_by_stage, undefined, "a higher value a person set is not shadowed");
+  assert.throws(() => raiseBudget(human, hc, { key: "feature.wall_clock_min", value: 999 }), /does not halt/);
 });
 
 test("E4: planning raises the budgets from the plan itself, so no run halts on a default and nobody raises one by hand", async () => {
@@ -454,29 +457,32 @@ test("E4: planning raises the budgets from the plan itself, so no run halts on a
 
 // ---- Phase 7: early quality (F1, F2) ----
 
-test("F1: gate impl runs the raw-colour and i18n audits on the task's files; verification still runs them as a net", async () => {
+test("F1: the style pass, not gate impl, runs the raw-colour and i18n audits on the change set", async () => {
   const env = loopSetup();
   write(env.dir, "package.json", '{ "dependencies": { "i18next": "25.0.0" } }\n');
   const tasks = YAML.parse(readFileSync(join(env.featureDir, "04-plan", "tasks.yaml"), "utf8")).tasks;
   const task = tasks.find((t) => t.id === "TASK-003");
   const tsx = task.files_expected.find((f) => f.endsWith(".tsx") && !f.includes(".test."));
   write(env.dir, tsx, 'export const CouponField = () => <p style={{ color: "#ff0000" }}>Apply the coupon</p>;\n');
+  write(env.featureDir, "06-verify/change-set.yaml", YAML.stringify({ feature: "FEAT-001", tasks: [{ id: "TASK-003", files: [tsx] }], changed: [tsx] }));
   env.fake("test", { code: 0, report: report({}) });
   const c = conductor.load(env.dir);
-  const r = await gate(env.dir, "impl", { task, stack: resolveStack(c, task.role) });
-  const audits = r.failures.filter((f) => f.check === "audit");
+  const impl = await gate(env.dir, "impl", { task, stack: resolveStack(c, task.role) });
+  assert.deepEqual(impl.failures.filter((f) => f.check === "audit"), [], "a slice gate does not audit colours or i18n");
+  const r = await gate(env.dir, "style");
+  const audits = r.failures.filter((f) => f.check === "audit" && (f.rule === "i18n" || f.rule === "raw-colours"));
   assert.deepEqual(audits.map((f) => f.rule).sort(), ["i18n", "raw-colours"]);
-  assert.ok(audits.every((f) => f.file === tsx && !f.warn), "P2 findings block the task by default");
+  assert.ok(audits.every((f) => f.file === tsx && !f.warn), "P2 findings block the style pass by default");
   assert.match(audits.find((f) => f.rule === "raw-colours").message, /raw colour instead of a design token/);
-  // a clean file passes both; a project can lower the blocking severities or switch an audit off
   write(env.dir, tsx, 'export const CouponField = () => <p className="text-foreground">{t("coupon.apply")}</p>;\n');
-  assert.deepEqual((await gate(env.dir, "impl", { task, stack: resolveStack(c, task.role) })).failures.filter((f) => f.check === "audit"), []);
+  const clean = (await gate(env.dir, "style")).failures.filter((f) => f.check === "audit" && (f.rule === "i18n" || f.rule === "raw-colours"));
+  assert.deepEqual(clean, []);
   const role = YAML.parse(readFileSync(join(V2("factory-role-frontend"), "role.yaml"), "utf8"));
   assert.deepEqual(role.gates.audits.filter((a) => a.per_task).map((a) => a.name), ["raw-colours", "i18n"]);
   assert.ok(role.gates.audits.some((a) => a.name === "bundle" && !a.per_task) && role.gates.audits.some((a) => a.name === "axe" && !a.per_task), "bundle and axe stay at verification");
 });
 
-test("F2: the reviewer runs once after the first finished slice, non-blocking; its findings amend the owning slices", async () => {
+test("F2: the reviewer runs once after the first finished slice; a finding on an owned file goes to that task, not the planner", async () => {
   const env = loopSetup();
   configure(env.dir, { packs: { "factory-quality": V2("factory-quality") } });
   const st = featureState(env.featureDir);
@@ -492,12 +498,13 @@ test("F2: the reviewer runs once after the first finished slice, non-blocking; i
   assert.equal(r.action, "continue");
   const after = featureState(env.featureDir);
   assert.deepEqual([after.early_review.done, after.early_review.findings], [true, 1], "P3 is dropped");
-  assert.equal(after.fix_pending.source, "early review");
-  assert.match(after.fix_pending.items[0].message, /rounds the total twice[\s\S]*amend the slice/);
+  assert.equal(after.fix_pending ?? null, null, "the file belongs to an existing task, so the planner is not called");
+  const owner = Object.entries(after.tasks).find(([, unit]) => /rounds the total twice/.test(unit.feedback ?? ""));
+  assert.ok(owner, "the finding is on the task that owns the file");
   assert.equal(after.status, "active", "nothing blocks");
   const next = conductor.step(env.dir).dispatches[0];
-  assert.equal(next.phase, "fixplan", "the existing fix path: the planner amends the owning slices");
-  assert.match(readFileSync(join(env.dir, next.pack), "utf8"), /AMEND that task/);
+  assert.notEqual(next.phase, "fixplan");
+  assert.equal(next.task, owner[0]);
   // never a second review
   const again = featureState(env.featureDir);
   assert.ok(again.early_review.done);

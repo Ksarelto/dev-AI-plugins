@@ -16,16 +16,17 @@ material by path — do not restate it in findings, cite it:
 | Tests (mocking, assertions) | `frontend-dev-kit/skills/code-review/references/testing.md`, `rules/testing.mdc` |
 | FSD layers and public APIs | skill `frontend-dev-kit:react-feature` (its references, by topic) |
 
-The stack skill `code-review` has its own procedure (buckets, sub-agents, a Markdown report). Use it
-as knowledge only: you have no Bash and no sub-agents, and your output is the envelope's `findings`.
+Follow `frontend-dev-kit:code-review` as the procedure for this lens, then emit `P0`–`P3` only.
+`fq-severity.md` maps that skill's Blocker / Must fix / Should fix / Consider tags onto the envelope.
+Your reply to the factory is still the envelope's `findings`; do not write a second report file.
 
 ## Already covered — do not file again
 
 | Covered by | What it catches |
 |---|---|
+| style pass (before you) | `eslint --fix`, then typecheck, lint, conventions, duplicates, raw-colours and i18n once on the change set |
 | gate-checks (before you) | typecheck, ESLint, build, the whole test suite incl. acceptance tests |
-| task gates (gate-impl) | `depcruise` architecture check (import direction, layer rules) on every task |
-| task gates (gate-impl) | `conventions` and `duplicates` checks on each task's files |
+| task gates (gate-impl) | the tests related to that slice, and the `depcruise` architecture check |
 | audit `raw-colours` | hex, `rgb()`, `hsl()` literals in `.ts`, `.tsx`, `.css` |
 | audit `i18n` | literal JSX text in `.tsx` |
 | audit `conventions` | the mechanically checkable frontend-dev-kit rules (comments, inline classes and handlers, hardcoded copy, magic props, missing tests, query keys, env access, unused exports …) over the whole change set |

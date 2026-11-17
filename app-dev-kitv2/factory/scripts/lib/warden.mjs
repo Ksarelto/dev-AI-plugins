@@ -87,11 +87,8 @@ export function exhaustedBudgets(state, config) {
   const out = [];
   if (b.tokens && used.tokens >= b.tokens) out.push(`tokens ${used.tokens}/${b.tokens}`);
   if (b.dispatches && used.dispatches >= b.dispatches) out.push(`dispatches ${used.dispatches}/${b.dispatches}`);
-  if (b.wall_clock_min && used.started_at) {
-    const pausedNow = used.paused_since ? Date.now() - Date.parse(used.paused_since) : 0;
-    const minutes = (Date.now() - Date.parse(used.started_at) - (used.paused_ms ?? 0) - pausedNow) / 60000;
-    if (minutes >= b.wall_clock_min) out.push(`wall clock ${Math.round(minutes)}/${b.wall_clock_min} min`);
-  }
+  // Elapsed time (started_at, paused_ms, paused_since) is recorded for the PR report. A leftover
+  // feature.wall_clock_min in an old override does not halt the run.
   const max = config.budgets?.backward_edges?.total_regressions_max;
   if (max && used.regressions > max) out.push(`regressions ${used.regressions}/${max}`);
   return out;

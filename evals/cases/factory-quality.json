@@ -20,7 +20,7 @@
       "expect": "seven-lens-review"
     },
     {
-      "prompt": "Run time-boxed exploratory QA charters and record defects with steps",
+      "prompt": "Run exploratory QA charters and record defects with steps",
       "expect": "qa-heuristics"
     },
     {

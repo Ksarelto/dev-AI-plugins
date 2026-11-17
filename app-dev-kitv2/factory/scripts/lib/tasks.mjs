@@ -17,6 +17,7 @@ import { resolveStack } from "./stackexec.mjs";
 import { decide } from "./warden.mjs";
 import { applyMappings, openNotes } from "./notes.mjs";
 import { taskKnowledge } from "./knowledge.mjs";
+import { taskOwnsFile } from "./repair.mjs";
 import { recordBaseRef } from "./baseref.mjs";
 
 const CLOSED = ["done", "parked", "replaced"];
@@ -86,6 +87,20 @@ export function syncTasks(state, plan, config, projectDir) {
 export const planHash = (t) => sha(JSON.stringify([t.files_expected, t.write_scope ?? [], t.definition_of_done, t.satisfies, t.tdd?.red_tests ?? [], t.type]));
 
 /** The task runs again from its first phase; its existing red tests become "extends" (their old tests may pass). */
+/** A core file an existing task owns failed later. Reopen that task on its build phase and test only these paths. */
+export function reopenOwnedTask(config, task, unit, files, feedback) {
+  Object.assign(unit, {
+    status: "pending",
+    phase: phasesFor(task, config)[0],
+    fix_paths: [...new Set(files.map((f) => String(f).replaceAll("\\", "/")))],
+    feedback,
+    diagnose_pending: false,
+    amend_pending: false,
+    model: config.model_tiers?.execution ?? "sonnet",
+    instruction: "Change only the listed files. The exit check runs the tests related to those files.",
+  });
+}
+
 function restartTask(projectDir, task, unit, feedback) {
   const extend = projectDir ? (task.tdd?.red_tests ?? []).filter((f) => existsSync(join(projectDir, f))) : [];
   Object.assign(unit, FRESH, {
@@ -206,7 +221,7 @@ export function taskSlice(c, task) {
     }
   }
   if (ops.length) {
-    out.push("API contract (operations of this task):", ...ops.map(({ method, path, op }) => `  - ${method.toUpperCase()} ${path} ${clip(JSON.stringify({ operationId: op.operationId, parameters: op.parameters, requestBody: op.requestBody, responses: op.responses }), 1500)}`));
+    out.push("API contract (operations of this task — read api-contract for the schema):", ...ops.map(({ method, path, op }) => `  - ${method.toUpperCase()} ${path} ${op.operationId}`));
   }
   return out;
 }
@@ -410,6 +425,11 @@ function taskDispatch(c, stageId, stage, task, h) {
     return { action: "halt", feature: s.feature, reason: `${rolePack.name} has no usable ${slot} ("${agent ?? "missing"}", model "${model}")` };
   }
   const target = { agent, pack: rolePack, role: task.role, subagent_type: `${rolePack.name}:${agent}`, model };
+  const skillEntry = c.packs[role.stack]?.stack?.skills?.[task.type];
+  const skillNames = skillEntry == null ? [] : [skillEntry].flat().filter(Boolean);
+  if (c.packs[role.stack]?.stack?.skills && !skillNames.length) {
+    return { action: "halt", feature: s.feature, reason: `${c.packs[role.stack].stack.name ?? role.stack} has no skills entry for task type "${task.type}" — add it to stack.yaml before this task can run` };
+  }
   const red = task.tdd?.red_tests ?? [];
   const tests = taskTestFiles(task, c.packs[role.stack]?.stack);
   // The write allowlist is files_expected plus write_scope (folder globs); the red tests are read-only once locked.
@@ -620,7 +640,7 @@ export async function finishTask(c, pending, envelope, h, result) {
         const lock = Object.fromEntries(red.map((f) => [f, fileHash(join(c.projectDir, f))]));
         Object.assign(unit, FRESH, { phase: "green", status: "green", red_lock: lock, snapshot_absent: snapshot(c, task, red) });
       } else {
-        Object.assign(unit, FRESH, { phase: null, status: "done", build_since: null, done_hash: filesHash(c.projectDir, task.files_expected), task_hash: planHash(task) });
+        Object.assign(unit, FRESH, { phase: null, status: "done", build_since: null, fix_paths: null, done_hash: filesHash(c.projectDir, task.files_expected), task_hash: planHash(task) });
       }
       break;
     case "retry":
@@ -630,10 +650,25 @@ export async function finishTask(c, pending, envelope, h, result) {
       unit.model = verdict.model ?? null;
       unit.diagnose_pending = verdict.verdict === "diagnose";
       break;
-    case "amend":
+    case "amend": {
+      const files = (result?.failures ?? []).map((f) => f.file).filter(Boolean);
+      const planTasks = loadTasks(c)?.tasks ?? [];
+      const unowned = files.filter((f) => !planTasks.some((t) => taskOwnsFile(t, f)));
+      if (files.length && !unowned.length) {
+        unit.fix_paths = [...new Set(files.map((f) => String(f).replaceAll("\\", "/")))];
+        unit.feedback = result ? h.formatFeedback(result) : null;
+        unit.instruction = "Change only the listed lines and re-run the related tests.";
+        unit.model = c.config.model_tiers?.execution ?? "sonnet";
+        unit.diagnose_pending = false;
+        unit.amend_pending = false;
+        unit.amend_count = (unit.amend_count ?? 0) + 1;
+        unit.rung = 3;
+        break;
+      }
       unit.amend_pending = true;
       unit.feedback = result ? h.formatFeedback(result) : null;
       break;
+    }
     case "split":
       unit.split_pending = true;
       unit.feedback = result ? h.formatFeedback(result) : null;
@@ -662,15 +697,39 @@ export async function finishTask(c, pending, envelope, h, result) {
   return { action: s.status === "awaiting_human" ? "ask_human" : s.status === "blocked" ? "halt" : "continue", feature: s.feature, task: task.id, phase: pending.phase, verdict: verdict.verdict, reason: verdict.reason, gate: result ? h.summary(result) : null };
 }
 
-/** The early reviewer's envelope: findings of P0–P2 become fix items (the planner amends the owning slices); nothing blocks. */
+/** The early reviewer's envelope. A P0–P2 finding on a file an existing task owns goes back to that task. The planner runs only for a finding no task owns. Nothing blocks. */
 export function finishEarlyReview(c, pending, envelope, h) {
   const s = c.feature.state;
   const findings = (envelope.findings ?? []).filter((f) => ["P0", "P1", "P2"].includes(f.severity));
   s.early_review = { ...(s.early_review ?? {}), done: true, status: envelope.status, findings: findings.length };
   if (envelope.status === "done" && findings.length) {
-    const items = findings.slice(0, 20).map((f) => ({ check: "review", rule: f.id ?? null, file: f.file ?? null, message: `${f.severity} ${f.claim}${f.line ? ` (line ${f.line})` : ""} — amend the slice that owns this file; do not add a task per finding` }));
-    if (s.fix_pending) s.fix_pending.items.push(...items);
-    else s.fix_pending = { source: "early review", items, attempts: 0 };
+    const plan = loadTasks(c)?.tasks ?? [];
+    const unowned = [];
+    const byTask = new Map();
+    for (const f of findings.slice(0, 20)) {
+      const message = `${f.severity} ${f.claim}${f.line ? ` (line ${f.line})` : ""} — change the listed lines; do not add a task`;
+      const item = { check: "review", rule: f.id ?? null, file: f.file ?? null, message };
+      const task = f.file ? plan.find((t) => taskOwnsFile(t, f.file)) : null;
+      const unit = task ? s.tasks?.[task.id] : null;
+      if (!task || !unit) { unowned.push(item); continue; }
+      const group = byTask.get(task.id) ?? { task, unit, files: [], notes: [] };
+      if (f.file) group.files.push(f.file);
+      group.notes.push(message);
+      byTask.set(task.id, group);
+    }
+    for (const { task, unit, files, notes } of byTask.values()) {
+      const feedback = notes.join("\n");
+      if (unit.status === "done") reopenOwnedTask(c.config, task, unit, files, feedback);
+      else {
+        unit.feedback = [unit.feedback, feedback].filter(Boolean).join("\n");
+        unit.instruction = "Change only the listed lines and re-run the related tests.";
+        unit.model = c.config.model_tiers?.execution ?? "sonnet";
+      }
+    }
+    if (unowned.length) {
+      if (s.fix_pending) s.fix_pending.items.push(...unowned);
+      else s.fix_pending = { source: "early review", items: unowned, attempts: 0 };
+    }
   }
   appendEvent(c.projectDir, { type: "verdict", feature: s.feature, stage: pending.stage, verdict: "advance", reason: `early review after the first slice: ${findings.length} finding(s) to amend` });
   h.persist(c);

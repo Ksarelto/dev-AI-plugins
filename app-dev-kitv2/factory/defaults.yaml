@@ -121,13 +121,13 @@ quality:
                 works fine, handles errors]   # matched as phrases; an AC needs a measure to use one
 
 budgets:
-  # dispatches and wall clock are floors: once planning has produced the tasks, the engine raises them to
-  # dispatches = 4 × tasks + 20 (the implementation and verification stage caps, stage.dispatches_max_by_stage, the same; other stages keep stage.dispatches_max) and wall_clock_min = max(240, 30 × tasks + 120)
+  # dispatches are a floor: once planning has produced the tasks, the engine raises them to
+  # dispatches = 4 × tasks + 20 (the implementation and verification stage caps, stage.dispatches_max_by_stage, the same; other stages keep stage.dispatches_max)
   # (never lowers a value a person set; written to the feature's overrides.yaml and recorded in events).
-  # feature.tokens is unset: a run is not halted for tokens. Set a positive budgets.feature.tokens to cap one.
-  feature: { wall_clock_min: 240, dispatches: 60 }
+  # Elapsed time is recorded (started_at, paused_ms) and never halts a run. feature.tokens is unset: a run is not halted for tokens. Set a positive budgets.feature.tokens to cap one.
+  feature: { dispatches: 60 }
   stage: { attempts_max: 3, dispatches_max: 8 }
-  task: { attempts_max: 3 }
+  task: { attempts_max: 3, mechanical_retries: 4 }   # style-pass retries on the builder; the fifth failure halts
   backward_edges:
     verification_to_implementation: 4   # failures at verification go back to implementation (fix tasks amend the owning slices)
     verification-lite_to_implementation: 2

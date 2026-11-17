@@ -115,13 +115,14 @@ states of each surface — a state they list is part of the task even when no re
 
 ## 8. Self-check before the exit gate
 
+The implement skill's verify section is the procedure. This section records what `gate impl` covers.
+
+`gate impl` runs the task's tests and the architecture check. The build is included only when `quality.impl_build` is true. Lint, typecheck, and the style audits run once before verification.
+
 1. Re-read the diff against § 2–7 and [fe-definition-of-done.md](fe-definition-of-done.md).
-2. Run the red tests on their own (`pnpm exec vitest run <file>` or the project's runner) until green.
-3. Run typecheck once (`pnpm typecheck`, or the package manager the project uses).
-4. Run the exit check from T0 (`gate impl`). It runs the tests the change touches (all of them for
-   the role's last task), typecheck, lint, the architecture check, the build and the role's
-   convention check, side by side. Fix every failing line; re-run. Warnings never block.
-5. Put one line in the summary: `self-check: red green, typecheck pass, gate impl pass`.
+2. Run this task's red tests with the project runner until they pass. Leave typecheck and lint for the style pass. After two identical failures, change only the lines the failure names.
+3. Run the exit check from T0 (`gate impl … --task <id>`). Fix each failing line and re-run. A passing run on an unchanged tree is reused.
+4. One summary line: `self-check: red green, gate impl pass`.
 
 ## 9. Unfamiliar API of an installed library
 

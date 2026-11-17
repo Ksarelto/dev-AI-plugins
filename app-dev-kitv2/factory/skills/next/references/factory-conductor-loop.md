@@ -18,6 +18,7 @@ sonnet-class model. On Claude, the model of each dispatched agent is the `model`
 | `ask_human` | Stop. Show the gate (`gate`), the files to review (`review`), any `questions`, and the open notes. Tell the human: `/factory:gate approve ["notes"]` or `/factory:gate reject "<reason>"`. When the question says the builder's files fall inside the task's slice folder (`needs_scope_change`), the answer is `/factory:scope TASK-NNN add <files>`, not a planner run. |
 | `scaffold` | Run `F scaffold` (greenfield: copies and installs each role's boilerplate; it can take minutes — use the longest timeout your shell tool allows or run it in the background; if it is cut off, run it again, it resumes), then go back to step 1. If it reports `halt`, stop as for `halt`. If `scaffold.skipped` names a role with reason `no boilerplate pointer`, tell the human that role was not copied and implementation has nothing to typecheck until `roles.<role>.boilerplate` is set. |
 | `precheck` | The engine is still running the stage's machine checks. Run `F step` again. |
+| `style` | The engine is running the style pass (`eslint --fix`, then typecheck and lint). Run `F step` again. |
 | `wait` | Stop. The feature depends on another one that has not finished (`reason`); work on that feature first (`--feature`). |
 | `halt` | Stop. Report `reason`. If it lists `changed` files (edited outside any dispatch since the engine's last action), ask the human to keep them (`F accept-changes`) or revert them; never accept on their behalf. If the feature is blocked, point at `blockers.md` and offer `/factory:diagnose` or `/factory:abort`. |
 | `done` | Report that the feature finished and where its artifacts are. |
@@ -32,11 +33,12 @@ sonnet-class model. On Claude, the model of each dispatched agent is the `model`
    F record --dispatch "<dispatch id>" --saved --tokens <total tokens if the result shows them>
    ```
 
-   Only if that says there is no saved envelope (Cursor, or the hook did not run), pass it yourself:
+   Only if that says there is no saved envelope, pass the last ```json block and nothing else.
+   Do not quote the Task transcript.
 
    ```bash
    F record --dispatch "<dispatch id>" --tokens <n> <<'ENVELOPE'
-   <the agent's final ```json envelope block, verbatim>
+   <the agent's final ```json envelope block, verbatim, and no other text>
    ENVELOPE
    ```
 
@@ -51,10 +53,13 @@ sonnet-class model. On Claude, the model of each dispatched agent is the `model`
 ## Rules
 
 - Never write or edit anything under `.factory/` yourself. The hooks deny it; use `F` commands.
+- Never implement, review, audit, or open a stack skill in this session. Product code is written only
+  by the role builder. A request to change code is a note plus the dispatch `step` returns.
 - When the human gives an instruction in chat, store it **first**: `F note "<their words>"`. Act only
   on what is stored. Chat can be compacted; notes cannot.
-- Never read source code or artifact bodies yourself. The agents do; you read `step` output and
-  envelope summaries only. There is no token ceiling on that budget unless the project sets `context.budgets.conductor`.
+- Never read source code or artifact bodies yourself. Read this loop and `F state --brief`. The agents
+  do the rest; you read `step` output and envelope summaries only. There is no token ceiling on that
+  budget unless the project sets `context.budgets.conductor`.
 - Never answer an agent's question yourself. Questions go to the human through `ask_human`.
 - After a compaction, run `F state --brief` before anything else.
 - Keep messages to the human short: one line per dispatch result, one table per gate.

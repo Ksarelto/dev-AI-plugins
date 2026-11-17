@@ -26,8 +26,8 @@ rest.
 
 ## Quality
 
-- [ ] typecheck, lint, the architecture check and the build pass (all inside `gate impl`).
-- [ ] The role's convention check passes on the task's files (rules below).
+- [ ] `gate impl` passes: the task's tests and the architecture check. The build is part of that gate only when `quality.impl_build` is true.
+- [ ] Typecheck, lint, and the style audits (conventions, duplicates, raw colours, i18n) pass in the style pass before verification. The convention rules are the table below.
 - [ ] No dead code, `console.log`, `TODO` or commented-out block.
 
 ## UI standard
@@ -48,11 +48,11 @@ rest.
 ## Convention rules the role's gate enforces
 
 The role's convention check (`scripts/fe-conventions.mjs`, ported from feature-dev-kit) and its
-duplicate scan (`scripts/fe-duplicates.mjs`) run on the task's files inside `gate impl`. Errors block;
-`(warn)` rules are reported only. `unused-export` is skipped per task — a later task may be the
-importer — and runs on the whole change set at verification. If the check exits with "no TypeScript
-compiler API found", that is a project setup problem: return `blocked` with the message, do not
-change code to get around it.
+duplicate scan (`scripts/fe-duplicates.mjs`) run on the change set in the style pass before
+verification. They do not run inside `gate impl`. Errors block; `(warn)` rules are reported only.
+`unused-export` is skipped per task — a later task may be the importer — and runs on the whole
+change set at verification. If the check exits with "no TypeScript compiler API found", that is a
+project setup problem: return `blocked` with the message, do not change code to get around it.
 
 | Rule | How to avoid it |
 |---|---|

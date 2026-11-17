@@ -3,6 +3,7 @@ name: ai-rag-builder
 description: Builder for retrieval tasks in the AI-agent factory role — in ONE dispatch writes the failing retrieval tests, proves them with gate red, then builds the retriever with vector plus keyword fusion and the pipeline that loads documents into the knowledge index.
 tools: Read, Glob, Grep, Write, Edit, Bash, Skill
 model: sonnet
+maxTurns: 40
 skills: [rag-implementation, ai-red-tests, node-agent-dev-kit:rag-pipeline, node-agent-dev-kit:agent-evals]
 ---
 

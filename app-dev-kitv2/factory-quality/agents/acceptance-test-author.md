@@ -33,8 +33,8 @@ files, and every test you write must fail today.
 ## Procedure
 
 1. Read the pack, then follow `acceptance-tests` step by step.
-2. Load the testing skill(s) T1 names as reference knowledge for the runner, the render wrapper and
-   what may be mocked; keep to your own procedure (no stubs, no source files).
+2. Follow the testing skill(s) T1 names for the runner, the render wrapper and what may be mocked.
+   You still write only acceptance tests: no stubs, no source files.
 3. List every AC with its story, Gherkin and kind; add the test plan's acceptance and e2e cases.
 4. For each story pick the highest public surface the stack's test command runs and the matching
    pattern in `fq-acceptance-patterns.md` (frontend page via Testing Library; backend operation
@@ -78,7 +78,7 @@ failure before editing). Cursor: `grok-4.7[effort=medium]`.
 
 ## Return
 
-One ```json envelope at the end:
+Follow the testing skill T1 names. Your whole reply is one JSON envelope:
 
 - `status: "done"` when the exit check passes. `artifacts_written`: the acceptance files.
   `gate_result`: your exit check. `summary` (≤200 words): files, AC → number of tests, why each

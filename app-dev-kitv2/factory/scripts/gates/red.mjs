@@ -4,7 +4,7 @@
 import { join } from "node:path";
 import { firstLine, freshReport, goodRedFailure, isAcceptanceTest, readVitestReport } from "../lib/vitest-report.mjs";
 import { runStackCommandAsync } from "../lib/stackexec.mjs";
-import { extendedTestFiles, otherOpenRedTests, testScope, typecheckForTask } from "../lib/testrun.mjs";
+import { extendedTestFiles, otherOpenRedTests, testScope } from "../lib/testrun.mjs";
 
 export const inputs = ["tasks"];
 export const cacheable = "tree"; // a passing run is reused while the working tree is unchanged
@@ -18,14 +18,10 @@ export async function run(ctx) {
   const failures = [];
   const reportFile = freshReport(join(ctx.paths.logs, `${task.id}-red-report.json`));
   const scope = testScope(ctx, stack);
-  const [typecheck, run] = await Promise.all([
-    typecheckForTask(stack, `${task.id}-red-typecheck`),
-    runStackCommandAsync(stack, scope.command, { vars: { report: reportFile, files: scope.files, extra: scope.extra }, logName: `${task.id}-red-test` }),
-  ]);
-  if (!typecheck.ok) failures.push({ check: "typecheck", rule: "tests-do-not-compile", message: `tests or stubs do not type-check:\n${typecheck.tail}` });
+  const run = await runStackCommandAsync(stack, scope.command, { vars: { report: reportFile, files: scope.files, extra: scope.extra }, logName: `${task.id}-red-test` });
 
   const report = readVitestReport(reportFile, ctx.projectDir);
-  if (!report) return [...failures, { check: "test", rule: "no-report", message: `the test command wrote no JSON report (exit ${run.code}):\n${run.tail}` }];
+  if (!report) return [...failures, { check: "test", rule: "no-report", ...(run.log ? { log: run.log } : {}), message: `the test command wrote no JSON report (exit ${run.code}): ${firstLine(run.tail)}` }];
 
   // A red file that already existed (the slice's own test file, extended) keeps its old passing tests;
   // it still needs at least one new failing test.

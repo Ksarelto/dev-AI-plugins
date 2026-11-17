@@ -8,12 +8,13 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { CLI, ENGINE, TESTS, conductor, envelope, hook, makeFeature, makeProject, putArtifact, putIntake, report } from "./helpers.mjs";
+import { CLI, ENGINE, TESTS, YAML, conductor, envelope, hook, makeFeature, makeProject, putArtifact, putIntake, report } from "./helpers.mjs";
 
 const ROOT = join(TESTS, "..", "..");
 const FAKE = join(TESTS, "fixtures", "fake-stack.mjs");
 const V2 = (name) => join(ROOT, "app-dev-kitv2", name);
 const featureState = (dir) => JSON.parse(readFileSync(join(dir, "state.json"), "utf8"));
+const events = (dir) => readFileSync(join(dir, ".factory", "events.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 const saveState = (dir, s) => writeFileSync(join(dir, "state.json"), JSON.stringify(s));
 const { gateContext, runGate } = await import(`${ENGINE}/scripts/lib/gatekeeper.mjs`);
 const { coveredCommands } = await import(`${ENGINE}/scripts/lib/stackexec.mjs`);
@@ -29,7 +30,7 @@ function project(stage, tasks) {
   const dir = makeProject(
     [
       `packs: { factory-role-frontend: "${V2("factory-role-frontend")}", frontend-dev-kit: "${join(ROOT, "frontend-dev-kit")}", factory-analysis: "${V2("factory-analysis")}", factory-quality: "${V2("factory-quality")}", factory-delivery: "${V2("factory-delivery")}" }`,
-      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"], test_integration: null } } } }`,
+      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], lint_fix: [node, "${FAKE}", lint_fix, "{files}"], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"], test_integration: null } } } }`,
       `pipeline: { profiles: { test: [planning, implementation, verification, qa] }, stages: { planning: { pack: factory-analysis } } }`,
     ].join("\n"),
   );
@@ -60,7 +61,7 @@ const taskCtx = (dir, id) => {
 };
 const TOTAL_TEST = "src/entities/order/model/total.test.ts";
 
-test("gate-impl runs the change's tests (--changed) until the role's last task, which runs them all", async () => {
+test("gate-impl runs the change's tests (--changed), including the role's last task", async () => {
   const env = project("implementation", { "TASK-001": { status: "done" }, "TASK-002": { status: "green", phase: "green" }, "TASK-003": { status: "pending" } });
   write(env.dir, TOTAL_TEST, "x\n");
   env.fake("test", { code: 0, report: report({ [join(env.dir, TOTAL_TEST)]: [["total", "passed"]] }) });
@@ -71,7 +72,7 @@ test("gate-impl runs the change's tests (--changed) until the role's last task, 
   saveState(env.featureDir, s);
   writeFileSync(join(env.dir, ".fake", "calls.log"), "");
   assert.equal((await runGate("impl", taskCtx(env.dir, "TASK-002"), { useCache: false })).pass, true);
-  assert.deepEqual(env.calls().filter((x) => x.startsWith("test")), ["test"], "the last task of the role runs the whole suite");
+  assert.deepEqual(env.calls().filter((x) => x.startsWith("test")), ["test --changed"], "the last task stays on the change; the whole suite waits for verification");
 });
 
 test("a passing task gate is reused while the working tree is unchanged — the agent's exit check is not run twice", async () => {
@@ -119,18 +120,61 @@ test("verification checks the build first: failing tests go to the fix loop with
   assert.equal(s.stages.verification.dispatches ?? 0, 0, "no reviewer was dispatched");
 });
 
-test("verification with a green build dispatches only the reviewer; gate-verify reuses the passing checks and adds role audits", async () => {
+const checksOff = (dir) => {
+  const file = join(dir, ".factory", "factory.config.yaml");
+  const config = YAML.parse(readFileSync(file, "utf8"));
+  config.roles.frontend.checks_off = ["conventions", "duplicates", "raw-colours", "i18n"];
+  writeFileSync(file, YAML.stringify(config));
+};
+
+test("a failing unit test re-dispatches its owner and does not call the planner or lint", async () => {
+  const env = project("verification", { "TASK-001": { status: "done" }, "TASK-002": { status: "done" }, "TASK-003": { status: "done" } });
+  checksOff(env.dir);
+  const file = "src/entities/order/model/total.test.ts";
+  write(env.dir, file, 'test("total", () => {});\n');
+  env.fake("test", { code: 1, report: report({ [join(env.dir, file)]: [["total", "failed", "AssertionError: no"]] }) });
+  const r = await conductor.stepAsync(env.dir);
+  assert.equal(r.dispatches?.[0]?.phase, "repair", JSON.stringify(r).slice(0, 400));
+  assert.equal(r.dispatches[0].agent, "fe-test-author");
+  const s = featureState(env.featureDir);
+  assert.equal(s.stage, "verification");
+  assert.equal(s.fix_pending ?? null, null);
+  assert.deepEqual(s.repair.files, [file]);
+  assert.equal(events(env.dir).some((e) => e.type === "repair" && e.backward === true), false);
+  const pack = readFileSync(join(env.dir, r.dispatches[0].pack), "utf8");
+  assert.match(pack, /test_related|tests related/);
+  assert.doesNotMatch(pack, /npm run lint|npm run typecheck/);
+});
+
+test("a core file an existing task owns reopens that task and runs related tests, not a fix plan", async () => {
+  const env = project("verification", { "TASK-001": { status: "done" }, "TASK-002": { status: "done" }, "TASK-003": { status: "done" } });
+  checksOff(env.dir);
+  const file = "src/entities/order/model/total.ts";
+  write(env.dir, file, "export const total = (lines) => lines.reduce((n, l) => n + l.amount, 0);\n");
+  env.fake("test", { code: 1, report: report({ [join(env.dir, file)]: [["total", "failed", "AssertionError: no"]] }) });
+  const r = await conductor.stepAsync(env.dir);
+  assert.notEqual(r.dispatches?.[0]?.phase, "fixplan", JSON.stringify(r).slice(0, 400));
+  const s = featureState(env.featureDir);
+  assert.equal(s.stage, "implementation");
+  assert.equal(s.fix_pending ?? null, null);
+  assert.deepEqual(s.tasks["TASK-002"].fix_paths, [file]);
+  assert.equal(s.tasks["TASK-002"].status, "pending");
+  assert.equal(events(env.dir).some((e) => e.type === "repair" && e.planner === false && e.backward === true), true);
+});
+
+test("a raw colour dispatches the builder on the execution model and does not call the planner", async () => {
   const env = project("verification", { "TASK-001": { status: "done" }, "TASK-002": { status: "done" }, "TASK-003": { status: "done" } });
   write(env.dir, "src/features/apply-coupon/ui/coupon-field.tsx", 'export const C = () => <i style={{ color: "rgb(1,2,3)" }} />;\n');
   env.fake("test", { code: 0, report: report({}) });
   const s = await conductor.stepAsync(env.dir);
-  assert.deepEqual(s.dispatches.map((d) => d.agent), ["reviewer"]);
-  const runs = env.calls().filter((x) => x.startsWith("test")).length;
+  assert.equal(s.dispatches?.[0]?.phase, "style_fix", "a raw colour is a style-pass failure, fixed by the builder before any reviewer");
+  assert.equal(s.dispatches[0].agent, "fe-builder");
+  assert.equal(s.dispatches[0].model, "sonnet");
   const r = await conductor.record(env.dir, { dispatchId: s.dispatches[0].id, envelopeText: envelope(s.dispatches[0].id) });
-  assert.equal(r.verdict, "advance", JSON.stringify(r.gate));
-  assert.equal(env.calls().filter((x) => x.startsWith("test")).length, runs, "the precheck's passing run was reused");
-  const review = readFileSync(join(env.featureDir, "06-verify", "review.md"), "utf8");
-  assert.match(review, /\(audit, frontend:raw-colours\) `src\/features\/apply-coupon\/ui\/coupon-field\.tsx:1`/);
+  const st = featureState(env.featureDir);
+  assert.equal(r.verdict, "retry");
+  assert.equal(st.stage, "verification");
+  assert.equal(st.fix_pending ?? null, null, "a style failure does not start a fix plan");
 });
 
 test("record --saved takes the envelope the stop hook kept; the last record of a batch returns the next step", () => {
@@ -224,7 +268,7 @@ test("two records at once: only the one that empties the batch hands back the ne
   assert.equal(featureState(featureDir).pending.length, 1, "the next stage was dispatched once");
 });
 
-test("the migrations audit finds an unplanned destructive migration; an envelope is never saved under Cursor's union", () => {
+test("the migrations audit finds an unplanned destructive migration; Cursor's union saves the envelope when pack_id matches one dispatch", () => {
   const dir = mkdtempSync(join(tmpdir(), "factory-mig-audit-"));
   write(dir, "drizzle/0007_drop.sql", "ALTER TABLE users DROP COLUMN email;\n");
   const r = spawnSync(process.execPath, [join(V2("factory-role-backend"), "scripts", "check-migrations.mjs"), "--project", dir, "--findings", "--files", "drizzle/0007_drop.sql"], { encoding: "utf8" });
@@ -232,6 +276,16 @@ test("the migrations audit finds an unplanned destructive migration; an envelope
   assert.equal(r.status, 0);
   assert.ok(findings.length >= 3 && findings.every((f) => f.severity === "P1" && f.file === "drizzle/0007_drop.sql"), r.stdout);
   assert.ok(findings.some((f) => f.line === 1 && /destructive/.test(f.claim)));
+  mkdirSync(join(dir, ".factory", ".active"), { recursive: true });
   const actives = [{ id: "FEAT-001/x/a/a1", agent: "a", subagent_type: "p:a" }];
-  assert.equal(saveEnvelope(dir, { agent_type: "*", last_assistant_message: envelope("FEAT-001/x/a/a1") }, actives, 200), null);
+  const why = [];
+  const saved = saveEnvelope(dir, { agent_type: "*", last_assistant_message: envelope("FEAT-001/x/a/a1") }, actives, 200, why);
+  assert.match(saved ?? "", /\.envelope\.json$/, why.join("; "));
+  const none = [];
+  assert.equal(saveEnvelope(dir, { agent_type: "*", last_assistant_message: envelope("FEAT-009/missing/a/a1") }, actives, 200, none), null);
+  assert.match(none.join(" "), /matches no active dispatch/);
+  const two = [];
+  const twins = [...actives, { id: "FEAT-001/x/a/a1", agent: "b", subagent_type: "p:b" }];
+  assert.equal(saveEnvelope(dir, { agent_type: "*", last_assistant_message: envelope("FEAT-001/x/a/a1") }, twins, 200, two), null);
+  assert.match(two.join(" "), /matches 2 active dispatches/);
 });

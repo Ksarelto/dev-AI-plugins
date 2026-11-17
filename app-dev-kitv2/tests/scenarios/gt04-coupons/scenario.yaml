@@ -14,7 +14,7 @@ config:
 expect:
   final_action: done
   final_status: done
-  build_dispatches: 4   # TASK-002 twice (one retry), TASK-003 and TASK-004 once: never a red dispatch plus a green one
+  build_dispatches: 3   # TASK-002, TASK-003 and TASK-004 once: a lint nit is not a slice retry; the style pass owns it
   dispatches_max: 35
   gates: [CLARIFY, GATE-D, GATE-A, GATE-B, GATE-C]
   verdicts:
@@ -29,8 +29,7 @@ expect:
     - { stage: planning, verdict: advance }
     - { stage: acceptance, verdict: advance }
     - { stage: implementation, task: TASK-001, verdict: advance }   # characterisation: the test author, once
-    - { stage: implementation, task: TASK-002, verdict: retry }     # one build dispatch each: red tests, gate red, code
-    - { stage: implementation, task: TASK-002, verdict: advance }
+    - { stage: implementation, task: TASK-002, verdict: advance }   # slice gate is related tests and the architecture check
     - { stage: implementation, task: TASK-003, verdict: advance }
     - { stage: implementation, verdict: fixplan }   # the precheck finds the failing acceptance tests: no review round
     - { stage: implementation, task: TASK-004, verdict: advance }

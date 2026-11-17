@@ -51,15 +51,12 @@ feature: FEAT-001
 charters:
   - id: CH-1
     mission: "Explore the coupon field with input and boundary values to find wrong discounts"
-    timebox_min: 8
     result: defects              # passed | defects | blocked
   - id: CH-2
     mission: "Explore checkout with keyboard only and at 320/768/1024/1440 px to find unreachable controls"
-    timebox_min: 6
     result: passed
   - id: CH-3
     mission: "Explore applying a coupon while the API is down to find missing error states"
-    timebox_min: 6
     result: blocked              # say why in the report: the API needs Postgres, Docker was not running
 defects:
   - id: DEF-001

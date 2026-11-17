@@ -10,6 +10,17 @@ import { enabledStacks, featureAcceptance, runTests } from "../lib/testrun.mjs";
 import { inPool, resolveStack, runStackCommandAsync } from "../lib/stackexec.mjs";
 import { isWaived, readWaivers } from "../lib/waivers.mjs";
 
+const PATH_IN_LINE = /([A-Za-z0-9_@./-]+\.[cm]?[jt]sx?)(?::\d+|\(\d+|,|\s|$)/;
+
+function filesIn(text) {
+  const found = [];
+  for (const line of String(text ?? "").split("\n")) {
+    const m = PATH_IN_LINE.exec(line.trim());
+    if (m) found.push(m[1].replace(/^\.\//, ""));
+  }
+  return [...new Set(found)];
+}
+
 export const inputs = ["acceptance-tests", "acceptance-waiver", "change-set"];
 export const cacheable = "tree"; // a passing run is reused while the working tree is unchanged
 
@@ -30,7 +41,13 @@ export async function run(ctx) {
     async () => (stack.stack.commands?.test_integration && ctx.config.quality?.integration_tests !== "skip" ? integrationFailures(stack, await runStackCommandAsync(stack, "test_integration", { logName: label(stack, "integration"), timeoutMs: 20 * 60_000 })) : { failures: [] }),
     ...["typecheck", "lint", "build"].map((name) => async () => {
       const r = await runStackCommandAsync(stack, name, { logName: label(stack, name) });
-      return { failures: !r.ok && !r.skipped ? [{ check: name, rule: `${name}-failed`, fix: true, message: `${stack.role}: ${r.tail || `${name} exited with ${r.code}`}` }] : [] };
+      if (r.ok || r.skipped) return { failures: [] };
+      const line = `${stack.role}: ${firstLine(r.tail) || `${name} exited with ${r.code}`}`;
+      const log = r.log ? r.log : undefined;
+      if (name === "build") return { failures: [{ check: name, rule: `${name}-failed`, fix: true, ...(log ? { log } : {}), message: line }] };
+      const paths = filesIn(r.tail);
+      if (!paths.length) return { failures: [{ check: name, rule: `${name}-failed`, fix: true, ...(log ? { log } : {}), message: line }] };
+      return { failures: paths.slice(0, 30).map((file) => ({ check: name, rule: `${name}-failed`, fix: true, file, ...(log ? { log } : {}), message: line })) };
     }),
     ...verifyChecks(ctx, stack).map((check) => () => roleSuite(ctx, stack, check, label(stack, check.name))),
   ]);
@@ -49,7 +66,7 @@ export async function run(ctx) {
  */
 function testFailures(ctx, stack, { run, report }, { acceptance, own, waivers = [] }) {
   // A test run that crashed (bad config, broken global setup) is a code problem; no output at all is not.
-  if (!report) return { failures: [{ check: "test", rule: "no-report", fix: run.code !== 0 && Boolean(run.tail), message: `${stack.role}: the test command wrote no report (exit ${run.code}):\n${run.tail}` }] };
+  if (!report) return { failures: [{ check: "test", rule: "no-report", fix: run.code !== 0 && Boolean(run.tail), ...(run.log ? { log: run.log } : {}), message: `${stack.role}: the test command wrote no report (exit ${run.code}): ${firstLine(run.tail)}` }] };
   const failures = [];
   for (const f of report.files) {
     const kind = acceptance.includes(f.file) ? "acceptance" : "test";
@@ -69,8 +86,8 @@ function testFailures(ctx, stack, { run, report }, { acceptance, own, waivers = 
 function integrationFailures(stack, it) {
   if (it.ok) return { failures: [] };
   const noRuntime = /container runtime|docker (daemon|socket)|Cannot connect to the Docker|testcontainers/i.test(it.tail ?? "");
-  if (noRuntime) return { failures: [{ check: "integration", rule: "integration-not-run", message: `${stack.role}: integration tests need a container runtime (start Docker), or set quality.integration_tests: skip where they cannot run:\n${it.tail}` }] };
-  return { failures: [{ check: "integration", rule: "integration-failing", fix: true, message: `${stack.role}: integration tests fail:\n${it.tail}` }] };
+  if (noRuntime) return { failures: [{ check: "integration", rule: "integration-not-run", ...(it.log ? { log: it.log } : {}), message: `${stack.role}: integration tests need a container runtime (start Docker), or set quality.integration_tests: skip where they cannot run: ${firstLine(it.tail)}` }] };
+  return { failures: [{ check: "integration", rule: "integration-failing", fix: true, ...(it.log ? { log: it.log } : {}), message: `${stack.role}: integration tests fail (exit ${it.code}): ${firstLine(it.tail)}` }] };
 }
 
 /** The role's report-writing checks marked at_verify (the eval suite): run whole, once, here. */
@@ -83,7 +100,7 @@ async function roleSuite(ctx, stack, check, label) {
   const reportFile = freshReport(join(ctx.paths.logs, `${label}-report.json`));
   const r = await runStackCommandAsync(stack, check.command, { vars: { report: reportFile, files: [] }, logName: label });
   const report = readVitestReport(reportFile, ctx.projectDir);
-  if (!report) return { failures: [{ check: check.name, rule: "no-report", message: `${stack.role}: ${check.name} wrote no report (exit ${r.code}):\n${r.tail}` }] };
+  if (!report) return { failures: [{ check: check.name, rule: "no-report", ...(r.log ? { log: r.log } : {}), message: `${stack.role}: ${check.name} wrote no report (exit ${r.code}): ${firstLine(r.tail)}` }] };
   const failures = [];
   for (const f of report.files) {
     for (const t of f.tests.filter((x) => x.status === "failed")) failures.push({ check: check.name, rule: `${check.name}-failing`, fix: true, file: f.file, message: `"${t.name}": ${firstLine(t.message)}` });

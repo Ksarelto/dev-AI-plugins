@@ -2,7 +2,8 @@
 // Flag a changed function body that already exists in shared/ or in another slice, and a feature file
 // that draws a raw input, button, or table (ported from app-dev-kit feature-dev-kit scan-duplicates.mjs).
 //
-// Factory use (role.yaml): gates.checks — --project <role folder> --task-type t --notes … --files <task files…>
+// Factory use (role.yaml): gates.checks shape (impl.mjs skips this name; the style pass uses --findings) —
+// --project <role folder> --task-type t --notes … --files <task files…>
 // (exit 1 with one problem per line); gates.audits — --findings <files…> (JSON review findings, exit 0).
 // Standalone: node fe-duplicates.mjs [--root <dir>] [--base <ref>] [--all] [--files a,b] | --self-check
 // Exit: 0 clean · 1 findings · 2 usage.

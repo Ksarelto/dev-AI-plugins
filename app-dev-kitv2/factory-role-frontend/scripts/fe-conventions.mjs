@@ -5,10 +5,11 @@
 // this script only enforces the mechanically checkable subset.
 //
 // Factory use (role.yaml):
-//   gates.checks (gate-impl, one task): --project <role folder> --task-type <t> --notes <…> --files <task files…>
+//   gates.checks shape (impl.mjs skips this name; the style pass uses the audit below):
+//     --project <role folder> --task-type <t> --notes <…> --files <task files…>
 //     → problems one per line, exit 1 on any error; unused-export is not checked per task (a later task
 //       of the same feature may be the importer), it runs at verification.
-//   gates.audits (verification, the change set): --findings <files…> → JSON review findings, exit 0.
+//   gates.audits (style pass before verification, the change set): --findings <files…> → JSON review findings, exit 0.
 // Standalone: check-conventions.mjs [--root <dir>] [--base <ref>] [--all] [--files a,b] [--ignore r1,r2] [--json]
 //   --root   app root holding package.json and src/ (default: cwd)
 //   --base   also include files changed on the branch since <ref> (merge-base diff)

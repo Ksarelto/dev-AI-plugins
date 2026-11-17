@@ -82,7 +82,7 @@ function qualitySetup(stages) {
   const dir = makeProject(
     [
       PACKS,
-      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
+      `roles: { frontend: { enabled: true, pack: factory-role-frontend, stack: frontend-dev-kit, owns_paths: ["src/**"], stack_overrides: { commands: { typecheck: [node, "${FAKE}", typecheck], lint: [node, "${FAKE}", lint], lint_fix: [node, "${FAKE}", lint_fix, "{files}"], architecture_check: [node, "${FAKE}", arch], build: [node, "${FAKE}", build], test: [node, "${FAKE}", test, "{report}"] } } } }`,
       `pipeline: { profiles: { test: [planning, implementation, ${stages.join(", ")}] }, stages: { planning: { pack: factory-analysis } } }`,
     ].join("\n"),
   );

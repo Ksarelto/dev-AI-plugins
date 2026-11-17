@@ -443,10 +443,7 @@ export function addTokens(project, input, actives, message = finalMessage(input)
  * `why` collects the reason when nothing is saved (the hook logs it).
  */
 export function saveEnvelope(project, input, actives, maxWords, why = [], message = finalMessage(input)) {
-  // Cursor's union ("*") cannot tell which dispatch is speaking: an envelope could claim another's pack_id.
-  if (input.agent_type === "*") return why.push("agent type unknown (Cursor union)"), null;
   const candidates = dispatchesFor(input, actives);
-  if (!candidates.length) return why.push(`no active dispatch matches agent_type "${input.agent_type ?? ""}" (active: ${actives.map((d) => d.subagent_type).join(", ") || "none"})`), null;
   if (!message.trim()) return why.push("no last_assistant_message and no readable transcript"), null;
   let envelope;
   try {
@@ -454,7 +451,14 @@ export function saveEnvelope(project, input, actives, maxWords, why = [], messag
   } catch (error) {
     return why.push(`reply has no JSON envelope (${error.message})`), null;
   }
-  const d = candidates.find((x) => x.id === envelope?.pack_id);
+  // Cursor reports agent_type "*" for every subagent. The envelope's pack_id picks the dispatch, and only when exactly one active dispatch has that id.
+  const matches = candidates.filter((x) => x.id === envelope?.pack_id);
+  if (input.agent_type === "*") {
+    if (matches.length !== 1) return why.push(matches.length ? `pack_id "${envelope?.pack_id}" matches ${matches.length} active dispatches` : `pack_id "${envelope?.pack_id ?? ""}" matches no active dispatch`), null;
+  } else if (!candidates.length) {
+    return why.push(`no active dispatch matches agent_type "${input.agent_type ?? ""}" (active: ${actives.map((d) => d.subagent_type).join(", ") || "none"})`), null;
+  }
+  const d = input.agent_type === "*" ? matches[0] : matches[0] ?? null;
   if (!d) return why.push(`envelope pack_id "${envelope?.pack_id}" is not one of ${candidates.map((x) => x.id).join(", ")}`), null;
   const errors = checkEnvelope(envelope, { packId: d.id, maxWords });
   if (errors.length) return why.push(`envelope invalid: ${errors.join("; ")}`), null;

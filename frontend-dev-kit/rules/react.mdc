@@ -24,7 +24,7 @@ alwaysApply: false
 
 ## Boundaries and splitting
 - Every route element and every feature's public entry component renders inside `ErrorBoundary` (`@/shared/ui/error-boundary`) with `resetKeys`. Hooks live in the child the boundary wraps, never above it. Async and event-handler errors use `try/catch` plus `notify.error()`.
-- `lazy()` every route. Inline JSX blocks over ~20 lines become a nested component in `{component}/ui/{child}/` (`rules/component-structure.mdc`), not a second component in the same file.
+- Code-split every route with `lazyFeature()` from `shared/lib/lazyFeature.ts`. Do not call bare `React.lazy()`. Inline JSX blocks over ~20 lines become a nested component in `{component}/ui/{child}/` (`rules/component-structure.mdc`), not a second component in the same file.
 
 ## JSX
 - More than one prop: one prop per line, closing `/>` or `>` on its own line. Element content starts on its own line, not inline with the tags.

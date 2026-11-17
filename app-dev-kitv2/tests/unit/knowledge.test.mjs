@@ -78,7 +78,7 @@ test("a task pack lists its stack skills, reads its rules, carries the golden fi
   const d = conductor.step(env.dir).dispatches[0];
   assert.equal(d.task, "TASK-002");
   const pack = readFileSync(join(env.dir, d.pack), "utf8");
-  assert.match(pack, /Stack skills \(load each with the Skill tool[^)]*\): frontend-dev-kit:testing, frontend-dev-kit:api-client, frontend-dev-kit:react-query-hook/);
+  assert.match(pack, /Stack skills \(these are the procedure: follow their steps[\s\S]*?\): frontend-dev-kit:testing, frontend-dev-kit:api-client, frontend-dev-kit:react-query-hook/);
   assert.match(pack, /Rule: \S+frontend-dev-kit\/rules\/api-contract\.mdc \[READ\]/);
   assert.match(pack, /Golden files \(match these\):\n {2}- \S+frontend-dev-kit\/skills\/api-client\/examples\.md/);
   assert.doesNotMatch(pack, /Procedure:/, "the old bare skill line is gone");
@@ -87,7 +87,7 @@ test("a task pack lists its stack skills, reads its rules, carries the golden fi
   assert.ok(front(pack).listed_reads >= rules + 1, "rules and golden files do not use up the T4 allowance");
 });
 
-test("a stage pack gives the reviewer its stack skills and rules as reference, never as its procedure", async () => {
+test("a stage pack gives the reviewer its stack skills as the procedure", async () => {
   const V2 = (p) => join(ROOT, "app-dev-kitv2", p);
   const dir = makeProject(
     [
@@ -103,6 +103,6 @@ test("a stage pack gives the reviewer its stack skills and rules as reference, n
   const d = (r.dispatches ?? []).find((x) => x.agent === "reviewer");
   assert.ok(d, JSON.stringify(r));
   const pack = readFileSync(join(dir, d.pack), "utf8");
-  assert.match(pack, /Stack knowledge for frontend \(frontend-dev-kit\)[^\n]*keep to your own procedure[^\n]*frontend-dev-kit:code-review, frontend-dev-kit:accessibility/);
+  assert.match(pack, /Stack skills for frontend \(frontend-dev-kit\) — the procedure, follow their steps[\s\S]*frontend-dev-kit:code-review, frontend-dev-kit:accessibility, frontend-dev-kit:architecture-audit/);
   assert.match(pack, /- \S+frontend-dev-kit\/rules\/styling\.mdc/);
 });
